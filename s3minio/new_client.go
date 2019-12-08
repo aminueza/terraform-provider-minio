@@ -1,4 +1,4 @@
-package mconfig
+package s3minio
 
 import (
 	"log"

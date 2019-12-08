@@ -1,10 +1,10 @@
-package pconfig
+package s3minio
 
 import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 
-	minioConfig "github.com/aminueza/terraform-minio-provider/mconfig"
+	minioConfig "github.com/aminueza/terraform-minio-provider/s3minio"
 )
 
 //Provider creates a new provider

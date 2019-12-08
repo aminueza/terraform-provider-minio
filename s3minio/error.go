@@ -1,4 +1,4 @@
-package pactions
+package s3minio
 
 import "fmt"
 

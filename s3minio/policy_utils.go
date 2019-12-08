@@ -1,4 +1,4 @@
-package pactions
+package s3minio
 
 import "github.com/minio/minio-go/pkg/set"
 

@@ -1,4 +1,4 @@
-package pactions
+package s3minio
 
 import (
 	"fmt"
@@ -13,6 +13,9 @@ func resourceMinioBucket() *schema.Resource {
 		Read:   minioReadBucket,
 		Update: minioUpdateBucket,
 		Delete: minioDeleteBucket,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"name": {

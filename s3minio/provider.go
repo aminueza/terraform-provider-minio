@@ -3,8 +3,6 @@ package s3minio
 import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-
-	minioConfig "github.com/aminueza/terraform-minio-provider/s3minio"
 )
 
 //Provider creates a new provider
@@ -54,8 +52,8 @@ func Provider() terraform.ResourceProvider {
 
 		ResourcesMap: map[string]*schema.Resource{
 			"minio_bucket": resourceMinioBucket(),
-			"minio_object": resourceMinioObject(),
-			"minio_file":   resourceMinioFile(),
+			// "minio_object": resourceMinioObject(),
+			// "minio_file":   resourceMinioFile(),
 		},
 
 		ConfigureFunc: providerConfigure,
@@ -63,6 +61,6 @@ func Provider() terraform.ResourceProvider {
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	minioConfig.NewConfig(d)
+	minioConfig := NewConfig(d)
 	return minioConfig.NewClient()
 }

@@ -1,4 +1,4 @@
-provider "minio" {
+provider "s3minio" {
   minio_server = var.minio_server
   minio_region = var.minio_region
   minio_access_key = var.minio_access_key

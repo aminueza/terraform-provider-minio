@@ -1,7 +1,7 @@
 provider "minio" {
-  minio_server = "localhost:9000"
-  minio_region = "us-east-1"
-  minio_access_key = "minio"
-  minio_secret_key = "minio123"
+  minio_server = var.minio_server
+  minio_region = var.minio_region
+  minio_access_key = var.minio_access_key
+  minio_secret_key = var.minio_secret_key
 }
 

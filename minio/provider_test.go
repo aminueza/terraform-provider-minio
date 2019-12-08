@@ -1,4 +1,4 @@
-package s3minio
+package minio
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ var testAccProvider *schema.Provider
 func init() {
 	testAccProvider = Provider().(*schema.Provider)
 	testAccProviders = map[string]terraform.ResourceProvider{
-		"s3minio": testAccProvider,
+		"minio": testAccProvider,
 	}
 }
 

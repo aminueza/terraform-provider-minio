@@ -1,4 +1,4 @@
-package s3minio
+package minio
 
 import (
 	"log"

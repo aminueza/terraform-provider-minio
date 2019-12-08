@@ -1,4 +1,4 @@
-package s3minio
+package minio
 
 import (
 	"github.com/hashicorp/terraform/helper/schema"
@@ -12,8 +12,8 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *MinioBucket {
 		MinioClient: m.S3Client,
 		MinioRegion: m.S3Region,
 		MinioAccess: m.S3UserAccess,
-		MinioBucket: d.Get("name").(string),
-		MinioDebug:  d.Get("debug_mode").(string),
+		MinioBucket: d.Get("bucket").(string),
+		MinioDebug:  d.Get("debug").(bool),
 		MinioACL:    d.Get("acl").(string),
 	}
 }
@@ -26,7 +26,7 @@ func NewConfig(d *schema.ResourceData) *MinioConfig {
 		S3UserAccess:   d.Get("minio_access_key").(string),
 		S3UserSecret:   d.Get("minio_secret_key").(string),
 		S3APISignature: d.Get("minio_api_version").(string),
-		S3SSL:          d.Get("minio_ssl").(string),
-		S3Debug:        d.Get("minio_debug").(string),
+		S3SSL:          d.Get("minio_ssl").(bool),
+		S3Debug:        d.Get("minio_debug").(bool),
 	}
 }

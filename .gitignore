@@ -1,5 +1,6 @@
 #  Local .terraform directories
 **/.terraform/*
+terraform-provider-*
 
 # .tfstate files
 *.tfstate
@@ -7,6 +8,7 @@
 
 # .tfvars files
 *.tfvars
+*.log
 
 # .DS_Store file
 .DS_Store 

@@ -1,4 +1,4 @@
-package s3minio
+package minio
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ func resourceMinioBucket() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
-			"name": {
+			"bucket": {
 				Type:     schema.TypeString,
 				Required: true,
 			},
@@ -26,7 +26,7 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"debug_mode": {
+			"debug": {
 				Type:     schema.TypeBool,
 				Optional: true,
 				Default:  false,
@@ -38,7 +38,7 @@ func resourceMinioBucket() *schema.Resource {
 func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 
 	bucketConfig := BucketConfig(d, meta)
-	debubBool := ParseString(bucketConfig.MinioDebug)
+	debubBool := bucketConfig.MinioDebug
 
 	if debubBool {
 		log.Printf("[DEBUG] Creating bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
@@ -49,11 +49,11 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
 		return NewBucketError("Unable to create bucket", bucketConfig.MinioBucket)
 	}
-	errACL := aclBucket(bucketConfig)
-	if errACL != nil {
-		log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
-		return NewBucketError("[ACL] Unable to create bucket", bucketConfig.MinioBucket)
-	}
+	// errACL := aclBucket(bucketConfig)
+	// if errACL != nil {
+	// 	log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
+	// 	return NewBucketError("[ACL] Unable to create bucket", bucketConfig.MinioBucket)
+	// }
 
 	if debubBool {
 		log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
@@ -63,7 +63,7 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 
 func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 	bucketConfig := BucketConfig(d, meta)
-	debubBool := ParseString(bucketConfig.MinioDebug)
+	debubBool := bucketConfig.MinioDebug
 
 	if debubBool {
 		log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
@@ -83,17 +83,17 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 
 func minioUpdateBucket(d *schema.ResourceData, meta interface{}) error {
 	bucketConfig := BucketConfig(d, meta)
-	debubBool := ParseString(bucketConfig.MinioDebug)
+	debubBool := bucketConfig.MinioDebug
 	if debubBool {
 		log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 	}
 
-	errACL := aclBucket(bucketConfig)
-	if errACL != nil {
-		log.Printf("%s", NewBucketError("Unable to update bucket", bucketConfig.MinioBucket))
-		return NewBucketError("[ACL] Unable to update bucket", bucketConfig.MinioBucket)
-	}
+	// errACL := aclBucket(bucketConfig)
+	// if errACL != nil {
+	// 	log.Printf("%s", NewBucketError("Unable to update bucket", bucketConfig.MinioBucket))
+	// 	return NewBucketError("[ACL] Unable to update bucket", bucketConfig.MinioBucket)
+	// }
 
 	if debubBool {
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
@@ -103,7 +103,7 @@ func minioUpdateBucket(d *schema.ResourceData, meta interface{}) error {
 
 func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 	bucketConfig := BucketConfig(d, meta)
-	debubBool := ParseString(bucketConfig.MinioDebug)
+	debubBool := bucketConfig.MinioDebug
 	if debubBool {
 		log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 	}

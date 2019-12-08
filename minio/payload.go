@@ -1,4 +1,4 @@
-package s3minio
+package minio
 
 import (
 	"github.com/minio/minio-go"
@@ -12,8 +12,8 @@ type MinioConfig struct {
 	S3UserSecret   string
 	S3Region       string
 	S3APISignature string
-	S3SSL          string
-	S3Debug        string
+	S3SSL          bool
+	S3Debug        bool
 }
 
 //S3MinioClient defines default minio
@@ -28,7 +28,7 @@ type MinioBucket struct {
 	MinioClient *minio.Client
 	MinioRegion string
 	MinioBucket string
-	MinioDebug  string
+	MinioDebug  bool
 	MinioACL    string
 	MinioAccess string
 }

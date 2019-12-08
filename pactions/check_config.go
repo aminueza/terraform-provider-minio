@@ -1,7 +1,7 @@
 package pactions
 
 import (
-	minioConfig "../mconfig"
+	minioConfig "github.com/aminueza/terraform-minio-provider/mconfig"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 

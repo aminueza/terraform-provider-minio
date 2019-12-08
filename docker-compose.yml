@@ -1,0 +1,13 @@
+version: '3.7'
+services:
+  minio:
+    image: minio/minio
+    hostname: minio
+    container_name: minio
+    ports:
+      - "9000:9000"
+    environment:
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_HTTP_TRACE: /dev/stdout
+    command: server /data

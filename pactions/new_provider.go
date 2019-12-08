@@ -4,9 +4,10 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
 
-	minioConfig "../mconfig"
+	minioConfig "github.com/aminueza/terraform-minio-provider/mconfig"
 )
 
+//Provider creates a new provider
 func Provider() terraform.ResourceProvider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{

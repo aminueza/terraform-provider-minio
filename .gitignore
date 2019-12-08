@@ -1,0 +1,17 @@
+#  Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# .tfvars files
+*.tfvars
+
+# .DS_Store file
+.DS_Store 
+
+#go packages
+vendor/*
+.vscode
+.idea

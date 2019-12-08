@@ -1,3 +1,5 @@
+[![Open Source Helpers](https://www.codetriage.com/aminueza/terraform-minio-provider/badges/users.svg)](https://www.codetriage.com/aminueza/terraform-minio-provider)
+
 <!-- PROJECT LOGO -->
 <p align="center">
   <a href="https://github.com/aminueza/terraform-minio-provider">

@@ -1,3 +1,4 @@
+GOPATH=/go
 VERSION=1.0
 
 # helper to run go from project root

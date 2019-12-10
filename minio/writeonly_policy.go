@@ -6,8 +6,8 @@ import (
 	"github.com/minio/minio-go/v6/pkg/set"
 )
 
-//ReadWritePolicy returns readonly policy
-func ReadWritePolicy(bucket *MinioBucket) BucketPolicy {
+//WriteOnlyPolicy returns writeonly policy
+func WriteOnlyPolicy(bucket *MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []Stmt{
@@ -16,14 +16,14 @@ func ReadWritePolicy(bucket *MinioBucket) BucketPolicy {
 				Effect:    "Allow",
 				Principal: "*",
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket)}...),
-				Sid:       "ListObjectsInBucket",
+				Sid:       "ListBucketAction",
 			},
 			{
-				Actions:   uploadObjectActions,
+				Actions:   writeOnlyObjectActions,
 				Effect:    "Allow",
 				Principal: "*",
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
-				Sid:       "UploadObjectActions",
+				Sid:       "AllObjectActionsMyBuckets",
 			},
 		},
 	}

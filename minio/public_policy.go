@@ -3,7 +3,7 @@ package minio
 import (
 	"fmt"
 
-	"github.com/minio/minio-go/pkg/set"
+	"github.com/minio/minio-go/v6/pkg/set"
 )
 
 //PublicPolicy returns readonly policy

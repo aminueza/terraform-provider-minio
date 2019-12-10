@@ -1,8 +1,9 @@
 package minio
 
 import (
-	"github.com/minio/minio-go"
-	"github.com/minio/minio-go/pkg/set"
+	madmin "github.com/aminueza/terraform-minio-provider/madmin"
+	minio "github.com/minio/minio-go/v6"
+	"github.com/minio/minio-go/v6/pkg/set"
 )
 
 //MinioConfig defines variable for minio
@@ -21,11 +22,13 @@ type S3MinioClient struct {
 	S3UserAccess string
 	S3Region     string
 	S3Client     *minio.Client
+	S3Admin      *madmin.AdminClient
 }
 
 //MinioBucket defines minio config
 type MinioBucket struct {
 	MinioClient *minio.Client
+	MinioAdmin  *madmin.AdminClient
 	MinioRegion string
 	MinioBucket string
 	MinioDebug  bool
@@ -84,6 +87,9 @@ var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 // Write object actions.
 var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 
+// Write object acl.
+var uploadObjectACL= set.CreateStringSet("s3:PutObjectAcl")
+
 // Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
@@ -98,3 +104,5 @@ var readListObjectActions = readOnlyBucketActions.Union(commonBucketActions)
 var readListMultObjectActions = readListObjectActions.Union(writeOnlyBucketActions)
 
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
+
+var uploadMyObjectActions = uploadObjectActions.Union(uploadObjectACL)

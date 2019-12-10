@@ -10,6 +10,7 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *MinioBucket {
 
 	return &MinioBucket{
 		MinioClient: m.S3Client,
+		MinioAdmin:  m.S3Admin,
 		MinioRegion: m.S3Region,
 		MinioAccess: m.S3UserAccess,
 		MinioBucket: d.Get("bucket").(string),

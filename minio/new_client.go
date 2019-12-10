@@ -3,13 +3,15 @@ package minio
 import (
 	"log"
 
-	"github.com/minio/minio-go"
+	madmin "github.com/aminueza/terraform-minio-provider/madmin"
+	minio "github.com/minio/minio-go/v6"
 )
 
 //NewClient returns a new minio client
 func (config *MinioConfig) NewClient() (interface{}, error) {
 
 	minioClient := new(minio.Client)
+	// minioAdmin := new(madmin.AdminClient)
 
 	var err error
 	if config.S3APISignature == "v2" {
@@ -19,6 +21,7 @@ func (config *MinioConfig) NewClient() (interface{}, error) {
 	} else {
 		minioClient, err = minio.New(config.S3HostPort, config.S3UserAccess, config.S3UserSecret, config.S3SSL)
 	}
+	minioAdmin, _ := madmin.New(config.S3HostPort, config.S3UserAccess, config.S3UserSecret, config.S3SSL)
 	if err != nil {
 		log.Println("[FATAL] Error connecting to S3 server.")
 		return nil, err
@@ -32,6 +35,7 @@ func (config *MinioConfig) NewClient() (interface{}, error) {
 		S3UserAccess: config.S3UserAccess,
 		S3Region:     config.S3Region,
 		S3Client:     minioClient,
+		S3Admin:      minioAdmin,
 	}, nil
 
 }

@@ -1,7 +1,7 @@
 package main
 
 import (
-	minio "./minio"
+	minio "github.com/aminueza/terraform-minio-provider/minio"
 	"github.com/hashicorp/terraform/plugin"
 )
 

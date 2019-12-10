@@ -11,3 +11,18 @@ services:
       MINIO_SECRET_KEY: minio123
       MINIO_HTTP_TRACE: /dev/stdout
     command: server /data
+  adminio-ui:
+    image: rzrbld/adminio-ui:latest
+    ports:
+      - "80:80"
+  adminio-api:
+    image: rzrbld/adminio-api:latest
+    environment:
+      MINIO_ACCESS: minio
+      MINIO_SECRET: minio123
+      MINIO_HOST_PORT: minio:9000
+    depends_on:
+      - minio
+      - adminio-ui
+    ports:
+      - "8080:8080"

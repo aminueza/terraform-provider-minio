@@ -5,18 +5,6 @@ import (
 	"net/http"
 )
 
-/* **** SAMPLE ERROR RESPONSE ****
-<?xml version="1.0" encoding="UTF-8"?>
-<Error>
-   <Code>AccessDenied</Code>
-   <Message>Access Denied</Message>
-   <BucketName>bucketName</BucketName>
-   <Key>objectName</Key>
-   <RequestId>F19772218238A85A</RequestId>
-   <HostId>GuWkjyviSiGHizehqpmsD1ndz5NClSP19DOT+s2mv7gXGQ8/X1lhbDGiIJEXpGFD</HostId>
-</Error>
-*/
-
 // ErrorResponse - Is the typed error returned by all API operations.
 type ErrorResponse struct {
 	XMLName    xml.Name `xml:"Error" json:"-"`
@@ -61,19 +49,6 @@ func httpRespToErrorResponse(resp *http.Response) error {
 	return errResp
 }
 
-// ToErrorResponse - Returns parsed ErrorResponse struct from body and
-// http headers.
-//
-// For example:
-//
-//   import admin "github.com/minio/minio/pkg/madmin"
-//   ...
-//   ...
-//   ss, err := adm.ServiceStatus(...)
-//   if err != nil {
-//      resp := admin.ToErrorResponse(err)
-//   }
-//   ...
 func ToErrorResponse(err error) ErrorResponse {
 	switch err := err.(type) {
 	case ErrorResponse:

@@ -38,7 +38,7 @@ func resourceMinioIAMUser() *schema.Resource {
 				Default:     false,
 				Description: "Disable user",
 			},
-			"update_key": {
+			"update_secret": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     false,

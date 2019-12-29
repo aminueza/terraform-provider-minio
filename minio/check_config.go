@@ -38,11 +38,11 @@ func IAMUserConfig(d *schema.ResourceData, meta interface{}) *MinioIAMUserConfig
 	m := meta.(*S3MinioClient)
 
 	return &MinioIAMUserConfig{
-		MinioAdmin:       m.S3Admin,
-		MinioS3AwsIam:    m.S3AwsIam,
-		MinioIAMName:     d.Get("name").(string),
-		MinioDisableUser: d.Get("disable_user").(bool),
-		MinioUpdateKey:   d.Get("update_key").(bool),
+		MinioAdmin:        m.S3Admin,
+		MinioS3AwsIam:     m.S3AwsIam,
+		MinioIAMName:      d.Get("name").(string),
+		MinioDisableUser:  d.Get("disable_user").(bool),
+		MinioUpdateKey:    d.Get("update_secret").(bool),
 		MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }

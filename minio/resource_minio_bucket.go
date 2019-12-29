@@ -2,8 +2,8 @@ package minio
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
+	"time"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/minio/minio-go/v6/pkg/s3utils"
@@ -61,6 +61,9 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
 		return NewBucketError("Unable to create bucket", bucketConfig.MinioBucket)
 	}
+
+	time.Sleep(10 * time.Second)
+
 	errACL := aclBucket(bucketConfig)
 	if errACL != nil {
 		log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
@@ -143,22 +146,22 @@ func aclBucket(bucketConfig *MinioBucket) error {
 
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
-	fmt.Print(policyExists)
+	log.Print(policyExists)
 
 	if !policyExists {
 		return NewBucketError("Unsuported ACL", bucketConfig.MinioACL)
 	}
 
-	if !findValuePolicies(bucketConfig) {
-		if err := bucketConfig.MinioAdmin.AddCannedPolicy(bucketConfig.MinioACL, string(policyString)); err != nil {
-			log.Printf("%s", NewBucketError("Unable to add policy", bucketConfig.MinioACL))
-			return NewBucketError("Unable to add policy", policyString)
-		}
-	}
+	// if !findValuePolicies(bucketConfig) {
+	// 	if err := bucketConfig.MinioAdmin.AddCannedPolicy(bucketConfig.MinioACL, string(policyString)); err != nil {
+	// 		log.Printf("%s", NewBucketError("Unable to add policy", bucketConfig.MinioACL))
+	// 		return NewBucketError("Unable to add policy", policyString)
+	// 	}
+	// }
 
-	if err := bucketConfig.MinioClient.SetBucketPolicy(bucketConfig.MinioBucket, bucketConfig.MinioACL); err != nil {
+	if err := bucketConfig.MinioClient.SetBucketPolicy(bucketConfig.MinioBucket, string(policyString)); err != nil {
 		log.Printf("%s", NewBucketError("Unable to set bucket policy", bucketConfig.MinioBucket))
-		return NewBucketError("Unable to set bucket policy", err.Error())
+		return NewBucketError("Unable to set bucket policy", string(policyString))
 	}
 
 	return nil

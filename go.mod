@@ -3,6 +3,7 @@ module github.com/aminueza/terraform-minio-provider
 go 1.13
 
 require (
+	github.com/aws/aws-sdk-go v1.25.3
 	github.com/go-ini/ini v1.51.0 // indirect
 	github.com/hashicorp/terraform v0.12.17
 	github.com/minio/minio v0.0.0-20191209145531-bf3a97d3aae3

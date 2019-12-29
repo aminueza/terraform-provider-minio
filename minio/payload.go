@@ -2,10 +2,12 @@ package minio
 
 import (
 	madmin "github.com/aminueza/terraform-minio-provider/madmin"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/s3"
 	minio "github.com/minio/minio-go/v6"
 	"github.com/minio/minio-go/v6/pkg/set"
 )
-
 //MinioConfig defines variable for minio
 type MinioConfig struct {
 	S3HostPort     string
@@ -15,6 +17,7 @@ type MinioConfig struct {
 	S3APISignature string
 	S3SSL          bool
 	S3Debug        bool
+	S3AWS          bool
 }
 
 //S3MinioClient defines default minio
@@ -23,6 +26,9 @@ type S3MinioClient struct {
 	S3Region     string
 	S3Client     *minio.Client
 	S3Admin      *madmin.AdminClient
+	S3Session    *session.Session
+	S3AwsClient  *s3.S3
+	S3AwsIam     *iam.IAM
 }
 
 //MinioBucket defines minio config
@@ -36,6 +42,16 @@ type MinioBucket struct {
 	MinioAccess string
 }
 
+type MinioIAMUserConfig struct {
+	MinioAdmin        *madmin.AdminClient
+	MinioS3AwsIam     *iam.IAM
+	MinioIAMName      string
+	MinioDisableUser  bool
+	MinioForceDestroy bool
+	MinioUpdateKey    bool
+	MinioIAMTags      map[string]string
+}
+
 // Error represents a basic error that implies the error interface.
 type Error struct {
 	Message string
@@ -46,7 +62,7 @@ type Stmt struct {
 	Actions    set.StringSet `json:"Action"`
 	Conditions ConditionMap  `json:"Condition,omitempty"`
 	Effect     string
-	Principal  string        `json:"Principal,omitempty"`
+	Principal  Princ         `json:"Principal,omitempty"`
 	Resources  set.StringSet `json:"Resource"`
 	Sid        string
 }
@@ -61,6 +77,13 @@ type Princ struct {
 type BucketPolicy struct {
 	Version    string `json:"Version"`
 	Statements []Stmt `json:"Statement"`
+}
+
+// UserStatus User status
+type UserStatus struct {
+	AccessKey string               `json:"accessKey,omitempty"`
+	SecretKey string               `json:"secretKey,omitempty"`
+	Status    madmin.AccountStatus `json:"status,omitempty"`
 }
 
 // Resource prefix for all aws resources.
@@ -88,7 +111,7 @@ var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 
 // Write object acl.
-var uploadObjectACL= set.CreateStringSet("s3:PutObjectAcl")
+var uploadObjectACL = set.CreateStringSet("s3:PutObjectAcl")
 
 // Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")

@@ -29,5 +29,20 @@ func NewConfig(d *schema.ResourceData) *MinioConfig {
 		S3APISignature: d.Get("minio_api_version").(string),
 		S3SSL:          d.Get("minio_ssl").(bool),
 		S3Debug:        d.Get("minio_debug").(bool),
+		S3AWS:          d.Get("minio_s3_aws").(bool),
+	}
+}
+
+//IAMUserConfig creates new user config
+func IAMUserConfig(d *schema.ResourceData, meta interface{}) *MinioIAMUserConfig {
+	m := meta.(*S3MinioClient)
+
+	return &MinioIAMUserConfig{
+		MinioAdmin:       m.S3Admin,
+		MinioS3AwsIam:    m.S3AwsIam,
+		MinioIAMName:     d.Get("name").(string),
+		MinioDisableUser: d.Get("disable_user").(bool),
+		MinioUpdateKey:   d.Get("update_key").(bool),
+		MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }

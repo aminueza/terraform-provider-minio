@@ -12,9 +12,11 @@ func PrivatePolicy(bucket *MinioBucket) BucketPolicy {
 		Version: "2012-10-17",
 		Statements: []Stmt{
 			{
-				Sid:       "DenyAllS3Actions",
-				Effect:    "Deny",
-				Principal: "*",
+				Sid:    "DenyAllS3Actions",
+				Effect: "Deny",
+				Principal: Princ{
+					AWS: set.CreateStringSet("*"),
+				},
 				Actions:   allBucketActions,
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},

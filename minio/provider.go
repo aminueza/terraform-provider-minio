@@ -48,12 +48,19 @@ func Provider() terraform.ResourceProvider {
 				Default:     false,
 				Description: "Minio debug mode (default: false)",
 			},
+			"minio_s3_aws": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     true,
+				Description: "Minio AWS API (default: true)",
+			},
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
 			"minio_bucket": resourceMinioBucket(),
 			// "minio_object": resourceMinioObject(),
 			// "minio_file":   resourceMinioFile(),
+			"minio_iam_user": resourceMinioIAMUser(),
 		},
 
 		ConfigureFunc: providerConfigure,

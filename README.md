@@ -11,7 +11,7 @@
   <p align="center">
     Provicer to manage Minio Servers
     <br />
-    <a href=""><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/aminueza/terraform-minio-provider/tree/master/docs"><strong>Explore the docs »</strong></a>
     <br />
     <br />
   </p>

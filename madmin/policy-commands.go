@@ -1,20 +1,3 @@
-/*
- * MinIO Cloud Storage, (C) 2018 MinIO, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
 package madmin
 
 import (
@@ -30,7 +13,7 @@ func (adm *AdminClient) InfoCannedPolicy(policyName string) ([]byte, error) {
 	queryValues.Set("name", policyName)
 
 	reqData := requestData{
-		relPath:     "/v2/info-canned-policy",
+		relPath:     adminAPIPrefix + "/info-canned-policy",
 		queryValues: queryValues,
 	}
 
@@ -52,7 +35,7 @@ func (adm *AdminClient) InfoCannedPolicy(policyName string) ([]byte, error) {
 // ListCannedPolicies - list all configured canned policies.
 func (adm *AdminClient) ListCannedPolicies() (map[string][]byte, error) {
 	reqData := requestData{
-		relPath: "/v2/list-canned-policies",
+		relPath: adminAPIPrefix + "/list-canned-policies",
 	}
 
 	// Execute GET on /minio/admin/v2/list-canned-policies
@@ -86,7 +69,7 @@ func (adm *AdminClient) RemoveCannedPolicy(policyName string) error {
 	queryValues.Set("name", policyName)
 
 	reqData := requestData{
-		relPath:     "/v2/remove-canned-policy",
+		relPath:     adminAPIPrefix + "/remove-canned-policy",
 		queryValues: queryValues,
 	}
 
@@ -111,7 +94,7 @@ func (adm *AdminClient) AddCannedPolicy(policyName, policy string) error {
 	queryValues.Set("name", policyName)
 
 	reqData := requestData{
-		relPath:     "/v2/add-canned-policy",
+		relPath:     adminAPIPrefix + "/add-canned-policy",
 		queryValues: queryValues,
 		content:     []byte(policy),
 	}
@@ -143,7 +126,7 @@ func (adm *AdminClient) SetPolicy(policyName, entityName string, isGroup bool) e
 	queryValues.Set("isGroup", groupStr)
 
 	reqData := requestData{
-		relPath:     "/v2/set-user-or-group-policy",
+		relPath:     adminAPIPrefix + "/set-user-or-group-policy",
 		queryValues: queryValues,
 	}
 

@@ -32,7 +32,7 @@ func (adm *AdminClient) RemoveUser(accessKey string) error {
 	queryValues.Set("accessKey", accessKey)
 
 	reqData := requestData{
-		relPath:     "/v1/remove-user",
+		relPath:     adminAPIPrefix + "/remove-user",
 		queryValues: queryValues,
 	}
 
@@ -54,7 +54,7 @@ func (adm *AdminClient) RemoveUser(accessKey string) error {
 // ListUsers - list all users.
 func (adm *AdminClient) ListUsers() (map[string]UserInfo, error) {
 	reqData := requestData{
-		relPath: "/v1/list-users",
+		relPath: adminAPIPrefix + "/list-users",
 	}
 
 	// Execute GET on /minio/admin/v2/list-users
@@ -88,7 +88,7 @@ func (adm *AdminClient) GetUserInfo(name string) (u UserInfo, err error) {
 	queryValues.Set("accessKey", name)
 
 	reqData := requestData{
-		relPath:     "/v1/user-info",
+		relPath:     adminAPIPrefix + "/user-info",
 		queryValues: queryValues,
 	}
 
@@ -143,7 +143,7 @@ func (adm *AdminClient) SetUser(accessKey, secretKey string, status AccountStatu
 	queryValues.Set("accessKey", accessKey)
 
 	reqData := requestData{
-		relPath:     "/v1/add-user",
+		relPath:     adminAPIPrefix + "/add-user",
 		queryValues: queryValues,
 		content:     econfigBytes,
 	}
@@ -175,7 +175,7 @@ func (adm *AdminClient) SetUserStatus(accessKey string, status AccountStatus) er
 	queryValues.Set("status", string(status))
 
 	reqData := requestData{
-		relPath:     "/v1/set-user-status",
+		relPath:     adminAPIPrefix + "/set-user-status",
 		queryValues: queryValues,
 	}
 

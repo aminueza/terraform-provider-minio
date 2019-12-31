@@ -1,0 +1,46 @@
+package madmin
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/url"
+)
+
+// GetKeyStatus requests status information about the key referenced by keyID
+// from the KMS connected to a MinIO by performing a Admin-API request.
+// It basically hits the `/minio/admin/v2/kms/key/status` API endpoint.
+func (adm *AdminClient) GetKeyStatus(keyID string) (*KMSKeyStatus, error) {
+	// GET /minio/admin/v2/kms/key/status?key-id=<keyID>
+	qv := url.Values{}
+	qv.Set("key-id", keyID)
+	reqData := requestData{
+		relPath:     adminAPIPrefix + "/kms/key/status",
+		queryValues: qv,
+	}
+
+	resp, err := adm.executeMethod("GET", reqData)
+	if err != nil {
+		return nil, err
+	}
+	defer closeResponse(resp)
+	if resp.StatusCode != http.StatusOK {
+		return nil, httpRespToErrorResponse(resp)
+	}
+	var keyInfo KMSKeyStatus
+	if err = json.NewDecoder(resp.Body).Decode(&keyInfo); err != nil {
+		return nil, err
+	}
+	return &keyInfo, nil
+}
+
+// KMSKeyStatus contains some status information about a KMS master key.
+// The MinIO server tries to access the KMS and perform encryption and
+// decryption operations. If the MinIO server can access the KMS and
+// all master key operations succeed it returns a status containing only
+// the master key ID but no error.
+type KMSKeyStatus struct {
+	KeyID         string `json:"key-id"`
+	EncryptionErr string `json:"encryption-error,omitempty"` // An empty error == success
+	UpdateErr     string `json:"update-error,omitempty"`     // An empty error == success
+	DecryptionErr string `json:"decryption-error,omitempty"` // An empty error == success
+}

@@ -1,20 +1,3 @@
-/*
- * MinIO Cloud Storage, (C) 2017, 2018 MinIO, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
 package madmin
 
 import (
@@ -208,7 +191,7 @@ func (adm *AdminClient) Heal(bucket, prefix string, healOpts HealOpts,
 		return healStart, healTaskStatus, err
 	}
 
-	path := fmt.Sprintf("/v1/heal/%s", bucket)
+	path := fmt.Sprintf(adminAPIPrefix+"/heal/%s", bucket)
 	if bucket != "" && prefix != "" {
 		path += "/" + prefix
 	}
@@ -268,4 +251,38 @@ func (adm *AdminClient) Heal(bucket, prefix string, healOpts HealOpts,
 		return healStart, healTaskStatus, errResp
 	}
 	return healStart, healTaskStatus, nil
+}
+
+// BgHealState represents the status of the background heal
+type BgHealState struct {
+	ScannedItemsCount int64
+	LastHealActivity  time.Time
+}
+
+// BackgroundHealStatus returns the background heal status of the
+// current server or cluster.
+func (adm *AdminClient) BackgroundHealStatus() (BgHealState, error) {
+	// Execute POST request to background heal status api
+	resp, err := adm.executeMethod("POST", requestData{relPath: adminAPIPrefix + "/background-heal/status"})
+	if err != nil {
+		return BgHealState{}, err
+	}
+	defer closeResponse(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		return BgHealState{}, httpRespToErrorResponse(resp)
+	}
+
+	respBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return BgHealState{}, err
+	}
+
+	var healState BgHealState
+
+	err = json.Unmarshal(respBytes, &healState)
+	if err != nil {
+		return BgHealState{}, err
+	}
+	return healState, nil
 }

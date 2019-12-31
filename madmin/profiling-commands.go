@@ -1,20 +1,3 @@
-/*
- * MinIO Cloud Storage, (C) 2017, 2018 MinIO, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
 package madmin
 
 import (
@@ -54,7 +37,7 @@ func (adm *AdminClient) StartProfiling(profiler ProfilerType) ([]StartProfilingR
 	v := url.Values{}
 	v.Set("profilerType", string(profiler))
 	resp, err := adm.executeMethod("POST", requestData{
-		relPath:     "/v1/profiling/start",
+		relPath:     adminAPIPrefix + "/profiling/start",
 		queryValues: v,
 	})
 	defer closeResponse(resp)
@@ -83,7 +66,7 @@ func (adm *AdminClient) StartProfiling(profiler ProfilerType) ([]StartProfilingR
 // DownloadProfilingData makes an admin call to download profiling data of a standalone
 // server or of the whole cluster in  case of a distributed setup.
 func (adm *AdminClient) DownloadProfilingData() (io.ReadCloser, error) {
-	path := fmt.Sprintf("/v1/profiling/download")
+	path := fmt.Sprintf(adminAPIPrefix + "/profiling/download")
 	resp, err := adm.executeMethod("GET", requestData{
 		relPath: path,
 	})

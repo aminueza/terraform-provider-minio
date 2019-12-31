@@ -2,12 +2,10 @@ package minio
 
 import (
 	madmin "github.com/aminueza/terraform-minio-provider/madmin"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/s3"
 	minio "github.com/minio/minio-go/v6"
 	"github.com/minio/minio-go/v6/pkg/set"
 )
+
 //MinioConfig defines variable for minio
 type MinioConfig struct {
 	S3HostPort     string
@@ -16,8 +14,6 @@ type MinioConfig struct {
 	S3Region       string
 	S3APISignature string
 	S3SSL          bool
-	S3Debug        bool
-	S3AWS          bool
 }
 
 //S3MinioClient defines default minio
@@ -26,9 +22,6 @@ type S3MinioClient struct {
 	S3Region     string
 	S3Client     *minio.Client
 	S3Admin      *madmin.AdminClient
-	S3Session    *session.Session
-	S3AwsClient  *s3.S3
-	S3AwsIam     *iam.IAM
 }
 
 //MinioBucket defines minio config
@@ -37,14 +30,12 @@ type MinioBucket struct {
 	MinioAdmin  *madmin.AdminClient
 	MinioRegion string
 	MinioBucket string
-	MinioDebug  bool
 	MinioACL    string
 	MinioAccess string
 }
 
 type MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
-	MinioS3AwsIam     *iam.IAM
 	MinioIAMName      string
 	MinioDisableUser  bool
 	MinioForceDestroy bool

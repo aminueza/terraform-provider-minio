@@ -42,18 +42,6 @@ func Provider() terraform.ResourceProvider {
 				Default:     false,
 				Description: "Minio SSL enabled (default: false)",
 			},
-			"minio_debug": {
-				Type:        schema.TypeBool,
-				Optional:    true,
-				Default:     false,
-				Description: "Minio debug mode (default: false)",
-			},
-			"minio_s3_aws": {
-				Type:        schema.TypeBool,
-				Optional:    true,
-				Default:     true,
-				Description: "Minio AWS API (default: true)",
-			},
 		},
 
 		ResourcesMap: map[string]*schema.Resource{

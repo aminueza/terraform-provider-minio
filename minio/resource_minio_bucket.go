@@ -114,7 +114,7 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 func aclBucket(bucketConfig *MinioBucket) error {
 
 	defaultPolicies := map[string]string{
-		"private":           exportPolicyString(PrivatePolicy(bucketConfig)),
+		"private":           "none", //private is set by minio default
 		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig)),
 		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig)),
 		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig)),
@@ -123,22 +123,15 @@ func aclBucket(bucketConfig *MinioBucket) error {
 
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
-	log.Print(policyExists)
-
 	if !policyExists {
 		return NewBucketError("Unsuported ACL", bucketConfig.MinioACL)
 	}
 
-	// if !findValuePolicies(bucketConfig) {
-	// 	if err := bucketConfig.MinioAdmin.AddCannedPolicy(bucketConfig.MinioACL, string(policyString)); err != nil {
-	// 		log.Printf("%s", NewBucketError("Unable to add policy", bucketConfig.MinioACL))
-	// 		return NewBucketError("Unable to add policy", policyString)
-	// 	}
-	// }
-
-	if err := bucketConfig.MinioClient.SetBucketPolicy(bucketConfig.MinioBucket, policyString); err != nil {
-		log.Printf("%s", NewBucketError("Unable to set bucket policy", bucketConfig.MinioBucket))
-		return NewBucketError("Unable to set bucket policy", err.Error())
+	if policyString != "none" {
+		if err := bucketConfig.MinioClient.SetBucketPolicy(bucketConfig.MinioBucket, policyString); err != nil {
+			log.Printf("%s", NewBucketError("Unable to set bucket policy", bucketConfig.MinioBucket))
+			return NewBucketError("Unable to set bucket policy", err.Error())
+		}
 	}
 
 	return nil

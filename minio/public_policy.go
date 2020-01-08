@@ -12,13 +12,11 @@ func PublicPolicy(bucket *MinioBucket) BucketPolicy {
 		Version: "2012-10-17",
 		Statements: []Stmt{
 			{
-				Sid:    "AllowAllS3Actions",
-				Effect: "Allow",
-				Principal: Princ{
-					AWS: set.CreateStringSet("*"),
-				},
+				Sid:       "AllowAllS3Actions",
+				Effect:    "Allow",
+				Principal: "*",
 				Actions:   allBucketActions,
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 		},
 	}

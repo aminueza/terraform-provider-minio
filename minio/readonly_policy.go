@@ -12,22 +12,18 @@ func ReadOnlyPolicy(bucket *MinioBucket) BucketPolicy {
 		Version: "2012-10-17",
 		Statements: []Stmt{
 			{
-				Actions: readOnlyAllBucketsActions,
-				Effect:  "Allow",
-				Principal: Princ{
-					AWS: set.CreateStringSet("*"),
-				},
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s*", awsResourcePrefix)}...),
 				Sid:       "ListAllBucket",
+				Actions:   readOnlyAllBucketsActions,
+				Effect:    "Allow",
+				Principal: "*",
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s*", awsResourcePrefix)}...),
 			},
 			{
+				Sid:       "AllObjectActionsMyBuckets",
 				Actions:   readListMyObjectActions,
 				Effect:    "Allow",
-				Principal: Princ{
-					AWS: set.CreateStringSet("*"),
-				},
+				Principal: "*",
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
-				Sid:       "AllObjectActionsMyBuckets",
 			},
 		},
 	}

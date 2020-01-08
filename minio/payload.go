@@ -50,12 +50,12 @@ type Error struct {
 
 //Stmt defines policy statement
 type Stmt struct {
+	Sid        string
 	Actions    set.StringSet `json:"Action"`
 	Conditions ConditionMap  `json:"Condition,omitempty"`
 	Effect     string
-	Principal  Princ         `json:"Principal,omitempty"`
+	Principal  string        `json:"Principal,omitempty"`
 	Resources  set.StringSet `json:"Resource"`
-	Sid        string
 }
 
 //Princ defines policy princ
@@ -81,7 +81,7 @@ type UserStatus struct {
 const awsResourcePrefix = "arn:aws:s3:::"
 
 // All bucket actions.
-var allBucketActions = set.CreateStringSet("s3:*")
+var allBucketActions = set.CreateStringSet("s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads","s3:GetObject","s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification", "s3:PutBucketLifecycle", "s3:GetBucketLifecycle")
 
 // Common bucket actions for both read and write policies.
 var commonBucketActions = set.CreateStringSet("s3:GetBucketLocation")

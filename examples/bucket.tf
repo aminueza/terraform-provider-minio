@@ -1,8 +1,7 @@
-# resource "minio_bucket" "state_terraform_s3" {
-#   bucket = "state-terraform-s3"
-#   acl    = "public"
-#   debug = false
-# }
+resource "minio_bucket" "state_terraform_s3" {
+  bucket = "state-terraform-s3"
+  acl    = "public"
+}
 
 # resource "minio_iam_user" "maria" {
 #   name = "maria"

@@ -12,6 +12,9 @@ jobs:
   lint:
     name: Lint Golang Code
     runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
     steps:
       - name: Set up Go 
         uses: actions/setup-go@v1

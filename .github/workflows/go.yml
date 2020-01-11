@@ -28,7 +28,7 @@ jobs:
             fetch-depth: 1
 
       - name: Run GolangCI-Lint # https://github.com/golangci/golangci-lint
-        run: docker run --rm -t -v $(pwd):/minio -w /minio golangci/golangci-lint:latest-alpine golangci-lint run -v
+        run: docker run --rm -t -v $(pwd):/app -w /app golangci/golangci-lint:latest-alpine golangci-lint run -v
     
   build:
     name: Build

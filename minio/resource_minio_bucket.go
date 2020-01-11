@@ -27,6 +27,14 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
+			"arn": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"bucket_domain_name": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -52,15 +60,20 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		return NewBucketError("Unable to create bucket", bucketConfig.MinioBucket)
 	}
 
-	d.SetId(bucketConfig.MinioBucket)
-
 	errACL := aclBucket(bucketConfig)
 	if errACL != nil {
 		log.Printf("%s", NewBucketError("Unable to create bucket", bucketConfig.MinioBucket))
 		return NewBucketError("[ACL] Unable to create bucket", errACL.Error())
 	}
 
+	log.Printf("[DEBUG] BUCKET %v", bucketConfig.MinioClient.GetBucketNotification()
+
+
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+
+	d.SetId(bucketConfig.MinioBucket)
+	// d.Set("arn", string(secretKey))
+	// d.Set("bucket_domain_name", string.))
 
 	return nil
 }
@@ -107,7 +120,6 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
-
 	return nil
 }
 

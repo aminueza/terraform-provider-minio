@@ -1,3 +1,4 @@
+<!-- CODE TRIAGE -->
 [![Open Source Helpers](https://www.codetriage.com/aminueza/terraform-minio-provider/badges/users.svg)](https://www.codetriage.com/aminueza/terraform-minio-provider)
 
 <!-- PROJECT LOGO -->

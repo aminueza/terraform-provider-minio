@@ -28,10 +28,10 @@ jobs:
         with:
             fetch-depth: 1
 
-      - name: Lint
-        run: |
-          GOBIN=$PWD/bin go install golang.org/x/lint/golint
-          ./bin/golint -set_exit_status ./... 
+      - name: Install Go Lint
+        run: GOBIN=$PWD/bin go install golang.org/x/lint/golint
+      - name: Run Go Lint
+        run: golint -set_exit_status ./...
     
   build:
     name: Build

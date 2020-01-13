@@ -28,10 +28,10 @@ jobs:
         with:
             fetch-depth: 1
 
-      - name: Install tools
+      - name: Lint
         run: |
-          curl -sfL https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
+          GOBIN=$PWD/bin go install golang.org/x/lint/golint
+          ./bin/golint ./...
     
   build:
     name: Build

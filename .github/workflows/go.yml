@@ -2,7 +2,8 @@ name: Terraform Provider CI
 on:
   push:
     branches:
-      - '*'
+      - master
+      - feature/**
     tags:
       - 'v*'
   pull_request:

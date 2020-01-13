@@ -29,7 +29,8 @@ jobs:
             fetch-depth: 1
 
       - name: Install Go Lint
-        run: GOBIN=$PWD/bin go install golang.org/x/lint/golint
+        #run: GOBIN=$PWD/bin go install golang.org/x/lint/golint
+        run: go get -u golang.org/x/lint/golint
       - name: Run Go Lint
         run: golint -set_exit_status ./...
     

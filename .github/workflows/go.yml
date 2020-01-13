@@ -30,9 +30,9 @@ jobs:
 
       - name: Install Go Lint
         #run: GOBIN=$PWD/bin go install golang.org/x/lint/golint
-        run: go get -u golang.org/x/lint/golint
+        run: GO111MODULE=off GOBIN=$(pwd)/bin go get -u golang.org/x/lint/golint
       - name: Run Go Lint
-        run: golint -set_exit_status ./...
+        run: ./bin/golint -set_exit_status
     
   build:
     name: Build

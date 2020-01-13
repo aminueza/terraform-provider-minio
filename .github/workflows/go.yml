@@ -31,7 +31,7 @@ jobs:
       - name: Lint
         run: |
           GOBIN=$PWD/bin go install golang.org/x/lint/golint
-          ./bin/golint ./... -set_exit_status
+          ./bin/golint -set_exit_status ./... 
     
   build:
     name: Build

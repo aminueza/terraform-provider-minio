@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - master
+      - feature/*
 jobs:
   lint:
     name: Lint Golang Code
@@ -28,7 +29,6 @@ jobs:
             fetch-depth: 1
 
       - name: Install tools
-        working-directory: ${{ go.module-path }}
         run: |
           curl -sfL https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
           curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2

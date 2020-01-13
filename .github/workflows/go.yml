@@ -27,8 +27,11 @@ jobs:
         with:
             fetch-depth: 1
 
-      - name: Run GolangCI-Lint # https://github.com/golangci/golangci-lint
-        run: docker run --rm -t -v $(pwd):/app -w /app golangci/golangci-lint:latest-alpine golangci-lint run -v
+      - name: Install tools
+        working-directory: ${{ go.module-path }}
+        run: |
+          curl -sfL https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
     
   build:
     name: Build

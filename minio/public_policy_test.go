@@ -10,8 +10,8 @@ import (
 
 func TestPublicPolicy(t *testing.T) {
 
-	minio := &MinioBucket{
-		MinioBucket: "test",
+	minio := &S3MinioBucket{
+		S3MinioBucket: "test",
 	}
 
 	stringPolicy := `{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Principal":{"AWS":["*"]},"Resource":["arn:aws:s3:::test","arn:aws:s3:::test/*"],"Sid":"AllowAllS3Actions"}]}`

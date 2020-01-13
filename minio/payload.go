@@ -6,8 +6,8 @@ import (
 	"github.com/minio/minio-go/v6/pkg/set"
 )
 
-//MinioConfig defines variable for minio
-type MinioConfig struct {
+//S3MinioConfig defines variable for minio
+type S3MinioConfig struct {
 	S3HostPort     string
 	S3UserAccess   string
 	S3UserSecret   string
@@ -24,17 +24,18 @@ type S3MinioClient struct {
 	S3Admin      *madmin.AdminClient
 }
 
-//MinioBucket defines minio config
-type MinioBucket struct {
-	MinioClient *minio.Client
-	MinioAdmin  *madmin.AdminClient
-	MinioRegion string
-	MinioBucket string
-	MinioACL    string
-	MinioAccess string
+//S3MinioBucket defines minio config
+type S3MinioBucket struct {
+	MinioClient   *minio.Client
+	MinioAdmin    *madmin.AdminClient
+	MinioRegion   string
+	S3MinioBucket string
+	MinioACL      string
+	MinioAccess   string
 }
 
-type MinioIAMUserConfig struct {
+//S3MinioIAMUserConfig defines IAM config
+type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
 	MinioDisableUser  bool
@@ -81,7 +82,7 @@ type UserStatus struct {
 const awsResourcePrefix = "arn:aws:s3:::"
 
 // All bucket actions.
-var allBucketActions = set.CreateStringSet("s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads","s3:GetObject","s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification", "s3:PutBucketLifecycle", "s3:GetBucketLifecycle")
+var allBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetObject", "s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification", "s3:PutBucketLifecycle", "s3:GetBucketLifecycle")
 
 // Common bucket actions for both read and write policies.
 var commonBucketActions = set.CreateStringSet("s3:GetBucketLocation")

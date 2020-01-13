@@ -20,8 +20,8 @@ const (
 )
 
 var (
-	alphaNumericTable        = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	blurChar          string = "_"
+	alphaNumericTable = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	blurChar          = "_"
 )
 
 //ParseString parses a string to bool

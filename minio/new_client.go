@@ -8,7 +8,7 @@ import (
 )
 
 //NewClient returns a new minio client
-func (config *MinioConfig) NewClient() (interface{}, error) {
+func (config *S3MinioConfig) NewClient() (interface{}, error) {
 
 	minioClient := new(minio.Client)
 
@@ -26,10 +26,10 @@ func (config *MinioConfig) NewClient() (interface{}, error) {
 	if err != nil {
 		log.Println("[FATAL] Error connecting to S3 server.")
 		return nil, err
-	} else {
-		if config.S3SSL {
-			log.Printf("[DEBUG] S3 client initialized")
-		}
+	}
+
+	if config.S3SSL {
+		log.Printf("[DEBUG] S3 client initialized")
 	}
 
 	return &S3MinioClient{

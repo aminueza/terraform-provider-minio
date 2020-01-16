@@ -32,34 +32,34 @@ jobs:
         run: GO111MODULE=off GOBIN=$(pwd)/bin go get -u golang.org/x/lint/golint
       - name: Run Go Lint
         run: ./bin/golint -set_exit_status
-    test:
-      name: Test Provider Code
-      runs-on: ubuntu-latest
-      env:
-        GOARCH: amd64
-        GOOS: linux
-      steps:
-        - name: Set up Go 
-          uses: actions/setup-go@v1
-          with:
-            go-version: ${{ secrets.GO_VERSION }}
-          id: go
+  test:
+    name: Test Provider Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Set up Go 
+        uses: actions/setup-go@v1
+        with:
+          go-version: ${{ secrets.GO_VERSION }}
+        id: go
 
-        - name: Check out code
-          uses: actions/checkout@v1
-          with:
-              fetch-depth: 1
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Get dependencies
+        run: |
+          go get -v -t -d ./...
+          if [ -f Gopkg.toml ]; then
+              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+              dep ensure
+          fi
 
-        - name: Get dependencies
-          run: |
-            go get -v -t -d ./...
-            if [ -f Gopkg.toml ]; then
-                curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-                dep ensure
-            fi
-        
-        - name: Test
-          run: go test ./...
+      - name: Test
+        run: go test ./...
     
   build:
     name: Build

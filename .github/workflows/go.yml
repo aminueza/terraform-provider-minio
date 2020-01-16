@@ -38,7 +38,7 @@ jobs:
             fetch-depth: 1
       
       - name: Run sec
-        uses: aminueza/go-github-action/sec@master
+        uses: aminueza/go-github-action/sec@master minio/...
 
   govet:
     name: Check vet error
@@ -68,7 +68,7 @@ jobs:
             fetch-depth: 1
       
       - name: Run errcheck
-        uses: aminueza/go-github-action/errcheck@master
+        uses: aminueza/go-github-action/errcheck@master minio/...
   
   golint:
     name: Linter Golang Code
@@ -107,7 +107,7 @@ jobs:
         run: go get -v -t -d ./...
 
       - name: Test
-        run: go test minio/...
+        run: go test ./...
     
   build:
     name: Build

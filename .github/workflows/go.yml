@@ -10,14 +10,73 @@ on:
     branches:
       - master
 jobs:
-  lint:
-    name: Lint Golang Code
+  gofmt:
+    name: Check Golang Code
     runs-on: ubuntu-latest
     env:
       GOARCH: amd64
       GOOS: linux
     steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run fmt
+        uses: aminueza/go-github-action/fmt@master
+  
+  gosec:
+    name: Check Golang Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run sec
+        uses: aminueza/go-github-action/sec@master
 
+  govet:
+    name: Check Golang Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run vet
+        uses: aminueza/go-github-action/vet@master
+  
+  errcheck:
+    name: Check Golang Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run errcheck
+        uses: aminueza/go-github-action/errcheck@master
+  
+  golint:
+    name: Check Golang Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
       - name: Check out code
         uses: actions/checkout@v1
         with:
@@ -45,12 +104,7 @@ jobs:
             fetch-depth: 1
       
       - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+        run: go get -v -t -d ./...
 
       - name: Test
         run: go test ./...
@@ -71,12 +125,7 @@ jobs:
             fetch-depth: 1
 
       - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+        run: go get -v -t -d ./...
 
       - name: Build
         run: make build

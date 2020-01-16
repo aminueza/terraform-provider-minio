@@ -7,7 +7,7 @@ import (
 )
 
 //ReadWritePolicy returns readonly policy
-func ReadWritePolicy(bucket *MinioBucket) BucketPolicy {
+func ReadWritePolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []Stmt{
@@ -16,14 +16,14 @@ func ReadWritePolicy(bucket *MinioBucket) BucketPolicy {
 				Actions:   readOnlyBucketActions,
 				Effect:    "Allow",
 				Principal: "*",
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.S3MinioBucket)}...),
 			},
 			{
 				Sid:       "UploadObjectActions",
 				Actions:   uploadObjectActions,
 				Effect:    "Allow",
 				Principal: "*",
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.S3MinioBucket)}...),
 			},
 		},
 	}

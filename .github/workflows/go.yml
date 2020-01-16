@@ -2,15 +2,95 @@ name: Terraform Provider CI
 on:
   push:
     branches:
-      - '*'
+      - master
+      - feature/**
     tags:
       - 'v*'
   pull_request:
     branches:
       - master
 jobs:
-  lint:
-    name: Lint Golang Code
+  gofmt:
+    name: Check fmt error
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run fmt
+        uses: aminueza/go-github-action/fmt@master
+  
+  gosec:
+    name: Check Security
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run sec
+        uses: aminueza/go-github-action/sec@master
+        with:
+          path: minio/...
+
+  govet:
+    name: Check vet error
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run vet
+        uses: aminueza/go-github-action/vet@master
+  
+  errcheck:
+    name: Check linter errcheck
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run errcheck
+        uses: aminueza/go-github-action/errcheck@master
+        with:
+          path: minio/...
+  
+  golint:
+    name: Linter Golang Code
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Run linter
+        uses: aminueza/go-github-action/lint@master
+  
+  test:
+    name: Test Provider Code
     runs-on: ubuntu-latest
     env:
       GOARCH: amd64
@@ -26,12 +106,12 @@ jobs:
         uses: actions/checkout@v1
         with:
             fetch-depth: 1
+      
+      - name: Get dependencies
+        run: go get -v -t -d ./...
 
-      - name: Install tools
-        working-directory: ${{ go.module-path }}
-        run: |
-          curl -sfL https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-          curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.22.2
+      - name: Test
+        run: go test ./...
     
   build:
     name: Build
@@ -49,12 +129,7 @@ jobs:
             fetch-depth: 1
 
       - name: Get dependencies
-        run: |
-          go get -v -t -d ./...
-          if [ -f Gopkg.toml ]; then
-              curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-              dep ensure
-          fi
+        run: go get -v -t -d ./...
 
       - name: Build
         run: make build

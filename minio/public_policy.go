@@ -7,7 +7,7 @@ import (
 )
 
 //PublicPolicy returns readonly policy
-func PublicPolicy(bucket *MinioBucket) BucketPolicy {
+func PublicPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []Stmt{
@@ -16,7 +16,7 @@ func PublicPolicy(bucket *MinioBucket) BucketPolicy {
 				Effect:    "Allow",
 				Principal: "*",
 				Actions:   allBucketActions,
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.S3MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.S3MinioBucket)}...),
 			},
 		},
 	}

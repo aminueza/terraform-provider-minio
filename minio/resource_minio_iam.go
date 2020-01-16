@@ -70,7 +70,7 @@ func minioCreateUser(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	d.SetId(aws.StringValue(&accessKey))
-	d.Set("secret", string(secretKey))
+	_ = d.Set("secret", string(secretKey))
 	return minioReadUser(d, meta)
 }
 
@@ -124,7 +124,7 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if iamUserConfig.MinioForceDestroy {
-		minioDeleteUser(d, meta)
+		_ = minioDeleteUser(d, meta)
 	}
 
 	return minioReadUser(d, meta)

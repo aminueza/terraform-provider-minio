@@ -24,7 +24,7 @@ jobs:
             fetch-depth: 1
       
       - name: Run linter
-      uses: aminueza/go-github-action/lint@master
+        uses: aminueza/go-github-action/lint@master
   
   test:
     name: Test Provider Code

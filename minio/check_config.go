@@ -5,16 +5,16 @@ import (
 )
 
 //BucketConfig creates a new config for minio buckets
-func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
+func BucketConfig(d *schema.ResourceData, meta interface{}) *MinioBucket {
 	m := meta.(*S3MinioClient)
 
-	return &S3MinioBucket{
-		MinioClient:   m.S3Client,
-		MinioAdmin:    m.S3Admin,
-		MinioRegion:   m.S3Region,
-		MinioAccess:   m.S3UserAccess,
-		S3MinioBucket: d.Get("bucket").(string),
-		MinioACL:      d.Get("acl").(string),
+	return &MinioBucket{
+		MinioClient: m.S3Client,
+		MinioAdmin:  m.S3Admin,
+		MinioRegion: m.S3Region,
+		MinioAccess: m.S3UserAccess,
+		MinioBucket: d.Get("bucket").(string),
+		MinioACL:    d.Get("acl").(string),
 	}
 }
 

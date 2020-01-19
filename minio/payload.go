@@ -24,8 +24,8 @@ type S3MinioClient struct {
 	S3Admin      *madmin.AdminClient
 }
 
-//MinioBucket defines minio config
-type MinioBucket struct {
+//S3MinioBucket defines minio config
+type S3MinioBucket struct {
 	MinioClient *minio.Client
 	MinioAdmin  *madmin.AdminClient
 	MinioRegion string

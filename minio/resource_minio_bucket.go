@@ -86,7 +86,7 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
-	d.Set("bucket_domain_name", string(bucketDomainName(bucketConfig.MinioBucket, bucketURL)))
+	_ = d.Set("bucket_domain_name", string(bucketDomainName(bucketConfig.MinioBucket, bucketURL)))
 
 	return nil
 }

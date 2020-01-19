@@ -42,3 +42,14 @@ func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConf
 		MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }
+
+//IAMGroupConfig creates new group config
+func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIAMGroupConfig{
+		MinioAdmin:        m.S3Admin,
+		MinioIAMName:      d.Get("name").(string),
+		MinioForceDestroy: d.Get("force_destroy").(bool),
+	}
+}

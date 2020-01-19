@@ -44,6 +44,13 @@ type S3MinioIAMUserConfig struct {
 	MinioIAMTags      map[string]string
 }
 
+//S3MinioIAMGroupConfig defines IAM Group config
+type S3MinioIAMGroupConfig struct {
+	MinioAdmin        *madmin.AdminClient
+	MinioIAMName      string
+	MinioForceDestroy bool
+}
+
 // Error represents a basic error that implies the error interface.
 type Error struct {
 	Message string

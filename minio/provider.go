@@ -48,7 +48,8 @@ func Provider() terraform.ResourceProvider {
 			"minio_bucket": resourceMinioBucket(),
 			// "minio_object": resourceMinioObject(),
 			// "minio_file":   resourceMinioFile(),
-			"minio_iam_user": resourceMinioIAMUser(),
+			"minio_iam_group": resourceMinioIAMGroup(),
+			"minio_iam_user":  resourceMinioIAMUser(),
 		},
 
 		ConfigureFunc: providerConfigure,

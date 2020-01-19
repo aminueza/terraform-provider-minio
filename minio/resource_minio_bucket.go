@@ -2,7 +2,9 @@ package minio
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"net/url"
 
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/minio/minio-go/v6/pkg/s3utils"
@@ -27,10 +29,10 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"arn": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
+			// "arn": {
+			// 	Type:     schema.TypeString,
+			// 	Computed: true,
+			// },
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -66,16 +68,11 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		return NewBucketError("[ACL] Unable to create bucket", errACL.Error())
 	}
 
-	log.Printf("[DEBUG] BUCKET %v", bucketConfig.MinioClient.GetBucketNotification()
-
-
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
 	d.SetId(bucketConfig.MinioBucket)
-	// d.Set("arn", string(secretKey))
-	// d.Set("bucket_domain_name", string.))
 
-	return nil
+	return minioReadBucket(d, meta)
 }
 
 func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
@@ -90,6 +87,10 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	log.Printf("[DEBUG] Bucket [%s] exists!", bucketConfig.MinioBucket)
+
+	bucketURL := bucketConfig.MinioClient.EndpointURL()
+
+	d.Set("bucket_domain_name", string(bucketDomainName(bucketConfig.MinioBucket, bucketURL)))
 
 	return nil
 }
@@ -167,4 +168,8 @@ func exportPolicyString(policyStruct BucketPolicy) string {
 		return NewBucketError("Unable to parse bucket policy", err.Error()).Error()
 	}
 	return string(policyJSON)
+}
+
+func bucketDomainName(bucket string, bucketConfig *url.URL) string {
+	return fmt.Sprintf("%s/minio/%s", bucketConfig, bucket)
 }

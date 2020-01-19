@@ -1,5 +1,5 @@
 resource "minio_bucket" "state_terraform_s3" {
-  bucket = "state-terraform"
+  bucket = "state-terraform-s3"
   acl    = "public"
 }
 
@@ -20,3 +20,10 @@ resource "minio_bucket" "state_terraform_s3" {
 #   value = "${minio_iam_user.maria.secret}"
 # }
 
+output "id" {
+  value = "${minio_bucket.state_terraform_s3.id}"
+}
+
+output "url" {
+  value = "${minio_bucket.state_terraform_s3.bucket_domain_name}"
+}

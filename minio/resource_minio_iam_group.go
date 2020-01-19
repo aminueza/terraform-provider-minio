@@ -32,6 +32,10 @@ func resourceMinioIAMGroup() *schema.Resource {
 				Default:     false,
 				Description: "Delete group even if it has non-Terraform-managed IAM access keys",
 			},
+			"group_name": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 		},
 	}
 }
@@ -42,7 +46,7 @@ func minioCreateGroup(d *schema.ResourceData, meta interface{}) error {
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupConfig.MinioIAMName,
-		Members:  []string{""},
+		Members:  []string{},
 		IsRemove: false,
 	}
 
@@ -61,13 +65,13 @@ func minioUpdateGroup(d *schema.ResourceData, meta interface{}) error {
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
 	if d.HasChange(iamGroupConfig.MinioIAMName) {
-		on, nn := d.GetChange(iamGroupConfig.MinioIAMName)
+		_, nn := d.GetChange(iamGroupConfig.MinioIAMName)
 
 		log.Println("[DEBUG] Update IAM Group:", iamGroupConfig.MinioIAMName)
 
 		groupAddRemove := madmin.GroupAddRemove{
 			Group:    iamGroupConfig.MinioIAMName,
-			Members:  []string{on.(string)},
+			Members:  []string{},
 			IsRemove: false,
 		}
 
@@ -100,15 +104,16 @@ func minioReadGroup(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[WARN] (%v)", output)
 
-	if err := d.Set("status", string(output.Status)); err != nil {
-		return err
-	}
-
 	if &output == nil {
 		log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
+
+	if err := d.Set("group_name", string(output.Name)); err != nil {
+		return err
+	}
+	
 	return nil
 }
 

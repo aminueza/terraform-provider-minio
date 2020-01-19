@@ -120,7 +120,7 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func aclBucket(bucketConfig *MinioBucket) error {
+func aclBucket(bucketConfig *S3MinioBucket) error {
 
 	defaultPolicies := map[string]string{
 		"private":           "none", //private is set by minio default
@@ -146,7 +146,7 @@ func aclBucket(bucketConfig *MinioBucket) error {
 	return nil
 }
 
-func findValuePolicies(bucketConfig *MinioBucket) bool {
+func findValuePolicies(bucketConfig *S3MinioBucket) bool {
 	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies()
 	for key := range policies {
 		value := string(key)

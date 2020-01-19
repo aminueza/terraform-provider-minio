@@ -10,7 +10,7 @@ import (
 
 func TestPublicPolicy(t *testing.T) {
 
-	minio := &MinioBucket{
+	minio := &S3MinioBucket{
 		MinioBucket: "test",
 	}
 

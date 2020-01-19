@@ -7,7 +7,7 @@ import (
 )
 
 //ReadOnlyPolicy returns readonly policy
-func ReadOnlyPolicy(bucket *MinioBucket) BucketPolicy {
+func ReadOnlyPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []Stmt{

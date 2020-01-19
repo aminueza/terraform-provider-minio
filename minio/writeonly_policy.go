@@ -7,7 +7,7 @@ import (
 )
 
 //WriteOnlyPolicy returns writeonly policy
-func WriteOnlyPolicy(bucket *MinioBucket) BucketPolicy {
+func WriteOnlyPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []Stmt{

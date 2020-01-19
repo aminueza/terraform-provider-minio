@@ -50,6 +50,7 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	return &S3MinioIAMGroupConfig{
 		MinioAdmin:        m.S3Admin,
 		MinioIAMName:      d.Get("name").(string),
+		MinioDisableGroup: d.Get("disable_group").(bool),
 		MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }

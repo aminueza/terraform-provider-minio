@@ -48,6 +48,7 @@ type S3MinioIAMUserConfig struct {
 type S3MinioIAMGroupConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
+	MinioDisableGroup bool
 	MinioForceDestroy bool
 }
 

@@ -80,7 +80,10 @@ func minioUpdateGroup(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if iamGroupConfig.MinioForceDestroy {
-		minioDeleteGroup(d, meta)
+		deletionErr := minioDeleteGroup(d, meta)
+		if deletionErr != nil {
+			return deletionErr
+		}
 	}
 
 	return minioReadGroup(d, meta)

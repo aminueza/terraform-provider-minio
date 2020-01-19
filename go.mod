@@ -13,8 +13,9 @@ require (
 	github.com/minio/sha256-simd v0.1.1
 	github.com/minio/sio v0.2.0
 	github.com/secure-io/sio-go v0.3.0
+	github.com/securego/gosec v0.0.0-20200116080623-3d5c97b418f4 // indirect
 	github.com/shirou/gopsutil v2.18.12+incompatible
-	golang.org/x/crypto v0.0.0-20190923035154-9ee001bba392
+	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/sys v0.0.0-20190922100055-0a153f010e69
 	gotest.tools v2.2.0+incompatible
 )

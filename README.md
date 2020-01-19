@@ -1,3 +1,4 @@
+<!-- CODE TRIAGE -->
 [![Open Source Helpers](https://www.codetriage.com/aminueza/terraform-minio-provider/badges/users.svg)](https://www.codetriage.com/aminueza/terraform-minio-provider)
 
 <!-- PROJECT LOGO -->
@@ -5,27 +6,20 @@
   <a href="https://github.com/aminueza/terraform-minio-provider">
     <img src="https://i.imgur.com/yijdDec.png" alt="minio-provider-terraform" width="200">
   </a>
-
-  <h3 align="center" style="font-weight: bold">Terraform Provider for Minio</h3>
-
+  <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
-    Provicer to manage Minio Servers
-    <br />
     <a href="https://github.com/aminueza/terraform-minio-provider/tree/master/docs"><strong>Explore the docs »</strong></a>
-    <br />
-    <br />
   </p>
 </p>
 
 <!-- TABLE OF CONTENTS -->
 ## Table of Contents
 
-* [About the Project](#about-the-project)
-  * [Built With](#built-with)
-* [Provider](#provider)
-  * [Installing the Plugin](#installing-the-plugin)
-  * [Examples](#examples)
-  * [Testing](#Testing)
+* [About this project](#about-this-project)
+* [Requirements](#requirements)
+* [Installing the plugin](#installing-the-plugin)
+* [Examples](#examples)
+* [Testing](#testing)
 * [Roadmap](#roadmap)
 * [Contributing](#contributing)
 * [License](#license)
@@ -33,27 +27,21 @@
 * [Acknowledgements](#acknowledgements)
 
 <!-- ABOUT THE PROJECT -->
-## About The Project
+## About this project
 
-A terraform provider to manage minio s3 buckets.
+A [Terraform](https://www.terraform.io) provider to manage [MinIO Cloud Storages](https://min.io).
 
-<!-- TECHNOLOGIES -->
-### Built With
-
-Minio-api was made <span style="color: #e25555;">&#9829;</span> based on:
-* [GO](https://golang.org/)
+Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang.org/).
 
 <!-- PROVIDER -->
-## Provider
-
-Terraform provider requires:
+## Requirements
 
 * Go version 1.31 or higher;
 * Terraform 0.12.17 or higher;
 * Docker 19.03.4 or higher for testing minio;
 * Govendor for dependencies.
 
-### Installing the Plugin
+## Installing the plugin
 
 We release darwin and linux amd64 packages on the releases page. Once you have the plugin you should remove the _os_arch from the end of the file name and place it in `~/.terraform.d/plugins` which is where terraform init will look for plugins. To install release binaries, download the version from your OS, then:
 
@@ -69,7 +57,7 @@ $ make build
 
 Valid provider filenames are `terraform-provider-NAME_X.X.X` or `terraform-provider-NAME_vX.X.X`
 
-### Examples
+## Examples
 
 Use [examples/main.tf](./examples/main.tf) to create some test config, such as:
 
@@ -106,7 +94,7 @@ variable "minio_secret_key" {
 }
 ```
 
-### Testing
+## Testing
 
 For testing locally, run the docker compose to spin up a minio server:
 

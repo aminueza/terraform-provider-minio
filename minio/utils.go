@@ -1,15 +1,12 @@
 package minio
 
 import (
-	"crypto/md5"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/hashicorp/terraform/helper/schema"
 )
@@ -20,8 +17,8 @@ const (
 )
 
 var (
-	alphaNumericTable        = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
-	blurChar          string = "_"
+	alphaNumericTable = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	blurChar          = "_"
 )
 
 //ParseString parses a string to bool
@@ -96,18 +93,4 @@ func mustGenerateSecretAccessKey() []byte {
 		fmt.Print("Unable to generate secretAccessKey.")
 	}
 	return secretKey
-}
-
-//md5Encode creates md5 key
-func md5Encode(str string) string {
-	md5HashInBytes := md5.Sum([]byte(str))
-	md5HashInString := hex.EncodeToString(md5HashInBytes[:])
-	return md5HashInString
-}
-
-//generateToken Generates token
-func generateToken(appID string, accessKey string) string {
-	md5Str := md5Encode(appID + blurChar + accessKey)
-	token := strings.ToUpper(md5Str)
-	return token
 }

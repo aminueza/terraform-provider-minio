@@ -29,10 +29,6 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			// "arn": {
-			// 	Type:     schema.TypeString,
-			// 	Computed: true,
-			// },
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
 				Computed: true,

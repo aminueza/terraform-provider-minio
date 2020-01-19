@@ -5,22 +5,22 @@ import (
 )
 
 //BucketConfig creates a new config for minio buckets
-func BucketConfig(d *schema.ResourceData, meta interface{}) *MinioBucket {
+func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	m := meta.(*S3MinioClient)
 
-	return &MinioBucket{
-		MinioClient: m.S3Client,
-		MinioAdmin:  m.S3Admin,
-		MinioRegion: m.S3Region,
-		MinioAccess: m.S3UserAccess,
-		MinioBucket: d.Get("bucket").(string),
-		MinioACL:    d.Get("acl").(string),
+	return &S3MinioBucket{
+		MinioClient:   m.S3Client,
+		MinioAdmin:    m.S3Admin,
+		MinioRegion:   m.S3Region,
+		MinioAccess:   m.S3UserAccess,
+		S3MinioBucket: d.Get("bucket").(string),
+		MinioACL:      d.Get("acl").(string),
 	}
 }
 
 //NewConfig creates a new config for minio
-func NewConfig(d *schema.ResourceData) *MinioConfig {
-	return &MinioConfig{
+func NewConfig(d *schema.ResourceData) *S3MinioConfig {
+	return &S3MinioConfig{
 		S3HostPort:     d.Get("minio_server").(string),
 		S3Region:       d.Get("minio_region").(string),
 		S3UserAccess:   d.Get("minio_access_key").(string),
@@ -31,14 +31,26 @@ func NewConfig(d *schema.ResourceData) *MinioConfig {
 }
 
 //IAMUserConfig creates new user config
-func IAMUserConfig(d *schema.ResourceData, meta interface{}) *MinioIAMUserConfig {
+func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConfig {
 	m := meta.(*S3MinioClient)
 
-	return &MinioIAMUserConfig{
+	return &S3MinioIAMUserConfig{
 		MinioAdmin:        m.S3Admin,
 		MinioIAMName:      d.Get("name").(string),
 		MinioDisableUser:  d.Get("disable_user").(bool),
 		MinioUpdateKey:    d.Get("update_secret").(bool),
+		MinioForceDestroy: d.Get("force_destroy").(bool),
+	}
+}
+
+//IAMGroupConfig creates new group config
+func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIAMGroupConfig{
+		MinioAdmin:        m.S3Admin,
+		MinioIAMName:      d.Get("name").(string),
+		MinioDisableGroup: d.Get("disable_group").(bool),
 		MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }

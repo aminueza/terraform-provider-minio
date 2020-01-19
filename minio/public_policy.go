@@ -16,7 +16,7 @@ func PublicPolicy(bucket *S3MinioBucket) BucketPolicy {
 				Effect:    "Allow",
 				Principal: "*",
 				Actions:   allBucketActions,
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.S3MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.S3MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 		},
 	}

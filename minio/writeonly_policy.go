@@ -16,14 +16,14 @@ func WriteOnlyPolicy(bucket *S3MinioBucket) BucketPolicy {
 				Actions:   readOnlyBucketActions,
 				Effect:    "Allow",
 				Principal: "*",
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.S3MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 			{
 				Sid:       "AllObjectActionsMyBuckets",
 				Actions:   writeOnlyObjectActions,
 				Effect:    "Allow",
 				Principal: "*",
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.S3MinioBucket)}...),
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 		},
 	}

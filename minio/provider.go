@@ -45,9 +45,9 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"minio_bucket": resourceMinioBucket(),
-			// "minio_object": resourceMinioObject(),
-			// "minio_file":   resourceMinioFile(),
+			"minio_s3_bucket": resourceMinioBucket(),
+			// "minio_s3_object": resourceMinioObject(),
+			// "minio_s3_file":   resourceMinioFile(),
 			"minio_iam_group": resourceMinioIAMGroup(),
 			"minio_iam_user":  resourceMinioIAMUser(),
 		},

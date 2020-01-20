@@ -19,9 +19,8 @@ const (
 var (
 	alphaNumericTable = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	blurChar          = "_"
-	length int
+	length            int
 )
-
 
 //ParseString parses a string to bool
 func ParseString(s string) bool {

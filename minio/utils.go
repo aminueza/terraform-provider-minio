@@ -19,7 +19,9 @@ const (
 var (
 	alphaNumericTable = []byte("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	blurChar          = "_"
+	length int
 )
+
 
 //ParseString parses a string to bool
 func ParseString(s string) bool {
@@ -72,7 +74,8 @@ func generateSecretAccessKey() ([]byte, error) {
 	if _, e := rand.Read(rb); e != nil {
 		return nil, errors.New("Could not generate Secret Key")
 	}
-	return []byte(base64.StdEncoding.EncodeToString(rb))[:minioSecretID], nil
+	//return []byte(base64.StdEncoding.EncodeToString(rb))[:minioSecretID], nil
+	return Encode(rb), nil
 }
 
 // mustGenerateAccessKeyID - must generate random alpha numeric value using only uppercase characters
@@ -93,4 +96,24 @@ func mustGenerateSecretAccessKey() []byte {
 		fmt.Print("Unable to generate secretAccessKey.")
 	}
 	return secretKey
+}
+
+//Encode queues message
+func Encode(value []byte) []byte {
+	length = len(value)
+	encoded := make([]byte, base64.URLEncoding.EncodedLen(length))
+	base64.URLEncoding.Encode(encoded, value)
+	return encoded
+}
+
+//Decode queues message
+func Decode(value []byte) ([]byte, error) {
+	length = len(value)
+	decoded := make([]byte, base64.URLEncoding.DecodedLen(length))
+
+	n, err := base64.URLEncoding.Decode(decoded, value)
+	if err != nil {
+		return nil, err
+	}
+	return decoded[:n], nil
 }

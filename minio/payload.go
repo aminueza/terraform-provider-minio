@@ -59,8 +59,6 @@ type S3MinioIAMPolicyConfig struct {
 	MinioIAMName       string
 	MinioIAMNamePrefix string
 	MinioIAMPolicy     string
-	// MinioDisableGroup bool
-	// MinioForceDestroy bool
 }
 
 // Error represents a basic error that implies the error interface.

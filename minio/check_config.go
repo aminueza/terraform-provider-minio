@@ -65,7 +65,5 @@ func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicy
 		MinioIAMName:       d.Get("name").(string),
 		MinioIAMNamePrefix: d.Get("name_prefix").(string),
 		MinioIAMPolicy:     d.Get("policy").(string),
-		// MinioDisableGroup: d.Get("disable_group").(bool),
-		// MinioForceDestroy: d.Get("force_destroy").(bool),
 	}
 }

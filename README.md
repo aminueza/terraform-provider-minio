@@ -135,3 +135,4 @@ Distributed under the MIT License. See `LICENSE` for more information.
 ## Acknowledgements
 * [Hashicorp](https://www.hashicorp.com)
 * [Best Readme](https://github.com/othneildrew/Best-README-Template)
+* [MinIO](https://min.io)

@@ -96,8 +96,13 @@ func minioReadPolicy(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("Error decoding Policy %s: %s", iamPolicyConfig.MinioIAMID, err)
 	}
 
-	d.Set("name", iamPolicyConfig.MinioIAMID)
-	d.Set("policy", string(policy))
+	if err := d.Set("name", string(iamPolicyConfig.MinioIAMID)); err != nil {
+		return err
+	}
+
+	if err := d.Set("policy", string(policy)); err != nil {
+		return err
+	}
 
 	return nil
 }

@@ -55,7 +55,7 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
-//IAMGroupConfig creates new group config
+//IAMPolicyConfig creates new group config
 func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicyConfig {
 	m := meta.(*S3MinioClient)
 

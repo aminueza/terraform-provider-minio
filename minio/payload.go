@@ -55,7 +55,6 @@ type S3MinioIAMGroupConfig struct {
 //S3MinioIAMPolicyConfig defines IAM Policy config
 type S3MinioIAMPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient
-	MinioIAMID         string
 	MinioIAMName       string
 	MinioIAMNamePrefix string
 	MinioIAMPolicy     string

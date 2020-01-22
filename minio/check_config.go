@@ -61,7 +61,6 @@ func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicy
 
 	return &S3MinioIAMPolicyConfig{
 		MinioAdmin:         m.S3Admin,
-		MinioIAMID:         d.Get(d.Id()).(string),
 		MinioIAMName:       d.Get("name").(string),
 		MinioIAMNamePrefix: d.Get("name_prefix").(string),
 		MinioIAMPolicy:     d.Get("policy").(string),

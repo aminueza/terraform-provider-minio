@@ -52,6 +52,14 @@ type S3MinioIAMGroupConfig struct {
 	MinioForceDestroy bool
 }
 
+//S3MinioIAMGroupMembershipConfig defines IAM Group membership config
+type S3MinioIAMGroupMembershipConfig struct {
+	MinioAdmin    *madmin.AdminClient
+	MinioIAMName  string
+	MinioIAMUsers []*string
+	MinioIAMGroup string
+}
+
 //S3MinioIAMPolicyConfig defines IAM Policy config
 type S3MinioIAMPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient

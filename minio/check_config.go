@@ -55,6 +55,18 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
+//IAMGroupMembersipConfig creates new group config
+func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupMembershipConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIAMGroupMembershipConfig{
+		MinioAdmin:    m.S3Admin,
+		MinioIAMName:  d.Get("name").(string),
+		MinioIAMUsers: getStringList(d.Get("users").(*schema.Set).List()),
+		MinioIAMGroup: d.Get("group").(string),
+	}
+}
+
 //IAMPolicyConfig creates new group config
 func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicyConfig {
 	m := meta.(*S3MinioClient)

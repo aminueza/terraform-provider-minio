@@ -8,6 +8,7 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
@@ -115,4 +116,15 @@ func Decode(value []byte) ([]byte, error) {
 		return nil, err
 	}
 	return decoded[:n], nil
+}
+//getStringList get array of strings
+func getStringList(listString []interface{}) []*string {
+	arrayString := make([]*string, 0, len(listString))
+	for _, v := range listString {
+		value, ret := v.(string)
+		if ret && value != "" {
+			arrayString = append(arrayString, aws.String(v.(string)))
+		}
+	}
+	return arrayString
 }

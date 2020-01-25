@@ -2,6 +2,7 @@ package madmin
 
 import (
 	"encoding/xml"
+	"fmt"
 	"net/http"
 )
 
@@ -19,22 +20,22 @@ import (
 
 // ErrorResponse - Is the typed error returned by all API operations.
 type ErrorResponse struct {
-	XMLName    xml.Name `xml:"Error" json:"-"`
-	Code       string
-	Message    string
-	BucketName string
-	Key        string
-	RequestID  string `xml:"RequestId"`
-	HostID     string `xml:"HostId"`
+	XMLName    xml.Name `xml:"Error,omitempty" json:"Error,omitempty"`
+	Code       string   `xml:"Code,omitempty" json:"Code,omitempty"`
+	Message    string   `xml:"Message,omitempty" json:"Message,omitempty"`
+	BucketName string   `xml:"BucketName,omitempty" json:"BucketName,omitempty"`
+	Key        string   `xml:"Key,omitempty" json:"Key,omitempty"`
+	RequestID  string   `xml:"RequestId,omitempty" json:"RequestID,omitempty"`
+	HostID     string   `xml:"HostId,omitempty" json:"HostId,omitempty"`
 
 	// Region where the bucket is located. This header is returned
 	// only in HEAD bucket and ListObjects response.
-	Region string
+	Region string `xml:"Region,omitempty" json:"Region,omitempty"`
 }
 
 // Error - Returns HTTP error string
 func (e ErrorResponse) Error() string {
-	return e.Message
+	return fmt.Sprintf("{\"Code\":\"%s\",\"Message\":\"%s\",\"BucketName\":\"%s\",\"Region\":\"%s\"}", e.Code, e.Message, e.BucketName, e.Region)
 }
 
 const (

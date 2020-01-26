@@ -134,17 +134,33 @@ func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
-	log.Println("[DEBUG] deleting IAM Group request:", iamGroupConfig.MinioIAMName)
+	log.Printf("[DEBUG] Checking if IAM Group %s is empty:", d.Id())
+	groupDesc, _ := iamGroupConfig.MinioAdmin.GetGroupDescription(d.Id())
 
-	groupAddRemove := madmin.GroupAddRemove{
-		Group:    iamGroupConfig.MinioIAMName,
-		IsRemove: true,
+	if len(groupDesc.Policy) == 0 {
+		//delete group requires to set policy if it doesn't exist
+		_ = iamGroupConfig.MinioAdmin.SetPolicy("readonly", d.Id(), true)
+
 	}
 
-	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	//force to delete group even if group isn't empty
+	if iamGroupConfig.MinioForceDestroy {
+		err := deleteMinioGroup(iamGroupConfig, groupDesc.Members)
 
-	if err != nil {
-		return fmt.Errorf("Error deleting IAM Group %s: %s", d.Id(), err)
+		if err != nil {
+			return fmt.Errorf("Error deleting IAM Group %s: %s", d.Id(), err)
+		}
+
+	}
+
+	//Group must be empty to be deleted
+	if len(groupDesc.Members) == 0 {
+		err := deleteMinioGroup(iamGroupConfig, []string{})
+
+		if err != nil {
+			return fmt.Errorf("Error deleting IAM Group %s: %s", d.Id(), err)
+		}
+
 	}
 
 	return nil
@@ -160,6 +176,23 @@ func minioDisableGroup(d *schema.ResourceData, meta interface{}) error {
 
 	if err != nil {
 		return fmt.Errorf("Error disabling IAM Group %s: %s", d.Id(), err)
+	}
+
+	return nil
+}
+
+func deleteMinioGroup(iamGroupConfig *S3MinioIAMGroupConfig, members []string) error {
+
+	log.Println("[DEBUG] deleting IAM Group request:", iamGroupConfig.MinioIAMName)
+	groupAddRemove := madmin.GroupAddRemove{
+		Group:    iamGroupConfig.MinioIAMName,
+		Members:  members,
+		IsRemove: true,
+	}
+
+	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	if err != nil {
+		return err
 	}
 
 	return nil

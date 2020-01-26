@@ -157,13 +157,14 @@ func minioDeleteUser(d *schema.ResourceData, meta interface{}) error {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
-	if iamUserConfig.MinioForceDestroy {
-		log.Println("[DEBUG] Deleting IAM User request:", iamUserConfig.MinioIAMName)
-		err := iamUserConfig.MinioAdmin.RemoveUser(iamUserConfig.MinioIAMName)
+	// IAM Users must be removed from all groups before they can be deleted
+	if err := deleteMinioIamUserGroupMemberships(iamUserConfig); err != nil {
+		return fmt.Errorf("Error removing IAM User (%s) group memberships: %s", d.Id(), err)
+	}
 
-		if err != nil {
-			return fmt.Errorf("Error deleting IAM User %s: %s", d.Id(), err)
-		}
+	err := deleteMinioIamUser(iamUserConfig)
+	if err != nil {
+		return fmt.Errorf("Error deleting IAM User %s: %s", d.Id(), err)
 	}
 
 	return nil
@@ -184,4 +185,39 @@ func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []er
 			k, value))
 	}
 	return
+}
+
+func deleteMinioIamUser(iamUserConfig *S3MinioIAMUserConfig) error {
+	log.Println("[DEBUG] Deleting IAM User request:", iamUserConfig.MinioIAMName)
+	err := iamUserConfig.MinioAdmin.RemoveUser(iamUserConfig.MinioIAMName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteMinioIamUserGroupMemberships(iamUserConfig *S3MinioIAMUserConfig) error {
+
+	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(iamUserConfig.MinioIAMName)
+
+	groupsMemberOf := userInfo.MemberOf
+
+	for _, groupMemberOf := range groupsMemberOf {
+
+		log.Printf("[DEBUG] Removing IAM User %s from IAM Group %s", iamUserConfig.MinioIAMName, groupMemberOf)
+		groupAddRemove := madmin.GroupAddRemove{
+			Group:    groupMemberOf,
+			Members:  []string{iamUserConfig.MinioIAMName},
+			IsRemove: true,
+		}
+
+		err := iamUserConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return nil
+
 }

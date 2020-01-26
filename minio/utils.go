@@ -117,6 +117,7 @@ func Decode(value []byte) ([]byte, error) {
 	}
 	return decoded[:n], nil
 }
+
 //getStringList get array of strings
 func getStringList(listString []interface{}) []*string {
 	arrayString := make([]*string, 0, len(listString))

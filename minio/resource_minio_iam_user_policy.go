@@ -59,7 +59,7 @@ func minioReadUserPolicy(d *schema.ResourceData, meta interface{}) error {
 	}
 	userInfo, errUser := minioAdmin.GetUserInfo(username)
 	if errUser != nil {
-		return NewResourceError("Fail to load get user Infos", username, errUser)
+		return NewResourceError("Fail to load user Infos", username, errUser)
 	}
 	if err := d.Set("policy_name", string(userInfo.PolicyName)); err != nil {
 		return err
@@ -77,7 +77,7 @@ func minioDeleteUserPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	errIam := minioAdmin.SetPolicy("", username, false)
 	if errIam != nil {
-		return NewResourceError("Unable to delet user policy", username+" "+policyName, errIam)
+		return NewResourceError("Unable to delete user policy", username+" "+policyName, errIam)
 	}
 
 	return nil

@@ -84,7 +84,7 @@ func minioUpdateGroupMembership(d *schema.ResourceData, meta interface{}) error 
 		if len(usersToRemove) > 0 {
 			groupAddRemove = madmin.GroupAddRemove{
 				Group:    iamGroupMembershipConfig.MinioIAMGroup,
-				Members:  aws.StringValueSlice(usersToRemove),
+				Members:  isMinioIamUser(iamGroupMembershipConfig, usersToRemove),
 				IsRemove: false,
 			}
 		}
@@ -143,4 +143,17 @@ func minioDeleteGroupMembership(d *schema.ResourceData, meta interface{}) error 
 	}
 
 	return nil
+}
+
+func isMinioIamUser(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []*string) []string {
+
+	var users []string
+
+	for _, user := range usersToRemove {
+		if userInfo, _ := iamGroupMembershipConfig.MinioAdmin.GetUserInfo(*user); userInfo.SecretKey != "" {
+			users = append(users, *user)
+		}
+	}
+
+	return users
 }

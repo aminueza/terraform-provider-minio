@@ -55,7 +55,7 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
-//IAMGroupMembersipConfig creates new group config
+//IAMGroupMembersipConfig creates new membership config
 func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupMembershipConfig {
 	m := meta.(*S3MinioClient)
 
@@ -67,7 +67,7 @@ func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioI
 	}
 }
 
-//IAMPolicyConfig creates new group config
+//IAMPolicyConfig creates new policy config
 func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicyConfig {
 	m := meta.(*S3MinioClient)
 
@@ -76,5 +76,18 @@ func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicy
 		MinioIAMName:       d.Get("name").(string),
 		MinioIAMNamePrefix: d.Get("name_prefix").(string),
 		MinioIAMPolicy:     d.Get("policy").(string),
+	}
+}
+
+//IAMGroupPolicyConfig creates new group policy config
+func IAMGroupPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupPolicyConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIAMGroupPolicyConfig{
+		MinioAdmin:         m.S3Admin,
+		MinioIAMName:       d.Get("name").(string),
+		MinioIAMNamePrefix: d.Get("name_prefix").(string),
+		MinioIAMPolicy:     d.Get("policy").(string),
+		MinioIAMGroup:      d.Get("group").(string),
 	}
 }

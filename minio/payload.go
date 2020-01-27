@@ -68,6 +68,15 @@ type S3MinioIAMPolicyConfig struct {
 	MinioIAMPolicy     string
 }
 
+//S3MinioIAMGroupPolicyConfig defines IAM Policy config
+type S3MinioIAMGroupPolicyConfig struct {
+	MinioAdmin         *madmin.AdminClient
+	MinioIAMName       string
+	MinioIAMNamePrefix string
+	MinioIAMPolicy     string
+	MinioIAMGroup      string
+}
+
 // Error represents a basic error that implies the error interface.
 type Error struct {
 	Message string

@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/hashicorp/terraform/helper/resource"
@@ -44,7 +45,8 @@ func minioCreateUserPolicyAttachment(d *schema.ResourceData, meta interface{}) e
 	}
 
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
-	return err
+
+	return minioReadUserPolicyAttachment(d, meta)
 }
 
 func minioReadUserPolicyAttachment(d *schema.ResourceData, meta interface{}) error {
@@ -55,6 +57,13 @@ func minioReadUserPolicyAttachment(d *schema.ResourceData, meta interface{}) err
 	if errUser != nil {
 		return NewResourceError("Fail to load user Infos", userName, errUser)
 	}
+
+	if userInfo.PolicyName == "" {
+		log.Printf("[WARN] No such policy by name (%s) found, removing from state", d.Id())
+		d.SetId("")
+		return nil
+	}
+
 	if err := d.Set("policy_name", string(userInfo.PolicyName)); err != nil {
 		return err
 	}
@@ -83,7 +92,7 @@ func minioImportUserPolicyAttachment(d *schema.ResourceData, meta interface{}) (
 	userName := idParts[0]
 	policyName := idParts[1]
 
-	err := d.Set("user", userName)
+	err := d.Set("user_name", userName)
 	if err != nil {
 		return nil, NewResourceError("Unable to import user policy", userName, err)
 	}

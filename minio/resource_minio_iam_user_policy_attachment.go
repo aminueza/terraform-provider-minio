@@ -81,10 +81,16 @@ func minioImportUserPolicyAttachment(d *schema.ResourceData, meta interface{}) (
 	}
 
 	userName := idParts[0]
-	policyARN := idParts[1]
+	policyName := idParts[1]
 
-	d.Set("user", userName)
-	d.Set("policy_name", policyARN)
+	err := d.Set("user", userName)
+	if err != nil {
+		return nil, NewResourceError("Unable to import user policy", userName, err)
+	}
+	err = d.Set("policy_name", policyName)
+	if err != nil {
+		return nil, NewResourceError("Unable to import user policy", userName, err)
+	}
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
 	return []*schema.ResourceData{d}, nil
 }

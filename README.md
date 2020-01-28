@@ -3,12 +3,12 @@
 
 <!-- PROJECT LOGO -->
 <p align="center">
-  <a href="https://github.com/aminueza/terraform-minio-provider">
+  <a href="https://github.com/aminueza/terraform-provider-minio">
     <img src="https://i.imgur.com/yijdDec.png" alt="minio-provider-terraform" width="200">
   </a>
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
-    <a href="https://github.com/aminueza/terraform-minio-provider/tree/master/docs"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/aminueza/terraform-provider-minio/tree/master/docs"><strong>Explore the docs »</strong></a>
   </p>
 </p>
 
@@ -21,9 +21,7 @@
 * [Examples](#examples)
 * [Testing](#testing)
 * [Roadmap](#roadmap)
-* [Contributing](#contributing)
 * [License](#license)
-* [Contact](#contact)
 * [Acknowledgements](#acknowledgements)
 
 <!-- ABOUT THE PROJECT -->
@@ -101,35 +99,21 @@ For testing locally, run the docker compose to spin up a minio server:
 ```sh
 $ docker-compose up
 ```
+
+<!-- USAGE -->
+## Usage
+
+See our [Examples](examples/) folder.
+
 <!-- ROADMAP -->
 ## Roadmap
 
-See the [open issues](https://github.com/aminueza/terraform-minio-provider/issues) for a list of proposed features (and known issues).
-
-<!-- CONTRIBUTING -->
-## Contributing
-
-Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated** <span style="color: #e25555;">&#9829;</span>.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/TerraformFeature`)
-3. Commit your Changes (`git commit -m 'Add some TerraformFeature'`)
-4. Push to the Branch (`git push origin feature/TerraformFeature`)
-5. Open a [Pull Request](https://github.com/aminueza/terraform-minio-provider/pulls)
+See the [open issues](https://github.com/aminueza/terraform-minio-provider/issues) for a list of proposed features (and known issues). See [CONTRIBUTION.md](./docs/github/CONTRIBUTING.md) for more information.
 
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
-
-<!-- CONTACT -->
-## Contact
-
-**Amanda Souza** ([amandasouza.app](https://amandasouza.app))
-
-**Email:** [amanda@amandasouza.app](amanda@amandasouza.app)
-
-**Project Link:** [https://github.com/aminueza/terraform-minio-provider](https://github.com/aminueza/terraform-minio-provider)
+Distributed under the Apache License. See `LICENSE` for more information.
 
 <!-- ACKNOWLEDGEMENTS -->
 ## Acknowledgements

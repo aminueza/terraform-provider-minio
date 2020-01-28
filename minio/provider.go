@@ -13,6 +13,9 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "Minio Host and Port",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_ENDPOINT",
+				}, nil),
 			},
 			"minio_region": {
 				Type:        schema.TypeString,
@@ -24,11 +27,17 @@ func Provider() terraform.ResourceProvider {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "Minio Access Key",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_ACCESS_KEY",
+				}, nil),
 			},
 			"minio_secret_key": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "Minio Secret Key",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_SECRET_KEY",
+				}, nil),
 			},
 			"minio_api_version": {
 				Type:        schema.TypeString,

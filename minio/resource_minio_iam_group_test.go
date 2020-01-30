@@ -152,7 +152,7 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
 		if group.Name != name {
-			return fmt.Errorf("Bad name: %s", group.Name )
+			return fmt.Errorf("Bad name: %s", group.Name)
 		}
 
 		err := minioIam.SetGroupStatus(group.Name, madmin.GroupDisabled)
@@ -168,8 +168,6 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 		if resp.Status != status {
 			return fmt.Errorf("Bad status: %s", resp.Status)
 		}
-
-
 
 		return nil
 	}

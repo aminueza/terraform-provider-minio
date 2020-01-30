@@ -1,4 +1,4 @@
-## IAM GROUP
+# IAM GROUP
 
 Provides an IAM group.
 

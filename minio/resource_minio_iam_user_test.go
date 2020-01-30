@@ -200,7 +200,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 		// Try to get user
 		_, err := minioIam.GetUserInfo(rs.Primary.ID)
 		if err == nil {
-			return fmt.Errorf("still exist.")
+			return fmt.Errorf("User still exists")
 		}
 
 	}

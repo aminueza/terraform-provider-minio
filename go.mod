@@ -7,6 +7,7 @@ require (
 	github.com/dustin/go-humanize v1.0.0
 	github.com/go-ini/ini v1.51.0 // indirect
 	github.com/hashicorp/terraform v0.12.17
+	github.com/hashicorp/terraform-plugin-sdk v1.6.0
 	github.com/jen20/awspolicyequivalence v1.1.0
 	github.com/minio/minio v0.0.0-20191209145531-bf3a97d3aae3
 	github.com/minio/minio-go v6.0.14+incompatible

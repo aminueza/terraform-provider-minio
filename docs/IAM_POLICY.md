@@ -1,6 +1,6 @@
-## IAM POLIVY
+# IAM POLICY
 
-Provides an IAM policy.
+Manages IAM Policy for IAM Users.
 
 ## Example of usage
 
@@ -39,7 +39,7 @@ The following arguments are supported:
 
 * **name** - (Optional, Forces new resource) The name of the policy. If omitted, Terraform will assign a random, unique name.
 * **policy** - (Required) The policy document. This is a JSON formatted string based on AWS policies.
-* **name_prefix** - (Optional, Forces new resource) Creates a unique name beginning with the specified prefix. Conflicts with name.
+* **name_prefix** - (Optional, Forces new resource) Creates an unique name beginning with the specified prefix. Conflicts with name.
 
 ## Output
 

@@ -1,6 +1,6 @@
 # IAM GROUP MEMBERSHIP
 
-Manage IAM Group membership for IAM Users.
+Manages IAM Group membership for IAM Users.
 
 ## Example of usage
 
@@ -46,13 +46,14 @@ output "minio_group" {
 
 The following arguments are supported:
 
-* **policy** - (Required, Forces new resource) The name of the policy. If omitted, Terraform will assign a random, unique name.
-* **group** - (Required, Forces new resource) The IAM Group name to attach the list of users to
+* **name** - (Required) The name to identify the Group Membership.
+* **users** - (Required) A list of IAM User names to associate with the Group.
+* **group** - (Required) The IAM Group name to attach the list of `users` to.
 
 ## Output
 
 The following outputs are supported:
 
-* **id** - (Optional) The name to identify the Group attachment.
-* **policy** - (Optional) A list of IAM User names associated to the Group.
+* **id** - (Optional) The name to identify the Group Membership.
+* **users** - (Optional) A list of IAM User names associated to the Group.
 * **group** - (Optional) The IAM Group name.

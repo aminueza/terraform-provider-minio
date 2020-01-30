@@ -1,6 +1,6 @@
 # IAM POLICY
 
-Provides an IAM policy.
+Manages IAM Policy for IAM Users.
 
 ## Example of usage
 

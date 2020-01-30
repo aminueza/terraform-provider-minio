@@ -1,6 +1,6 @@
-# IAM GROUP MEMBERSHIP
+# IAM GROUP POLICY ATTACHMENT
 
-Manage IAM Group membership for IAM Users.
+Manages IAM Group policy attachment for IAM Users.
 
 ## Example of usage
 
@@ -57,6 +57,6 @@ The following arguments are supported:
 
 The following outputs are supported:
 
-* **id** - (Optional) The name to identify the Group Membership.
-* **policy_name** - (Optional) A list of IAM User names associated to the Group.
+* **id** - (Optional) The name to identify the group policy attachment.
+* **policy_name** - (Optional) The policy attached to group.
 * **group_name** - (Optional) The IAM Group name.

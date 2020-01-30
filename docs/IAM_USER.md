@@ -1,6 +1,6 @@
 # IAM USER
 
-Provides an IAM user.
+Manages IAM Users.
 
 ## Example of usage
 

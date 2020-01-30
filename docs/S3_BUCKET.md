@@ -1,6 +1,6 @@
 # S3 BUCKET
 
-Provides a S3 bucket.
+Manages S3 Buckets.
 
 ## Example of usage
 
@@ -30,6 +30,6 @@ The following arguments are supported:
 
 The following outputs are supported:
 
-* **id** - (Optional) Returns a buckett's id. It's same of user name.
-* **bucket_domain_name** - (Optional) The bucket domain name. Will be of format bucket_server:port/minio/bucket
+* **id** - (Optional) Returns a bucket's id. It's same of user name.
+* **bucket_domain_name** - (Optional) The bucket domain name. Will be of format `bucket_server:port/minio/bucket`
 

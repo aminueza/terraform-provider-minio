@@ -1,6 +1,6 @@
 # IAM GROUP POLICY
 
-Manage IAM Group policies for IAM Users.
+Manages IAM Group policies for IAM Users.
 
 ## Example of usage
 
@@ -56,7 +56,6 @@ The following arguments are supported:
 The following outputs are supported:
 
 * **id** - (Optional) Returns a group's policy id. It's same of group policy name.
-* **policy** - (Optional) The policy document. This is a JSON formatted string based on AWS policies.
-* **name** - (Optional) The name of the policy. If omitted, Terraform will assign a random, unique name.
-* **name_prefix** - (Optional) Creates an unique name beginning with the specified prefix. Conflicts with name.
+* **policy** - (Optional) The policy document.
+* **name** - (Optional) The name of the policy.
 * **group** - (Optional) The IAM Group name to attach the policy.

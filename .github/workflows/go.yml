@@ -114,7 +114,7 @@ jobs:
         run: go test ./...
     
   build:
-    name: Build
+    name: Build provider
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go 

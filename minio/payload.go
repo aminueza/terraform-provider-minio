@@ -122,10 +122,10 @@ type IAMPolicyDoc struct {
 //IAMPolicyStatement returns IAM policy statement
 type IAMPolicyStatement struct {
 	Sid        string
-	Effect     string       `json:",omitempty"`
-	Actions    interface{}  `json:"Action,omitempty"`
-	Resources  interface{}  `json:"Resource,omitempty"`
-	Principal  string       `json:"Principal,omitempty"`
+	Effect     string      `json:",omitempty"`
+	Actions    interface{} `json:"Action,omitempty"`
+	Resources  interface{} `json:"Resource,omitempty"`
+	Principal  string      `json:"Principal,omitempty"`
 	Conditions interface{} `json:"Condition,omitempty"`
 }
 

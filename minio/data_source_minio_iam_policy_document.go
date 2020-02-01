@@ -197,7 +197,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 	}
 	jsonString := string(jsonDoc)
 
-	d.Set("json", jsonString)
+	_ = d.Set("json", jsonString)
 	d.SetId(strconv.Itoa(hashcode.String(jsonString)))
 
 	return nil

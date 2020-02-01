@@ -111,7 +111,8 @@ jobs:
         run: go get -v -t -d ./...
 
       - name: Test
-        run: go test ./...
+        run: |
+        TF_ACC=1 MINIO_ENDPOINT=localhost:9000 MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 MINIO_ENABLE_HTTPS=false go test -count=1 -v ./...
     
   build:
     name: Build

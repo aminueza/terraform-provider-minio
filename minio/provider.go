@@ -50,6 +50,9 @@ func Provider() terraform.ResourceProvider {
 				Optional:    true,
 				Default:     false,
 				Description: "Minio SSL enabled (default: false)",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_ENABLE_HTTPS",
+				}, nil),
 			},
 		},
 

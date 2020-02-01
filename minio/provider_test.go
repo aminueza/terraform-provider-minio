@@ -40,6 +40,9 @@ func testAccPreCheck(t *testing.T) {
 	if os.Getenv("MINIO_SECRET_KEY") != "" {
 		ok = true
 	}
+	if os.Getenv("MINIO_ENABLE_HTTPS") != "" {
+		ok = true
+	}
 	if !ok {
 		panic("you must to set env variables for integration tests!")
 	}

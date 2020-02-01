@@ -49,7 +49,7 @@ func TestValidateMinioIamGroupName(t *testing.T) {
 	}
 }
 
-func TestAccAWSGroup_basic(t *testing.T) {
+func TestAccAWSGroup_Basic(t *testing.T) {
 	var conf madmin.GroupDesc
 
 	rString := acctest.RandString(8)
@@ -155,7 +155,7 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 			return fmt.Errorf("Bad name: %s", group.Name)
 		}
 
-		err := minioIam.SetGroupStatus(group.Name, madmin.GroupDisabled)
+		err := minioIam.SetGroupStatus(group.Name, madmin.GroupStatus("disabled"))
 		if err != nil {
 			return err
 		}

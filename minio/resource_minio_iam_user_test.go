@@ -64,7 +64,7 @@ func TestAccAWSUser_basic(t *testing.T) {
 		CheckDestroy: testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioUserConfig(name1, status1),
+				Config: testAccMinioUserConfig(name1),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists("minio_iam_user.user", &conf),
 					testAccCheckMinioUserAttributes(&conf, name1, status1),
@@ -78,7 +78,7 @@ func TestAccAWSUser_basic(t *testing.T) {
 					"force_destroy"},
 			},
 			{
-				Config: testAccMinioUserConfig(name2, status2),
+				Config: testAccMinioUserConfig(name2),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists("minio_iam_user.user", &conf),
 					testAccCheckMinioUserAttributes(&conf, name2, status2),
@@ -124,12 +124,11 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	})
 }
 
-func testAccMinioUserConfig(rName, rStatus string) string {
+func testAccMinioUserConfig(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "user" {
 		  name = %q
-		  status = %q
-		}`, rName, rStatus)
+		}`, rName)
 }
 
 func testAccMinioUserConfigForceDestroy(rName string) string {

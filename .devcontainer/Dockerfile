@@ -2,7 +2,8 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
 #-------------------------------------------------------------------------------------------------------------
-
+FROM minio/minio:RELEASE.2019-12-19T22-52-26Z as minio
+FROM hashicorp/terraform:0.12.20 as terraform
 FROM golang:1
 
 # Avoid warnings by switching to noninteractive
@@ -80,3 +81,20 @@ ENV GO111MODULE=auto
 
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
+
+# Copy and install Terraform
+COPY --from=terraform /bin/terraform /usr/local/bin/
+
+# Copy and install MinIO
+ENV MINIO_ACCESS_KEY=minio
+ENV MINIO_SECRET_KEY=minio123
+ENV MINIO_HTTP_TRACE=/dev/stdout
+ENV MINIO_VOLUMES=/data
+COPY --from=minio /usr/bin/minio /usr/local/bin/
+RUN mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES}
+RUN mkdir -p /home/${USERNAME}/.terraform.d/plugins \
+  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.terraform.d
+
+# Define the default command to run
+CMD bash -c "nohup minio server ${MINIO_VOLUMES} & disown" \
+  && sh -c "while sleep 1000; do :; done"

@@ -1,26 +1,27 @@
 // For format details, see https://aka.ms/vscode-remote/devcontainer.json or the definition README at
 // https://github.com/microsoft/vscode-dev-containers/tree/master/containers/go
 {
-	"name": "Go",
-	"dockerFile": "Dockerfile",
-	"runArgs": [
-		"--cap-add=SYS_PTRACE",
-		"--security-opt",
-		"seccomp=unconfined"
-	],
-	"remoteUser": "vscode",
-	"mounts": [
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,type=bind,consistency=cached",
-		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
-	],
-	"settings": {
-		"terminal.integrated.shell.linux": "/bin/bash",
-		"go.gopath": "/go"
-	},
-	"extensions": [
-		"ms-vscode.go",
-		"streetsidesoftware.code-spell-checker",
-		"yzhang.markdown-all-in-one",
-		"davidanson.vscode-markdownlint"
-	]
+  "name": "Go",
+  "dockerFile": "Dockerfile",
+  "runArgs": [
+    "--cap-add=SYS_PTRACE",
+    "--security-opt",
+    "seccomp=unconfined"
+  ],
+  "remoteUser": "vscode",
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/root/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ],
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "go.gopath": "/go"
+  },
+  "extensions": [
+    "ms-vscode.go",
+    "streetsidesoftware.code-spell-checker",
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint"
+  ],
+  "overrideCommand": false
 }

@@ -2,10 +2,9 @@
 
 Manages IAM Group Membership for a single IAM User.
 
-## Example of usage
+## Usage
 
-```hcl
-
+```go
 resource "minio_iam_group" "developer" {
   name = "developer"
 }
@@ -31,26 +30,25 @@ output "minio_group" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+|   Argument   |          Constraint           | Description                    |
+| :----------: | :---------------------------: | ------------------------------ |
+| `group_name` | Required, forces new resource | The IAM Group name.            |
+| `user_name`  | Required, forces new resource | The IAM User name, for adding. |
 
-* **group_name** - (Required, Forces new resource) The IAM Group name.
-* **user_name** - (Required, Forces new resource) The IAM User name, for adding.
+### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) The name to identify the group user membership.
-* **group_name** - (Optional) The IAM Group name.
-* **user_name** - (Optional) The Username attached to group.
-
+|  Attribute   | Constraint | Description                                     |
+| :----------: | :--------: | ----------------------------------------------- |
+|     `id`     |  Optional  | The name to identify the group user membership. |
+| `group_name` |  Optional  | The IAM Group name.                             |
+| `user_name`  |  Optional  | The Username attached to group.                 |
 
 ## Import
 
 IAM Group User attachments can be imported using the group name and user name separated by `/`.
 
-```bash
-  $ terraform import minio_iam_group_user_attachment.developer developer/test-user
+```sh
+terraform import minio_iam_group_user_attachment.developer developer/test-user
 ```

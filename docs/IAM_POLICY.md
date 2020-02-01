@@ -2,10 +2,9 @@
 
 Manages IAM Policy for IAM Users.
 
-## Example of usage
+## Usage
 
-```hcl
-
+```go
 resource "minio_iam_policy" "test_policy" {
   name = "state-terraform-s3"
   policy= <<EOF
@@ -29,22 +28,22 @@ output "minio_id" {
 }
 
 output "minio_policy" {
-  value = "${minio_iam_policy.test_policy.policy}"
+  value = minio_iam_policy.test_policy.policy
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+|   Argument    |          Constraint           | Description                                                                      |
+| :-----------: | :---------------------------: | -------------------------------------------------------------------------------- |
+|    `name`     | Optional, forces new resource | The name of the policy. If omitted, Terraform will assign a random, unique name. |
+|   `policy`    |           Required            | The policy document. This is a JSON formatted string based on AWS policies.      |
+| `name_prefix` | Optional, forces new resource | Creates an unique name beginning with the specified prefix. Conflicts with name. |
 
-* **name** - (Optional, Forces new resource) The name of the policy. If omitted, Terraform will assign a random, unique name.
-* **policy** - (Required) The policy document. This is a JSON formatted string based on AWS policies.
-* **name_prefix** - (Optional, Forces new resource) Creates an unique name beginning with the specified prefix. Conflicts with name.
+#### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) Returns a policy's id. It's same of policy name.
-* **name** - (Optional) Returns a policy's name. Same of policy's id.
-* **policy** - (Optional) Returns a policy's json string.
+| Attribute | Constraint | Description                                      |
+| :-------: | :--------: | ------------------------------------------------ |
+|   `id`    |  Optional  | Returns a policy's id. It's same of policy name. |
+|  `name`   |  Optional  | Returns a policy's name. Same of policy's id.    |
+| `policy`  |  Optional  | Returns a policy's json string.                  |

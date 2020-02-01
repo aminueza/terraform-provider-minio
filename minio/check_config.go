@@ -55,6 +55,17 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
+//IAMGroupAttachmentConfig creates new membership config for a single user
+func IAMGroupAttachmentConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupAttachmentConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIAMGroupAttachmentConfig{
+		MinioAdmin:    m.S3Admin,
+		MinioIAMUser:  d.Get("user_name").(string),
+		MinioIAMGroup: d.Get("group_name").(string),
+	}
+}
+
 //IAMGroupMembersipConfig creates new membership config
 func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupMembershipConfig {
 	m := meta.(*S3MinioClient)

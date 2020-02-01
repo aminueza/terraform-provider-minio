@@ -52,6 +52,13 @@ type S3MinioIAMGroupConfig struct {
 	MinioForceDestroy bool
 }
 
+//S3MinioIAMGroupAttachmentConfig defines IAM Group membership config
+type S3MinioIAMGroupAttachmentConfig struct {
+	MinioAdmin    *madmin.AdminClient
+	MinioIAMUser  string
+	MinioIAMGroup string
+}
+
 //S3MinioIAMGroupMembershipConfig defines IAM Group membership config
 type S3MinioIAMGroupMembershipConfig struct {
 	MinioAdmin    *madmin.AdminClient

@@ -1,6 +1,10 @@
 package minio
 
-import "github.com/minio/minio-go/v6/pkg/set"
+import (
+	"sort"
+
+	"github.com/minio/minio-go/v6/pkg/set"
+)
 
 // ConditionKeyMap - map of policy condition key and value.
 type ConditionKeyMap map[string]set.StringSet
@@ -96,4 +100,49 @@ func mergeConditionMap(condMap1 ConditionMap, condMap2 ConditionMap) ConditionMa
 	}
 
 	return out
+}
+
+func minioDecodePolicyStringList(lI []interface{}) interface{} {
+
+	if len(lI) == 1 {
+		return lI[0].(string)
+	}
+	ret := make([]string, len(lI))
+	for i, vI := range lI {
+		ret[i] = vI.(string)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(ret)))
+	return ret
+}
+
+func (s *IAMPolicyDoc) merge(newDoc *IAMPolicyDoc) {
+	// adopt newDoc's Id
+	if len(newDoc.ID) > 0 {
+		s.ID = newDoc.ID
+	}
+
+	// let newDoc upgrade our Version
+	if newDoc.Version > s.Version {
+		s.Version = newDoc.Version
+	}
+
+	// merge in newDoc's statements, overwriting any existing Sids
+	var seen bool
+	for _, newStatement := range newDoc.Statements {
+		if len(newStatement.Sid) == 0 {
+			s.Statements = append(s.Statements, newStatement)
+			continue
+		}
+		seen = false
+		for i, existingStatement := range s.Statements {
+			if existingStatement.Sid == newStatement.Sid {
+				s.Statements[i] = newStatement
+				seen = true
+				break
+			}
+		}
+		if !seen {
+			s.Statements = append(s.Statements, newStatement)
+		}
+	}
 }

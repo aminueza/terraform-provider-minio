@@ -4,7 +4,9 @@
   </a>
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
-    <img alt="GitHub contributors" src="https://img.shields.io/github/contributors/aminueza/terraform-provider-minio">
+    <a href="#contributors-">
+      <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat">
+    </a>
     <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
     <img alt="GitHub Workflow" src="https://github.com/aminueza/terraform-provider-minio/workflows/.github/workflows/go.yml/badge.svg">
     <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
@@ -113,8 +115,28 @@ See the [open issues](https://github.com/aminueza/terraform-minio-provider/issue
 
 Distributed under the Apache License. See `LICENSE` for more information.
 
-## Acknowledgement
+## Acknowledgements
 
 - [Hashicorp](https://www.hashicorp.com)
 - [Best Readme](https://github.com/othneildrew/Best-README-Template)
 - [MinIO](https://min.io)
+
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://victornogueira.app"><img src="https://avatars2.githubusercontent.com/u/418083?v=4" width="100px;" alt=""/><br /><sub><b>Victor Nogueira</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Documentation">📖</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Tests">⚠️</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Code">💻</a></td>
+    <td align="center"><a href="http://amandasouza.app"><img src="https://avatars0.githubusercontent.com/u/15249711?v=4" width="100px;" alt=""/><br /><sub><b>Amanda Souza</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Code">💻</a> <a href="https://github.com/aminueza/terraform-provider-minio/pulls?q=is%3Apr+reviewed-by%3Aaminueza" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Tests">⚠️</a> <a href="#projectManagement-aminueza" title="Project Management">📆</a> <a href="#infra-aminueza" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#ideas-aminueza" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Documentation">📖</a></td>
+  </tr>
+</table>
+
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!

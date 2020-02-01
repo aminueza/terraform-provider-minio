@@ -2,10 +2,9 @@
 
 Manages IAM Group membership for IAM Users.
 
-## Example of usage
+## Usage
 
-```hcl
-
+```go
 resource "minio_iam_group" "developer" {
   name = "developer"
 }
@@ -42,18 +41,18 @@ output "minio_group" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+| Argument | Constraint | Description                                           |
+| :------: | :--------: | ----------------------------------------------------- |
+|  `name`  |  Required  | The name to identify the Group Membership.            |
+| `users`  |  Required  | A list of IAM User names to associate with the Group. |
+| `group`  |  Required  | The IAM Group name to attach the list of `users` to.  |
 
-* **name** - (Required) The name to identify the Group Membership.
-* **users** - (Required) A list of IAM User names to associate with the Group.
-* **group** - (Required) The IAM Group name to attach the list of `users` to.
+### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) The name to identify the Group Membership.
-* **users** - (Optional) A list of IAM User names associated to the Group.
-* **group** - (Optional) The IAM Group name.
+| Attribute | Constraint | Description                                       |
+| :-------: | :--------: | ------------------------------------------------- |
+|   `id`    |  Optional  | The name to identify the Group Membership.        |
+|  `users`  |  Optional  | A list of IAM User names associated to the Group. |
+|  `group`  |  Optional  | The IAM Group name.                               |

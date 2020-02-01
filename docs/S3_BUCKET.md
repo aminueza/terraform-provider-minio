@@ -2,9 +2,9 @@
 
 Manages S3 Buckets.
 
-## Example of usage
+## Usage
 
-```hcl
+```go
 resource "minio_s3_bucket" "state_terraform_s3" {
   bucket = "state-terraform-s3"
   acl    = "public"
@@ -19,17 +19,16 @@ output "minio_url" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+| Argument | Constraint | Description                                                                                                                                       |
+| :------: | :--------: | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bucket` |  Required  | The bucket's name.                                                                                                                                |
+|  `acl`   |  Required  | The canned ACL to apply. There are five predefined ACLs: private, public-write, public-read, public-read-write and public. Defaults to "private". |
 
-* **bucket** - (Required) The bucket's name.
-* **acl** - (Required) The canned ACL to apply. There are five predefined ACLs: private, public-write, public-read, public-read-write and public. Defaults to "private".
+### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) Returns a bucket's id. It's same of user name.
-* **bucket_domain_name** - (Optional) The bucket domain name. Will be of format `bucket_server:port/minio/bucket`
-
+|      Attribute       | Constraint | Description                                                                    |
+| :------------------: | :--------: | ------------------------------------------------------------------------------ |
+|         `id`         |  Optional  | Returns a bucket's id. It's same of user name.                                 |
+| `bucket_domain_name` |  Optional  | The bucket domain name. Will be formatted as `bucket_server:port/minio/bucket` |

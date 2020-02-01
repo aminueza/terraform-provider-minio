@@ -15,6 +15,21 @@
         "test",
         "code"
       ]
+    },
+    {
+      "login": "aminueza",
+      "name": "Amanda Souza",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/15249711?v=4",
+      "profile": "http://amandasouza.app",
+      "contributions": [
+        "code",
+        "review",
+        "test",
+        "projectManagement",
+        "infra",
+        "ideas",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

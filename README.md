@@ -111,7 +111,8 @@ See our [Examples](examples/) folder.
 <!-- ROADMAP -->
 ## Roadmap
 
-See the [open issues](https://github.com/aminueza/terraform-minio-provider/issues) for a list of proposed features (and known issues). See [CONTRIBUTION.md](./docs/github/CONTRIBUTING.md) for more information.
+See the [open issues](https://github.com/aminueza/terraform-minio-provider/issues) for a list of proposed features (and known issues). See [CONTRIBUTION.md](./CONTRIBUTING.md) for more information.
+
 
 <!-- LICENSE -->
 ## License

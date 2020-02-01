@@ -1,6 +1,6 @@
 <!-- PROJECT LOGO -->
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-1-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 <p align="center">
   <a href="https://github.com/aminueza/terraform-provider-minio">
@@ -137,6 +137,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <table>
   <tr>
     <td align="center"><a href="https://victornogueira.app"><img src="https://avatars2.githubusercontent.com/u/418083?v=4" width="100px;" alt=""/><br /><sub><b>Victor Nogueira</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Documentation">📖</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Tests">⚠️</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Code">💻</a></td>
+    <td align="center"><a href="http://amandasouza.app"><img src="https://avatars0.githubusercontent.com/u/15249711?v=4" width="100px;" alt=""/><br /><sub><b>Amanda Souza</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Code">💻</a> <a href="https://github.com/aminueza/terraform-provider-minio/pulls?q=is%3Apr+reviewed-by%3Aaminueza" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Tests">⚠️</a> <a href="#projectManagement-aminueza" title="Project Management">📆</a> <a href="#infra-aminueza" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#ideas-aminueza" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Documentation">📖</a></td>
   </tr>
 </table>
 

@@ -5,7 +5,7 @@
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
     <a href="#contributors-">
-      <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat">
+      <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat">
     </a>
     <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
     <img alt="GitHub Workflow" src="https://github.com/aminueza/terraform-provider-minio/workflows/.github/workflows/go.yml/badge.svg">
@@ -135,7 +135,6 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/nolte"><img src="https://avatars1.githubusercontent.com/u/538808?v=4" width="100px;" alt=""/><br /><sub><b>nolte</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=nolte" title="Code">💻</a> <a href="#ideas-nolte" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=nolte" title="Documentation">📖</a></td>
   </tr>
 </table>
-
 <!-- markdownlint-enable -->
 <!-- prettier-ignore-end -->
 <!-- ALL-CONTRIBUTORS-LIST:END -->

@@ -129,3 +129,14 @@ func getStringList(listString []interface{}) []*string {
 	}
 	return arrayString
 }
+
+// Contains check that a Array has the given element
+func Contains(slice []string, item string) bool {
+	set := make(map[string]struct{}, len(slice))
+	for _, s := range slice {
+		set[s] = struct{}{}
+	}
+
+	_, ok := set[item]
+	return ok
+}

@@ -64,6 +64,7 @@ func Provider() terraform.ResourceProvider {
 			"minio_iam_policy":                  resourceMinioIAMPolicy(),
 			"minio_iam_user_policy_attachment":  resourceMinioIAMUserPolicyAttachment(),
 			"minio_iam_group_policy_attachment": resourceMinioIAMGroupPolicyAttachment(),
+			"minio_iam_group_user_attachment":   resourceMinioIAMGroupUserAttachment(),
 		},
 
 		ConfigureFunc: providerConfigure,

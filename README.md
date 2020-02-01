@@ -1,12 +1,15 @@
-<!-- CODE TRIAGE -->
-[![Open Source Helpers](https://www.codetriage.com/aminueza/terraform-minio-provider/badges/users.svg)](https://www.codetriage.com/aminueza/terraform-minio-provider)
-
 <!-- PROJECT LOGO -->
 <p align="center">
   <a href="https://github.com/aminueza/terraform-provider-minio">
     <img src="https://i.imgur.com/yijdDec.png" alt="minio-provider-terraform" width="200">
   </a>
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
+  <p align="center">
+    <img alt="GitHub contributors" src="https://img.shields.io/github/contributors/aminueza/terraform-provider-minio">
+    <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
+    <img alt="GitHub Workflow" src="https://github.com/aminueza/terraform-provider-minio/workflows/.github/workflows/go.yml/badge.svg">
+    <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
+  </p>
   <p align="center">
     <a href="https://github.com/aminueza/terraform-provider-minio/tree/master/docs"><strong>Explore the docs »</strong></a>
   </p>

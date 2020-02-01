@@ -18,6 +18,9 @@
 		"go.gopath": "/go"
 	},
 	"extensions": [
-		"ms-vscode.go"
+		"ms-vscode.go",
+		"streetsidesoftware.code-spell-checker",
+		"yzhang.markdown-all-in-one",
+		"davidanson.vscode-markdownlint"
 	]
 }

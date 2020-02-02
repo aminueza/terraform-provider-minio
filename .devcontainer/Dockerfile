@@ -2,7 +2,7 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
 #-------------------------------------------------------------------------------------------------------------
-FROM minio/minio:RELEASE.2019-12-19T22-52-26Z as minio
+FROM minio/minio:RELEASE.2020-01-25T02-50-51Z as minio
 FROM hashicorp/terraform:0.12.20 as terraform
 FROM golang:1
 

@@ -27,7 +27,7 @@
 - [Usage](#usage)
 - [Roadmap](#roadmap)
 - [License](#license)
-- [Acknowledgement](#acknowledgement)
+- [Acknowledgement](#acknowledgements)
 
 ## About this project
 
@@ -60,7 +60,7 @@ Valid provider filenames are `terraform-provider-NAME_X.X.X` or `terraform-provi
 
 ## Examples
 
-Use [examples/main.tf](./examples/main.tf) to create some test config, such as:
+Use [examples/main.tf](./examples/user/main.tf) to create some test config, such as:
 
 ```go
 provider "minio" {

@@ -27,7 +27,7 @@ RUN apt-get update \
   # Install Go tools w/module support
   && mkdir -p /tmp/gotools \
   && cd /tmp/gotools \
-  && GO111MODULE=on go get -v golang.org/x/tools/gopls@latest 2>&1 \
+  && GO111MODULE=on go get -v -u golang.org/x/tools/gopls@latest 2>&1 \
   && GO111MODULE=on go get -v \
   honnef.co/go/tools/...@latest \
   golang.org/x/tools/cmd/gorename@latest \
@@ -96,5 +96,5 @@ RUN mkdir -p /home/${USERNAME}/.terraform.d/plugins \
   && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.terraform.d
 
 # Define the default command to run
-CMD bash -c "nohup minio server ${MINIO_VOLUMES} & disown" \
+CMD bash -c "minio server ${MINIO_VOLUMES} &" \
   && sh -c "while sleep 1000; do :; done"

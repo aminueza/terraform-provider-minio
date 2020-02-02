@@ -5,7 +5,7 @@
 - Treat everyone with respect and kindness.
 - Be thoughtful in how you communicate.
 - Don’t be destructive or inflammatory.
-- If you encounter an issue, please mail [amanda@amandasouza.app](amanda@amandasouza.app).
+- If you encounter an issue, please mail [amanda@amandasouza.app](mailto:amanda@amandasouza.app).
 
 ## Our Pledge
 
@@ -46,7 +46,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at [amanda@amandasouza.app](amanda@amandasouza.app). All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at [amanda@amandasouza.app](mailto:amanda@amandasouza.app). All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

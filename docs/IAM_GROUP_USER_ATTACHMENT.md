@@ -4,7 +4,7 @@ Manages IAM Group Membership for a single IAM User.
 
 ## Usage
 
-```go
+```hcl
 resource "minio_iam_group" "developer" {
   name = "developer"
 }

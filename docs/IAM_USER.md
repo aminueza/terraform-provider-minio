@@ -4,7 +4,7 @@ Manages IAM Users.
 
 ## Usage
 
-```go
+```hcl
 resource "minio_iam_user" "test" {
    name = "test"
    force_destroy = true

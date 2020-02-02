@@ -62,7 +62,7 @@ Valid provider filenames are `terraform-provider-NAME_X.X.X` or `terraform-provi
 
 Use [examples/main.tf](./examples/user/main.tf) to create some test config, such as:
 
-```go
+```hcl
 provider "minio" {
   minio_server = "localhost:9000"
   minio_region = "us-east-1"
@@ -73,7 +73,7 @@ provider "minio" {
 
 You may use variables to fill up configurations:
 
-```go
+```hcl
 variable "minio_region" {
   description = "Default MINIO region"
   default     = "us-east-1"

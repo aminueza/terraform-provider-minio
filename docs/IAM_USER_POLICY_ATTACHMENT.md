@@ -4,7 +4,7 @@ Manages IAM policy attachment for IAM Users.
 
 ## Usage
 
-```go
+```hcl
 resource "minio_iam_user" "test_user" {
   name = "test-user"
 }

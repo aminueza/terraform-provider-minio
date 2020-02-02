@@ -1,0 +1,28 @@
+name: Docs CI
+on:
+  push:
+    branches:
+      - master
+      - feature/**
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - master
+jobs:
+  mdvalidate:
+    name: Validate Markdown Files
+    runs-on: ubuntu-latest
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v1
+        with:
+            fetch-depth: 1
+      
+      - name: Markdown Link Validation
+        uses: nolte/github-action/markdown/validate@v0.1.0
+        with:
+          args: "--frail" # task fails if warnings exists.

@@ -6,7 +6,7 @@ For more information, see the [AWS terraform examples](https://www.terraform.io/
 
 ## Usage
 
-```go
+```hcl
 data "minio_iam_policy_document" "example" {
   statement {
     sid = "1"

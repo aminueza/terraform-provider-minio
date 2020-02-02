@@ -4,7 +4,7 @@ Manages IAM Policy for IAM Users.
 
 ## Usage
 
-```go
+```hcl
 resource "minio_iam_policy" "test_policy" {
   name = "state-terraform-s3"
   policy= <<EOF

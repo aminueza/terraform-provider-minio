@@ -7,9 +7,15 @@
     <a href="#contributors-">
       <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat">
     </a>
-    <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
-    <img alt="GitHub Workflow" src="https://github.com/aminueza/terraform-provider-minio/workflows/.github/workflows/go.yml/badge.svg">
-    <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
+    <a href="https://golang.org/doc/devel/release.html">
+      <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
+    </a>
+    <a href="https://github.com/aminueza/terraform-provider-minio/actions?query=workflow%3A%22Terraform+Provider+CI%22">
+      <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/aminueza/terraform-provider-minio/Terraform%20Provider%20CI">
+    </a>
+    <a href="https://github.com/aminueza/terraform-provider-minio/releases">
+      <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
+    </a>
   </p>
   <p align="center">
     <a href="https://github.com/aminueza/terraform-provider-minio/tree/master/docs"><strong>Explore the docs »</strong></a>
@@ -37,7 +43,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 
 ## Requirements
 
-- Go v1.31 or higher;
+- Go v1.13 or higher;
 - Terraform v0.12.17 or higher;
 - Docker v19.03.4 or higher for testing minio;
 - Govendor for dependencies.

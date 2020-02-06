@@ -1,7 +1,3 @@
-#-------------------------------------------------------------------------------------------------------------
-# Copyright (c) Microsoft Corporation. All rights reserved.
-# Licensed under the MIT License. See https://go.microsoft.com/fwlink/?linkid=2090316 for license information.
-#-------------------------------------------------------------------------------------------------------------
 FROM minio/minio:RELEASE.2020-01-25T02-50-51Z as minio
 FROM hashicorp/terraform:0.12.20 as terraform
 FROM golang:1
@@ -9,16 +5,29 @@ FROM golang:1
 # Avoid warnings by switching to noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
 
-# This Dockerfile adds a non-root user with sudo access. Use the "remoteUser"
-# property in devcontainer.json to use it. On Linux, the container user's GID/UIDs
-# will be updated to match your local UID/GID (when using the dockerFile property).
-# See https://aka.ms/vscode-remote/containers/non-root-user for details.
+# Set data for non-root user creation
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 
-# Configure apt, install packages and tools
+# Configure the behavior of Go Modules
+ENV GO111MODULE=auto
+
+# Copy and install Terraform binary
+COPY --from=terraform /bin/terraform /usr/local/bin/
+
+# Define environment variables for MinIO
+ENV MINIO_ACCESS_KEY=minio
+ENV MINIO_SECRET_KEY=minio123
+ENV MINIO_HTTP_TRACE=/dev/stdout
+ENV MINIO_VOLUMES=/data
+
+# Copy and install MinIO binary
+COPY --from=minio /usr/bin/minio /usr/local/bin/
+
+# Update packages lists
 RUN apt-get update \
+  # Install utils
   && apt-get -y install --no-install-recommends apt-utils dialog 2>&1 \
   #
   # Verify git, process tools, lsb-release (common in install instructions for CLIs) installed
@@ -50,6 +59,7 @@ RUN apt-get update \
   github.com/mgechev/revive@latest  \
   github.com/go-delve/delve/cmd/dlv@latest 2>&1 \
   #
+  # Give all permissions to Go Path
   && chmod -R 777 $GOPATH \
   #
   # Install Go tools w/o module support
@@ -63,37 +73,29 @@ RUN apt-get update \
   # Install golangci-lint
   && curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin 2>&1 \
   #
-  # Create a non-root user to use if preferred - see https://aka.ms/vscode-remote/containers/non-root-user.
+  # Create a non-root user - see https://aka.ms/vscode-remote/containers/non-root-user
   && groupadd --gid $USER_GID $USERNAME \
   && useradd -s /bin/bash --uid $USER_UID --gid $USER_GID -m $USERNAME \
-  # [Optional] Add sudo support
+  #
+  # Add sudo support
   && apt-get install -y sudo \
   && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
   && chmod 0440 /etc/sudoers.d/$USERNAME \
+  #
+  # Create folders for MinIO
+  && mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES} \
+  #
+  # Create folders for Terraform
+  && mkdir -p /home/${USERNAME}/.terraform.d/plugins \
+  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.terraform.d \
   #
   # Clean up
   && apt-get autoremove -y \
   && apt-get clean -y \
   && rm -rf /var/lib/apt/lists/* /go/src /tmp/gotools
 
-# Update this to "on" or "off" as appropriate
-ENV GO111MODULE=auto
-
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
-
-# Copy and install Terraform
-COPY --from=terraform /bin/terraform /usr/local/bin/
-
-# Copy and install MinIO
-ENV MINIO_ACCESS_KEY=minio
-ENV MINIO_SECRET_KEY=minio123
-ENV MINIO_HTTP_TRACE=/dev/stdout
-ENV MINIO_VOLUMES=/data
-COPY --from=minio /usr/bin/minio /usr/local/bin/
-RUN mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES}
-RUN mkdir -p /home/${USERNAME}/.terraform.d/plugins \
-  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.terraform.d
 
 # Define the default command to run
 CMD bash -c "minio server ${MINIO_VOLUMES} &" \

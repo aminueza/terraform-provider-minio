@@ -2,10 +2,9 @@
 
 Manages IAM Group policies for IAM Users.
 
-## Example of usage
+## Usage
 
 ```hcl
-
 resource "minio_iam_group" "developer" {
   name = "developer"
 }
@@ -42,20 +41,20 @@ output "minio_group" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+|   Argument    |          Constraint           | Description                                                                      |
+| :-----------: | :---------------------------: | -------------------------------------------------------------------------------- |
+|   `policy`    |           Required            | The policy document. This is a JSON formatted string based on AWS policies.      |
+|    `name`     | Optional, forces new resource | The name of the policy. If omitted, Terraform will assign a random, unique name. |
+| `name_prefix` | Optional, forces new resource | Creates an unique name beginning with the specified prefix. Conflicts with name. |
+|    `group`    |           Required            | The IAM Group name to attach the policy.                                         |
 
-* **policy** - (Required) The policy document. This is a JSON formatted string based on AWS policies.
-* **name** - (Optional, Forces new resource) The name of the policy. If omitted, Terraform will assign a random, unique name.
-* **name_prefix** - (Optional, Forces new resource) Creates an unique name beginning with the specified prefix. Conflicts with name.
-* **group** - (Required) The IAM Group name to attach the policy.
+### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) Returns a group's policy id. It's same of group policy name.
-* **policy** - (Optional) The policy document.
-* **name** - (Optional) The name of the policy.
-* **group** - (Optional) The IAM Group name to attach the policy.
+| Attribute | Constraint | Description                                                  |
+| :-------: | :--------: | ------------------------------------------------------------ |
+|   `id`    |  Optional  | Returns a group's policy id. It's same of group policy name. |
+| `policy`  |  Optional  | The policy document.                                         |
+|  `name`   |  Optional  | The name of the policy.                                      |
+|  `group`  |  Optional  | The IAM Group name to attach the policy.                     |

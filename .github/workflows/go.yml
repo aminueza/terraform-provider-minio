@@ -1,136 +1,49 @@
 name: Terraform Provider CI
 on:
   push:
-    branches:
-      - master
-      - feature/**
-    tags:
-      - 'v*'
+    paths:
+        - '**.go'
+        - '**.tf'
+        - 'go.*'
+        - '.github/workflows/*.yml'
   pull_request:
-    branches:
-      - master
+    paths:
+        - '**.go'
+        - '**.tf'
+        - 'go.*'
+        - '.github/workflows/*.yml'
 jobs:
-  gofmt:
-    name: Check fmt error
+  checkup:
+    name: Checkup
     runs-on: ubuntu-latest
     env:
       GOARCH: amd64
       GOOS: linux
     steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
+      - name: Check out the repository
+        uses: actions/checkout@v2
       - name: Run fmt
         uses: aminueza/go-github-action/fmt@master
-  
-  gosec:
-    name: Check Security
-    runs-on: ubuntu-latest
-    env:
-      GOARCH: amd64
-      GOOS: linux
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
       - name: Run sec
         uses: aminueza/go-github-action/sec@master
         with:
           path: minio/...
-
-  govet:
-    name: Check vet error
-    runs-on: ubuntu-latest
-    env:
-      GOARCH: amd64
-      GOOS: linux
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
       - name: Run vet
         uses: aminueza/go-github-action/vet@master
-  
-  errcheck:
-    name: Check linter errcheck
-    runs-on: ubuntu-latest
-    env:
-      GOARCH: amd64
-      GOOS: linux
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
       - name: Run errcheck
         uses: aminueza/go-github-action/errcheck@master
         with:
           path: minio/...
-  
-  golint:
-    name: Linter Golang Code
-    runs-on: ubuntu-latest
-    env:
-      GOARCH: amd64
-      GOOS: linux
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
       - name: Run linter
         uses: aminueza/go-github-action/lint@master
-  
-  test:
-    name: Test Provider Code
-    runs-on: ubuntu-latest
-    env:
-      GOARCH: amd64
-      GOOS: linux
-    steps:
       - name: Set up Go 
         uses: actions/setup-go@v1
         with:
           go-version: ${{ secrets.GO_VERSION }}
         id: go
-
-      - name: Check out code
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-      
       - name: Get dependencies
         run: go get -v -t -d ./...
-
       - name: Test
-        run: |
-        TF_ACC=1 MINIO_ENDPOINT=localhost:9000 MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 MINIO_ENABLE_HTTPS=false go test -count=1 -v ./...
-    
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go 
-        uses: actions/setup-go@v1
-        with:
-          go-version: ${{ secrets.GO_VERSION }}
-        id: go
-        
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v1
-        with:
-            fetch-depth: 1
-
-      - name: Get dependencies
-        run: go get -v -t -d ./...
-
+        run: TF_ACC=1 MINIO_ENDPOINT=localhost:9000 MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 MINIO_ENABLE_HTTPS=false go test -count=1 -v ./...
       - name: Build
         run: make build

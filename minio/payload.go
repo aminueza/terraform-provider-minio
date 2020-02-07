@@ -52,6 +52,13 @@ type S3MinioIAMGroupConfig struct {
 	MinioForceDestroy bool
 }
 
+//S3MinioIAMGroupAttachmentConfig defines IAM Group membership config
+type S3MinioIAMGroupAttachmentConfig struct {
+	MinioAdmin    *madmin.AdminClient
+	MinioIAMUser  string
+	MinioIAMGroup string
+}
+
 //S3MinioIAMGroupMembershipConfig defines IAM Group membership config
 type S3MinioIAMGroupMembershipConfig struct {
 	MinioAdmin    *madmin.AdminClient
@@ -87,7 +94,7 @@ type Stmt struct {
 	Sid        string
 	Actions    set.StringSet `json:"Action"`
 	Conditions ConditionMap  `json:"Condition,omitempty"`
-	Effect     string
+	Effect     string        `json:",omitempty"`
 	Principal  string        `json:"Principal,omitempty"`
 	Resources  set.StringSet `json:"Resource"`
 }
@@ -100,9 +107,37 @@ type Princ struct {
 
 //BucketPolicy defines bucket policy
 type BucketPolicy struct {
-	Version    string `json:"Version"`
+	Version    string `json:",omitempty"`
+	ID         string `json:",omitempty"`
 	Statements []Stmt `json:"Statement"`
 }
+
+//IAMPolicyDoc returns IAM policy
+type IAMPolicyDoc struct {
+	Version    string                `json:"Version,omitempty"`
+	ID         string                `json:"Id,omitempty"`
+	Statements []*IAMPolicyStatement `json:"Statement"`
+}
+
+//IAMPolicyStatement returns IAM policy statement
+type IAMPolicyStatement struct {
+	Sid        string
+	Effect     string      `json:",omitempty"`
+	Actions    interface{} `json:"Action,omitempty"`
+	Resources  interface{} `json:"Resource,omitempty"`
+	Principal  string      `json:"Principal,omitempty"`
+	Conditions interface{} `json:"Condition,omitempty"`
+}
+
+//IAMPolicyStatementCondition returns IAM policy condition
+type IAMPolicyStatementCondition struct {
+	Test     string `json:"-"`
+	Variable string `json:"-"`
+	Values   interface{}
+}
+
+//IAMPolicyStatementConditionSet returns IAM policy condition set
+type IAMPolicyStatementConditionSet []IAMPolicyStatementCondition
 
 // UserStatus User status
 type UserStatus struct {

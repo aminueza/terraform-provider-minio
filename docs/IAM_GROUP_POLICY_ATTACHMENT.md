@@ -2,10 +2,9 @@
 
 Manages IAM Group policy attachment for IAM Users.
 
-## Example of usage
+## Usage
 
 ```hcl
-
 resource "minio_iam_group" "developer" {
   name = "developer"
 }
@@ -46,17 +45,17 @@ output "minio_group" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+|   Argument    |          Constraint           | Description                                                                 |
+| :-----------: | :---------------------------: | --------------------------------------------------------------------------- |
+| `policy_name` | Required, forces new resource | The policy document. This is a JSON formatted string based on AWS policies. |
+| `group_name`  | Required, forces new resource | The IAM Group name to attach with a group.                                  |
 
-* **policy_name** - (Required, Forces new resource) The policy document. This is a JSON formatted string based on AWS policies.
-* **group_name** - (Required, Forces new resource) The IAM Group name to attach with a group
+### Output
 
-## Output
-
-The following outputs are supported:
-
-* **id** - (Optional) The name to identify the group policy attachment.
-* **policy_name** - (Optional) The policy attached to group.
-* **group_name** - (Optional) The IAM Group name.
+|   Attribute   | Constraint | Description                                       |
+| :-----------: | :--------: | ------------------------------------------------- |
+|     `id`      |  Optional  | The name to identify the group policy attachment. |
+| `policy_name` |  Optional  | The policy attached to group.                     |
+| `group_name`  |  Optional  | The IAM Group name.                               |

@@ -56,6 +56,10 @@ func Provider() terraform.ResourceProvider {
 			},
 		},
 
+		DataSourcesMap: map[string]*schema.Resource{
+			"minio_iam_policy_document": dataSourceMinioIAMPolicyDocument(),
+		},
+
 		ResourcesMap: map[string]*schema.Resource{
 			"minio_s3_bucket": resourceMinioBucket(),
 			// "minio_s3_object": resourceMinioObject(),
@@ -67,6 +71,7 @@ func Provider() terraform.ResourceProvider {
 			"minio_iam_policy":                  resourceMinioIAMPolicy(),
 			"minio_iam_user_policy_attachment":  resourceMinioIAMUserPolicyAttachment(),
 			"minio_iam_group_policy_attachment": resourceMinioIAMGroupPolicyAttachment(),
+			"minio_iam_group_user_attachment":   resourceMinioIAMGroupUserAttachment(),
 		},
 
 		ConfigureFunc: providerConfigure,

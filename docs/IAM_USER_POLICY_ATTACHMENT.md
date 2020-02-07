@@ -2,10 +2,9 @@
 
 Manages IAM policy attachment for IAM Users.
 
-## Example of usage
+## Usage
 
 ```hcl
-
 resource "minio_iam_user" "test_user" {
   name = "test-user"
 }
@@ -46,25 +45,25 @@ output "minio_group" {
 }
 ```
 
-## Argument Reference
+### Resource
 
-The following arguments are supported:
+|   Argument    |          Constraint           | Description                                                                 |
+| :-----------: | :---------------------------: | --------------------------------------------------------------------------- |
+| `policy_name` | Required, forces new resource | The policy document. This is a JSON formatted string based on AWS policies. |
+|  `user_name`  | Required, forces new resource | The IAM User name to be attached with a policy                              |
 
-* **policy_name** - (Required, Forces new resource) The policy document. This is a JSON formatted string based on AWS policies.
-* **user_name** - (Required, Forces new resource) The IAM User name to be attached with a policy
+### Output
 
-## Output
+|   Attribute   | Constraint | Description                                 |
+| :-----------: | :--------: | ------------------------------------------- |
+|     `id`      |  Optional  | The name to identify the policy attachment. |
+| `policy_name` |  Optional  | The policy name.                            |
+|  `user_name`  |  Optional  | The IAM User name.                          |
 
-The following outputs are supported:
-
-* **id** - (Optional) The name to identify the policy attachment.
-* **policy_name** - (Optional) The policy name.
-* **user_name** - (Optional) The IAM User name.
-
-## Importing user policy
+## Import
 
 IAM user policy attachments can be imported using the user name and policy arn separated by `/`.
 
 ```sh
-  $ terraform import aws_iam_user_policy_attachment.test-attach test-user/test-policy
+terraform import aws_iam_user_policy_attachment.test-attach test-user/test-policy
 ```

@@ -4,7 +4,7 @@
   </a>
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
-    <a href="#contributors-">
+    <a href="#contributors">
       <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat">
     </a>
     <a href="https://golang.org/doc/devel/release.html">
@@ -31,9 +31,11 @@
 - [Examples](#examples)
 - [Testing](#testing)
 - [Usage](#usage)
+- [Developing inside a container](#developing-inside-a-container)
 - [Roadmap](#roadmap)
 - [License](#license)
-- [Acknowledgement](#acknowledgements)
+- [Acknowledgements](#acknowledgements)
+- [Contributors](#contributors)
 
 ## About this project
 
@@ -113,6 +115,10 @@ docker-compose up
 
 See our [Examples](examples/) folder.
 
+## Developing inside a container
+
+Inside `.devcontainer` folder is the configuration of a Docker Container with all tools needed to develop this project. It's meant to be used with [VS Code](https://code.visualstudio.com), requiring only the installation of [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension. For usage instructions, refer to [this tutorial](https://code.visualstudio.com/docs/remote/containers).
+
 ## Roadmap
 
 See the [open issues](https://github.com/aminueza/terraform-minio-provider/issues) for a list of proposed features (and known issues). See [CONTRIBUTION.md](./docs/github/CONTRIBUTING.md) for more information.
@@ -127,7 +133,7 @@ Distributed under the Apache License. See `LICENSE` for more information.
 - [Best Readme](https://github.com/othneildrew/Best-README-Template)
 - [MinIO](https://min.io)
 
-## Contributors ✨
+## Contributors
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 

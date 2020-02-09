@@ -49,8 +49,6 @@ jobs:
           MINIO_ACCESS_KEY: minio
           MINIO_SECRET_KEY: minio123
           MINIO_ENABLE_HTTPS: false
-        run: go test -count=1 -v ./...
+        run: go test -count=1 -v -cover ./...
       - name: Remove containers
         run: docker rm -f minio
-      - name: Build
-        run: make build

@@ -40,7 +40,6 @@ jobs:
         id: go
       - name: Get dependencies
         run: go get -v -t -d ./...
-        steps:
       - name: Build the docker-compose stack
         run: docker-compose up -d
       - name: Test

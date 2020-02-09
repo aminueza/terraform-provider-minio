@@ -40,6 +40,9 @@ jobs:
         id: go
       - name: Get dependencies
         run: go get -v -t -d ./...
+        steps:
+      - name: Build the docker-compose stack
+        run: docker-compose up -d
       - name: Test
         run: TF_ACC=1 MINIO_ENDPOINT=localhost:9000 MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 MINIO_ENABLE_HTTPS=false go test -count=1 -v ./...
       - name: Build

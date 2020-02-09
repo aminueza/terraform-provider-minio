@@ -52,14 +52,10 @@ func TestValidateMinioIamGroupName(t *testing.T) {
 func TestAccAWSGroup_Basic(t *testing.T) {
 	var conf madmin.GroupDesc
 
-	rString := acctest.RandString(8)
-
-	groupName := fmt.Sprintf("tf-acc-group-basic-%s", rString)
-	groupName2 := fmt.Sprintf("tf-acc-group-basic-2-%s", rString)
+	groupName := fmt.Sprintf("tf-acc-group-basic-%d", acctest.RandInt())
+	groupName2 := fmt.Sprintf("tf-acc-group-basic-2-%d", acctest.RandInt())
 	status1 := "enabled"
 	status2 := "disabled"
-	resourceName := "aws_iam_group.test"
-	resourceName2 := "aws_iam_group.test2"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -69,21 +65,14 @@ func TestAccAWSGroup_Basic(t *testing.T) {
 			{
 				Config: testAccMinioGroupConfig(groupName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioGroupExists(resourceName, &conf),
+					testAccCheckMinioGroupExists("minio_iam_group.test", &conf),
 					testAccCheckMinioGroupAttributes(&conf, groupName, status1),
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateVerifyIgnore: []string{
-					"force_destroy"},
-			},
-			{
 				Config: testAccMinioGroupConfig2(groupName2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioGroupExists(resourceName2, &conf),
+					testAccCheckMinioGroupExists("minio_iam_group.test2", &conf),
 					testAccCheckMinioGroupDisable(&conf, groupName2, status2),
 				),
 			},

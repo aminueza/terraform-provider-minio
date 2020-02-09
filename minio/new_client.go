@@ -22,7 +22,7 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 	}
 
 	minioAdmin, _ := madmin.New(config.S3HostPort, config.S3UserAccess, config.S3UserSecret, config.S3SSL)
-	minioAdmin.TraceOn(nil)
+	//minioAdmin.TraceOn(nil)
 	if err != nil {
 		log.Println("[FATAL] Error connecting to S3 server.")
 		return nil, err

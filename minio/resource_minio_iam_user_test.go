@@ -50,13 +50,11 @@ func TestValidateMinioIamUserName(t *testing.T) {
 }
 
 func TestAccAWSUser_basic(t *testing.T) {
-	var conf madmin.UserInfo
+	var user madmin.UserInfo
 
-	name1 := fmt.Sprintf("test-user-%d", acctest.RandInt())
-	name2 := fmt.Sprintf("test-user-%d", acctest.RandInt())
-	status1 := "enabled"
-	status2 := "disabled"
-	resourceName := "minio_iam_user.user"
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	status := "enabled"
+	resourceName := "minio_iam_user.test"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -64,24 +62,32 @@ func TestAccAWSUser_basic(t *testing.T) {
 		CheckDestroy: testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioUserConfig(name1),
+				Config: testAccMinioUserConfig(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioUserExists("minio_iam_user.user", &conf),
-					testAccCheckMinioUserAttributes(&conf, name1, status1),
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserAttributes(resourceName, name, status),
 				),
 			},
+		},
+	})
+}
+
+func TestAccAWSUser_DisableUser(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test1"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateVerifyIgnore: []string{
-					"force_destroy"},
-			},
-			{
-				Config: testAccMinioUserConfig(name2),
+				Config: testAccMinioUserConfigDisabled(name),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioUserExists("minio_iam_user.user", &conf),
-					testAccCheckMinioUserAttributes(&conf, name2, status2),
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserDisabled(resourceName),
 				),
 			},
 		},
@@ -91,8 +97,8 @@ func TestAccAWSUser_basic(t *testing.T) {
 func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	var user madmin.UserInfo
 
-	rName := acctest.RandomWithPrefix("tf-acc-test")
-	resourceName := "minio_iam_user.test"
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test3"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -100,24 +106,10 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 		CheckDestroy: testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioUserConfigForceDestroy(rName),
+				Config: testAccMinioUserConfigUpdateSecret(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists(resourceName, &user),
-					testAccCheckMinioUserRotatesAccessKey(&user),
-				),
-			},
-			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateVerifyIgnore: []string{
-					"force_destroy"},
-			},
-			{
-				Config: testAccMinioUserConfigUpdateSecret(rName),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioUserExists(resourceName, &user),
-					testAccCheckMinioUserRotatesAccessKey(&user),
+					testAccCheckMinioUserRotatesAccessKey(resourceName),
 				),
 			},
 		},
@@ -126,14 +118,22 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 
 func testAccMinioUserConfig(rName string) string {
 	return fmt.Sprintf(`
-	resource "minio_iam_user" "user" {
+	resource "minio_iam_user" "test" {
 		  name = %q
+		}`, rName)
+}
+
+func testAccMinioUserConfigDisabled(rName string) string {
+	return fmt.Sprintf(`
+	resource "minio_iam_user" "test1" {
+		  name = %q
+		  disable_user= true
 		}`, rName)
 }
 
 func testAccMinioUserConfigForceDestroy(rName string) string {
 	return fmt.Sprintf(`
-resource "minio_iam_user" "test" {
+resource "minio_iam_user" "test2" {
   force_destroy = true
   name          = %q
 }
@@ -142,7 +142,7 @@ resource "minio_iam_user" "test" {
 
 func testAccMinioUserConfigUpdateSecret(rName string) string {
 	return fmt.Sprintf(`
-resource "minio_iam_user" "test" {
+resource "minio_iam_user" "test3" {
   update_secret = true
   name          = %q
 }
@@ -153,7 +153,7 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("Not found: %s %s", n, s)
 		}
 
 		if rs.Primary.ID == "" {
@@ -167,21 +167,49 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 			return err
 		}
 
-		*res = resp
+		res = &resp
 
 		return nil
 	}
 }
 
-func testAccCheckMinioUserAttributes(user *madmin.UserInfo, name string, status string) resource.TestCheckFunc {
+func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		userMinio := user
-		if userMinio.SecretKey != name {
-			return fmt.Errorf("Bad name: %s", user.SecretKey)
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("Not found: %s %s", n, s)
 		}
 
-		if userMinio.Status != madmin.AccountStatus(status) {
-			return fmt.Errorf("Bad status: %s", user.Status)
+		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+
+		err := minioIam.SetUserStatus(rs.Primary.ID, madmin.AccountStatus(statusUser(false)))
+		if err != nil {
+			return fmt.Errorf("Error setting status %s", err)
+		}
+
+		resp, err := minioIam.GetUserInfo(rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("Error getting user %s", err)
+		}
+
+		if rs.Primary.Attributes["status"] != string(resp.Status) {
+			return fmt.Errorf("User enabled %s", resp)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioUserAttributes(n string, name string, status string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["name"] != name {
+			return fmt.Errorf("Bad name: %s", name)
+		}
+
+		if rs.Primary.Attributes["status"] != status {
+			return fmt.Errorf("Bad status: %s", status)
 		}
 
 		return nil
@@ -207,14 +235,16 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckMinioUserRotatesAccessKey(user *madmin.UserInfo) resource.TestCheckFunc {
+func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
+
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
 		secretKey, _ := generateSecretAccessKey()
 
 		userStatus := UserStatus{
-			AccessKey: user.SecretKey,
+			AccessKey: rs.Primary.ID,
 			SecretKey: string(secretKey),
 			Status:    madmin.AccountStatus(statusUser(false)),
 		}

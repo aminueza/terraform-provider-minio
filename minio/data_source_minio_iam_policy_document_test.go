@@ -1,7 +1,6 @@
 package minio
 
 import (
-	"log"
 	"regexp"
 	"testing"
 
@@ -105,8 +104,6 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 }
 
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
-	log.Print(testAccMinioIAMPolicyDocumentNoStatementOverrideConfig)
-	log.Print(testAccMinioIAMPolicyDocumentNoStatementOverrideExpectedJSON)
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,

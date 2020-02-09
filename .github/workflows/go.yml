@@ -1,17 +1,14 @@
 name: Terraform Provider CI
 on:
   push:
-    paths:
-        - '**.go'
-        - '**.tf'
-        - 'go.*'
-        - '.github/workflows/*.yml'
+    branches:
+      - master
   pull_request:
     paths:
-        - '**.go'
-        - '**.tf'
-        - 'go.*'
-        - '.github/workflows/*.yml'
+      - '**.go'
+      - '**.tf'
+      - 'go.*'
+      - '.github/workflows/*.yml'
 jobs:
   checkup:
     name: Checkup

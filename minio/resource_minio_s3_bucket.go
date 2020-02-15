@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"regexp"
+	"strings"
 
+	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/helper/validation"
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
 
@@ -23,12 +27,29 @@ func resourceMinioBucket() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:          schema.TypeString,
+				Optional:      true,
+				Computed:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"bucket_prefix"},
+				ValidateFunc:  validation.StringLenBetween(0, 63),
+			},
+			"bucket_prefix": {
+				Type:          schema.TypeString,
+				Optional:      true,
+				ForceNew:      true,
+				ConflictsWith: []string{"bucket"},
+				ValidateFunc:  validation.StringLenBetween(0, 63-resource.UniqueIDSuffixLength),
+			},
+			"force_destroy": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
 			},
 			"acl": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
@@ -40,34 +61,51 @@ func resourceMinioBucket() *schema.Resource {
 
 func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 
+	var bucket string
+	var region string
+
 	bucketConfig := BucketConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
-	if err := s3utils.CheckValidBucketName(bucketConfig.MinioBucket); err != nil {
-		return NewResourceError("Unable to create bucket", bucketConfig.MinioBucket, err)
+	if name := bucketConfig.MinioBucket; name != "" {
+		bucket = name
+	} else if prefix := bucketConfig.MinioBucketPrefix; prefix != "" {
+		bucket = resource.PrefixedUniqueId(prefix)
+	} else {
+		bucket = resource.UniqueId()
 	}
 
-	if e, err := bucketConfig.MinioClient.BucketExists(bucketConfig.MinioBucket); err != nil {
-		return NewResourceError("Unable to check bucket", bucketConfig.MinioBucket, err)
+	if bucketConfig.MinioRegion == "" {
+		region = "us-east-1"
+	} else {
+		region = bucketConfig.MinioRegion
+	}
+
+	log.Printf("[DEBUG] Creating bucket: [%s] in region: [%s]", bucket, region)
+	if err := s3utils.CheckValidBucketName(bucket); err != nil {
+		return NewResourceError("Unable to create bucket", bucket, err)
+	}
+
+	if e, err := bucketConfig.MinioClient.BucketExists(bucket); err != nil {
+		return NewResourceError("Unable to check bucket", bucket, err)
 	} else if e {
-		return NewResourceError("Bucket already exists!", bucketConfig.MinioBucket, err)
+		return NewResourceError("Bucket already exists!", bucket, err)
 	}
 
-	err := bucketConfig.MinioClient.MakeBucket(bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+	err := bucketConfig.MinioClient.MakeBucket(bucket, region)
 	if err != nil {
-		log.Printf("%s", NewResourceError("Unable to create bucket", bucketConfig.MinioBucket, err))
-		return NewResourceError("Unable to create bucket", bucketConfig.MinioBucket, err)
+		log.Printf("%s", NewResourceError("Unable to create bucket", bucket, err))
+		return NewResourceError("Unable to create bucket", bucket, err)
 	}
 
 	errACL := aclBucket(bucketConfig)
 	if errACL != nil {
-		log.Printf("%s", NewResourceError("Unable to create bucket", bucketConfig.MinioBucket, errACL))
-		return NewResourceError("[ACL] Unable to create bucket", bucketConfig.MinioBucket, errACL)
+		log.Printf("%s", NewResourceError("Unable to create bucket", bucket, errACL))
+		return NewResourceError("[ACL] Unable to create bucket", bucket, errACL)
 	}
 
-	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
-	d.SetId(bucketConfig.MinioBucket)
+	d.SetId(bucket)
 
 	return minioReadBucket(d, meta)
 }
@@ -75,19 +113,19 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 	bucketConfig := BucketConfig(d, meta)
 
-	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion)
 
-	found, err := bucketConfig.MinioClient.BucketExists(bucketConfig.MinioBucket)
+	found, err := bucketConfig.MinioClient.BucketExists(d.Id())
 	if !found {
-		log.Printf("%s", NewResourceError("Unable to find bucket", bucketConfig.MinioBucket, err))
-		return NewResourceError("Unable to find bucket", bucketConfig.MinioBucket, err)
+		log.Printf("%s", NewResourceError("Unable to find bucket", d.Id(), err))
+		return NewResourceError("Unable to find bucket", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Bucket [%s] exists!", bucketConfig.MinioBucket)
+	log.Printf("[DEBUG] Bucket [%s] exists!", d.Id())
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
-	_ = d.Set("bucket_domain_name", string(bucketDomainName(bucketConfig.MinioBucket, bucketURL)))
+	_ = d.Set("bucket_domain_name", string(bucketDomainName(d.Id(), bucketURL)))
 
 	return nil
 }
@@ -110,15 +148,55 @@ func minioUpdateBucket(d *schema.ResourceData, meta interface{}) error {
 }
 
 func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
+	var err error
+
 	bucketConfig := BucketConfig(d, meta)
-	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
-	if err := bucketConfig.MinioClient.RemoveBucket(bucketConfig.MinioBucket); err != nil {
-		log.Printf("%s", NewResourceError("Unable to remove bucket", bucketConfig.MinioBucket, err))
-		return NewResourceError("Unable to remove bucket", bucketConfig.MinioBucket, err)
+	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", d.Id(), bucketConfig.MinioRegion)
+	if err = bucketConfig.MinioClient.RemoveBucket(d.Id()); err != nil {
+		if strings.Contains(err.Error(), "empty") {
+			if bucketConfig.MinioForceDestroy {
+				objectsCh := make(chan string)
+
+				// Send object names that are needed to be removed to objectsCh
+				go func() {
+					defer close(objectsCh)
+
+					doneCh := make(chan struct{})
+
+					// Indicate to our routine to exit cleanly upon return.
+					defer close(doneCh)
+
+					// List all objects from a bucket-name with a matching prefix.
+					for object := range bucketConfig.MinioClient.ListObjects(d.Id(), "", true, doneCh) {
+						if object.Err != nil {
+							log.Fatalln(object.Err)
+						}
+						objectsCh <- object.Key
+					}
+				}()
+
+				errorCh := bucketConfig.MinioClient.RemoveObjects(d.Id(), objectsCh)
+
+				if len(errorCh) > 0 {
+					return NewResourceError("Unable to remove bucket", d.Id(), errors.New("Could not delete objects"))
+				}
+
+				return minioDeleteBucket(d, meta)
+			}
+
+		}
+
+		log.Printf("%s", NewResourceError("Unable to remove bucket", d.Id(), err))
+
+		return NewResourceError("Unable to remove bucket", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", d.Id(), bucketConfig.MinioRegion)
+
+	d.Set("bucket_domain_name", "")
+
 	return nil
+
 }
 
 func aclBucket(bucketConfig *S3MinioBucket) error {
@@ -169,4 +247,27 @@ func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 
 func bucketDomainName(bucket string, bucketConfig *url.URL) string {
 	return fmt.Sprintf("%s/minio/%s", bucketConfig, bucket)
+}
+
+func validateS3BucketName(value string) error {
+	if (len(value) < 3) || (len(value) > 63) {
+		return fmt.Errorf("%q must contain from 3 to 63 characters", value)
+	}
+	if !regexp.MustCompile(`^[0-9a-z-.]+$`).MatchString(value) {
+		return fmt.Errorf("only lowercase alphanumeric characters and hyphens allowed in %q", value)
+	}
+	if regexp.MustCompile(`^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$`).MatchString(value) {
+		return fmt.Errorf("%q must not be formatted as an IP address", value)
+	}
+	if strings.HasPrefix(value, `.`) {
+		return fmt.Errorf("%q cannot start with a period", value)
+	}
+	if strings.HasSuffix(value, `.`) {
+		return fmt.Errorf("%q cannot end with a period", value)
+	}
+	if strings.Contains(value, `..`) {
+		return fmt.Errorf("%q can be only one period between labels", value)
+	}
+
+	return nil
 }

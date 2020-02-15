@@ -22,7 +22,7 @@ func resourceMinioBucket() *schema.Resource {
 		Update: minioUpdateBucket,
 		Delete: minioDeleteBucket,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			State: resourceMinioS3BucketImportState,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -107,7 +107,7 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(bucket)
 
-	return minioReadBucket(d, meta)
+	return minioUpdateBucket(d, meta)
 }
 
 func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
@@ -144,7 +144,7 @@ func minioUpdateBucket(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
 
-	return nil
+	return minioReadBucket(d, meta)
 }
 
 func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
@@ -193,7 +193,7 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", d.Id(), bucketConfig.MinioRegion)
 
-	d.Set("bucket_domain_name", "")
+	_ = d.Set("bucket_domain_name", "")
 
 	return nil
 

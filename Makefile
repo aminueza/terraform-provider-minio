@@ -18,5 +18,9 @@ build: build_cleanup
 
 build_cleanup:
 	rm -f ./terraform-provider-s3minio_*
+test:
+	TF_ACC=0 MINIO_ENDPOINT=localhost:9000 \
+	MINIO_ACCESS_KEY=minio MINIO_SECRET_KEY=minio123 \
+	MINIO_ENABLE_HTTPS=false $(GO) test -count=1 -v -cover ./...
 
-.PHONY: default build build_cleanup
+.PHONY: default build build_cleanup test

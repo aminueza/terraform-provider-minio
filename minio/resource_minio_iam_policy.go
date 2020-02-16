@@ -123,6 +123,10 @@ func minioUpdatePolicy(d *schema.ResourceData, meta interface{}) error {
 	} else if d.HasChange(iamPolicyConfig.MinioIAMPolicy) {
 		on, nn = d.GetChange(iamPolicyConfig.MinioIAMPolicy)
 	}
+	
+	if on == nil && nn == nil {
+		return minioReadPolicy(d, meta)
+	}
 
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Policy:", iamPolicyConfig.MinioIAMName)
@@ -150,6 +154,8 @@ func minioDeletePolicy(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return NewResourceError("Unable to delete policy", d.Id(), err)
 	}
+
+	_ = d.Set("policy", "")
 
 	return nil
 }

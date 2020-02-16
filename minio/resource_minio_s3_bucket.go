@@ -22,8 +22,10 @@ func resourceMinioBucket() *schema.Resource {
 		Update: minioUpdateBucket,
 		Delete: minioDeleteBucket,
 		Importer: &schema.ResourceImporter{
-			State: resourceMinioS3BucketImportState,
+			State: schema.ImportStatePassthrough,
 		},
+
+		SchemaVersion: 0,
 
 		Schema: map[string]*schema.Schema{
 			"bucket": {
@@ -97,6 +99,8 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		return NewResourceError("Unable to create bucket", bucket, err)
 	}
 
+	_ = d.Set("bucket", bucket)
+
 	errACL := aclBucket(bucketConfig)
 	if errACL != nil {
 		log.Printf("%s", NewResourceError("Unable to create bucket", bucket, errACL))
@@ -118,10 +122,15 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 	found, err := bucketConfig.MinioClient.BucketExists(d.Id())
 	if !found {
 		log.Printf("%s", NewResourceError("Unable to find bucket", d.Id(), err))
-		return NewResourceError("Unable to find bucket", d.Id(), err)
+		d.SetId("")
+		return nil
 	}
 
 	log.Printf("[DEBUG] Bucket [%s] exists!", d.Id())
+
+	if _, ok := d.GetOk("bucket"); !ok {
+		_ = d.Set("bucket", d.Id())
+	}
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
@@ -133,18 +142,20 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 func minioUpdateBucket(d *schema.ResourceData, meta interface{}) error {
 	bucketConfig := BucketConfig(d, meta)
 
-	log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
-		bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+	if d.HasChange(bucketConfig.MinioACL) {
+		log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
+			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
-	errACL := aclBucket(bucketConfig)
-	if errACL != nil {
-		log.Printf("%s", NewResourceError("Unable to update bucket", bucketConfig.MinioBucket, errACL))
-		return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, errACL)
+		if err := aclBucket(bucketConfig); err != nil {
+			log.Printf("%s", NewResourceError("Unable to update bucket", bucketConfig.MinioBucket, err))
+			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
+		}
+
+		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
+
 	}
-
-	log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
-
 	return minioReadBucket(d, meta)
+
 }
 
 func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {

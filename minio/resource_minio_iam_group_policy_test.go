@@ -3,6 +3,7 @@ package minio
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,33 +14,32 @@ import (
 
 func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 	var groupPolicy1, groupPolicy2 string
-	rInt1 := acctest.RandInt()
-	rInt2 := acctest.RandInt()
+	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
 		Providers:    testAccProviders,
 		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccIAMGroupPolicyConfig(rInt1),
+				Config: testAccIAMGroupPolicyConfig(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckIAMGroupPolicyExists(
-						"minio_iam_group.test",
-						"minio_iam_group_policy.test",
+						"minio_iam_group.group",
+						"minio_iam_group_policy.foo",
 						&groupPolicy1,
 					),
 				),
 			},
 			{
-				ResourceName:      "minio_iam_group_policy.test",
+				ResourceName:      "minio_iam_group_policy.foo",
 				ImportState:       true,
 				ImportStateVerify: true,
 			},
 			{
-				Config: testAccIAMGroupPolicyConfigUpdate(rInt2),
+				Config: testAccIAMGroupPolicyConfigUpdate(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckIAMGroupPolicyExists(
-						"minio_iam_group.test",
+						"minio_iam_group.group",
 						"minio_iam_group_policy.bar",
 						&groupPolicy2,
 					),
@@ -68,11 +68,11 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 				Config: testAccIAMGroupPolicyConfig(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckIAMGroupPolicyExists(
-						"minio_iam_group.test",
-						"minio_iam_group_policy.test",
+						"minio_iam_group.group",
+						"minio_iam_group_policy.foo",
 						&out,
 					),
-					testAccCheckIAMGroupPolicyDisappears("minio_iam_group_policy.test"),
+					testAccCheckIAMGroupPolicyDisappears("minio_iam_group_policy.foo"),
 				),
 				ExpectNonEmptyPlan: true,
 			},
@@ -81,38 +81,29 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 }
 
 func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
-	var groupPolicy1, groupPolicy2 string
-	rInt1 := acctest.RandInt()
-	rInt2 := acctest.RandInt()
+	var groupPolicy2 string
+	namePrefix := "tf-acc-test-"
+	rInt := acctest.RandInt()
+	resourceName := "minio_iam_group_policy.test"
+
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:      func() { testAccPreCheck(t) },
-		IDRefreshName: "minio_iam_group_policy.test",
-		Providers:     testAccProviders,
-		CheckDestroy:  testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccIAMGroupPolicyConfigNamePrefix(rInt1, "s3:ListAllMyBuckets"),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIAMGroupPolicyExists(
-						"minio_iam_group.test",
-						"minio_iam_group_policy.test",
-						&groupPolicy1,
-					),
-				),
-			},
-			{
-				Config: testAccIAMGroupPolicyConfigNamePrefix(rInt2, "s3:*"),
+				Config: testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckIAMGroupPolicyExists(
 						"minio_iam_group.test",
 						"minio_iam_group_policy.test",
 						&groupPolicy2,
 					),
-					testAccCheckMinioIAMGroupPolicyNameMatches(&groupPolicy1, &groupPolicy2),
+					resource.TestMatchResourceAttr(resourceName, "name", regexp.MustCompile(fmt.Sprintf("^%s", namePrefix))),
 				),
 			},
 			{
-				ResourceName:            "minio_iam_group_policy.test",
+				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"name_prefix"},
@@ -122,34 +113,22 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 }
 
 func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
-	var groupPolicy1, groupPolicy2 string
-	rInt1 := acctest.RandInt()
-	rInt2 := acctest.RandInt()
+	var groupPolicy1 string
+	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:      func() { testAccPreCheck(t) },
-		IDRefreshName: "minio_iam_group_policy.test",
-		Providers:     testAccProviders,
-		CheckDestroy:  testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccIAMGroupPolicyConfigGeneratedName(rInt1, "s3:ListAllMyBuckets"),
+				Config: testAccIAMGroupPolicyConfigGeneratedName(rInt, "s3:ListBucket"),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckIAMGroupPolicyExists(
 						"minio_iam_group.test",
 						"minio_iam_group_policy.test",
 						&groupPolicy1,
 					),
-				),
-			},
-			{
-				Config: testAccIAMGroupPolicyConfigGeneratedName(rInt2, "s3:*"),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckIAMGroupPolicyExists(
-						"minio_iam_group.test",
-						"minio_iam_group_policy.test",
-						&groupPolicy2,
-					),
-					testAccCheckMinioIAMGroupPolicyNameMatches(&groupPolicy1, &groupPolicy2),
+					testAccCheckMinioIAMGroupPolicyNameExists(&groupPolicy1),
 				),
 			},
 			{
@@ -253,10 +232,10 @@ func testAccCheckMinioIAMGroupPolicyNameChanged(i, j *string) resource.TestCheck
 	}
 }
 
-func testAccCheckMinioIAMGroupPolicyNameMatches(i, j *string) resource.TestCheckFunc {
+func testAccCheckMinioIAMGroupPolicyNameExists(i *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		if aws.StringValue(i) != aws.StringValue(j) {
-			return errors.New("IAM Group Policy name did not match")
+		if aws.StringValue(i) == "" {
+			return errors.New("IAM Group Policy name does not exist")
 		}
 
 		return nil
@@ -265,12 +244,12 @@ func testAccCheckMinioIAMGroupPolicyNameMatches(i, j *string) resource.TestCheck
 
 func testAccIAMGroupPolicyConfig(rInt int) string {
 	return fmt.Sprintf(`
-resource "minio_iam_group" "test" {
-  name = "test_group_test"
+resource "minio_iam_group" "group" {
+  name = "test_group_%d"
 }
-resource "minio_iam_group_policy" "test" {
+resource "minio_iam_group_policy" "foo" {
   name  = "foo_policy_%d"
-  group = "${minio_iam_group.test.group_name}"
+  group = "${minio_iam_group.group.group_name}"
   policy = <<EOF
 {
 	"Version": "2012-10-17",
@@ -284,16 +263,16 @@ resource "minio_iam_group_policy" "test" {
 }
 EOF
 }
-`, rInt)
+`, rInt, rInt)
 }
 
-func testAccIAMGroupPolicyConfigNamePrefix(rInt int, policyAction string) string {
+func testAccIAMGroupPolicyConfigNamePrefix(namePrefix string, rInt int, policyAction string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_group" "test" {
-  name = "test_group_test"
+	name = "test_group_%d"
 }
 resource "minio_iam_group_policy" "test" {
-  name_prefix = "test-%d"
+  name_prefix = "%s"
   group       = "${minio_iam_group.test.group_name}"
   policy = <<EOF
 {
@@ -308,7 +287,7 @@ resource "minio_iam_group_policy" "test" {
 }
 EOF
 }
-`, rInt, policyAction)
+`, rInt, namePrefix, policyAction)
 }
 
 func testAccIAMGroupPolicyConfigGeneratedName(rInt int, policyAction string) string {
@@ -331,22 +310,22 @@ resource "minio_iam_group_policy" "test" {
 }
 EOF
 }
-`,rInt, policyAction)
+`, rInt, policyAction)
 }
 
 func testAccIAMGroupPolicyConfigUpdate(rInt int) string {
 	return fmt.Sprintf(`
-resource "minio_iam_group" "test" {
-  name = "test_group_%d"
+resource "minio_iam_group" "group" {
+	name = "test_group_%d"
 }
-resource "minio_iam_group_policy" "test" {
+resource "minio_iam_group_policy" "foo" {
   name   = "foo_policy_%d"
-  group  = "${minio_iam_group.test.group_name}"
+  group  = "${minio_iam_group.group.group_name}"
   policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 }
 resource "minio_iam_group_policy" "bar" {
   name   = "bar_policy_%d"
-  group  = "${minio_iam_group.test.group_name}"
+  group  = "${minio_iam_group.group.group_name}"
   policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 }
 `, rInt, rInt, rInt)

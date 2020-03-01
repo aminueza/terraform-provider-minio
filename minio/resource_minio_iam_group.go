@@ -31,7 +31,7 @@ func resourceMinioIAMGroup() *schema.Resource {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Default:     false,
-				Description: "Delete group even if it has non-Terraform-managed IAM access keys",
+				Description: "Delete group even if it has non-Terraform-managed members",
 			},
 			"group_name": {
 				Type:     schema.TypeString,
@@ -143,6 +143,10 @@ func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
 			return nil
 		}
 		return fmt.Errorf("Error reading IAM Group %s: %s", d.Id(), err)
+	}
+
+	if groupDesc.Name == "" {
+		return nil
 	}
 
 	if len(groupDesc.Policy) == 0 {

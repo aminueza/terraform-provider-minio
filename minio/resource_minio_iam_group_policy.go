@@ -1,6 +1,8 @@
 package minio
 
 import (
+	"bytes"
+	"encoding/asn1"
 	"fmt"
 	"log"
 	"strings"
@@ -90,7 +92,7 @@ func minioReadGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Getting IAM Group Policy: %s", d.Id())
 
 	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(policyName)
-	if &output == nil {
+	if len(output) == 0 || bytes.Equal(output, asn1.NullBytes) {
 		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err)
 		d.SetId("")
 		return nil

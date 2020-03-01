@@ -1,7 +1,6 @@
 package minio
 
 import (
-	"log"
 	"regexp"
 	"testing"
 
@@ -105,8 +104,6 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 }
 
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
-	log.Print(testAccMinioIAMPolicyDocumentNoStatementOverrideConfig)
-	log.Print(testAccMinioIAMPolicyDocumentNoStatementOverrideExpectedJSON)
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:  func() { testAccPreCheck(t) },
 		Providers: testAccProviders,
@@ -462,7 +459,7 @@ data "minio_iam_policy_document" "override" {
 data "minio_iam_policy_document" "test_override" {
   override_json = "${data.minio_iam_policy_document.override.json}"
   statement {
-    actions   = ["ec2:*"]
+    actions   = ["s3:*"]
     resources = ["*"]
   }
   statement {
@@ -482,7 +479,7 @@ var testAccMinioIAMPolicyDocumentOverrideExpectedJSON = `{
     {
       "Sid": "",
       "Effect": "Allow",
-      "Action": "ec2:*",
+      "Action": "s3:*",
       "Resource": "*"
     },
     {
@@ -498,7 +495,7 @@ var testAccMinioIAMPolicyDocumentNoStatementMergeConfig = `
 data "minio_iam_policy_document" "source" {
   statement {
     sid = ""
-    actions   = ["ec2:DescribeAccountAttributes"]
+    actions   = ["s3:GetObject"]
     resources = ["*"]
   }
 }
@@ -521,7 +518,7 @@ var testAccMinioIAMPolicyDocumentNoStatementMergeExpectedJSON = `{
     {
       "Sid": "",
       "Effect": "Allow",
-      "Action": "ec2:DescribeAccountAttributes",
+      "Action": "s3:GetObject",
       "Resource": "*"
     },
     {
@@ -537,7 +534,7 @@ var testAccMinioIAMPolicyDocumentNoStatementOverrideConfig = `
 data "minio_iam_policy_document" "source" {
   statement {
     sid = "OverridePlaceholder"
-    actions   = ["ec2:DescribeAccountAttributes"]
+    actions   = ["s3:GetObject"]
     resources = ["*"]
   }
 }
@@ -571,7 +568,7 @@ data "minio_iam_policy_document" "test" {
   statement {
     sid    = "1"
     effect = "Allow"
-    actions = ["ec2:DescribeAccountAttributes"]
+    actions = ["s3:GetObject"]
     resources = ["*"]
   }
   statement {
@@ -587,7 +584,7 @@ var testAccMinioIAMPolicyDocumentDuplicateBlankSidConfig = `
     statement {
       sid    = ""
       effect = "Allow"
-      actions = ["ec2:DescribeAccountAttributes"]
+      actions = ["s3:GetObject"]
       resources = ["*"]
     }
     statement {
@@ -604,7 +601,7 @@ var testAccMinioIAMPolicyDocumentDuplicateBlankSidExpectedJSON = `{
     {
       "Sid": "",
       "Effect": "Allow",
-      "Action": "ec2:DescribeAccountAttributes",
+      "Action": "s3:GetObject",
       "Resource": "*"
     },
     {
@@ -620,7 +617,7 @@ const testAccMinioIAMPolicyDocumentDataSourceConfigVersion20081017 = `
 data "minio_iam_policy_document" "test" {
   version = "2008-10-17"
    statement {
-    actions   = ["ec2:*"]
+    actions   = ["s3:*"]
     resources = ["*"]
   }
 }
@@ -632,7 +629,7 @@ const testAccMinioIAMPolicyDocumentDataSourceConfigVersion20081017ExpectedJSON =
     {
       "Sid": "",
       "Effect": "Allow",
-      "Action": "ec2:*",
+      "Action": "s3:*",
       "Resource": "*"
     }
   ]

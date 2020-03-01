@@ -124,6 +124,10 @@ func minioUpdatePolicy(d *schema.ResourceData, meta interface{}) error {
 		on, nn = d.GetChange(iamPolicyConfig.MinioIAMPolicy)
 	}
 
+	if on == nil && nn == nil {
+		return minioReadPolicy(d, meta)
+	}
+
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Policy:", iamPolicyConfig.MinioIAMName)
 		err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(on.(string))
@@ -150,6 +154,8 @@ func minioDeletePolicy(d *schema.ResourceData, meta interface{}) error {
 	if err != nil {
 		return NewResourceError("Unable to delete policy", d.Id(), err)
 	}
+
+	_ = d.Set("policy", "")
 
 	return nil
 }

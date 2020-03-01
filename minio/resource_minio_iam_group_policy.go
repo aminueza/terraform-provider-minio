@@ -1,6 +1,8 @@
 package minio
 
 import (
+	"bytes"
+	"encoding/asn1"
 	"fmt"
 	"log"
 	"strings"
@@ -56,10 +58,10 @@ func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
 
-	if len(iAMGroupPolicyConfig.MinioIAMName) > 0 {
-		name = iAMGroupPolicyConfig.MinioIAMName
-	} else if len(iAMGroupPolicyConfig.MinioIAMNamePrefix) > 0 {
-		name = resource.PrefixedUniqueId(iAMGroupPolicyConfig.MinioIAMNamePrefix)
+	if policyName := iAMGroupPolicyConfig.MinioIAMName; policyName != "" {
+		name = policyName
+	} else if policyName := iAMGroupPolicyConfig.MinioIAMNamePrefix; policyName != "" {
+		name = resource.PrefixedUniqueId(policyName)
 	} else {
 		name = resource.UniqueId()
 	}
@@ -68,10 +70,12 @@ func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(name, iAMGroupPolicyConfig.MinioIAMPolicy)
 	if err != nil {
-		return NewResourceError("Unable to create group policy", name, err)
+		return NewResourceError("Unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
 	}
 
-	d.SetId(fmt.Sprintf("%s:%s", iAMGroupPolicyConfig.MinioIAMGroup, iAMGroupPolicyConfig.MinioIAMName))
+	d.SetId(fmt.Sprintf("%s:%s", iAMGroupPolicyConfig.MinioIAMGroup, name))
+
+	log.Printf("[DEBUG] Creating IAM Group Policy %s", d.Id())
 
 	return minioReadGroupPolicy(d, meta)
 }
@@ -88,17 +92,13 @@ func minioReadGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 	log.Printf("[DEBUG] Getting IAM Group Policy: %s", d.Id())
 
 	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(policyName)
-	if err != nil {
-		return NewResourceError("Unable to read group policy", d.Id(), err)
-	}
-
-	log.Printf("[WARN] (%v)", output)
-
-	if &output == nil {
-		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state", d.Id())
+	if len(output) == 0 || bytes.Equal(output, asn1.NullBytes) {
+		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err)
 		d.SetId("")
 		return nil
 	}
+
+	log.Printf("[WARN] (%v)", string(output))
 
 	if err := d.Set("name", policyName); err != nil {
 		return err
@@ -134,6 +134,10 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 		on, nn = d.GetChange(iAMGroupPolicyConfig.MinioIAMPolicy)
 	}
 
+	if on == nil && nn == nil {
+		return minioReadGroupPolicy(d, meta)
+	}
+
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Group Policy:", policyName)
 		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(on.(string))
@@ -150,7 +154,7 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	}
 
-	return minioReadPolicy(d, meta)
+	return minioReadGroupPolicy(d, meta)
 }
 
 func minioDeleteGroupPolicy(d *schema.ResourceData, meta interface{}) error {
@@ -177,7 +181,7 @@ func minioDeleteGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 func resourceMinioIamGroupPolicyParseID(id string) (groupName, policyName string, err error) {
 	parts := strings.SplitN(id, ":", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		err = fmt.Errorf("group_policy id must be of the form <group-name>:<policy-name>")
+		err = fmt.Errorf("group_policy id must be of the form <group-name>:<policy-name> got %s:%s", parts[0], parts[1])
 		return
 	}
 

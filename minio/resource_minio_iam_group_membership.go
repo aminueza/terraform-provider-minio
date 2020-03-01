@@ -177,7 +177,6 @@ func userToADD(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersT
 
 func userToRemove(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []*string) error {
 
-
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  aws.StringValueSlice(usersToRemove),

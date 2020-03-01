@@ -123,7 +123,7 @@ func minioUpdatePolicy(d *schema.ResourceData, meta interface{}) error {
 	} else if d.HasChange(iamPolicyConfig.MinioIAMPolicy) {
 		on, nn = d.GetChange(iamPolicyConfig.MinioIAMPolicy)
 	}
-	
+
 	if on == nil && nn == nil {
 		return minioReadPolicy(d, meta)
 	}

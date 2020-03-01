@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"strings"
 
 	madmin "github.com/aminueza/terraform-minio-provider/madmin"
 	"github.com/aws/aws-sdk-go/aws"
@@ -112,16 +113,15 @@ func minioReadGroup(d *schema.ResourceData, meta interface{}) error {
 
 	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(iamGroupConfig.MinioIAMName)
 	if err != nil {
+		if strings.Contains(err.Error(), "group does not exist") {
+			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
+			d.SetId("")
+			return nil
+		}
 		return fmt.Errorf("Error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)
-
-	if &output == nil {
-		log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
-		d.SetId("")
-		return nil
-	}
 
 	if err := d.Set("group_name", string(output.Name)); err != nil {
 		return err
@@ -135,7 +135,15 @@ func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
 	log.Printf("[DEBUG] Checking if IAM Group %s is empty:", d.Id())
-	groupDesc, _ := iamGroupConfig.MinioAdmin.GetGroupDescription(d.Id())
+	groupDesc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(d.Id())
+	if err != nil {
+		if strings.Contains(err.Error(), "not exist") {
+			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
+			d.SetId("")
+			return nil
+		}
+		return fmt.Errorf("Error reading IAM Group %s: %s", d.Id(), err)
+	}
 
 	if len(groupDesc.Policy) == 0 {
 		//delete group requires to set policy if it doesn't exist

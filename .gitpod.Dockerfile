@@ -4,6 +4,9 @@ FROM gitpod/workspace-full
                     
 USER gitpod
 
+# Define environment variables for Terraform
+ENV TERRAFORM_PLUGINS_DIR=$HOME/.terraform.d/plugins
+
 # Copy and install Terraform binary
 COPY --from=terraform /bin/terraform /usr/local/bin/
 
@@ -16,7 +19,5 @@ ENV MINIO_VOLUMES=$HOME/.minio/data
 # Copy and install MinIO binary
 COPY --from=minio /usr/bin/minio /usr/local/bin/
 
-# Create folders for MinIO
-RUN  mkdir -p ${MINIO_VOLUMES} \
-  # Create folders for Terraform
-  && mkdir -p ~/.terraform.d/plugins
+# Create folders for MinIO and Terraform
+RUN  mkdir -p ${MINIO_VOLUMES} ${TERRAFORM_PLUGINS_DIR}

@@ -1,6 +1,8 @@
 FROM minio/minio:RELEASE.2020-01-25T02-50-51Z as minio
 FROM hashicorp/terraform:0.12.20 as terraform
-FROM golang:1
+FROM gitpod/workspace-full
+                    
+USER gitpod
 
 # Copy and install Terraform binary
 COPY --from=terraform /bin/terraform /usr/local/bin/

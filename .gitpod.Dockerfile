@@ -16,11 +16,8 @@ ENV MINIO_VOLUMES=/data
 # Copy and install MinIO binary
 COPY --from=minio /usr/bin/minio /usr/local/bin/
 
-# Give all permissions to Go Path
-RUN chmod -R 777 $GOPATH \
-  #
-  # Create folders for MinIO
-  && mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES} \
+# Create folders for MinIO
+RUN  mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES} \
   #
   # Create folders for Terraform
   && mkdir -p /home/${USERNAME}/.terraform.d/plugins \

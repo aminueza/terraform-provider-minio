@@ -11,14 +11,12 @@ COPY --from=terraform /bin/terraform /usr/local/bin/
 ENV MINIO_ACCESS_KEY=minio
 ENV MINIO_SECRET_KEY=minio123
 ENV MINIO_HTTP_TRACE=/dev/stdout
-ENV MINIO_VOLUMES=/data
+ENV MINIO_VOLUMES=~/.minio/data
 
 # Copy and install MinIO binary
 COPY --from=minio /usr/bin/minio /usr/local/bin/
 
 # Create folders for MinIO
 RUN  mkdir -p ${MINIO_VOLUMES} && chmod -R 777 ${MINIO_VOLUMES} \
-  #
   # Create folders for Terraform
-  && mkdir -p /home/${USERNAME}/.terraform.d/plugins \
-  && chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.terraform.d
+  && mkdir -p ~/.terraform.d/plugins

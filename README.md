@@ -10,6 +10,9 @@
     <a href="https://golang.org/doc/devel/release.html">
       <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
     </a>
+    <a href="https://gitpod.io/#https://github.com/aminueza/terraform-provider-minio">
+      <img alt="Gitpod Ready-to-Code" src="https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod">
+    </a>
     <a href="https://github.com/aminueza/terraform-provider-minio/actions?query=workflow%3A%22Terraform+Provider+CI%22">
       <img alt="GitHub Workflow Status" src="https://img.shields.io/github/workflow/status/aminueza/terraform-provider-minio/Terraform%20Provider%20CI">
     </a>

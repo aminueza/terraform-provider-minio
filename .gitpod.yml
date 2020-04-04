@@ -1,0 +1,5 @@
+tasks:
+  - init: go get -v ./... && go test ./minio/ && make build
+    command: bash -c "minio server ${MINIO_VOLUMES} &"
+image:
+  file: .gitpod.Dockerfile

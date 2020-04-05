@@ -1,0 +1,7 @@
+tasks:
+  - init: go get -v ./... && go test ./minio/ && make build
+  - command: minio server ${MINIO_VOLUMES}
+    name: MinIO Server
+    openMode: split-right
+image:
+  file: .gitpod.Dockerfile

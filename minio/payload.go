@@ -1,7 +1,7 @@
 package minio
 
 import (
-	madmin "github.com/aminueza/terraform-minio-provider/madmin"
+	madmin "github.com/aminueza/terraform-provider-minio/madmin"
 	minio "github.com/minio/minio-go/v6"
 	"github.com/minio/minio-go/v6/pkg/set"
 )

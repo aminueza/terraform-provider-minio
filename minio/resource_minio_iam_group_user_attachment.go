@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	madmin "github.com/aminueza/terraform-minio-provider/madmin"
+	madmin "github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 )

@@ -42,7 +42,7 @@
 
 ## About this project
 
-A [Terraform](https://www.terraform.io) provider to manage [MinIO Cloud Storages](https://min.io).
+A [Terraform](https://www.terraform.io) provider to manage [MinIO Cloud Storage](https://min.io).
 
 Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang.org/).
 

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -242,13 +243,13 @@ func testAccCheckMinioS3BucketDestroy(s *terraform.State) error {
 		if rs.Type != "minio_s3_bucket" {
 			continue
 		}
-		if ok, _ := conn.BucketExists(rs.Primary.ID); ok {
-			err := conn.RemoveBucket(rs.Primary.ID)
+		if ok, _ := conn.BucketExists(context.Background(), rs.Primary.ID); ok {
+			err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 			if err != nil {
 				return fmt.Errorf("Error removing bucket: %s", err)
 			}
 
-			bucket, err := conn.BucketExists(rs.Primary.ID)
+			bucket, err := conn.BucketExists(context.Background(), rs.Primary.ID)
 			if !bucket {
 				return fmt.Errorf("Bucket still exists")
 			}
@@ -269,7 +270,7 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
-		isBucket, _ := minioC.BucketExists(rs.Primary.ID)
+		isBucket, _ := minioC.BucketExists(context.Background(), rs.Primary.ID)
 
 		if !isBucket {
 			return fmt.Errorf("S3 bucket not found")
@@ -293,7 +294,7 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 		}
 
 		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
-		err := conn.RemoveBucket(rs.Primary.ID)
+		err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
 		}

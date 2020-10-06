@@ -1,7 +1,8 @@
 VERSION=1.0
+TARGET=~/.terraform.d/plugins/registry.terraform.io/hashicorp/minio/1.0/darwin_amd64/
 
 # helper to run go from project root
-GO := go
+GO := ${GOROOT}/bin/go
 
 # run build command
 define building_provider
@@ -24,3 +25,7 @@ test:
 	MINIO_ENABLE_HTTPS=false $(GO) test -count=1 -v -cover ./...
 
 .PHONY: default build build_cleanup test
+
+install: build
+	mkdir -p ${TARGET}
+	cp -r terraform-provider-minio_v1.0_darwin_amd64 ${TARGET}/terraform-provider-minio

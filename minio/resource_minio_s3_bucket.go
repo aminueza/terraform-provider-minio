@@ -1,9 +1,11 @@
 package minio
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/minio/minio-go/v7"
 	"log"
 	"net/url"
 	"regexp"
@@ -12,7 +14,7 @@ import (
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
-	"github.com/minio/minio-go/v6/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 func resourceMinioBucket() *schema.Resource {
@@ -87,13 +89,15 @@ func minioCreateBucket(d *schema.ResourceData, meta interface{}) error {
 		return NewResourceError("Unable to create bucket", bucket, err)
 	}
 
-	if e, err := bucketConfig.MinioClient.BucketExists(bucket); err != nil {
+	if e, err := bucketConfig.MinioClient.BucketExists(context.Background(), bucket); err != nil {
 		return NewResourceError("Unable to check bucket", bucket, err)
 	} else if e {
 		return NewResourceError("Bucket already exists!", bucket, err)
 	}
 
-	err := bucketConfig.MinioClient.MakeBucket(bucket, region)
+	err := bucketConfig.MinioClient.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{
+		Region: region,
+	})
 	if err != nil {
 		log.Printf("%s", NewResourceError("Unable to create bucket", bucket, err))
 		return NewResourceError("Unable to create bucket", bucket, err)
@@ -119,7 +123,7 @@ func minioReadBucket(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion)
 
-	found, err := bucketConfig.MinioClient.BucketExists(d.Id())
+	found, err := bucketConfig.MinioClient.BucketExists(context.Background(), d.Id())
 	if !found {
 		log.Printf("%s", NewResourceError("Unable to find bucket", d.Id(), err))
 		d.SetId("")
@@ -163,10 +167,10 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 
 	bucketConfig := BucketConfig(d, meta)
 	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", d.Id(), bucketConfig.MinioRegion)
-	if err = bucketConfig.MinioClient.RemoveBucket(d.Id()); err != nil {
+	if err = bucketConfig.MinioClient.RemoveBucket(context.Background(), d.Id()); err != nil {
 		if strings.Contains(err.Error(), "empty") {
 			if bucketConfig.MinioForceDestroy {
-				objectsCh := make(chan string)
+				objectsCh := make(chan minio.ObjectInfo)
 
 				// Send object names that are needed to be removed to objectsCh
 				go func() {
@@ -178,15 +182,18 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 					defer close(doneCh)
 
 					// List all objects from a bucket-name with a matching prefix.
-					for object := range bucketConfig.MinioClient.ListObjects(d.Id(), "", true, doneCh) {
+					// FIXME: doneCh argument is not added to function call
+					for object := range bucketConfig.MinioClient.ListObjects(context.Background(), d.Id(), minio.ListObjectsOptions{
+						Recursive: true,
+					}) {
 						if object.Err != nil {
 							log.Fatalln(object.Err)
 						}
-						objectsCh <- object.Key
+						objectsCh <- object
 					}
 				}()
 
-				errorCh := bucketConfig.MinioClient.RemoveObjects(d.Id(), objectsCh)
+				errorCh := bucketConfig.MinioClient.RemoveObjects(context.Background(), d.Id(), objectsCh, minio.RemoveObjectsOptions{})
 
 				if len(errorCh) > 0 {
 					return NewResourceError("Unable to remove bucket", d.Id(), errors.New("Could not delete objects"))
@@ -227,7 +234,7 @@ func aclBucket(bucketConfig *S3MinioBucket) error {
 	}
 
 	if policyString != "none" {
-		if err := bucketConfig.MinioClient.SetBucketPolicy(bucketConfig.MinioBucket, policyString); err != nil {
+		if err := bucketConfig.MinioClient.SetBucketPolicy(context.Background(), bucketConfig.MinioBucket, policyString); err != nil {
 			log.Printf("%s", NewResourceError("Unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("Unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}

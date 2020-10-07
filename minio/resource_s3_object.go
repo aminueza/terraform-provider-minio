@@ -3,6 +3,9 @@ package minio
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
+	"errors"
+	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/helper/validation"
 	"github.com/minio/minio-go/v7"
@@ -78,6 +81,17 @@ func minioPutObject(d *schema.ResourceData, meta interface{}) error {
 	if v, ok := d.GetOk("content"); ok {
 		content := v.(string)
 		body = bytes.NewReader([]byte(content))
+	} else if v, ok := d.GetOk("content_base64"); ok {
+		content := v.(string)
+		contentRaw, err := base64.StdEncoding.DecodeString(content)
+		if err != nil {
+			return fmt.Errorf("error decoding content_base64: %s", err)
+		}
+		body = bytes.NewReader(contentRaw)
+	} else if _, ok := d.GetOk("content_base64"); ok {
+		return errors.New("sorry, unsupported yet")
+	} else {
+		return errors.New("one of source / content / content_base64 is not set")
 	}
 
 	_, err := m.S3Client.PutObject(

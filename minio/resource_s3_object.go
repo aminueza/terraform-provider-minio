@@ -130,8 +130,12 @@ func minioReadObject(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	d.Set("etag", objInfo.ETag)
-	d.Set("version_id", objInfo.VersionID)
+	if err := d.Set("etag", objInfo.ETag); err != nil {
+		return err
+	}
+	if err := d.Set("version_id", objInfo.VersionID); err != nil {
+		return err
+	}
 
 	return nil
 }

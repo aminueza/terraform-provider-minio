@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/terraform/helper/schema"
@@ -14,7 +15,7 @@ func resourceMinioS3BucketImportState(
 	results[0] = d
 
 	conn := meta.(*S3MinioClient).S3Client
-	pol, err := conn.GetBucketPolicy(d.Id())
+	pol, err := conn.GetBucketPolicy(context.Background(), d.Id())
 	if err != nil {
 		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
 	}

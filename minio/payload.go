@@ -2,8 +2,8 @@ package minio
 
 import (
 	madmin "github.com/aminueza/terraform-provider-minio/madmin"
-	minio "github.com/minio/minio-go/v6"
-	"github.com/minio/minio-go/v6/pkg/set"
+	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/set"
 )
 
 //S3MinioConfig defines variable for minio

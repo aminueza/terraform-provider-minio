@@ -4,8 +4,8 @@
   </a>
   <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
   <p align="center">
-    <a href="#contributors">
-      <img alt="All Contributors" src="https://img.shields.io/badge/all_contributors-3-orange.svg?style=flat">
+    <a href="https://github.com/aminueza/terraform-provider-minio/graphs/contributors">
+      <img alt="Contributors" src="https://img.shields.io/github/contributors/aminueza/terraform-provider-minio">
     </a>
     <a href="https://golang.org/doc/devel/release.html">
       <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
@@ -30,7 +30,7 @@
 - [Table of Contents](#table-of-contents)
 - [About this project](#about-this-project)
 - [Requirements](#requirements)
-- [Installing the plugin](#installing-the-plugin)
+- [Building and Installing](#building-and-installing)
 - [Examples](#examples)
 - [Testing](#testing)
 - [Usage](#usage)
@@ -38,7 +38,6 @@
 - [Roadmap](#roadmap)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
-- [Contributors](#contributors)
 
 ## About this project
 
@@ -50,24 +49,36 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 
 - Go v1.13 or higher;
 - Terraform v0.12.17 or higher;
-- Docker v19.03.4 or higher for testing minio;
-- Govendor for dependencies.
+- Docker v19.03 or higher for testing minio;
 
-## Installing the plugin
+## Building and Installing
 
-We release darwin and linux amd64 packages on the releases page. Once you have the plugin you should remove the _os_arch from the end of the file name and place it in `~/.terraform.d/plugins` which is where terraform init will look for plugins. To install release binaries, download the version from your OS, then:
+We have x64 versions for MaxOS and Linux prebuilt, available on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
-```sh
-mv terraform-provider-minio_v1.0_darwin_amd64 ~/.terraform.d/plugins/terraform-provider-minio_v1.0
+But if you want to build yourself, ust download this repository and follow the instructions:
+
+### MacOS
+
+To build and install this plugin on MacOS, run:
+```
+make install_mac
 ```
 
-If you require a different architecture you will need to build the plugin from source, see below for more details:
+### Linux
 
-```sh
-make build
+To build and install this plugin on Linux, run:
+```
+make install_linux
 ```
 
-Valid provider filenames are `terraform-provider-NAME_X.X.X` or `terraform-provider-NAME_vX.X.X`
+### Windows
+
+For Windows we don't have a Makefile, but it should be as simple as:
+```
+go build -o terraform-provider-minio_v1.0
+mkdir "%APPDATA%\terraform.d\plugins\windows_amd64"
+move terraform-provider-minio_v1.0 %APPDATA%\terraform.d\plugins\windows_amd64
+```
 
 ## Examples
 
@@ -128,30 +139,10 @@ See the [open issues](https://github.com/aminueza/terraform-provider-minio/issue
 
 ## License
 
-Distributed under the Apache License. See `LICENSE` for more information.
+Distributed under the Apache License. See [LICENSE](./LICENSE) for more information.
 
 ## Acknowledgements
 
 - [Hashicorp](https://www.hashicorp.com)
 - [Best Readme](https://github.com/othneildrew/Best-README-Template)
 - [MinIO](https://min.io)
-
-## Contributors
-
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore-start -->
-<!-- markdownlint-disable -->
-<table>
-  <tr>
-    <td align="center"><a href="https://victornogueira.app"><img src="https://avatars2.githubusercontent.com/u/418083?v=4" width="100px;" alt=""/><br /><sub><b>Victor Nogueira</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Documentation">📖</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Tests">⚠️</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=felladrin" title="Code">💻</a></td>
-    <td align="center"><a href="http://amandasouza.app"><img src="https://avatars0.githubusercontent.com/u/15249711?v=4" width="100px;" alt=""/><br /><sub><b>Amanda Souza</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Code">💻</a> <a href="https://github.com/aminueza/terraform-provider-minio/pulls?q=is%3Apr+reviewed-by%3Aaminueza" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Tests">⚠️</a> <a href="#projectManagement-aminueza" title="Project Management">📆</a> <a href="#infra-aminueza" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#ideas-aminueza" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=aminueza" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/nolte"><img src="https://avatars1.githubusercontent.com/u/538808?v=4" width="100px;" alt=""/><br /><sub><b>nolte</b></sub></a><br /><a href="https://github.com/aminueza/terraform-provider-minio/commits?author=nolte" title="Code">💻</a> <a href="#ideas-nolte" title="Ideas, Planning, & Feedback">🤔</a> <a href="https://github.com/aminueza/terraform-provider-minio/commits?author=nolte" title="Documentation">📖</a></td>
-  </tr>
-</table>
-<!-- markdownlint-enable -->
-<!-- prettier-ignore-end -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
-
-This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!

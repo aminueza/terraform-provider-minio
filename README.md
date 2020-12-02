@@ -48,14 +48,13 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 ## Requirements
 
 - Go v1.13 or higher;
-- Terraform v0.12.17 or higher;
-- Docker v19.03 or higher for testing minio;
+- Terraform v0.13.5 or higher;
 
 ## Building and Installing
 
-We have x64 versions for MaxOS and Linux prebuilt, available on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
+Prebuilt versions of this provider are available for MacOS and Linux on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
-But if you want to build yourself, ust download this repository and follow the instructions:
+But if you need to build it yourself, just download this repository and follow the instructions:
 
 ### MacOS
 
@@ -75,9 +74,9 @@ make install_linux
 
 For Windows we don't have a Makefile, but it should be as simple as:
 ```
-go build -o terraform-provider-minio_v1.0
-mkdir "%APPDATA%\terraform.d\plugins\windows_amd64"
-move terraform-provider-minio_v1.0 %APPDATA%\terraform.d\plugins\windows_amd64
+go build -o terraform-provider-minio_v1.0.0
+mkdir "%APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\1.0.0\windows_amd64"
+move terraform-provider-minio_v1.0.0 %APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\1.0.0\windows_amd64
 ```
 
 ## Examples
@@ -143,6 +142,6 @@ Distributed under the Apache License. See [LICENSE](./LICENSE) for more informat
 
 ## Acknowledgements
 
-- [Hashicorp](https://www.hashicorp.com)
-- [Best Readme](https://github.com/othneildrew/Best-README-Template)
+- [HashiCorp Terraform](https://www.hashicorp.com/products/terraform)
 - [MinIO](https://min.io)
+- [Best Readme](https://github.com/othneildrew/Best-README-Template)

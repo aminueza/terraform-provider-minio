@@ -1,26 +1,30 @@
-version: '3.7'
+version: "3"
 services:
   minio:
-    image: minio/minio:RELEASE.2020-02-27T00-23-05Z
-    hostname: minio
-    container_name: minio
+    image: minio/minio:RELEASE.2020-11-25T22-36-25Z
     ports:
       - "9000:9000"
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
-      MINIO_HTTP_TRACE: /dev/stdout
-    command: server /data
+    command: server /data0 /data1 /data2 /data3
   adminio-ui:
-    image: rzrbld/adminio-ui:latest
+    image: rzrbld/adminio-ui:release-1.7
+    environment:
+      API_BASE_URL: "http://localhost:8080"
+      ADMINIO_MULTI_BACKEND: "false"
+      ADMINIO_BACKENDS: '[{"name":"myminio","url":"http://localhost:8080"},{"name":"localhost","url":"http://localhost:8081"},{"name":"error","url":"http://localhost:8082"}]'
+      NGX_ROOT_PATH: "/"
     ports:
       - "80:80"
   adminio-api:
-    image: aminueza/adminio-api:v2.0
+    image: rzrbld/adminio-api:release-1.6
     environment:
       MINIO_ACCESS: minio
       MINIO_SECRET: minio123
       MINIO_HOST_PORT: minio:9000
+      MINIO_SSE_MASTER_KEY: 1:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
+      ADMINIO_HOST_PORT: :8080
     depends_on:
       - minio
       - adminio-ui

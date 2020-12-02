@@ -60,6 +60,7 @@ But if you want to build yourself, ust download this repository and follow the i
 ### MacOS
 
 To build and install this plugin on MacOS, run:
+
 ```
 make install_mac
 ```
@@ -67,6 +68,7 @@ make install_mac
 ### Linux
 
 To build and install this plugin on Linux, run:
+
 ```
 make install_linux
 ```
@@ -74,6 +76,7 @@ make install_linux
 ### Windows
 
 For Windows we don't have a Makefile, but it should be as simple as:
+
 ```
 go build -o terraform-provider-minio_v1.0
 mkdir "%APPDATA%\terraform.d\plugins\windows_amd64"
@@ -124,6 +127,8 @@ For testing locally, run the docker compose to spin up a minio server:
 ```sh
 docker-compose up
 ```
+
+Access http://localhost on your browser, apply your terraform templates and watch them going live.
 
 ## Usage
 

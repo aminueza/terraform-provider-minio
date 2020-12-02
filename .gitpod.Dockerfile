@@ -1,5 +1,5 @@
-FROM minio/minio:RELEASE.2020-01-25T02-50-51Z as minio
-FROM hashicorp/terraform:0.12.20 as terraform
+FROM minio/minio as minio
+FROM hashicorp/terraform as terraform
 FROM gitpod/workspace-full
                     
 USER gitpod
@@ -14,7 +14,7 @@ COPY --from=terraform /bin/terraform /usr/local/bin/
 ENV MINIO_ACCESS_KEY=minio
 ENV MINIO_SECRET_KEY=minio123
 ENV MINIO_HTTP_TRACE=/dev/stdout
-ENV MINIO_VOLUMES=$HOME/.minio/data
+ENV MINIO_VOLUMES=/tmp/minio
 
 # Copy and install MinIO binary
 COPY --from=minio /usr/bin/minio /usr/local/bin/

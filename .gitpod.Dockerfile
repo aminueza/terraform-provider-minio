@@ -1,7 +1,7 @@
-FROM minio/minio as minio
-FROM hashicorp/terraform as terraform
+FROM hashicorp/terraform:0.13.5 as terraform
+FROM minio/minio:RELEASE.2020-11-25T22-36-25Z as minio
 FROM gitpod/workspace-full
-                    
+
 USER gitpod
 
 # Define environment variables for Terraform

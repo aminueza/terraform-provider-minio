@@ -1,8 +1,8 @@
 # [Choice] Go version: 1, 1.15, 1.14
 ARG VARIANT="1"
 
-FROM hashicorp/terraform as terraform
-FROM minio/minio as minio
+FROM hashicorp/terraform:0.13.5 as terraform
+FROM minio/minio:RELEASE.2020-11-25T22-36-25Z as minio
 FROM mcr.microsoft.com/vscode/devcontainers/go:0-${VARIANT}
 
 # Copy and install Terraform binary

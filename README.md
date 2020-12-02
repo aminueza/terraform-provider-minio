@@ -59,6 +59,7 @@ But if you need to build it yourself, just download this repository and follow t
 ### MacOS
 
 To build and install this plugin on MacOS, run:
+
 ```
 make install_mac
 ```
@@ -66,6 +67,7 @@ make install_mac
 ### Linux
 
 To build and install this plugin on Linux, run:
+
 ```
 make install_linux
 ```
@@ -73,6 +75,7 @@ make install_linux
 ### Windows
 
 For Windows we don't have a Makefile, but it should be as simple as:
+
 ```
 go build -o terraform-provider-minio_v1.0.0
 mkdir "%APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\1.0.0\windows_amd64"
@@ -123,6 +126,8 @@ For testing locally, run the docker compose to spin up a minio server:
 ```sh
 docker-compose up
 ```
+
+Access http://localhost on your browser, apply your terraform templates and watch them going live.
 
 ## Usage
 

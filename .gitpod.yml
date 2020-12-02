@@ -1,5 +1,5 @@
 tasks:
-  - init: go get -v ./... && go test ./minio/ && make build
+  - init: make install_linux
   - command: minio server ${MINIO_VOLUMES}
     name: MinIO Server
     openMode: split-right

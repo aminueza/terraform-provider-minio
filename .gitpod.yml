@@ -1,7 +1,9 @@
 tasks:
-  - init: make install_linux
   - command: minio server ${MINIO_VOLUMES}
     name: MinIO Server
-    openMode: split-right
+  - init: make install_linux
 image:
-  file: .gitpod.Dockerfile
+  file: .devcontainer/Dockerfile
+vscode:
+  extensions:
+    - hashicorp.terraform@2.3.0:KgEabs4baG2MuLl5VL6Iyg==

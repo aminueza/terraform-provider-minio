@@ -29,7 +29,7 @@
 
 - [Table of Contents](#table-of-contents)
 - [About this project](#about-this-project)
-- [Requirements](#requirements)
+- [Supported Versions](#supported-versions)
 - [Building and Installing](#building-and-installing)
 - [Examples](#examples)
 - [Testing](#testing)

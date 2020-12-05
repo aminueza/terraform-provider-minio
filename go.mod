@@ -11,7 +11,6 @@ require (
 	github.com/hashicorp/terraform-config-inspect v0.0.0-20191115094559-17f92b0546e8 // indirect
 	github.com/jen20/awspolicyequivalence v1.1.0
 	github.com/minio/minio v0.0.0-20201204032319-e083471ec4bc
-	github.com/minio/minio-go/v6 v6.0.39
 	github.com/minio/minio-go/v7 v7.0.6
 	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/posener/complete v1.2.2-0.20190702141536-6ffe496ea953 // indirect

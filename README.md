@@ -45,10 +45,13 @@ A [Terraform](https://www.terraform.io) provider to manage [MinIO Cloud Storage]
 
 Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang.org/).
 
-## Requirements
+## Supported Versions
 
-- Go v1.13 or higher;
-- Terraform v0.13.5 or higher;
+- Terraform v0.14
+- Go v1.15
+
+It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
+It just means that we can't guarantee backward compatibility.
 
 ## Building and Installing
 

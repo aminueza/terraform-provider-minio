@@ -1,6 +1,8 @@
 package minio
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -64,7 +66,7 @@ func minioCreatePolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy)
 
-	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(name, iamPolicyConfig.MinioIAMPolicy)
+	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), name, ParseIamPolicyConfigFromString(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to create policy", name, err)
 	}
@@ -80,7 +82,7 @@ func minioReadPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Getting IAM Policy: %s", d.Id())
 
-	output, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(string(d.Id()))
+	output, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(context.Background(), string(d.Id()))
 	if err != nil {
 		return NewResourceError("Unable to read policy", d.Id(), err)
 	}
@@ -97,7 +99,12 @@ func minioReadPolicy(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	if err := d.Set("policy", string(output)); err != nil {
+	outputAsJSON, err := json.Marshal(&output)
+	if err != nil {
+		return err
+	}
+
+	if err := d.Set("policy", string(outputAsJSON)); err != nil {
 		return err
 	}
 
@@ -130,12 +137,12 @@ func minioUpdatePolicy(d *schema.ResourceData, meta interface{}) error {
 
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Policy:", iamPolicyConfig.MinioIAMName)
-		err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(on.(string))
+		err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), on.(string))
 		if err != nil {
 			return NewResourceError("Unable to update policy", name, err)
 		}
 
-		err = iamPolicyConfig.MinioAdmin.AddCannedPolicy(nn.(string), string(iamPolicyConfig.MinioIAMPolicy))
+		err = iamPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), nn.(string), ParseIamPolicyConfigFromString(iamPolicyConfig.MinioIAMPolicy))
 		if err != nil {
 			return NewResourceError("Unable to update policy", name, err)
 		}
@@ -150,7 +157,7 @@ func minioUpdatePolicy(d *schema.ResourceData, meta interface{}) error {
 func minioDeletePolicy(d *schema.ResourceData, meta interface{}) error {
 	iamPolicyConfig := IAMPolicyConfig(d, meta)
 
-	err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(string(d.Id()))
+	err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), string(d.Id()))
 	if err != nil {
 		return NewResourceError("Unable to delete policy", d.Id(), err)
 	}

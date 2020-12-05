@@ -1,13 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	madmin "github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func resourceMinioIAMGroupUserAttachment() *schema.Resource {
@@ -47,7 +48,7 @@ func minioCreateGroupUserAttachment(d *schema.ResourceData, meta interface{}) er
 		IsRemove: false,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error updating user %s to group %s: %s", iamGroupMembershipConfig.MinioIAMUser, iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
@@ -60,7 +61,7 @@ func minioCreateGroupUserAttachment(d *schema.ResourceData, meta interface{}) er
 func minioReadGroupUserAttachment(d *schema.ResourceData, meta interface{}) error {
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 
-	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(iamGroupMembershipConfig.MinioIAMGroup)
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupMembershipConfig.MinioIAMGroup)
 
 	if err != nil {
 		return NewResourceError("Fail to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
@@ -87,7 +88,7 @@ func minioDeleteGroupUserAttachment(d *schema.ResourceData, meta interface{}) er
 		IsRemove: true,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}

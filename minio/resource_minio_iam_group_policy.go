@@ -1,8 +1,8 @@
 package minio
 
 import (
-	"bytes"
-	"encoding/asn1"
+	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -53,7 +53,6 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 }
 
 func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
-
 	var name string
 
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
@@ -68,7 +67,7 @@ func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy)
 
-	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(name, iAMGroupPolicyConfig.MinioIAMPolicy)
+	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), name, ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
 	}
@@ -91,20 +90,25 @@ func minioReadGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Getting IAM Group Policy: %s", d.Id())
 
-	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(policyName)
-	if len(output) == 0 || bytes.Equal(output, asn1.NullBytes) {
+	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(context.Background(), policyName)
+	if output == nil {
 		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err)
 		d.SetId("")
 		return nil
 	}
 
-	log.Printf("[WARN] (%v)", string(output))
+	outputAsJSON, err := json.Marshal(&output)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("[WARN] (%v)", outputAsJSON)
 
 	if err := d.Set("name", policyName); err != nil {
 		return err
 	}
 
-	if err := d.Set("policy", string(output)); err != nil {
+	if err := d.Set("policy", string(outputAsJSON)); err != nil {
 		return err
 	}
 
@@ -140,12 +144,12 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Group Policy:", policyName)
-		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(on.(string))
+		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), on.(string))
 		if err != nil {
 			return NewResourceError("Unable to update group policy", name, err)
 		}
 
-		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(nn.(string), string(iAMGroupPolicyConfig.MinioIAMPolicy))
+		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), nn.(string), ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {
 			return NewResourceError("Unable to update group policy", name, err)
 		}
@@ -165,12 +169,12 @@ func minioDeleteGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 		return err
 	}
 
-	policy, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(policyName)
-	if len(policy) == 0 {
+	policy, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(context.Background(), policyName)
+	if policy == nil {
 		return nil
 	}
 
-	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(policyName)
+	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), policyName)
 	if err != nil {
 		return NewResourceError("Unable to delete group policy", d.Id(), err)
 	}

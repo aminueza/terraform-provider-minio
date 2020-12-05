@@ -1,15 +1,16 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 	"testing"
 
-	"github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func TestAccMinioGroupMembership_basic(t *testing.T) {
@@ -87,7 +88,7 @@ func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
 
 		group := rs.Primary.Attributes["group"]
 
-		_, err := iamconn.GetGroupDescription(group)
+		_, err := iamconn.GetGroupDescription(context.Background(), group)
 		if err == nil {
 			return fmt.Errorf("Group still exists")
 		}
@@ -110,7 +111,7 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 		gn := rs.Primary.Attributes["group"]
 
-		resp, err := iamconn.GetGroupDescription(gn)
+		resp, err := iamconn.GetGroupDescription(context.Background(), gn)
 		if err != nil {
 			return fmt.Errorf("Error: Group (%s) not found", gn)
 		}

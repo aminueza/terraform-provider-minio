@@ -244,7 +244,7 @@ func aclBucket(bucketConfig *S3MinioBucket) error {
 }
 
 func findValuePolicies(bucketConfig *S3MinioBucket) bool {
-	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies()
+	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(context.Background())
 	for key := range policies {
 		value := string(key)
 		if value == bucketConfig.MinioACL {

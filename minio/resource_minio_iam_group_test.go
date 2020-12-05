@@ -1,13 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
-	"github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func TestValidateMinioIamGroupName(t *testing.T) {
@@ -110,7 +111,7 @@ func testAccCheckMinioGroupExists(n string, res *madmin.GroupDesc) resource.Test
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		resp, err := minioIam.GetGroupDescription(rs.Primary.ID)
+		resp, err := minioIam.GetGroupDescription(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return err
 		}
@@ -144,12 +145,12 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 			return fmt.Errorf("Bad name: %s", group.Name)
 		}
 
-		err := minioIam.SetGroupStatus(group.Name, madmin.GroupStatus("disabled"))
+		err := minioIam.SetGroupStatus(context.Background(), group.Name, madmin.GroupStatus("disabled"))
 		if err != nil {
 			return err
 		}
 
-		resp, err := minioIam.GetGroupDescription(group.Name)
+		resp, err := minioIam.GetGroupDescription(context.Background(), group.Name)
 		if err != nil {
 			return err
 		}

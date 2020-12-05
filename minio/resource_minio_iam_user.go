@@ -1,13 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"regexp"
 
-	madmin "github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func resourceMinioIAMUser() *schema.Resource {
@@ -64,7 +65,7 @@ func minioCreateUser(d *schema.ResourceData, meta interface{}) error {
 	accessKey := iamUserConfig.MinioIAMName
 	secretKey, _ := generateSecretAccessKey()
 
-	err := iamUserConfig.MinioAdmin.AddUser(string(accessKey), string(secretKey))
+	err := iamUserConfig.MinioAdmin.AddUser(context.Background(), string(accessKey), string(secretKey))
 	if err != nil {
 		return err
 	}
@@ -84,12 +85,12 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		on, nn := d.GetChange(iamUserConfig.MinioIAMName)
 
 		log.Println("[DEBUG] Update IAM User:", iamUserConfig.MinioIAMName)
-		err := iamUserConfig.MinioAdmin.RemoveUser(on.(string))
+		err := iamUserConfig.MinioAdmin.RemoveUser(context.Background(), on.(string))
 		if err != nil {
 			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
 		}
 
-		err = iamUserConfig.MinioAdmin.AddUser(nn.(string), string(secretKey))
+		err = iamUserConfig.MinioAdmin.AddUser(context.Background(), nn.(string), string(secretKey))
 		if err != nil {
 			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
 		}
@@ -103,7 +104,7 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		Status:    madmin.AccountStatus(statusUser(false)),
 	}
 
-	output, _ := iamUserConfig.MinioAdmin.GetUserInfo(iamUserConfig.MinioIAMName)
+	output, _ := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
 
 	if iamUserConfig.MinioDisableUser || output.Status == madmin.AccountStatus(statusUser(false)) && !iamUserConfig.MinioForceDestroy {
 		userStatus.Status = madmin.AccountStatus(statusUser(true))
@@ -111,13 +112,13 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		userStatus.Status = madmin.AccountStatus(statusUser(false))
 	}
 
-	err := iamUserConfig.MinioAdmin.SetUserStatus(userStatus.AccessKey, userStatus.Status)
+	err := iamUserConfig.MinioAdmin.SetUserStatus(context.Background(), userStatus.AccessKey, userStatus.Status)
 	if err != nil {
 		return fmt.Errorf("Error to disable IAM User %s: %s", d.Id(), err)
 	}
 
 	if iamUserConfig.MinioUpdateKey {
-		err := iamUserConfig.MinioAdmin.SetUser(userStatus.AccessKey, userStatus.SecretKey, userStatus.Status)
+		err := iamUserConfig.MinioAdmin.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status)
 		if err != nil {
 			return fmt.Errorf("Error updating IAM User Key %s: %s", d.Id(), err)
 		}
@@ -134,7 +135,7 @@ func minioReadUser(d *schema.ResourceData, meta interface{}) error {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
-	output, err := iamUserConfig.MinioAdmin.GetUserInfo(iamUserConfig.MinioIAMName)
+	output, err := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
 	if err != nil {
 		return fmt.Errorf("Error reading IAM User %s: %s", d.Id(), err)
 	}
@@ -189,7 +190,7 @@ func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []er
 
 func deleteMinioIamUser(iamUserConfig *S3MinioIAMUserConfig) error {
 	log.Println("[DEBUG] Deleting IAM User request:", iamUserConfig.MinioIAMName)
-	err := iamUserConfig.MinioAdmin.RemoveUser(iamUserConfig.MinioIAMName)
+	err := iamUserConfig.MinioAdmin.RemoveUser(context.Background(), iamUserConfig.MinioIAMName)
 	if err != nil {
 		return err
 	}
@@ -198,7 +199,7 @@ func deleteMinioIamUser(iamUserConfig *S3MinioIAMUserConfig) error {
 
 func deleteMinioIamUserGroupMemberships(iamUserConfig *S3MinioIAMUserConfig) error {
 
-	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(iamUserConfig.MinioIAMName)
+	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
 
 	groupsMemberOf := userInfo.MemberOf
 
@@ -211,7 +212,7 @@ func deleteMinioIamUserGroupMemberships(iamUserConfig *S3MinioIAMUserConfig) err
 			IsRemove: true,
 		}
 
-		err := iamUserConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+		err := iamUserConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 		if err != nil {
 			return err
 		}

@@ -1,12 +1,13 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceMinioIAMGroupPolicyAttachment() *schema.Resource {
@@ -41,7 +42,7 @@ func minioCreateGroupPolicyAttachment(d *schema.ResourceData, meta interface{}) 
 	var policyName = d.Get("policy_name").(string)
 
 	log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
-	err := minioAdmin.SetPolicy(policyName, groupName, true)
+	err := minioAdmin.SetPolicy(context.Background(), policyName, groupName, true)
 	if err != nil {
 		return NewResourceError("Unable to attach group policy", groupName+" "+policyName, err)
 	}
@@ -56,7 +57,7 @@ func minioReadGroupPolicyAttachment(d *schema.ResourceData, meta interface{}) er
 
 	var groupName = d.Get("group_name").(string)
 
-	groupInfo, errGroup := minioAdmin.GetGroupDescription(groupName)
+	groupInfo, errGroup := minioAdmin.GetGroupDescription(context.Background(), groupName)
 	if errGroup != nil {
 		return NewResourceError("Fail to load group infos", groupName, errGroup)
 	}
@@ -79,7 +80,7 @@ func minioDeleteGroupPolicyAttachment(d *schema.ResourceData, meta interface{}) 
 
 	var groupName = d.Get("group_name").(string)
 
-	errIam := minioAdmin.SetPolicy("", groupName, true)
+	errIam := minioAdmin.SetPolicy(context.Background(), "", groupName, true)
 	if errIam != nil {
 		return NewResourceError("Unable to delete user policy", groupName, errIam)
 	}

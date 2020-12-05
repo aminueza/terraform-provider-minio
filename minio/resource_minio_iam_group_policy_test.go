@@ -1,15 +1,16 @@
 package minio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/hashicorp/terraform/helper/acctest"
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
 func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
@@ -153,7 +154,7 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 			return err
 		}
 
-		if output, _ := conn.InfoCannedPolicy(name); output != nil {
+		if output, _ := conn.InfoCannedPolicy(context.Background(), name); output != nil {
 			return fmt.Errorf("Found IAM group policy, expected none %s: %s", name, err)
 
 		}
@@ -178,8 +179,8 @@ func testAccCheckIAMGroupPolicyDisappears(
 			return err
 		}
 
-		if output, _ := iamconn.InfoCannedPolicy(name); output != nil {
-			err = iamconn.RemoveCannedPolicy(name)
+		if output, _ := iamconn.InfoCannedPolicy(context.Background(), name); output != nil {
+			err = iamconn.RemoveCannedPolicy(context.Background(), name)
 			if err != nil {
 				return err
 			}

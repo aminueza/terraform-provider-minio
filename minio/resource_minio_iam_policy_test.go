@@ -1,17 +1,19 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"testing"
 
-	"github.com/hashicorp/terraform/helper/acctest"
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	iampolicy "github.com/minio/minio/pkg/iam/policy"
 )
 
 func TestAccMinioIAMPolicy_basic(t *testing.T) {
-	var out []byte
+	var out iampolicy.Policy
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
 
@@ -37,7 +39,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 	})
 }
 func TestAccMinioIAMPolicy_disappears(t *testing.T) {
-	var out []byte
+	var out iampolicy.Policy
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
 
@@ -59,7 +61,7 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 }
 
 func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
-	var out []byte
+	var out iampolicy.Policy
 	namePrefix := "tf-acc-test-"
 	resourceName := "minio_iam_policy.test"
 
@@ -86,7 +88,7 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 }
 
 func TestAccMinioIAMPolicy_policy(t *testing.T) {
-	var out []byte
+	var out iampolicy.Policy
 	rName1 := acctest.RandomWithPrefix("tf-acc-test")
 	rName2 := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
@@ -125,7 +127,7 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 	})
 }
 
-func testAccCheckMinioIAMPolicyExists(resource string, res *[]byte) resource.TestCheckFunc {
+func testAccCheckMinioIAMPolicyExists(resource string, res *iampolicy.Policy) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resource]
 		if !ok {
@@ -138,12 +140,12 @@ func testAccCheckMinioIAMPolicyExists(resource string, res *[]byte) resource.Tes
 
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		if resp, err := iamconn.InfoCannedPolicy(rs.Primary.ID); res != nil {
+		if resp, err := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID); res != nil {
 			if err != nil {
 				return err
 			}
 
-			*res = resp
+			res = resp
 		}
 
 		return nil
@@ -158,7 +160,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 			continue
 		}
 
-		if output, _ := iamconn.InfoCannedPolicy(rs.Primary.ID); output != nil {
+		if output, _ := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID); output != nil {
 			return fmt.Errorf("IAM Policy (%s) still exists", rs.Primary.ID)
 		}
 
@@ -171,9 +173,9 @@ func testAccCheckMinioIAMPolicyDisappears(out string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		if output, _ := iamconn.InfoCannedPolicy(out); output == nil {
+		if output, _ := iamconn.InfoCannedPolicy(context.Background(), out); output == nil {
 
-			if err := iamconn.RemoveCannedPolicy(out); err != nil {
+			if err := iamconn.RemoveCannedPolicy(context.Background(), out); err != nil {
 				return err
 			}
 

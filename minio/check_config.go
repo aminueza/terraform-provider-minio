@@ -1,7 +1,7 @@
 package minio
 
 import (
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 //BucketConfig creates a new config for minio buckets

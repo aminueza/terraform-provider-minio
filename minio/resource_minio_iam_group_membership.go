@@ -1,13 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	madmin "github.com/aminueza/terraform-provider-minio/madmin"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func resourceMinioIAMGroupMembership() *schema.Resource {
@@ -53,7 +54,7 @@ func minioCreateGroupMembership(d *schema.ResourceData, meta interface{}) error 
 		IsRemove: false,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error adding user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
@@ -99,7 +100,7 @@ func minioUpdateGroupMembership(d *schema.ResourceData, meta interface{}) error 
 func minioReadGroupMembership(d *schema.ResourceData, meta interface{}) error {
 	iamGroupMembershipConfig := IAMGroupMembersipConfig(d, meta)
 
-	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(iamGroupMembershipConfig.MinioIAMGroup)
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupMembershipConfig.MinioIAMGroup)
 	if err != nil {
 		if strings.Contains(err.Error(), "not exist") {
 			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
@@ -131,7 +132,7 @@ func minioDeleteGroupMembership(d *schema.ResourceData, meta interface{}) error 
 		IsRemove: true,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error deleting user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
@@ -144,7 +145,7 @@ func isMinioIamUser(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, u
 	var users []string
 
 	for _, user := range usersToRemove {
-		if userInfo, _ := iamGroupMembershipConfig.MinioAdmin.GetUserInfo(aws.StringValue(user)); userInfo.SecretKey != "" {
+		if userInfo, _ := iamGroupMembershipConfig.MinioAdmin.GetUserInfo(context.Background(), aws.StringValue(user)); userInfo.SecretKey != "" {
 			users = append(users, aws.StringValue(user))
 		}
 	}
@@ -155,7 +156,7 @@ func isMinioIamUser(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, u
 func userToADD(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []*string) error {
 	var users []string
 
-	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(iamGroupMembershipConfig.MinioIAMGroup)
+	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupMembershipConfig.MinioIAMGroup)
 
 	log.Printf("[WARN] Users to add before: %v and after: %v", groupDesc.Members, aws.StringValueSlice(usersToAdd))
 
@@ -167,7 +168,7 @@ func userToADD(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersT
 		IsRemove: false,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
@@ -183,11 +184,11 @@ func userToRemove(iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, use
 		IsRemove: true,
 	}
 
-	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(iamGroupMembershipConfig.MinioIAMGroup)
+	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupMembershipConfig.MinioIAMGroup)
 
 	log.Printf("[WARN] Users to remove before: %v and after: %v", groupDesc.Members, groupAddRemove.Members)
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
 	if err != nil {
 		return fmt.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}

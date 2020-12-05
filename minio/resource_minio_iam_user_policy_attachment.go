@@ -1,12 +1,13 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceMinioIAMUserPolicyAttachment() *schema.Resource {
@@ -39,7 +40,7 @@ func minioCreateUserPolicyAttachment(d *schema.ResourceData, meta interface{}) e
 	var userName = d.Get("user_name").(string)
 	var policyName = d.Get("policy_name").(string)
 	minioAdmin := meta.(*S3MinioClient).S3Admin
-	err := minioAdmin.SetPolicy(policyName, userName, false)
+	err := minioAdmin.SetPolicy(context.Background(), policyName, userName, false)
 	if err != nil {
 		return NewResourceError("Unable to Set User policy", userName+" "+policyName, err)
 	}
@@ -53,7 +54,7 @@ func minioReadUserPolicyAttachment(d *schema.ResourceData, meta interface{}) err
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	var userName = d.Get("user_name").(string)
 
-	userInfo, errUser := minioAdmin.GetUserInfo(userName)
+	userInfo, errUser := minioAdmin.GetUserInfo(context.Background(), userName)
 	if errUser != nil {
 		return NewResourceError("Fail to load user Infos", userName, errUser)
 	}
@@ -75,7 +76,7 @@ func minioDeleteUserPolicyAttachment(d *schema.ResourceData, meta interface{}) e
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	var userName = d.Get("user_name").(string)
 
-	errIam := minioAdmin.SetPolicy("", userName, false)
+	errIam := minioAdmin.SetPolicy(context.Background(), "", userName, false)
 	if errIam != nil {
 		return NewResourceError("Unable to delete user policy", userName, errIam)
 	}

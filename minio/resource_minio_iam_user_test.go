@@ -1,13 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
-	"github.com/aminueza/terraform-provider-minio/madmin"
-	"github.com/hashicorp/terraform/helper/acctest"
-	"github.com/hashicorp/terraform/helper/resource"
-	"github.com/hashicorp/terraform/terraform"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/terraform"
+	"github.com/minio/minio/pkg/madmin"
 )
 
 func TestValidateMinioIamUserName(t *testing.T) {
@@ -162,7 +163,7 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		resp, err := minioIam.GetUserInfo(rs.Primary.ID)
+		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return err
 		}
@@ -182,12 +183,12 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		err := minioIam.SetUserStatus(rs.Primary.ID, madmin.AccountStatus(statusUser(false)))
+		err := minioIam.SetUserStatus(context.Background(), rs.Primary.ID, madmin.AccountStatus(statusUser(false)))
 		if err != nil {
 			return fmt.Errorf("Error setting status %s", err)
 		}
 
-		resp, err := minioIam.GetUserInfo(rs.Primary.ID)
+		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Error getting user %s", err)
 		}
@@ -225,7 +226,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 		}
 
 		// Try to get user
-		_, err := minioIam.GetUserInfo(rs.Primary.ID)
+		_, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err == nil {
 			return fmt.Errorf("User still exists")
 		}
@@ -249,7 +250,7 @@ func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 			Status:    madmin.AccountStatus(statusUser(false)),
 		}
 
-		if err := minioIam.SetUser(userStatus.AccessKey, userStatus.SecretKey, userStatus.Status); err != nil {
+		if err := minioIam.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status); err != nil {
 			return fmt.Errorf("error rotating IAM User (%s) Access Key: %s", userStatus.AccessKey, err)
 		}
 

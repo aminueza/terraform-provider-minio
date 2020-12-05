@@ -1,9 +1,10 @@
 tasks:
   - command: minio server ${MINIO_VOLUMES}
     name: MinIO Server
+  - command: adminio
+    name: AdminIO Server
+  - command: npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
+    name: AdminIO-UI Server
   - init: make install_linux
 image:
   file: .devcontainer/Dockerfile
-vscode:
-  extensions:
-    - hashicorp.terraform@2.3.0:KgEabs4baG2MuLl5VL6Iyg==

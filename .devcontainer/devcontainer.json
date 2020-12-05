@@ -16,6 +16,12 @@
         "golang.Go",
         "hashicorp.terraform"
 	],
-	"remoteUser": "vscode"
+	"remoteUser": "vscode",
+	"postStartCommand": "make install_linux & minio server ${MINIO_VOLUMES} & adminio & npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH} &",
+	"forwardPorts": [
+		9000,
+		8080,
+		1234
+	]
 }
 

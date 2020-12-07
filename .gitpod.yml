@@ -3,7 +3,10 @@ tasks:
     name: MinIO Server
   - command: adminio
     name: AdminIO Server
-  - command: npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
+  - command: |
+      sed -i 's/apiMultiBackend = true/apiMultiBackend = false/' ${ADMINIO_UI_PATH}/env.js &&
+      sed -i 's/apiBaseUrl = "http:\/\/localhost:8080"/apiBaseUrl = `https:\/\/8080${location.hostname.substr(4)}`/' ${ADMINIO_UI_PATH}/env.js &&
+      npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
     name: AdminIO-UI Server
   - init: |
       cd $(mktemp -d) &&

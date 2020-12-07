@@ -4,7 +4,7 @@ version: '3'
 
 vars:
   PLUGIN_VERSION: 1.2.0
-  OUTPUT_FILENAME: terraform-provider-minio_{{.PLUGIN_VERSION}}
+  OUTPUT_FILENAME: terraform-provider-minio_v{{.PLUGIN_VERSION}}
 
 tasks:
   default:

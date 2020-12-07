@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestReadPolicy(t *testing.T) {

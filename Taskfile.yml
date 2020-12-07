@@ -4,7 +4,7 @@ version: '3'
 
 vars:
   PLUGIN_VERSION: 1.2.0
-  OUTPUT_FILENAME: terraform-provider-minio_v{{.PLUGIN_VERSION}}
+  OUTPUT_FILENAME: terraform-provider-minio
 
 tasks:
   default:
@@ -40,7 +40,7 @@ tasks:
             go build -o "{{.UNIX_OUTPUT_PATH}}"
           {{end}}
         {{end}}
-      - echo "Done!"
+        echo "Done!"
     silent: true
 
   test:

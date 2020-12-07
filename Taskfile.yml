@@ -16,28 +16,28 @@ tasks:
     desc: Build the plugin into current folder.
     cmds:
       - echo "Building {{.OUTPUT_FILENAME}}"
-      - go build -o {{.OUTPUT_FILENAME}}
+      - go build -o "{{.OUTPUT_FILENAME}}"
       - echo "Done!"
     silent: true
 
   install:
     desc: Build and install the plugin in the correct folder (resolved automatically based on current Operating System).
     vars: 
-      WINDOWS_FOLDER: '%APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\{{.PLUGIN_VERSION}}\{{OS}}_{{ARCH}}'
-      DARWIN_FOLDER: '~/Library/Application\ Support/io.terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}'
-      UNIX_FOLDER: '~/.local/share/terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}'
+      WINDOWS_OUTPUT_PATH: '{{.APPDATA}}\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\{{.PLUGIN_VERSION}}\{{OS}}_{{ARCH}}\{{.OUTPUT_FILENAME}}'
+      DARWIN_OUTPUT_PATH: '{{.HOME}}/Library/Application\ Support/io.terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}/{{.OUTPUT_FILENAME}}'
+      UNIX_OUTPUT_PATH: '{{.HOME}}/.local/share/terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}/{{.OUTPUT_FILENAME}}'
     cmds:
       - |
         {{if eq OS "windows"}}
-          echo "Building and installing plugin in {{.WINDOWS_FOLDER}}/{{.OUTPUT_FILENAME}}"
-          go build -o {{.WINDOWS_FOLDER}}/{{.OUTPUT_FILENAME}}
+          echo "Building and installing plugin in {{.WINDOWS_OUTPUT_PATH}}"
+          go build -o "{{.WINDOWS_OUTPUT_PATH}}"
         {{else}}
           {{if eq OS "darwin"}}
-            echo "Building and installing plugin in {{.DARWIN_FOLDER}}/{{.OUTPUT_FILENAME}}"
-            go build -o {{.DARWIN_FOLDER}}/{{.OUTPUT_FILENAME}}
+            echo "Building and installing plugin in {{.DARWIN_OUTPUT_PATH}}"
+            go build -o "{{.DARWIN_OUTPUT_PATH}}"
           {{else}}
-            echo "Building and installing plugin in {{.UNIX_FOLDER}}/{{.OUTPUT_FILENAME}}"
-            go build -o {{.UNIX_FOLDER}}/{{.OUTPUT_FILENAME}}
+            echo "Building and installing plugin in {{.UNIX_OUTPUT_PATH}}"
+            go build -o "{{.UNIX_OUTPUT_PATH}}"
           {{end}}
         {{end}}
       - echo "Done!"

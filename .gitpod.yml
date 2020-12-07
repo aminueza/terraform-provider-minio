@@ -5,6 +5,6 @@ tasks:
     name: AdminIO Server
   - command: npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
     name: AdminIO-UI Server
-  - init: make install_linux
+  - init: go get github.com/go-task/task/v3/cmd/task && task install
 image:
   file: .devcontainer/Dockerfile

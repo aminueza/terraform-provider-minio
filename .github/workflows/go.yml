@@ -42,13 +42,11 @@ jobs:
         run: go get -v -t -d ./...
       - name: Build the docker-compose stack
         run: docker-compose -f test-compose.yml up -d
-      - name: Test
-        env:
-          TF_ACC: 0 
-          MINIO_ENDPOINT: localhost:9000
-          MINIO_ACCESS_KEY: minio
-          MINIO_SECRET_KEY: minio123
-          MINIO_ENABLE_HTTPS: false
-        run: go test -count=1 -v -cover ./...
+      - name: Install Taskfile
+        uses: Arduino/actions/setup-taskfile@master
+        with:
+          version: '3.x'
+      - name: Run test task
+        run: task test
       - name: Remove containers
         run: docker rm -f minio

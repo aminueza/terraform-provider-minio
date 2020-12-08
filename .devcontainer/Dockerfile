@@ -36,6 +36,7 @@ ENV ADMINIO_UI_PATH=/usr/local/share/adminio-ui
 
 # Copy and install pre-built AdminIO-UI
 COPY --from=adminio-ui /usr/share/nginx/html ${ADMINIO_UI_PATH}
+RUN chmod -R 777 ${ADMINIO_UI_PATH}
 
 # Install Node.js
 ARG INSTALL_NODE="true"

@@ -1,0 +1,56 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  PLUGIN_VERSION: 1.2.0
+  OUTPUT_FILENAME: terraform-provider-minio
+
+tasks:
+  default:
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the plugin into current folder.
+    cmds:
+      - echo "Building {{.OUTPUT_FILENAME}}"
+      - go build -o "{{.OUTPUT_FILENAME}}"
+      - echo "Done!"
+    silent: true
+
+  install:
+    desc: Build and install the plugin in the correct folder (resolved automatically based on current Operating System).
+    vars: 
+      WINDOWS_OUTPUT_PATH: '{{.APPDATA}}\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\{{.PLUGIN_VERSION}}\{{OS}}_{{ARCH}}\{{.OUTPUT_FILENAME}}'
+      DARWIN_OUTPUT_PATH: '{{.HOME}}/Library/Application\ Support/io.terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}/{{.OUTPUT_FILENAME}}'
+      UNIX_OUTPUT_PATH: '{{.HOME}}/.local/share/terraform/plugins/registry.terraform.io/aminueza/minio/{{.PLUGIN_VERSION}}/{{OS}}_{{ARCH}}/{{.OUTPUT_FILENAME}}'
+    cmds:
+      - |
+        {{if eq OS "windows"}}
+          echo "Building and installing plugin in {{.WINDOWS_OUTPUT_PATH}}"
+          go build -o "{{.WINDOWS_OUTPUT_PATH}}"
+        {{else}}
+          {{if eq OS "darwin"}}
+            echo "Building and installing plugin in {{.DARWIN_OUTPUT_PATH}}"
+            go build -o "{{.DARWIN_OUTPUT_PATH}}"
+          {{else}}
+            echo "Building and installing plugin in {{.UNIX_OUTPUT_PATH}}"
+            go build -o "{{.UNIX_OUTPUT_PATH}}"
+          {{end}}
+        {{end}}
+        echo "Done!"
+    silent: true
+
+  test:
+    desc: Run the package tests.
+    env: 
+      TF_ACC: 0
+      MINIO_ENDPOINT: localhost:9000
+      MINIO_ACCESS_KEY: minio
+      MINIO_SECRET_KEY: minio123
+      MINIO_ENABLE_HTTPS: false
+    cmds:
+      - go test -v -cover ./minio
+    silent: true

@@ -57,32 +57,16 @@ It just means that we can't guarantee backward compatibility.
 
 Prebuilt versions of this provider are available for MacOS and Linux on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
-But if you need to build it yourself, just download this repository and follow the instructions:
+But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
 
-### MacOS
-
-To build and install this plugin on MacOS, run:
-
-```
-make install_mac
+```sh
+go get github.com/go-task/task/v3/cmd/task
 ```
 
-### Linux
+And run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):
 
-To build and install this plugin on Linux, run:
-
-```
-make install_linux
-```
-
-### Windows
-
-For Windows we don't have a Makefile, but it should be as simple as:
-
-```
-go build -o terraform-provider-minio_v1.0.0
-mkdir "%APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\1.0.0\windows_amd64"
-move terraform-provider-minio_v1.0.0 %APPDATA%\HashiCorp\Terraform\plugins\registry.terraform.io\aminueza\minio\1.0.0\windows_amd64
+```sh
+task install
 ```
 
 ## Examples

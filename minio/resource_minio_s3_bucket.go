@@ -52,7 +52,8 @@ func resourceMinioBucket() *schema.Resource {
 			},
 			"acl": {
 				Type:     schema.TypeString,
-				Required: true,
+				Optional: true,
+				Default:  "private",
 				ForceNew: true,
 			},
 			"bucket_domain_name": {

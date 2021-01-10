@@ -6,9 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
@@ -198,7 +197,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 	jsonString := string(jsonDoc)
 
 	_ = d.Set("json", jsonString)
-	d.SetId(strconv.Itoa(hashcode.String(jsonString)))
+	d.SetId(strconv.Itoa(HashcodeString(jsonString)))
 
 	return nil
 }

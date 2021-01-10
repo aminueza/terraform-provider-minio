@@ -135,12 +135,16 @@ func minioReadUser(d *schema.ResourceData, meta interface{}) error {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
-	output, err := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
+	output, err := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), d.Id())
 	if err != nil {
 		return fmt.Errorf("Error reading IAM User %s: %s", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)
+
+	if _, ok := d.GetOk("name"); !ok {
+		_ = d.Set("name", d.Id())
+	}
 
 	if err := d.Set("status", string(output.Status)); err != nil {
 		return err

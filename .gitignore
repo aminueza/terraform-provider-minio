@@ -6,6 +6,7 @@ terraform-provider-*
 # .tfstate files
 *.tfstate
 *.tfstate.*
+plan.bin
 
 # .tfvars files
 *.tfvars

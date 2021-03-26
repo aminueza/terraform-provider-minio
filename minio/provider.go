@@ -10,7 +10,7 @@ func Provider() *schema.Provider {
 		Schema: map[string]*schema.Schema{
 			"minio_server": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Minio Host and Port",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_ENDPOINT",
@@ -24,7 +24,7 @@ func Provider() *schema.Provider {
 			},
 			"minio_access_key": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Minio Access Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_ACCESS_KEY",
@@ -32,7 +32,7 @@ func Provider() *schema.Provider {
 			},
 			"minio_secret_key": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Minio Secret Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_SECRET_KEY",

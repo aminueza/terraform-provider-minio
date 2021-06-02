@@ -9,11 +9,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	iampolicy "github.com/minio/minio/pkg/iam/policy"
 )
 
 func TestAccMinioIAMPolicy_basic(t *testing.T) {
-	var out iampolicy.Policy
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
 
@@ -25,7 +23,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 			{
 				Config: testAccMinioIAMPolicyConfigName(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMPolicyExists(resourceName, &out),
+					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
 					resource.TestCheckResourceAttr(resourceName, "policy", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::*"]}]}`),
 				),
@@ -39,7 +37,6 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 	})
 }
 func TestAccMinioIAMPolicy_disappears(t *testing.T) {
-	var out iampolicy.Policy
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
 
@@ -51,7 +48,7 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 			{
 				Config: testAccMinioIAMPolicyConfigName(rName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMPolicyExists(resourceName, &out),
+					testAccCheckMinioIAMPolicyExists(resourceName),
 					testAccCheckMinioIAMPolicyDisappears(rName),
 				),
 				ExpectNonEmptyPlan: false,
@@ -61,7 +58,6 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 }
 
 func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
-	var out iampolicy.Policy
 	namePrefix := "tf-acc-test-"
 	resourceName := "minio_iam_policy.test"
 
@@ -73,7 +69,7 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 			{
 				Config: testAccMinioIAMPolicyConfigNamePrefix(namePrefix),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMPolicyExists(resourceName, &out),
+					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestMatchResourceAttr(resourceName, "name", regexp.MustCompile(fmt.Sprintf("^%s", namePrefix))),
 				),
 			},
@@ -88,7 +84,6 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 }
 
 func TestAccMinioIAMPolicy_policy(t *testing.T) {
-	var out iampolicy.Policy
 	rName1 := acctest.RandomWithPrefix("tf-acc-test")
 	rName2 := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
@@ -107,14 +102,14 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 			{
 				Config: testAccMinioIAMPolicyConfigPolicy(rName1, policy1),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMPolicyExists(resourceName, &out),
+					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "policy", policy1),
 				),
 			},
 			{
 				Config: testAccMinioIAMPolicyConfigPolicy(rName2, policy2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMPolicyExists(resourceName, &out),
+					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "policy", policy2),
 				),
 			},
@@ -127,7 +122,7 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 	})
 }
 
-func testAccCheckMinioIAMPolicyExists(resource string, res *iampolicy.Policy) resource.TestCheckFunc {
+func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resource]
 		if !ok {
@@ -140,15 +135,8 @@ func testAccCheckMinioIAMPolicyExists(resource string, res *iampolicy.Policy) re
 
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		if resp, err := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID); res != nil {
-			if err != nil {
-				return err
-			}
-
-			res = resp
-		}
-
-		return nil
+		_, err := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID)
+		return err
 	}
 }
 

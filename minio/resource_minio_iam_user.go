@@ -78,8 +78,12 @@ func minioCreateUser(d *schema.ResourceData, meta interface{}) error {
 func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 
 	iamUserConfig := IAMUserConfig(d, meta)
+	secretKey := iamUserConfig.MinioSecret
 
-	secretKey, _ := generateSecretAccessKey()
+	if secretKey == "" || iamUserConfig.MinioUpdateKey {
+		secretKeyBytes, _ := generateSecretAccessKey()
+		secretKey = string(secretKeyBytes)
+	}
 
 	if d.HasChange(iamUserConfig.MinioIAMName) {
 		on, nn := d.GetChange(iamUserConfig.MinioIAMName)
@@ -90,7 +94,7 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
 		}
 
-		err = iamUserConfig.MinioAdmin.AddUser(context.Background(), nn.(string), string(secretKey))
+		err = iamUserConfig.MinioAdmin.AddUser(context.Background(), nn.(string), secretKey)
 		if err != nil {
 			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
 		}
@@ -100,7 +104,7 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 
 	userStatus := UserStatus{
 		AccessKey: iamUserConfig.MinioIAMName,
-		SecretKey: string(secretKey),
+		SecretKey: secretKey,
 		Status:    madmin.AccountStatus(statusUser(false)),
 	}
 

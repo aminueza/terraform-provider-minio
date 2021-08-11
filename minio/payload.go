@@ -40,6 +40,7 @@ type S3MinioBucket struct {
 type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
+	MinioSecret       string
 	MinioDisableUser  bool
 	MinioForceDestroy bool
 	MinioUpdateKey    bool

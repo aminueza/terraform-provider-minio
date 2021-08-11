@@ -39,6 +39,7 @@ func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConf
 	return &S3MinioIAMUserConfig{
 		MinioAdmin:        m.S3Admin,
 		MinioIAMName:      d.Get("name").(string),
+		MinioSecret:       d.Get("secret").(string),
 		MinioDisableUser:  d.Get("disable_user").(bool),
 		MinioUpdateKey:    d.Get("update_secret").(bool),
 		MinioForceDestroy: d.Get("force_destroy").(bool),

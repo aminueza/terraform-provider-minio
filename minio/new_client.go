@@ -1,11 +1,12 @@
 package minio
 
 import (
-	"github.com/minio/minio-go/v7/pkg/credentials"
 	"log"
 
+	"github.com/minio/minio-go/v7/pkg/credentials"
+
+	"github.com/minio/madmin-go"
 	minio "github.com/minio/minio-go/v7"
-	"github.com/minio/minio/pkg/madmin"
 )
 
 //NewClient returns a new minio client

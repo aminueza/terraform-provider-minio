@@ -67,7 +67,7 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy)
 
-	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, ParseIamPolicyConfigFromString(iamPolicyConfig.MinioIAMPolicy))
+	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to create policy", name, err)
 	}
@@ -117,7 +117,7 @@ func minioUpdatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Println("[DEBUG] Update IAM Policy:", string(d.Id()))
 
-	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, string(d.Id()), ParseIamPolicyConfigFromString(iamPolicyConfig.MinioIAMPolicy))
+	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, d.Id(), []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to update policy", string(d.Id()), err)
 	}

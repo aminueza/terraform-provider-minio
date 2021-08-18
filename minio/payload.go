@@ -1,9 +1,9 @@
 package minio
 
 import (
+	"github.com/minio/madmin-go"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/minio/pkg/madmin"
 )
 
 //S3MinioConfig defines variable for minio

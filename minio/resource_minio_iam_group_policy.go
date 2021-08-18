@@ -68,7 +68,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 
 	log.Printf("[DEBUG] Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy)
 
-	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
+	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
 	}
@@ -150,7 +150,7 @@ func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 			return NewResourceError("Unable to update group policy", name, err)
 		}
 
-		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, nn.(string), ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
+		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, nn.(string), []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {
 			return NewResourceError("Unable to update group policy", name, err)
 		}

@@ -8,11 +8,9 @@ import (
 	"hash/crc32"
 	"log"
 	"strconv"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	iampolicy "github.com/minio/minio/pkg/iam/policy"
 )
 
 const (
@@ -142,15 +140,6 @@ func Contains(slice []string, item string) bool {
 
 	_, ok := set[item]
 	return ok
-}
-
-// ParseIamPolicyConfigFromString parses an IamPolicy Config from a string.
-func ParseIamPolicyConfigFromString(policy string) *iampolicy.Policy {
-	parsedPolicy, err := iampolicy.ParseConfig(strings.NewReader(policy))
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return parsedPolicy
 }
 
 // HashcodeString hashes a string to a unique hashcode.

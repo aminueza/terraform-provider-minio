@@ -7,16 +7,17 @@ import (
 	"log"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func resourceMinioIAMGroupPolicy() *schema.Resource {
 	return &schema.Resource{
-		Create: minioCreateGroupPolicy,
-		Read:   minioReadGroupPolicy,
-		Update: minioUpdateGroupPolicy,
-		Delete: minioDeleteGroupPolicy,
+		CreateContext: minioCreateGroupPolicy,
+		ReadContext:   minioReadGroupPolicy,
+		UpdateContext: minioUpdateGroupPolicy,
+		DeleteContext: minioDeleteGroupPolicy,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -52,7 +53,7 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 	}
 }
 
-func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
+func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var name string
 
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
@@ -67,7 +68,7 @@ func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy)
 
-	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), name, ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
+	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("Unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
 	}
@@ -76,21 +77,21 @@ func minioCreateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	log.Printf("[DEBUG] Creating IAM Group Policy %s", d.Id())
 
-	return minioReadGroupPolicy(d, meta)
+	return minioReadGroupPolicy(ctx, d, meta)
 }
 
-func minioReadGroupPolicy(d *schema.ResourceData, meta interface{}) error {
+func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
 
 	groupName, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
 	log.Printf("[DEBUG] Getting IAM Group Policy: %s", d.Id())
 
-	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(context.Background(), policyName)
+	output, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
 	if output == nil {
 		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err)
 		d.SetId("")
@@ -99,27 +100,27 @@ func minioReadGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	outputAsJSON, err := json.Marshal(&output)
 	if err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", outputAsJSON)
 
 	if err := d.Set("name", policyName); err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
 	if err := d.Set("policy", string(outputAsJSON)); err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
 	if err := d.Set("group", groupName); err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
 	return nil
 }
 
-func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
+func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	var on interface{}
 	var nn interface{}
@@ -129,7 +130,7 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	groupName, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
-		return err
+		return NewResourceError("[FATAL] Updating group policies failed", d.Id(), err)
 	}
 
 	if d.HasChange(policyName) {
@@ -139,7 +140,7 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if on == nil && nn == nil {
-		return minioReadGroupPolicy(d, meta)
+		return minioReadGroupPolicy(ctx, d, meta)
 	}
 
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
@@ -158,23 +159,23 @@ func minioUpdateGroupPolicy(d *schema.ResourceData, meta interface{}) error {
 
 	}
 
-	return minioReadGroupPolicy(d, meta)
+	return minioReadGroupPolicy(ctx, d, meta)
 }
 
-func minioDeleteGroupPolicy(d *schema.ResourceData, meta interface{}) error {
+func minioDeleteGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	iamPolicyConfig := IAMPolicyConfig(d, meta)
 
 	_, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
-		return err
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	policy, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(context.Background(), policyName)
+	policy, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
 	if policy == nil {
 		return nil
 	}
 
-	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), policyName)
+	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, policyName)
 	if err != nil {
 		return NewResourceError("Unable to delete group policy", d.Id(), err)
 	}

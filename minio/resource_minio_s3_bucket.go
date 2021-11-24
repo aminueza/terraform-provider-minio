@@ -140,7 +140,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
-	_ = d.Set("bucket_domain_name", string(bucketDomainName(d.Id(), bucketURL)))
+	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
 	return nil
 }
@@ -197,7 +197,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 				errorCh := bucketConfig.MinioClient.RemoveObjects(ctx, d.Id(), objectsCh, minio.RemoveObjectsOptions{})
 
 				if len(errorCh) > 0 {
-					return NewResourceError("Unable to remove bucket", d.Id(), errors.New("Could not delete objects"))
+					return NewResourceError("Unable to remove bucket", d.Id(), errors.New("could not delete objects"))
 				}
 
 				return minioDeleteBucket(ctx, d, meta)
@@ -231,7 +231,7 @@ func aclBucket(bucketConfig *S3MinioBucket) diag.Diagnostics {
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
 	if !policyExists {
-		return NewResourceError("Unsuported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
+		return NewResourceError("Unsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
 	}
 
 	if policyString != "none" {
@@ -247,8 +247,7 @@ func aclBucket(bucketConfig *S3MinioBucket) diag.Diagnostics {
 func findValuePolicies(bucketConfig *S3MinioBucket) bool {
 	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(context.Background())
 	for key := range policies {
-		value := string(key)
-		if value == bucketConfig.MinioACL {
+		if key == bucketConfig.MinioACL {
 			return true
 		}
 	}

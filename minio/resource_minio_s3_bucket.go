@@ -177,14 +177,13 @@ func minioDeleteBucket(d *schema.ResourceData, meta interface{}) error {
 				go func() {
 					defer close(objectsCh)
 
-					doneCh := make(chan struct{})
+					ctx, cancel := context.WithCancel(context.Background())
 
 					// Indicate to our routine to exit cleanly upon return.
-					defer close(doneCh)
+					defer cancel()
 
 					// List all objects from a bucket-name with a matching prefix.
-					// FIXME: doneCh argument is not added to function call
-					for object := range bucketConfig.MinioClient.ListObjects(context.Background(), d.Id(), minio.ListObjectsOptions{
+					for object := range bucketConfig.MinioClient.ListObjects(ctx, d.Id(), minio.ListObjectsOptions{
 						Recursive: true,
 					}) {
 						if object.Err != nil {

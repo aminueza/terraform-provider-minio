@@ -107,7 +107,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	_ = d.Set("bucket", bucket)
 
-	errACL := aclBucket(bucketConfig)
+	errACL := aclBucket(ctx, bucketConfig)
 	if errACL != nil {
 		log.Printf("%s", NewResourceErrorStr("Unable to create bucket", bucket, errACL))
 		return NewResourceError("[ACL] Unable to create bucket", bucket, errACL)
@@ -152,7 +152,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
-		if err := aclBucket(bucketConfig); err != nil {
+		if err := aclBucket(ctx, bucketConfig); err != nil {
 			log.Printf("%s", NewResourceErrorStr("Unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
@@ -218,7 +218,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 }
 
-func aclBucket(bucketConfig *S3MinioBucket) diag.Diagnostics {
+func aclBucket(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
 
 	defaultPolicies := map[string]string{
 		"private":           "none", //private is set by minio default
@@ -235,7 +235,7 @@ func aclBucket(bucketConfig *S3MinioBucket) diag.Diagnostics {
 	}
 
 	if policyString != "none" {
-		if err := bucketConfig.MinioClient.SetBucketPolicy(context.Background(), bucketConfig.MinioBucket, policyString); err != nil {
+		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
 			log.Printf("%s", NewResourceErrorStr("Unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("Unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
@@ -244,8 +244,8 @@ func aclBucket(bucketConfig *S3MinioBucket) diag.Diagnostics {
 	return nil
 }
 
-func findValuePolicies(bucketConfig *S3MinioBucket) bool {
-	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(context.Background())
+func findValuePolicies(ctx context.Context, bucketConfig *S3MinioBucket) bool {
+	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(ctx)
 	for key := range policies {
 		if key == bucketConfig.MinioACL {
 			return true

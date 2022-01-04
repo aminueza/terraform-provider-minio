@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"log"
 	"regexp"
 
@@ -13,12 +14,12 @@ import (
 
 func resourceMinioIAMUser() *schema.Resource {
 	return &schema.Resource{
-		Create: minioCreateUser,
-		Read:   minioReadUser,
-		Update: minioUpdateUser,
-		Delete: minioDeleteUser,
+		CreateContext: minioCreateUser,
+		ReadContext:   minioReadUser,
+		UpdateContext: minioUpdateUser,
+		DeleteContext: minioDeleteUser,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -58,24 +59,24 @@ func resourceMinioIAMUser() *schema.Resource {
 	}
 }
 
-func minioCreateUser(d *schema.ResourceData, meta interface{}) error {
+func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
 	accessKey := iamUserConfig.MinioIAMName
 	secretKey, _ := generateSecretAccessKey()
 
-	err := iamUserConfig.MinioAdmin.AddUser(context.Background(), string(accessKey), string(secretKey))
+	err := iamUserConfig.MinioAdmin.AddUser(ctx, accessKey, string(secretKey))
 	if err != nil {
-		return err
+		return NewResourceError("creating user failed", d.Id(), err)
 	}
 
 	d.SetId(aws.StringValue(&accessKey))
 	_ = d.Set("secret", string(secretKey))
-	return minioReadUser(d, meta)
+	return minioReadUser(ctx, d, meta)
 }
 
-func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
+func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 	secretKey := iamUserConfig.MinioSecret
@@ -89,14 +90,14 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		on, nn := d.GetChange(iamUserConfig.MinioIAMName)
 
 		log.Println("[DEBUG] Update IAM User:", iamUserConfig.MinioIAMName)
-		err := iamUserConfig.MinioAdmin.RemoveUser(context.Background(), on.(string))
+		err := iamUserConfig.MinioAdmin.RemoveUser(ctx, on.(string))
 		if err != nil {
-			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
+			return NewResourceError("Error updating IAM User %s: %s", d.Id(), err)
 		}
 
-		err = iamUserConfig.MinioAdmin.AddUser(context.Background(), nn.(string), secretKey)
+		err = iamUserConfig.MinioAdmin.AddUser(ctx, nn.(string), secretKey)
 		if err != nil {
-			return fmt.Errorf("Error updating IAM User %s: %s", d.Id(), err)
+			return NewResourceError("Error updating IAM User %s: %s", d.Id(), err)
 		}
 
 		d.SetId(nn.(string))
@@ -108,7 +109,7 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		Status:    madmin.AccountStatus(statusUser(false)),
 	}
 
-	output, _ := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
+	output, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
 
 	if iamUserConfig.MinioDisableUser || output.Status == madmin.AccountStatus(statusUser(false)) && !iamUserConfig.MinioForceDestroy {
 		userStatus.Status = madmin.AccountStatus(statusUser(true))
@@ -116,32 +117,32 @@ func minioUpdateUser(d *schema.ResourceData, meta interface{}) error {
 		userStatus.Status = madmin.AccountStatus(statusUser(false))
 	}
 
-	err := iamUserConfig.MinioAdmin.SetUserStatus(context.Background(), userStatus.AccessKey, userStatus.Status)
+	err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, userStatus.AccessKey, userStatus.Status)
 	if err != nil {
-		return fmt.Errorf("Error to disable IAM User %s: %s", d.Id(), err)
+		return NewResourceError("Error to disable IAM User %s: %s", d.Id(), err)
 	}
 
 	if iamUserConfig.MinioUpdateKey {
-		err := iamUserConfig.MinioAdmin.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status)
+		err := iamUserConfig.MinioAdmin.SetUser(ctx, userStatus.AccessKey, userStatus.SecretKey, userStatus.Status)
 		if err != nil {
-			return fmt.Errorf("Error updating IAM User Key %s: %s", d.Id(), err)
+			return NewResourceError("Error updating IAM User Key %s: %s", d.Id(), err)
 		}
 	}
 
 	if iamUserConfig.MinioForceDestroy {
-		_ = minioDeleteUser(d, meta)
+		_ = minioDeleteUser(ctx, d, meta)
 	}
 
-	return minioReadUser(d, meta)
+	return minioReadUser(ctx, d, meta)
 }
 
-func minioReadUser(d *schema.ResourceData, meta interface{}) error {
+func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
-	output, err := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), d.Id())
+	output, err := iamUserConfig.MinioAdmin.GetUserInfo(ctx, d.Id())
 	if err != nil {
-		return fmt.Errorf("Error reading IAM User %s: %s", d.Id(), err)
+		return NewResourceError("Error reading IAM User %s: %s", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)
@@ -151,7 +152,7 @@ func minioReadUser(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if err := d.Set("status", string(output.Status)); err != nil {
-		return err
+		return NewResourceError("reading IAM user failed", d.Id(), err)
 	}
 
 	if &output == nil {
@@ -162,18 +163,18 @@ func minioReadUser(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func minioDeleteUser(d *schema.ResourceData, meta interface{}) error {
+func minioDeleteUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
 	// IAM Users must be removed from all groups before they can be deleted
-	if err := deleteMinioIamUserGroupMemberships(iamUserConfig); err != nil {
-		return fmt.Errorf("Error removing IAM User (%s) group memberships: %s", d.Id(), err)
+	if err := deleteMinioIamUserGroupMemberships(ctx, iamUserConfig); err != nil {
+		return NewResourceError("Error removing IAM User (%s) group memberships: %s", d.Id(), err)
 	}
 
-	err := deleteMinioIamUser(iamUserConfig)
+	err := deleteMinioIamUser(ctx, iamUserConfig)
 	if err != nil {
-		return fmt.Errorf("Error deleting IAM User %s: %s", d.Id(), err)
+		return NewResourceError("Error deleting IAM User %s: %s", d.Id(), err)
 	}
 
 	return nil
@@ -196,18 +197,18 @@ func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []er
 	return
 }
 
-func deleteMinioIamUser(iamUserConfig *S3MinioIAMUserConfig) error {
+func deleteMinioIamUser(ctx context.Context, iamUserConfig *S3MinioIAMUserConfig) error {
 	log.Println("[DEBUG] Deleting IAM User request:", iamUserConfig.MinioIAMName)
-	err := iamUserConfig.MinioAdmin.RemoveUser(context.Background(), iamUserConfig.MinioIAMName)
+	err := iamUserConfig.MinioAdmin.RemoveUser(ctx, iamUserConfig.MinioIAMName)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func deleteMinioIamUserGroupMemberships(iamUserConfig *S3MinioIAMUserConfig) error {
+func deleteMinioIamUserGroupMemberships(ctx context.Context, iamUserConfig *S3MinioIAMUserConfig) error {
 
-	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(context.Background(), iamUserConfig.MinioIAMName)
+	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
 
 	groupsMemberOf := userInfo.MemberOf
 
@@ -220,7 +221,7 @@ func deleteMinioIamUserGroupMemberships(iamUserConfig *S3MinioIAMUserConfig) err
 			IsRemove: true,
 		}
 
-		err := iamUserConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+		err := iamUserConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 		if err != nil {
 			return err
 		}

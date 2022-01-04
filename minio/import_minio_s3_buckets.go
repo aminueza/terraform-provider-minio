@@ -8,6 +8,7 @@ import (
 )
 
 func resourceMinioS3BucketImportState(
+	ctx context.Context,
 	d *schema.ResourceData,
 	meta interface{}) ([]*schema.ResourceData, error) {
 
@@ -15,7 +16,7 @@ func resourceMinioS3BucketImportState(
 	results[0] = d
 
 	conn := meta.(*S3MinioClient).S3Client
-	pol, err := conn.GetBucketPolicy(context.Background(), d.Id())
+	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
 		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
 	}

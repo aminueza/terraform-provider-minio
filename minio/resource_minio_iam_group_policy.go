@@ -145,12 +145,12 @@ func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 
 	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
 		log.Println("[DEBUG] Update IAM Group Policy:", policyName)
-		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(context.Background(), on.(string))
+		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, on.(string))
 		if err != nil {
 			return NewResourceError("Unable to update group policy", name, err)
 		}
 
-		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(context.Background(), nn.(string), ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
+		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, nn.(string), ParseIamPolicyConfigFromString(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {
 			return NewResourceError("Unable to update group policy", name, err)
 		}

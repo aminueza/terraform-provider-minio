@@ -17,9 +17,9 @@ func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 	var groupPolicy1, groupPolicy2 string
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyConfig(rInt),
@@ -61,9 +61,9 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 	rInt := acctest.RandInt()
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyConfig(rInt),
@@ -88,9 +88,9 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 	resourceName := "minio_iam_group_policy.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
@@ -117,9 +117,9 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 	var groupPolicy1 string
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckIAMGroupPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyConfigGeneratedName(rInt, "s3:ListBucket"),

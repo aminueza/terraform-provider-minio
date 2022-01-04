@@ -58,9 +58,9 @@ func TestAccAWSUser_basic(t *testing.T) {
 	resourceName := "minio_iam_user.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfig(name),
@@ -80,9 +80,9 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 	resourceName := "minio_iam_user.test1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigDisabled(name),
@@ -102,9 +102,9 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	resourceName := "minio_iam_user.test3"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigUpdateSecret(name),

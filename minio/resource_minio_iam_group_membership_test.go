@@ -24,9 +24,9 @@ func TestAccMinioGroupMembership_basic(t *testing.T) {
 	membershipName := fmt.Sprintf("tf-acc-membership-gm-basic-%s", rString)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioGroupMembershipDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupMembershipDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioGroupMemberConfig(groupName, userName, membershipName),
@@ -62,9 +62,9 @@ func TestAccMinioGroupMembership_paginatedUserList(t *testing.T) {
 	userNamePrefix := fmt.Sprintf("tf-acc-user-gm-pul-%s-", rString)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioGroupMembershipDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupMembershipDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioGroupMemberConfigPaginatedUserList(groupName, membershipName, userNamePrefix),

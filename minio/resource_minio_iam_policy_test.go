@@ -18,9 +18,9 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 	resourceName := "minio_iam_policy.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyConfigName(rName),
@@ -44,9 +44,9 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 	resourceName := "minio_iam_policy.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyConfigName(rName),
@@ -66,9 +66,9 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 	resourceName := "minio_iam_policy.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyConfigNamePrefix(namePrefix),
@@ -96,9 +96,9 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 	policy2 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioIAMPolicyConfigPolicy(rName1, "not-json"),

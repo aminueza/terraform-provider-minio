@@ -16,7 +16,7 @@ services:
       ADMINIO_BACKENDS: '[{"name":"myminio","url":"http://localhost:8080"},{"name":"localhost","url":"http://localhost:8081"},{"name":"error","url":"http://localhost:8082"}]'
       NGX_ROOT_PATH: "/"
     ports:
-      - "80:80"
+      - "8000:80"
   adminio-api:
     image: rzrbld/adminio-api:release-1.6
     environment:

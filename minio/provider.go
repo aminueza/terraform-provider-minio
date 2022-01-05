@@ -60,9 +60,8 @@ func Provider() *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			"minio_s3_bucket": resourceMinioBucket(),
-			"minio_s3_object": resourceMinioObject(),
-			// "minio_s3_file":   resourceMinioFile(),
+			"minio_s3_bucket":                   resourceMinioBucket(),
+			"minio_s3_object":                   resourceMinioObject(),
 			"minio_iam_group":                   resourceMinioIAMGroup(),
 			"minio_iam_group_membership":        resourceMinioIAMGroupMembership(),
 			"minio_iam_user":                    resourceMinioIAMUser(),

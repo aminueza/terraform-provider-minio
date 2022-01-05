@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7/pkg/lifecycle"
 	"log"
 )
 
@@ -45,8 +46,30 @@ func resourceMinioILMRule() *schema.Resource {
 }
 
 func minioCreateILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	c := meta.(*S3MinioClient).S3Client
+
+	config := lifecycle.NewConfiguration()
+
+	rules := d.Get("rules").([]map[string]interface{})
+	for _, rule := range rules {
+		r := lifecycle.Rule{
+			ID:         rule["id"].(string),
+			Expiration: lifecycle.Expiration{Days: rule["expiration"].(lifecycle.ExpirationDays)},
+			Status:     rule["status"].(string),
+			RuleFilter: lifecycle.Filter{Prefix: rule["filter"].(string)},
+		}
+		config.Rules = append(config.Rules, r)
+	}
+
+	if err := c.SetBucketLifecycle(ctx, d.Id(), config); err != nil {
+		return NewResourceError("creating bucket lifecycle failed", d.Id(), err)
+	}
+
+	minioReadILMRule(ctx, d, meta)
+
 	return nil
 }
+
 func minioReadILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
@@ -75,9 +98,11 @@ func minioReadILMRule(ctx context.Context, d *schema.ResourceData, meta interfac
 
 	return nil
 }
+
 func minioDeleteILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return nil
 }
+
 func minioImportILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	return nil, nil
 }

@@ -2,7 +2,6 @@ package minio
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -98,18 +97,11 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return nil
 	}
 
-	outputAsJSON, err := json.Marshal(&output)
-	if err != nil {
-		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
-	}
-
-	log.Printf("[WARN] (%v)", outputAsJSON)
-
 	if err := d.Set("name", policyName); err != nil {
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	if err := d.Set("policy", string(outputAsJSON)); err != nil {
+	if err := d.Set("policy", strings.TrimSpace(string(output))); err != nil {
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 

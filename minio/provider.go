@@ -1,6 +1,9 @@
 package minio
 
 import (
+	"context"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -72,11 +75,16 @@ func Provider() *schema.Provider {
 			"minio_iam_group_user_attachment":   resourceMinioIAMGroupUserAttachment(),
 		},
 
-		ConfigureFunc: providerConfigure,
+		ConfigureContextFunc: providerConfigure,
 	}
 }
 
-func providerConfigure(d *schema.ResourceData) (interface{}, error) {
+func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	minioConfig := NewConfig(d)
-	return minioConfig.NewClient()
+	client, err := minioConfig.NewClient()
+	if err != nil {
+		return nil, NewResourceError("Client creation failed", "client", err)
+	}
+
+	return client, nil
 }

@@ -13,8 +13,9 @@ func resourceMinioILMRule() *schema.Resource {
 		CreateContext: minioCreateILMRule,
 		ReadContext:   minioReadILMRule,
 		DeleteContext: minioDeleteILMRule,
+		UpdateContext: minioUpdateILMRule,
 		Importer: &schema.ResourceImporter{
-			StateContext: minioImportILMRule,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 		Schema: map[string]*schema.Schema{
 			"rules": {
@@ -99,10 +100,24 @@ func minioReadILMRule(ctx context.Context, d *schema.ResourceData, meta interfac
 	return nil
 }
 
-func minioDeleteILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return nil
+func minioUpdateILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if d.HasChange("rules") {
+		minioCreateILMRule(ctx, d, meta)
+	}
+
+	return minioReadILMRule(ctx, d, meta)
 }
 
-func minioImportILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-	return nil, nil
+func minioDeleteILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	c := meta.(*S3MinioClient).S3Client
+
+	config := lifecycle.NewConfiguration()
+
+	if err := c.SetBucketLifecycle(ctx, d.Id(), config); err != nil {
+		NewResourceError("deleting lifecycle configuration failed", d.Id(), err)
+	}
+
+	d.SetId("")
+
+	return nil
 }

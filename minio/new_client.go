@@ -27,31 +27,28 @@ func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 
 	if config.S3APISignature == "v2" {
 		minioClient, err = minio.New(config.S3HostPort, &minio.Options{
-			// config.S3UserAccess, config.S3UserSecret, config.S3SSL
-			Creds:     credentials.NewStaticV4(config.S3UserAccess, config.S3UserSecret, ""),
+			Creds:     credentials.NewStaticV2(config.S3UserAccess, config.S3UserSecret, ""),
 			Secure:    config.S3SSL,
 			Transport: tr,
 		})
 	} else if config.S3APISignature == "v4" {
 		minioClient, err = minio.New(config.S3HostPort, &minio.Options{
-			// config.S3UserAccess, config.S3UserSecret, config.S3SSL
 			Creds:     credentials.NewStaticV4(config.S3UserAccess, config.S3UserSecret, ""),
 			Secure:    config.S3SSL,
 			Transport: tr,
 		})
 	} else {
-		minioClient, err = minio.New(config.S3HostPort, &minio.Options{
-			// config.S3UserAccess, config.S3UserSecret, config.S3SSL
-			Creds:     credentials.NewStaticV4(config.S3UserAccess, config.S3UserSecret, ""),
-			Secure:    config.S3SSL,
-			Transport: tr,
-		})
+		return nil, fmt.Errorf("Unknown S3 API signature: %s, must be v2 or v4", config.S3APISignature)
+	}
+	if err != nil {
+		log.Println("[FATAL] Error building client for S3 server.")
+		return nil, err
 	}
 
 	minioAdmin, err := madmin.New(config.S3HostPort, config.S3UserAccess, config.S3UserSecret, config.S3SSL)
 	//minioAdmin.TraceOn(nil)
 	if err != nil {
-		log.Println("[FATAL] Error connecting to S3 server.")
+		log.Println("[FATAL] Error building admin client for S3 server.")
 		return nil, err
 	}
 	minioAdmin.SetCustomTransport(tr)

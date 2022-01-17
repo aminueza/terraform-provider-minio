@@ -11,7 +11,7 @@ tasks:
       sed -i 's/apiBaseUrl = "http:\/\/localhost:8080"/apiBaseUrl = `https:\/\/8080${location.hostname.substr(4)}`/' ${ADMINIO_UI_PATH}/env.js &&
       npx --yes angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
     name: AdminIO-UI Server
-  - init: |
+  - command: |
       cd $(mktemp -d) &&
       go mod init task &&
       go get github.com/go-task/task/v3/cmd/task &&

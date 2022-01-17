@@ -42,8 +42,8 @@ jobs:
         run: go get -v -t -d ./...
       - name: Build the docker-compose stack
         run: docker-compose -f test-compose.yml up -d
-      - name: Install Taskfile
-        uses: Arduino/actions/setup-taskfile@master
+      - name: Install Task
+        uses: arduino/setup-task@v1
         with:
           version: '3.x'
       - name: Run test task

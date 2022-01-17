@@ -1,4 +1,4 @@
-ARG GO_VERSION="1.15"
+ARG GO_VERSION="1.16"
 
 FROM hashicorp/terraform:0.14.0 as terraform
 FROM minio/minio:RELEASE.2020-11-25T22-36-25Z as minio

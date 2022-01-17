@@ -1,3 +1,6 @@
+image:
+  file: .devcontainer/Dockerfile
+
 tasks:
   - command: minio server ${MINIO_VOLUMES}
     name: MinIO Server
@@ -6,7 +9,7 @@ tasks:
   - command: |
       sed -i 's/apiMultiBackend = true/apiMultiBackend = false/' ${ADMINIO_UI_PATH}/env.js &&
       sed -i 's/apiBaseUrl = "http:\/\/localhost:8080"/apiBaseUrl = `https:\/\/8080${location.hostname.substr(4)}`/' ${ADMINIO_UI_PATH}/env.js &&
-      npx angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
+      npx --yes angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
     name: AdminIO-UI Server
   - init: |
       cd $(mktemp -d) &&
@@ -15,5 +18,11 @@ tasks:
       cd - &&
       task install
     name: Terminal
-image:
-  file: .devcontainer/Dockerfile
+
+ports:
+  - port: 9000
+    name: MinIO Server
+  - port: 8080
+    name: AdminIO Server
+  - port: 1234
+    name: AdminIO-UI Server

@@ -38,14 +38,14 @@ jobs:
         with:
           go-version: ${{ secrets.GO_VERSION }}
         id: go
-      - name: Get dependencies
-        run: go get -v -t -d ./...
       - name: Build the docker-compose stack
         run: docker-compose -f test-compose.yml up -d
       - name: Install Task
         uses: arduino/setup-task@v1
         with:
           version: '3.x'
+      - name: Run install task
+        run: task install
       - name: Run test task
         run: task test
       - name: Remove containers

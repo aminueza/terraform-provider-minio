@@ -2,10 +2,12 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio/pkg/madmin"
@@ -13,11 +15,11 @@ import (
 
 func resourceMinioIAMGroupUserAttachment() *schema.Resource {
 	return &schema.Resource{
-		Create: minioCreateGroupUserAttachment,
-		Read:   minioReadGroupUserAttachment,
-		Delete: minioDeleteGroupUserAttachment,
+		CreateContext: minioCreateGroupUserAttachment,
+		ReadContext:   minioReadGroupUserAttachment,
+		DeleteContext: minioDeleteGroupUserAttachment,
 		Importer: &schema.ResourceImporter{
-			State: minioImportGroupUserAttachment,
+			StateContext: minioImportGroupUserAttachment,
 		},
 		Schema: map[string]*schema.Schema{
 			"group_name": {
@@ -36,7 +38,7 @@ func resourceMinioIAMGroupUserAttachment() *schema.Resource {
 	}
 }
 
-func minioCreateGroupUserAttachment(d *schema.ResourceData, meta interface{}) error {
+func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 
@@ -48,20 +50,20 @@ func minioCreateGroupUserAttachment(d *schema.ResourceData, meta interface{}) er
 		IsRemove: false,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return fmt.Errorf("Error updating user %s to group %s: %s", iamGroupMembershipConfig.MinioIAMUser, iamGroupMembershipConfig.MinioIAMGroup, err)
+		return diag.Errorf("[FATAL] Error updating user %s to group %s: %s", iamGroupMembershipConfig.MinioIAMUser, iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser)))
 
-	return minioReadGroupUserAttachment(d, meta)
+	return minioReadGroupUserAttachment(ctx, d, meta)
 }
 
-func minioReadGroupUserAttachment(d *schema.ResourceData, meta interface{}) error {
+func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 
-	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupMembershipConfig.MinioIAMGroup)
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
 	if err != nil {
 		return NewResourceError("Fail to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
@@ -77,7 +79,7 @@ func minioReadGroupUserAttachment(d *schema.ResourceData, meta interface{}) erro
 	return nil
 }
 
-func minioDeleteGroupUserAttachment(d *schema.ResourceData, meta interface{}) error {
+func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 	var groupAddRemove madmin.GroupAddRemove
@@ -88,15 +90,15 @@ func minioDeleteGroupUserAttachment(d *schema.ResourceData, meta interface{}) er
 		IsRemove: true,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return fmt.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
+		return diag.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	return nil
 }
 
-func minioImportGroupUserAttachment(d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+func minioImportGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.SplitN(d.Id(), "/", 2)
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
 		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<user-name>", d.Id())
@@ -107,11 +109,11 @@ func minioImportGroupUserAttachment(d *schema.ResourceData, meta interface{}) ([
 
 	err := d.Set("user_name", userName)
 	if err != nil {
-		return nil, NewResourceError("Unable to import user policy", userName, err)
+		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
 	}
 	err = d.Set("group_name", groupName)
 	if err != nil {
-		return nil, NewResourceError("Unable to import user policy", userName, err)
+		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
 	}
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s/%s", groupName, userName)))
 	return []*schema.ResourceData{d}, nil

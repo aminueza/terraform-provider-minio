@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"fmt"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7"
@@ -14,10 +14,10 @@ import (
 
 func resourceMinioObject() *schema.Resource {
 	return &schema.Resource{
-		Create: minioCreateObject,
-		Read:   minioReadObject,
-		Update: minioUpdateObject,
-		Delete: minioDeleteObject,
+		CreateContext: minioCreateObject,
+		ReadContext:   minioReadObject,
+		UpdateContext: minioUpdateObject,
+		DeleteContext: minioDeleteObject,
 
 		SchemaVersion: 0,
 
@@ -69,11 +69,11 @@ func resourceMinioObject() *schema.Resource {
 	}
 }
 
-func minioCreateObject(d *schema.ResourceData, meta interface{}) error {
-	return minioPutObject(d, meta)
+func minioCreateObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioPutObject(ctx, d, meta)
 }
 
-func minioPutObject(d *schema.ResourceData, meta interface{}) error {
+func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	m := meta.(*S3MinioClient)
 
 	var body io.ReadSeeker
@@ -85,17 +85,17 @@ func minioPutObject(d *schema.ResourceData, meta interface{}) error {
 		content := v.(string)
 		contentRaw, err := base64.StdEncoding.DecodeString(content)
 		if err != nil {
-			return fmt.Errorf("error decoding content_base64: %s", err)
+			return NewResourceError("error decoding content_base64", d.Id(), err)
 		}
 		body = bytes.NewReader(contentRaw)
 	} else if _, ok := d.GetOk("content_base64"); ok {
-		return errors.New("sorry, unsupported yet")
+		return NewResourceError("putting object failed", d.Id(), errors.New("sorry, unsupported yet"))
 	} else {
-		return errors.New("one of source / content / content_base64 is not set")
+		return NewResourceError("putting object failed", d.Id(), errors.New("one of source / content / content_base64 is not set"))
 	}
 
 	_, err := m.S3Client.PutObject(
-		context.Background(),
+		ctx,
 		d.Get("bucket_name").(string),
 		d.Get("object_name").(string),
 		body, -1,
@@ -103,20 +103,20 @@ func minioPutObject(d *schema.ResourceData, meta interface{}) error {
 	)
 
 	if err != nil {
-		return err
+		return NewResourceError("putting object failed", d.Id(), err)
 	}
 
 	d.SetId(d.Get("object_name").(string))
 
-	return minioReadObject(d, meta)
+	return minioReadObject(ctx, d, meta)
 }
 
-func minioReadObject(d *schema.ResourceData, meta interface{}) error {
+func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	m := meta.(*S3MinioClient)
 
 	objInfo, err := m.S3Client.StatObject(
-		context.Background(),
+		ctx,
 		d.Get("bucket_name").(string),
 		d.Get("object_name").(string),
 		minio.StatObjectOptions{},
@@ -127,36 +127,36 @@ func minioReadObject(d *schema.ResourceData, meta interface{}) error {
 			d.SetId("")
 			return nil
 		}
-		return err
+		return NewResourceError("reading object failed", d.Id(), err)
 	}
 
 	if err := d.Set("etag", objInfo.ETag); err != nil {
-		return err
+		return NewResourceError("reading object failed", d.Id(), err)
 	}
 	if err := d.Set("version_id", objInfo.VersionID); err != nil {
-		return err
+		return NewResourceError("reading object failed", d.Id(), err)
 	}
 
 	return nil
 }
 
-func minioUpdateObject(d *schema.ResourceData, meta interface{}) error {
-	return minioPutObject(d, meta)
+func minioUpdateObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioPutObject(ctx, d, meta)
 }
 
-func minioDeleteObject(d *schema.ResourceData, meta interface{}) error {
+func minioDeleteObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	m := meta.(*S3MinioClient)
 
 	err := m.S3Client.RemoveObject(
-		context.Background(),
+		ctx,
 		d.Get("bucket_name").(string),
 		d.Get("object_name").(string),
 		minio.RemoveObjectOptions{},
 	)
 
 	if err != nil {
-		return err
+		return NewResourceError("deleting object failed", d.Id(), err)
 	}
 
 	return nil

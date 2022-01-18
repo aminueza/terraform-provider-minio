@@ -12,8 +12,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 	// acceptance test, but just instantiating the Minio provider requires
 	// some Minio API calls, and so this needs valid Minio credentials to work.
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfig,
@@ -29,8 +29,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentSourceConfig,
@@ -54,8 +54,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_sourceConflicting(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentSourceConflictingConfig,
@@ -71,8 +71,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_sourceConflicting(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_override(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentOverrideConfig,
@@ -88,8 +88,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_override(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentNoStatementMergeConfig,
@@ -105,8 +105,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentNoStatementOverrideConfig,
@@ -122,8 +122,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
 
 func TestAccMinioDataSourceIAMPolicyDocument_duplicateSid(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioIAMPolicyDocumentDuplicateSidConfig,
@@ -145,8 +145,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Str
 	dataSourceName := "data.minio_iam_policy_document.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalIdentifiersStringAndSlice,
@@ -162,8 +162,8 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Mul
 	dataSourceName := "data.minio_iam_policy_document.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalIdentifiersMultiplePrincipals,

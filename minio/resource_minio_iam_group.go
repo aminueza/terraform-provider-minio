@@ -8,18 +8,19 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio/pkg/madmin"
 )
 
 func resourceMinioIAMGroup() *schema.Resource {
 	return &schema.Resource{
-		Create: minioCreateGroup,
-		Read:   minioReadGroup,
-		Update: minioUpdateGroup,
-		Delete: minioDeleteGroup,
+		CreateContext: minioCreateGroup,
+		ReadContext:   minioReadGroup,
+		UpdateContext: minioUpdateGroup,
+		DeleteContext: minioDeleteGroup,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -48,7 +49,7 @@ func resourceMinioIAMGroup() *schema.Resource {
 	}
 }
 
-func minioCreateGroup(d *schema.ResourceData, meta interface{}) error {
+func minioCreateGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
@@ -58,17 +59,17 @@ func minioCreateGroup(d *schema.ResourceData, meta interface{}) error {
 		IsRemove: false,
 	}
 
-	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return err
+		return NewResourceError("creating group failed", d.Id(), err)
 	}
 
 	d.SetId(aws.StringValue(&iamGroupConfig.MinioIAMName))
 
-	return minioReadGroup(d, meta)
+	return minioReadGroup(ctx, d, meta)
 }
 
-func minioUpdateGroup(d *schema.ResourceData, meta interface{}) error {
+func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
@@ -83,67 +84,67 @@ func minioUpdateGroup(d *schema.ResourceData, meta interface{}) error {
 			IsRemove: false,
 		}
 
-		err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+		err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 		if err != nil {
-			return fmt.Errorf("Error updating IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("Error updating IAM Group %s: %s", d.Id(), err)
 		}
 
 		d.SetId(nn.(string))
 	}
 
 	if iamGroupConfig.MinioDisableGroup {
-		err := minioDisableGroup(d, meta)
+		err := minioDisableGroup(ctx, d, meta)
 		if err != nil {
-			return err
+			return NewResourceError("Error updating IAM Group %s: %s", d.Id(), err)
 		}
 	}
 
 	if iamGroupConfig.MinioForceDestroy {
-		err := minioDeleteGroup(d, meta)
+		err := minioDeleteGroup(ctx, d, meta)
 		if err != nil {
 			return err
 		}
 	}
 
-	return minioReadGroup(d, meta)
+	return minioReadGroup(ctx, d, meta)
 }
 
-func minioReadGroup(d *schema.ResourceData, meta interface{}) error {
+func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
-	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(context.Background(), iamGroupConfig.MinioIAMName)
+	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupConfig.MinioIAMName)
 	if err != nil {
 		if strings.Contains(err.Error(), "group does not exist") {
 			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
 			d.SetId("")
 			return nil
 		}
-		return fmt.Errorf("Error reading IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)
 
 	if err := d.Set("group_name", string(output.Name)); err != nil {
-		return err
+		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil
 }
 
-func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
+func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
 	log.Printf("[DEBUG] Checking if IAM Group %s is empty:", d.Id())
-	groupDesc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(context.Background(), d.Id())
+	groupDesc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
 	if err != nil {
 		if strings.Contains(err.Error(), "not exist") {
 			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
 			d.SetId("")
 			return nil
 		}
-		return fmt.Errorf("Error reading IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	if groupDesc.Name == "" {
@@ -152,26 +153,26 @@ func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
 
 	if len(groupDesc.Policy) == 0 {
 		//delete group requires to set policy if it doesn't exist
-		_ = iamGroupConfig.MinioAdmin.SetPolicy(context.Background(), "readonly", d.Id(), true)
+		_ = iamGroupConfig.MinioAdmin.SetPolicy(ctx, "readonly", d.Id(), true)
 
 	}
 
 	//force to delete group even if group isn't empty
 	if iamGroupConfig.MinioForceDestroy {
-		err := deleteMinioGroup(iamGroupConfig, groupDesc.Members)
+		err := deleteMinioGroup(ctx, iamGroupConfig, groupDesc.Members)
 
 		if err != nil {
-			return fmt.Errorf("Error deleting IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("Error deleting IAM Group %s: %s", d.Id(), err)
 		}
 
 	}
 
 	//Group must be empty to be deleted
 	if len(groupDesc.Members) == 0 {
-		err := deleteMinioGroup(iamGroupConfig, []string{})
+		err := deleteMinioGroup(ctx, iamGroupConfig, []string{})
 
 		if err != nil {
-			return fmt.Errorf("Error deleting IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("Error deleting IAM Group %s: %s", d.Id(), err)
 		}
 
 	}
@@ -179,13 +180,13 @@ func minioDeleteGroup(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func minioDisableGroup(d *schema.ResourceData, meta interface{}) error {
+func minioDisableGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
 	log.Println("[DEBUG] Disabling IAM Group request:", iamGroupConfig.MinioIAMName)
 
-	err := iamGroupConfig.MinioAdmin.SetGroupStatus(context.Background(), iamGroupConfig.MinioIAMName, madmin.GroupDisabled)
+	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, madmin.GroupDisabled)
 
 	if err != nil {
 		return fmt.Errorf("Error disabling IAM Group %s: %s", d.Id(), err)
@@ -194,7 +195,7 @@ func minioDisableGroup(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-func deleteMinioGroup(iamGroupConfig *S3MinioIAMGroupConfig, members []string) error {
+func deleteMinioGroup(ctx context.Context, iamGroupConfig *S3MinioIAMGroupConfig, members []string) error {
 
 	log.Println("[DEBUG] deleting IAM Group request:", iamGroupConfig.MinioIAMName)
 	groupAddRemove := madmin.GroupAddRemove{
@@ -203,7 +204,7 @@ func deleteMinioGroup(iamGroupConfig *S3MinioIAMGroupConfig, members []string) e
 		IsRemove: true,
 	}
 
-	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(context.Background(), groupAddRemove)
+	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
 		return err
 	}

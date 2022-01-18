@@ -59,9 +59,9 @@ func TestAccAWSGroup_Basic(t *testing.T) {
 	status2 := "disabled"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testAccCheckMinioUserDestroy,
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioGroupConfig(groupName),

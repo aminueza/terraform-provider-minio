@@ -19,6 +19,7 @@ func resourceMinioILMRule() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		Description: "`minio_ilm_rule` handles lifecycle settings for a given `minio_s3_bucket`.",
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:         schema.TypeString,

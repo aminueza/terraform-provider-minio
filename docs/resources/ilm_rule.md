@@ -3,12 +3,12 @@
 page_title: "minio_ilm_rule Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  minio_ilm_rule handles lifecycle settings for a given minio_s3_bucket.
 ---
 
 # minio_ilm_rule (Resource)
 
-
+`minio_ilm_rule` handles lifecycle settings for a given `minio_s3_bucket`.
 
 ## Example Usage
 

@@ -59,7 +59,7 @@ func Provider() *schema.Provider {
 			"minio_insecure": {
 				Type:     schema.TypeBool,
 				Optional: true,
-				Default: false,
+				Default:  false,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_INSECURE",
 				}, nil),

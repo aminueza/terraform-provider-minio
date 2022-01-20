@@ -39,7 +39,7 @@ jobs:
           go-version: 1.16.x
         id: go
       - name: Build the docker-compose stack
-        run: docker-compose -f test-compose.yml up -d
+        run: docker-compose up -d
       - uses: hashicorp/setup-terraform@v1
         with:
           terraform_version: 0.14.0

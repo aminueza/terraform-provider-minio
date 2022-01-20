@@ -9,7 +9,7 @@ services:
       MINIO_SECRET_KEY: minio123
     command: server /data{0...3}
   adminio-ui:
-    image: rzrbld/adminio-ui:release-1.7
+    image: rzrbld/adminio-ui:v1.93
     environment:
       API_BASE_URL: "http://localhost:8080"
       ADMINIO_MULTI_BACKEND: "false"
@@ -18,7 +18,7 @@ services:
     ports:
       - "8000:80"
   adminio-api:
-    image: rzrbld/adminio-api:release-1.6
+    image: rzrbld/adminio-api:v1.82
     environment:
       MINIO_ACCESS: minio
       MINIO_SECRET: minio123

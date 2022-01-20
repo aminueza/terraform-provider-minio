@@ -1,10 +1,10 @@
-ARG GO_VERSION="1.16"
+ARG GO_VERSION="1.17"
 
 FROM hashicorp/terraform:0.14.0 as terraform
-FROM minio/minio:RELEASE.2020-11-25T22-36-25Z as minio
-FROM minio/mc:RELEASE.2020-11-25T23-04-07Z-amd64 as mc
-FROM rzrbld/adminio-api:release-1.6 as adminio-api
-FROM rzrbld/adminio-ui:release-1.7 as adminio-ui
+FROM minio/minio:RELEASE.2021-04-06T23-11-00Z as minio
+FROM minio/mc:RELEASE.2021-04-22T17-40-00Z as mc
+FROM rzrbld/adminio-api:v1.82 as adminio-api
+FROM rzrbld/adminio-ui:v1.93 as adminio-ui
 FROM mcr.microsoft.com/vscode/devcontainers/go:0-${GO_VERSION}
 
 # Copy and install Terraform binary
@@ -37,6 +37,9 @@ ENV ADMINIO_UI_PATH=/usr/local/share/adminio-ui
 # Copy and install pre-built AdminIO-UI
 COPY --from=adminio-ui /usr/share/nginx/html ${ADMINIO_UI_PATH}
 RUN chmod -R 777 ${ADMINIO_UI_PATH}
+
+# Install Task
+RUN go install github.com/go-task/task/v3/cmd/task@latest
 
 # Install Node.js
 ARG INSTALL_NODE="true"

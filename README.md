@@ -60,7 +60,7 @@ Prebuilt versions of this provider are available for MacOS and Linux on the [rel
 But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
 
 ```sh
-go get github.com/go-task/task/v3/cmd/task
+go install github.com/go-task/task/v3/cmd/task@latest
 ```
 
 And run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):

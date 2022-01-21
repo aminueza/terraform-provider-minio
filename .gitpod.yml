@@ -1,28 +1,28 @@
-image:
-  file: .devcontainer/Dockerfile
-
 tasks:
-  - command: minio server ${MINIO_VOLUMES}
-    name: MinIO Server
-  - command: adminio
-    name: AdminIO Server
-  - command: |
-      sed -i 's/apiMultiBackend = true/apiMultiBackend = false/' ${ADMINIO_UI_PATH}/env.js &&
-      sed -i 's/apiBaseUrl = "http:\/\/localhost:8080"/apiBaseUrl = `https:\/\/8080${location.hostname.substr(4)}`/' ${ADMINIO_UI_PATH}/env.js &&
-      npx --yes angular-http-server -p ${ADMINIO_UI_PORT} --path ${ADMINIO_UI_PATH}
-    name: AdminIO-UI Server
-  - command: |
-      cd $(mktemp -d) &&
-      go mod init task &&
-      go get github.com/go-task/task/v3/cmd/task &&
-      cd - &&
+  - command: >
+      export DOCKER_COMPOSE_GITPOD_PATH=/tmp/docker-compose.gitpod.yml &&
+      cp docker-compose.yml ${DOCKER_COMPOSE_GITPOD_PATH} &&
+      sed -i 's/http:\/\/localhost:8080/$API_BASE_URL/g' ${DOCKER_COMPOSE_GITPOD_PATH} &&
+      export API_BASE_URL=`gp url 8080` &&
+      docker-compose -f ${DOCKER_COMPOSE_GITPOD_PATH} up
+  - env:
+      TERRAFORM_VERSION: 0.14.0
+    command: >
+      export TERRAFORM_DOWNLOAD_FILE_NAME=terraform_${TERRAFORM_VERSION}_linux_amd64.zip &&
+      wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${TERRAFORM_DOWNLOAD_FILE_NAME} &&
+      unzip ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
+      rm ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
+      sudo mv terraform /usr/local/bin/terraform &&
+      sudo sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin &&
       task install
-    name: Terminal
 
 ports:
   - port: 9000
     name: MinIO Server
+    onOpen: ignore
   - port: 8080
     name: AdminIO Server
-  - port: 1234
+    onOpen: ignore
+  - port: 8000
     name: AdminIO-UI Server
+    onOpen: open-preview

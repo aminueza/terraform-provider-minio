@@ -34,7 +34,6 @@
 - [Examples](#examples)
 - [Testing](#testing)
 - [Usage](#usage)
-- [Developing inside a container](#developing-inside-a-container)
 - [Roadmap](#roadmap)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
@@ -60,7 +59,7 @@ Prebuilt versions of this provider are available for MacOS and Linux on the [rel
 But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
 
 ```sh
-go get github.com/go-task/task/v3/cmd/task
+go install github.com/go-task/task/v3/cmd/task@latest
 ```
 
 And run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):
@@ -114,15 +113,11 @@ For testing locally, run the docker compose to spin up a minio server:
 docker-compose up
 ```
 
-Access http://localhost on your browser, apply your terraform templates and watch them going live.
+Access http://localhost:8000 on your browser, apply your terraform templates and watch them going live.
 
 ## Usage
 
 See our [Examples](examples/) folder.
-
-## Developing inside a container
-
-Inside `.devcontainer` folder is the configuration of a Docker Container with all tools needed to develop this project. It's meant to be used with [VS Code](https://code.visualstudio.com), requiring only the installation of [Remote - Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension. For usage instructions, refer to [this tutorial](https://code.visualstudio.com/docs/remote/containers).
 
 ## Roadmap
 

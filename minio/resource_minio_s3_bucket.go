@@ -25,7 +25,7 @@ func resourceMinioBucket() *schema.Resource {
 		UpdateContext: minioUpdateBucket,
 		DeleteContext: minioDeleteBucket,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: resourceMinioS3BucketImportState,
 		},
 
 		SchemaVersion: 0,

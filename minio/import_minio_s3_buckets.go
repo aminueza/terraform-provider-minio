@@ -20,6 +20,7 @@ func resourceMinioS3BucketImportState(
 		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
 	}
 	if pol == "" {
+		_ = d.Set("acl", policyNameToAclBucket(""))
 		return []*schema.ResourceData{d}, nil
 	}
 
@@ -31,7 +32,24 @@ func resourceMinioS3BucketImportState(
 
 	policyName := policy.GetPolicy(bucketPolicy.Statements, d.Id(), "")
 
-	_ = d.Set("acl", policyName)
+	_ = d.Set("acl", policyNameToAclBucket(string(policyName)))
 
 	return []*schema.ResourceData{d}, nil
+}
+
+func policyNameToAclBucket(policyName string) string {
+
+	policyMapping := map[string]string{
+		policy.BucketPolicyReadOnly:     "public-read",
+		policy.BucketPolicyWriteOnly:    "public-write",
+		policy.BucketPolicyReadWrite:    "public-read-write",
+		string(policy.BucketPolicyNone): "private",
+		"":                              "private",
+	}
+
+	x, ok := policyMapping[policyName]
+	if !ok {
+		return "custom"
+	}
+	return x
 }

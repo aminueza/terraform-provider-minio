@@ -7,23 +7,16 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-// ReadOnlyPolicy returns policy where objects can be listed and read
-func ReadOnlyPolicy(bucket *S3MinioBucket) BucketPolicy {
+// PublicReadPolicy returns policy where everyone can read objects
+func PublicReadPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []policy.Statement{
 			{
-				Sid:       "ListAllBucket",
-				Actions:   readOnlyAllBucketsActions,
+				Sid:       "AllowAllS3Actions",
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s*", awsResourcePrefix)}...),
-			},
-			{
-				Sid:       "AllObjectActionsMyBuckets",
 				Actions:   readListMyObjectActions,
-				Effect:    "Allow",
-				Principal: policy.User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket), fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 		},

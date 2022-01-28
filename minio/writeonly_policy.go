@@ -7,7 +7,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-//WriteOnlyPolicy returns writeonly policy
+// WriteOnlyPolicy returns policy where objects can be listed and written
 func WriteOnlyPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",

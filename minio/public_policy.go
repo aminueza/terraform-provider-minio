@@ -7,7 +7,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-//PublicPolicy returns readonly policy
+// PublicPolicy returns policy where everyone can fully list/modify objects
 func PublicPolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",

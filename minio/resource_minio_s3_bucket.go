@@ -106,16 +106,16 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	_ = d.Set("bucket", bucket)
+	d.SetId(bucket)
 
-	errACL := aclBucket(ctx, bucketConfig)
-	if errACL != nil {
+	bucketConfig = BucketConfig(d, meta)
+
+	if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
 		log.Printf("%s", NewResourceErrorStr("Unable to create bucket", bucket, errACL))
 		return NewResourceError("[ACL] Unable to create bucket", bucket, errACL)
 	}
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
-
-	d.SetId(bucket)
 
 	return minioUpdateBucket(ctx, d, meta)
 }
@@ -148,20 +148,19 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketConfig := BucketConfig(d, meta)
 
-	if d.HasChange(bucketConfig.MinioACL) {
+	if d.HasChange("acl") {
 		log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
-		if err := aclBucket(ctx, bucketConfig); err != nil {
+		if err := minioSetBucketACL(ctx, bucketConfig); err != nil {
 			log.Printf("%s", NewResourceErrorStr("Unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
 
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
-
+		_ = d.Set("acl", bucketConfig.MinioACL)
 	}
 	return minioReadBucket(ctx, d, meta)
-
 }
 
 func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -218,12 +217,12 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 }
 
-func aclBucket(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
+func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
 
 	defaultPolicies := map[string]string{
-		"private":           "none", //private is set by minio default
+		"private":           exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(PublicReadPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
 	}

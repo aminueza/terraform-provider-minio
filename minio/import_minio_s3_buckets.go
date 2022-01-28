@@ -2,9 +2,9 @@ package minio
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7/pkg/policy"
 )
@@ -14,30 +14,47 @@ func resourceMinioS3BucketImportState(
 	d *schema.ResourceData,
 	meta interface{}) ([]*schema.ResourceData, error) {
 
+	if diag := minioReadBucket(ctx, d, meta); diag.HasError() {
+		return nil, fmt.Errorf("Could not read minio bucket")
+	}
+
+	bucketConfig := BucketConfig(d, meta)
+
 	conn := meta.(*S3MinioClient).S3Client
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
 		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
 	}
 	if pol == "" {
-		_ = d.Set("acl", policyNameToAclBucket(""))
+		_ = d.Set("acl", "private")
 		return []*schema.ResourceData{d}, nil
 	}
 
-	var bucketPolicy BucketPolicy
-	err = json.Unmarshal([]byte(pol), &bucketPolicy)
-	if err != nil {
-		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
-	}
-
-	policyName := policy.GetPolicy(bucketPolicy.Statements, d.Id(), "")
-
-	_ = d.Set("acl", policyNameToAclBucket(string(policyName)))
+	_ = d.Set("acl", policyToACLName(bucketConfig, pol))
 
 	return []*schema.ResourceData{d}, nil
 }
 
-func policyNameToAclBucket(policyName string) string {
+func policyToACLName(bucketConfig *S3MinioBucket, pol string) string {
+
+	defaultPolicies := map[string]string{
+		"private":           exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(PublicReadPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
+	}
+
+	for name, defaultPolicy := range defaultPolicies {
+		if equivalent, err := awspolicy.PoliciesAreEquivalent(defaultPolicy, pol); err == nil && equivalent {
+			return name
+		}
+	}
+
+	return "private"
+}
+
+func policyNameToACLBucket(policyName string) string {
 
 	policyMapping := map[string]string{
 		policy.BucketPolicyReadOnly:     "public-read",

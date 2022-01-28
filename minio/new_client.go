@@ -12,7 +12,7 @@ import (
 //NewClient returns a new minio client
 func (config *S3MinioConfig) NewClient() (interface{}, error) {
 
-	minioClient := new(minio.Client)
+	var minioClient *minio.Client
 
 	var err error
 	if config.S3APISignature == "v2" {

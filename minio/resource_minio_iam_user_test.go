@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -235,20 +236,21 @@ func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, _ := s.RootModule().Resources[n]
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
-
-		secretKey, _ := generateSecretAccessKey()
-
-		userStatus := UserStatus{
-			AccessKey: rs.Primary.ID,
-			SecretKey: secretKey,
-			Status:    madmin.AccountDisabled,
+		// Check if we can log in
+		cfg := &S3MinioConfig{
+			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
+			S3UserAccess: rs.Primary.Attributes["name"],
+			S3UserSecret: rs.Primary.Attributes["secret"],
+			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+		}
+		http.c
+		client, err := cfg.NewClient()
+		if err != nil {
+			return err
 		}
 
-		if err := minioIam.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status); err != nil {
-			return fmt.Errorf("error rotating IAM User (%s) Access Key: %s", userStatus.AccessKey, err)
-		}
+		_, err = client.(*S3MinioClient).S3Client.ListBuckets(context.Background())
 
-		return nil
+		return err
 	}
 }

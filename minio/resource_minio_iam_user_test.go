@@ -114,10 +114,11 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioUserConfigSetSecret(name),
+				Config: testAccMinioUserConfigWithoutSecret(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists(resourceName, &user),
 					testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
 				),
 			},
 			{
@@ -125,6 +126,7 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists(resourceName, &user),
 					testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
 				),
 			},
 		},
@@ -155,10 +157,10 @@ resource "minio_iam_user" "test2" {
 `, rName)
 }
 
-func testAccMinioUserConfigSetSecret(rName string) string {
+func testAccMinioUserConfigWithoutSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test3" {
-  name   = %q
+  name          = %q
 }
 `, rName)
 }
@@ -261,14 +263,9 @@ func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resou
 		return nil
 	}
 }
-
-func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resource.TestCheckFunc {
+func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, _ := s.RootModule().Resources[n]
-
-		if rs.Primary.Attributes["secret"] == *oldAccessKey {
-			return fmt.Errorf("Secret has not been rotated")
-		}
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
@@ -278,6 +275,18 @@ func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resou
 			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
 		return minioUIwebrpcLogin(cfg)
+	}
+}
+
+func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["secret"] == *oldAccessKey {
+			return fmt.Errorf("Secret has not been rotated")
+		}
+
+		return nil
 	}
 }
 

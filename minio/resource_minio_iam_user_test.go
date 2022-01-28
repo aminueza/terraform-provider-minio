@@ -127,8 +127,8 @@ func testAccMinioUserConfig(rName string) string {
 func testAccMinioUserConfigDisabled(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test1" {
-		  name = %q
-		  disable_user= true
+		  name         = %q
+		  disable_user = true
 		}`, rName)
 }
 
@@ -183,18 +183,13 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		err := minioIam.SetUserStatus(context.Background(), rs.Primary.ID, madmin.AccountStatus(statusUser(false)))
-		if err != nil {
-			return fmt.Errorf("Error setting status %s", err)
-		}
-
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Error getting user %s", err)
 		}
 
-		if rs.Primary.Attributes["status"] != string(resp.Status) {
-			return fmt.Errorf("User enabled %s", resp)
+		if rs.Primary.Attributes["status"] != string(madmin.AccountDisabled) || resp.Status != madmin.AccountDisabled {
+			return fmt.Errorf("User still enabled: state:%s server:%s", rs.Primary.Attributes["status"], resp.Status)
 		}
 
 		return nil
@@ -247,7 +242,7 @@ func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 		userStatus := UserStatus{
 			AccessKey: rs.Primary.ID,
 			SecretKey: string(secretKey),
-			Status:    madmin.AccountStatus(statusUser(false)),
+			Status:    madmin.AccountDisabled,
 		}
 
 		if err := minioIam.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status); err != nil {

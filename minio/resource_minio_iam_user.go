@@ -149,6 +149,8 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		if err != nil {
 			return NewResourceError("Error updating IAM User Key %s: %s", d.Id(), err)
 		}
+
+		_ = d.Set("secret", secretKey)
 	}
 
 	return minioReadUser(ctx, d, meta)

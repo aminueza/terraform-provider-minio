@@ -68,9 +68,11 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	accessKey := iamUserConfig.MinioIAMName
 	secretKey := iamUserConfig.MinioSecret
 
+	if secretKey == "" {
 		if secretKey, err = generateSecretAccessKey(); err != nil {
 			return NewResourceError("Error creating user", accessKey, err)
 		}
+	}
 
 	err = iamUserConfig.MinioAdmin.AddUser(ctx, accessKey, secretKey)
 	if err != nil {

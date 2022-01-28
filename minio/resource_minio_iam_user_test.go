@@ -241,7 +241,7 @@ func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 
 		userStatus := UserStatus{
 			AccessKey: rs.Primary.ID,
-			SecretKey: string(secretKey),
+			SecretKey: secretKey,
 			Status:    madmin.AccountDisabled,
 		}
 

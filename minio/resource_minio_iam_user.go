@@ -64,19 +64,24 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
+	var err error
 	accessKey := iamUserConfig.MinioIAMName
-	secretKey, _ := generateSecretAccessKey()
+	secretKey := iamUserConfig.MinioSecret
 
-	err := iamUserConfig.MinioAdmin.AddUser(ctx, accessKey, string(secretKey))
+		if secretKey, err = generateSecretAccessKey(); err != nil {
+			return NewResourceError("Error creating user", accessKey, err)
+		}
+
+	err = iamUserConfig.MinioAdmin.AddUser(ctx, accessKey, secretKey)
 	if err != nil {
-		return NewResourceError("creating user failed", d.Id(), err)
+		return NewResourceError("Error creating user", accessKey, err)
 	}
 
 	d.SetId(aws.StringValue(&accessKey))
-	_ = d.Set("secret", string(secretKey))
+	_ = d.Set("secret", secretKey)
 
 	if iamUserConfig.MinioDisableUser {
-		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, accessKey, madmin.AccountDisabled)
+		err = iamUserConfig.MinioAdmin.SetUserStatus(ctx, accessKey, madmin.AccountDisabled)
 		if err != nil {
 			return NewResourceError("Error disabling IAM User %s: %s", d.Id(), err)
 		}
@@ -88,11 +93,14 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
+
+	var err error
 	secretKey := iamUserConfig.MinioSecret
 
 	if secretKey == "" || iamUserConfig.MinioUpdateKey {
-		secretKeyBytes, _ := generateSecretAccessKey()
-		secretKey = string(secretKeyBytes)
+		if secretKey, err = generateSecretAccessKey(); err != nil {
+			return NewResourceError("Error creating user", d.Id(), err)
+		}
 	}
 
 	if d.HasChange(iamUserConfig.MinioIAMName) {

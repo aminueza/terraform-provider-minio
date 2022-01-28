@@ -2,8 +2,13 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"math"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -98,6 +103,7 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 
 func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	var user madmin.UserInfo
+	var oldAccessKey string
 
 	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
 	resourceName := "minio_iam_user.test3"
@@ -108,10 +114,17 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
+				Config: testAccMinioUserConfigSetSecret(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
+				),
+			},
+			{
 				Config: testAccMinioUserConfigUpdateSecret(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists(resourceName, &user),
-					testAccCheckMinioUserRotatesAccessKey(resourceName),
+					testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
 				),
 			},
 		},
@@ -142,6 +155,13 @@ resource "minio_iam_user" "test2" {
 `, rName)
 }
 
+func testAccMinioUserConfigSetSecret(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test3" {
+  name   = %q
+}
+`, rName)
+}
 func testAccMinioUserConfigUpdateSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test3" {
@@ -232,9 +252,23 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
+func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, _ := s.RootModule().Resources[n]
+
+		*accessKey = rs.Primary.Attributes["secret"]
+
+		return nil
+	}
+}
+
+func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["secret"] == *oldAccessKey {
+			return fmt.Errorf("Secret has not been rotated")
+		}
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
@@ -243,14 +277,59 @@ func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
 			S3UserSecret: rs.Primary.Attributes["secret"],
 			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
-		http.c
-		client, err := cfg.NewClient()
-		if err != nil {
-			return err
-		}
+		return minioUIwebrpcLogin(cfg)
+	}
+}
 
-		_, err = client.(*S3MinioClient).S3Client.ListBuckets(context.Background())
+// minioUIwebrpcLogin checks if a login is possible to minio.
+//
+// It does this via webrpc because the User might lack any rights, even listing
+// buckets might be forbidden.  This is highly undesirable and should be replaced
+// as soon as possible.
+func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
+	schema := map[bool]string{true: "https", false: "http"}[cfg.S3SSL]
+	webrpcData := map[string]interface{}{
+		"id":      1,
+		"jsonrpc": "2.0",
+		"params": map[string]interface{}{
+			"username": cfg.S3UserAccess,
+			"password": cfg.S3UserSecret,
+		},
+		"method": "web.Login",
+	}
+	requestData, _ := json.Marshal(webrpcData)
 
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", schema+"://"+cfg.S3HostPort+"/minio/webrpc", strings.NewReader(string(requestData)))
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
+	resp, err := client.Do(req)
+	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var loginResponse map[string]interface{}
+	err = json.Unmarshal(body, &loginResponse)
+	if err != nil {
+		if jsonErr, ok := err.(*json.SyntaxError); ok {
+			from := int(math.Max(float64(jsonErr.Offset-10.0), 0))
+			to := int(math.Min(float64(jsonErr.Offset+50), float64(len(body))))
+			problemPart := body[from:to]
+			return fmt.Errorf("%w ~ error near '%s' (offset %d)", err, problemPart, jsonErr.Offset)
+		}
+		return err
+	}
+
+	if _, ok := loginResponse["error"]; ok {
+		message := loginResponse["error"].(map[string]interface{})["message"]
+		return fmt.Errorf("Error logging in: %s", message)
+	}
+
+	return nil
 }

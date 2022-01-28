@@ -7,13 +7,16 @@ tasks:
       docker-compose -f ${DOCKER_COMPOSE_GITPOD_PATH} up
   - env:
       TERRAFORM_VERSION: 0.14.0
-    command: >
+    init: >
       export TERRAFORM_DOWNLOAD_FILE_NAME=terraform_${TERRAFORM_VERSION}_linux_amd64.zip &&
       wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${TERRAFORM_DOWNLOAD_FILE_NAME} &&
       unzip ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
       rm ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
-      sudo mv terraform /usr/local/bin/terraform &&
-      sudo sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin &&
+      sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b .
+    command: |
+      sudo mv terraform /usr/local/bin/terraform
+      sudo mv task /usr/local/bin/task
+      go get -v -t -d ./...
       task install
 
 ports:
@@ -26,3 +29,8 @@ ports:
   - port: 8000
     name: AdminIO-UI Server
     onOpen: open-preview
+
+vscode:
+  extensions:
+    - golang.go
+    - hashicorp.terraform

@@ -53,6 +53,7 @@ func resourceMinioIAMUser() *schema.Resource {
 			"secret": {
 				Type:      schema.TypeString,
 				Computed:  true,
+				Optional:  true,
 				Sensitive: true,
 			},
 			"tags": tagsSchema(),

@@ -133,6 +133,28 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_SettingAccessKey(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test4"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfigSetSecret(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserCanLogIn(resourceName),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioUserConfig(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test" {
@@ -169,6 +191,15 @@ func testAccMinioUserConfigUpdateSecret(rName string) string {
 resource "minio_iam_user" "test3" {
   update_secret = true
   name          = %q
+}
+`, rName)
+}
+
+func testAccMinioUserConfigSetSecret(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test4" {
+  secret = "secret1234"
+  name   = %q
 }
 `, rName)
 }

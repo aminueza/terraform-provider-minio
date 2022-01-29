@@ -12,12 +12,17 @@ tasks:
       wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${TERRAFORM_DOWNLOAD_FILE_NAME} &&
       unzip ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
       rm ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
+      wget https://dl.min.io/client/mc/release/linux-amd64/mc &&
+      chmod +x mc &&
       sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b .
     command: |
       sudo mv terraform /usr/local/bin/terraform
+      sudo mv mc /usr/local/bin/mc
       sudo mv task /usr/local/bin/task
       go get -v -t -d ./...
       task install
+      gp await-port 9000 && gp await-port 8080 && gp await-port 8000
+      mc alias set local http://localhost:9000 minio minio123 && echo "MinIO Local Server Stats:" && mc admin info local
 
 ports:
   - port: 9000

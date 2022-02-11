@@ -2,7 +2,11 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -97,6 +101,7 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 
 func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	var user madmin.UserInfo
+	var oldAccessKey string
 
 	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
 	resourceName := "minio_iam_user.test3"
@@ -107,10 +112,41 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
+				Config: testAccMinioUserConfigWithoutSecret(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
+				),
+			},
+			{
 				Config: testAccMinioUserConfigUpdateSecret(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioUserExists(resourceName, &user),
-					testAccCheckMinioUserRotatesAccessKey(resourceName),
+					testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccAWSUser_SettingAccessKey(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test4"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfigSetSecret(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserCanLogIn(resourceName),
 				),
 			},
 		},
@@ -127,8 +163,8 @@ func testAccMinioUserConfig(rName string) string {
 func testAccMinioUserConfigDisabled(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test1" {
-		  name = %q
-		  disable_user= true
+		  name         = %q
+		  disable_user = true
 		}`, rName)
 }
 
@@ -141,11 +177,27 @@ resource "minio_iam_user" "test2" {
 `, rName)
 }
 
+func testAccMinioUserConfigWithoutSecret(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test3" {
+  name          = %q
+}
+`, rName)
+}
 func testAccMinioUserConfigUpdateSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test3" {
   update_secret = true
   name          = %q
+}
+`, rName)
+}
+
+func testAccMinioUserConfigSetSecret(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test4" {
+  secret = "secret1234"
+  name   = %q
 }
 `, rName)
 }
@@ -183,18 +235,13 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		err := minioIam.SetUserStatus(context.Background(), rs.Primary.ID, madmin.AccountStatus(statusUser(false)))
-		if err != nil {
-			return fmt.Errorf("Error setting status %s", err)
-		}
-
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("Error getting user %s", err)
 		}
 
-		if rs.Primary.Attributes["status"] != string(resp.Status) {
-			return fmt.Errorf("User enabled %s", resp)
+		if rs.Primary.Attributes["status"] != string(madmin.AccountDisabled) || resp.Status != madmin.AccountDisabled {
+			return fmt.Errorf("User still enabled: state:%s server:%s", rs.Primary.Attributes["status"], resp.Status)
 		}
 
 		return nil
@@ -236,24 +283,66 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testAccCheckMinioUserRotatesAccessKey(n string) resource.TestCheckFunc {
+func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, _ := s.RootModule().Resources[n]
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		*accessKey = rs.Primary.Attributes["secret"]
 
-		secretKey, _ := generateSecretAccessKey()
+		return nil
+	}
+}
+func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
 
-		userStatus := UserStatus{
-			AccessKey: rs.Primary.ID,
-			SecretKey: string(secretKey),
-			Status:    madmin.AccountStatus(statusUser(false)),
+		// Check if we can log in
+		cfg := &S3MinioConfig{
+			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
+			S3UserAccess: rs.Primary.Attributes["name"],
+			S3UserSecret: rs.Primary.Attributes["secret"],
+			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
+		return minioUIwebrpcLogin(cfg)
+	}
+}
 
-		if err := minioIam.SetUser(context.Background(), userStatus.AccessKey, userStatus.SecretKey, userStatus.Status); err != nil {
-			return fmt.Errorf("error rotating IAM User (%s) Access Key: %s", userStatus.AccessKey, err)
+func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, _ := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["secret"] == *oldAccessKey {
+			return fmt.Errorf("Secret has not been rotated")
 		}
 
 		return nil
 	}
+}
+
+// minioUIwebrpcLogin checks if a login is possible to minio.
+//
+// It does this via webrpc because the User might lack any rights, even listing
+// buckets might be forbidden.  This is highly undesirable and should be replaced
+// as soon as possible.
+func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
+	loginData := map[string]interface{}{
+		"accessKey": cfg.S3UserAccess,
+		"secretKey": cfg.S3UserSecret,
+	}
+	requestData, _ := json.Marshal(loginData)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", "http://localhost:9001/login", strings.NewReader(string(requestData)))
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return nil
+	}
+	return fmt.Errorf("Login failure: user:%s %s", cfg.S3UserAccess, resp.Status)
 }

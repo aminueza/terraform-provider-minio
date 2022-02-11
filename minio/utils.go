@@ -70,13 +70,13 @@ func generateAccessKeyID() ([]byte, error) {
 }
 
 // generateSecretAccessKey - generate random base64 numeric value from a random seed.
-func generateSecretAccessKey() ([]byte, error) {
+func generateSecretAccessKey() (string, error) {
 	rb := make([]byte, minioSecretID)
 	if _, e := rand.Read(rb); e != nil {
-		return nil, errors.New("Could not generate Secret Key")
+		return "", errors.New("Could not generate Secret Key")
 	}
-	//return []byte(base64.StdEncoding.EncodeToString(rb))[:minioSecretID], nil
-	return Encode(rb), nil
+
+	return string(Encode(rb)), nil
 }
 
 // mustGenerateAccessKeyID - must generate random alpha numeric value using only uppercase characters
@@ -88,15 +88,6 @@ func mustGenerateAccessKeyID() []byte {
 		fmt.Print("Unable to generate accessKeyID.")
 	}
 	return alpha
-}
-
-// mustGenerateSecretAccessKey - generate random base64 numeric value from a random seed.
-func mustGenerateSecretAccessKey() []byte {
-	secretKey, err := generateSecretAccessKey()
-	if err != nil {
-		fmt.Print("Unable to generate secretAccessKey.")
-	}
-	return secretKey
 }
 
 //Encode queues message

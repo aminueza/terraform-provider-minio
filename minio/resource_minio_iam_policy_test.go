@@ -2,10 +2,12 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -25,7 +27,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
-					resource.TestCheckResourceAttr(resourceName, "policy", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::*"]}]}`),
+					testCheckJSONResourceAttr(resourceName, "policy", `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket"],"Resource":["arn:aws:s3:::*"]}]}`),
 				),
 			},
 			{
@@ -103,14 +105,14 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 				Config: testAccMinioIAMPolicyConfigPolicy(rName1, policy1),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "policy", policy1),
+					testCheckJSONResourceAttr(resourceName, "policy", policy1),
 				),
 			},
 			{
 				Config: testAccMinioIAMPolicyConfigPolicy(rName2, policy2),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "policy", policy2),
+					testCheckJSONResourceAttr(resourceName, "policy", policy2),
 				),
 			},
 			{
@@ -168,6 +170,30 @@ func testAccCheckMinioIAMPolicyDisappears(resource string) resource.TestCheckFun
 			}
 
 		}
+		return nil
+	}
+}
+
+func testCheckJSONResourceAttr(name, key, value string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[name]
+		if !ok {
+			return fmt.Errorf("Not found: %s", name)
+		}
+
+		v, ok := rs.Primary.Attributes[key]
+		if !ok {
+			return fmt.Errorf("%s: Attribute '%s' not found", name, key)
+		}
+
+		var actual, expected interface{}
+		_ = json.Unmarshal([]byte(value), &expected)
+		_ = json.Unmarshal([]byte(v), &actual)
+		diff := cmp.Diff(actual, expected)
+		if diff != "" {
+			return fmt.Errorf("%s: mismatch (-want +got):\n%s", name, diff)
+		}
+
 		return nil
 	}
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"math"
 	"net/http"
 	"os"
 	"strings"
@@ -327,20 +325,14 @@ func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resou
 // buckets might be forbidden.  This is highly undesirable and should be replaced
 // as soon as possible.
 func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
-	schema := map[bool]string{true: "https", false: "http"}[cfg.S3SSL]
-	webrpcData := map[string]interface{}{
-		"id":      1,
-		"jsonrpc": "2.0",
-		"params": map[string]interface{}{
-			"username": cfg.S3UserAccess,
-			"password": cfg.S3UserSecret,
-		},
-		"method": "web.Login",
+	loginData := map[string]interface{}{
+		"accessKey": cfg.S3UserAccess,
+		"secretKey": cfg.S3UserSecret,
 	}
-	requestData, _ := json.Marshal(webrpcData)
+	requestData, _ := json.Marshal(loginData)
 
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", schema+"://"+cfg.S3HostPort+"/minio/webrpc", strings.NewReader(string(requestData)))
+	req, err := http.NewRequest("POST", "http://localhost:9001/login", strings.NewReader(string(requestData)))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
 	resp, err := client.Do(req)
@@ -349,27 +341,8 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		return nil
 	}
-
-	var loginResponse map[string]interface{}
-	err = json.Unmarshal(body, &loginResponse)
-	if err != nil {
-		if jsonErr, ok := err.(*json.SyntaxError); ok {
-			from := int(math.Max(float64(jsonErr.Offset-10.0), 0))
-			to := int(math.Min(float64(jsonErr.Offset+50), float64(len(body))))
-			problemPart := body[from:to]
-			return fmt.Errorf("%w ~ error near '%s' (offset %d)", err, problemPart, jsonErr.Offset)
-		}
-		return err
-	}
-
-	if _, ok := loginResponse["error"]; ok {
-		message := loginResponse["error"].(map[string]interface{})["message"]
-		return fmt.Errorf("Error logging in: %s", message)
-	}
-
-	return nil
+	return fmt.Errorf("Login failure: user:%s %s", cfg.S3UserAccess, resp.Status)
 }

@@ -2,8 +2,11 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"time"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -37,8 +40,9 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Required: true,
 						},
 						"expiration": {
-							Type:     schema.TypeInt,
-							Optional: true,
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateDiagFunc: validateILMExpiration,
 						},
 						"status": {
 							Type:     schema.TypeString,
@@ -55,6 +59,17 @@ func resourceMinioILMPolicy() *schema.Resource {
 	}
 }
 
+func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) {
+	value := v.(string)
+	exp := parseILMExpiration(value)
+
+	if (lifecycle.Expiration{}) == exp {
+		return diag.Errorf("expiration must be a duration (5d) or date (1970-01-01)")
+	}
+
+	return
+}
+
 func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
@@ -66,7 +81,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		rule := ruleI.(map[string]interface{})
 		r := lifecycle.Rule{
 			ID:         rule["id"].(string),
-			Expiration: lifecycle.Expiration{Days: lifecycle.ExpirationDays(rule["expiration"].(int))},
+			Expiration: parseILMExpiration(rule["expiration"].(string)),
 			Status:     "Enabled",
 			RuleFilter: lifecycle.Filter{Prefix: rule["filter"].(string)},
 		}
@@ -97,9 +112,16 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	for _, r := range config.Rules {
+		var expiration string
+		if r.Expiration.Days != 0 {
+			expiration = fmt.Sprintf("%dd", r.Expiration.Days)
+		} else {
+			expiration = r.Expiration.Date.Format("2006-01-02")
+		}
+
 		rule := map[string]interface{}{
 			"id":         r.ID,
-			"expiration": r.Expiration.Days,
+			"expiration": expiration,
 			"status":     r.Status,
 			"filter":     r.RuleFilter.Prefix,
 		}
@@ -133,4 +155,16 @@ func minioDeleteILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	d.SetId("")
 
 	return nil
+}
+
+func parseILMExpiration(s string) lifecycle.Expiration {
+	var days int
+	if _, err := fmt.Sscanf(s, "%dd", &days); err == nil {
+		return lifecycle.Expiration{Days: lifecycle.ExpirationDays(days)}
+	}
+	if date, err := time.Parse("2006-01-02", s); err == nil {
+		return lifecycle.Expiration{Date: lifecycle.ExpirationDate{Time: date}}
+	}
+
+	return lifecycle.Expiration{}
 }

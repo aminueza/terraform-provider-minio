@@ -11,10 +11,10 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
-func TestAccILMRule_basic(t *testing.T) {
+func TestAccILMPolicy_basic(t *testing.T) {
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-rule-%d", acctest.RandInt())
-	resourceName := "minio_ilm_rule.rule"
+	resourceName := "minio_ilm_policy.rule"
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -22,10 +22,10 @@ func TestAccILMRule_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioILMRuleConfig(name),
+				Config: testAccMinioILMPolicyConfig(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
-					testAccCheckMinioILMRuleExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
 					resource.TestCheckResourceAttr(resourceName, "bucket", name),
 					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
 				),
@@ -43,7 +43,7 @@ func testAccCheckMinioLifecycleConfigurationValid(config *lifecycle.Configuratio
 	}
 }
 
-func testAccCheckMinioILMRuleExists(n string, config *lifecycle.Configuration) resource.TestCheckFunc {
+func testAccCheckMinioILMPolicyExists(n string, config *lifecycle.Configuration) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -65,15 +65,15 @@ func testAccCheckMinioILMRuleExists(n string, config *lifecycle.Configuration) r
 	}
 }
 
-func testAccMinioILMRuleConfig(randInt string) string {
+func testAccMinioILMPolicyConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
   acl    = "public-read"
 }
-resource "minio_ilm_rule" "rule" {
+resource "minio_ilm_policy" "rule" {
   bucket = "${minio_s3_bucket.bucket.id}"
-  rules {
+  rule {
 	id = "asdf"
 	expiration = 7
 	filter = "temp/"

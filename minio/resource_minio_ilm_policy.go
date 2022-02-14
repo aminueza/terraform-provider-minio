@@ -10,16 +10,16 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
-func resourceMinioILMRule() *schema.Resource {
+func resourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: minioCreateILMRule,
-		ReadContext:   minioReadILMRule,
-		DeleteContext: minioDeleteILMRule,
-		UpdateContext: minioUpdateILMRule,
+		CreateContext: minioCreateILMPolicy,
+		ReadContext:   minioReadILMPolicy,
+		DeleteContext: minioDeleteILMPolicy,
+		UpdateContext: minioUpdateILMPolicy,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		Description: "`minio_ilm_rule` handles lifecycle settings for a given `minio_s3_bucket`.",
+		Description: "`minio_ilm_policy` handles lifecycle settings for a given `minio_s3_bucket`.",
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:         schema.TypeString,
@@ -27,7 +27,7 @@ func resourceMinioILMRule() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(0, 63),
 			},
-			"rules": {
+			"rule": {
 				Type:     schema.TypeList,
 				Required: true,
 				Elem: &schema.Resource{
@@ -55,13 +55,13 @@ func resourceMinioILMRule() *schema.Resource {
 	}
 }
 
-func minioCreateILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
 	config := lifecycle.NewConfiguration()
 
 	bucket := d.Get("bucket").(string)
-	rules := d.Get("rules").([]interface{})
+	rules := d.Get("rule").([]interface{})
 	for _, ruleI := range rules {
 		rule := ruleI.(map[string]interface{})
 		r := lifecycle.Rule{
@@ -79,12 +79,12 @@ func minioCreateILMRule(ctx context.Context, d *schema.ResourceData, meta interf
 
 	d.SetId(bucket)
 
-	minioReadILMRule(ctx, d, meta)
+	minioReadILMPolicy(ctx, d, meta)
 
 	return nil
 }
 
-func minioReadILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
 	rules := make([]map[string]interface{}, 0)
@@ -106,22 +106,22 @@ func minioReadILMRule(ctx context.Context, d *schema.ResourceData, meta interfac
 		rules = append(rules, rule)
 	}
 
-	if err := d.Set("rules", rules); err != nil {
+	if err := d.Set("rule", rules); err != nil {
 		return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
 	}
 
 	return nil
 }
 
-func minioUpdateILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if d.HasChange("rules") {
-		minioCreateILMRule(ctx, d, meta)
+func minioUpdateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if d.HasChange("rule") {
+		minioCreateILMPolicy(ctx, d, meta)
 	}
 
-	return minioReadILMRule(ctx, d, meta)
+	return minioReadILMPolicy(ctx, d, meta)
 }
 
-func minioDeleteILMRule(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func minioDeleteILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
 	config := lifecycle.NewConfiguration()

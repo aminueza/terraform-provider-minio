@@ -94,9 +94,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId(bucket)
 
-	minioReadILMPolicy(ctx, d, meta)
-
-	return nil
+	return minioReadILMPolicy(ctx, d, meta)
 }
 
 func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -109,6 +107,10 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		log.Println(NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
 		d.SetId("")
 		return nil
+	}
+
+	if err = d.Set("bucket", d.Id()); err != nil {
+		return NewResourceError("setting bucket failed", d.Id(), err)
 	}
 
 	for _, r := range config.Rules {

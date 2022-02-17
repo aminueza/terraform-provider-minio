@@ -56,6 +56,35 @@ func Provider() *schema.Provider {
 					"MINIO_ENABLE_HTTPS",
 				}, nil),
 			},
+			"minio_insecure": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_INSECURE",
+				}, nil),
+			},
+			"minio_cacert_file": {
+				Type:     schema.TypeString,
+				Optional: true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_CACERT_FILE",
+				}, nil),
+			},
+			"minio_cert_file": {
+				Type:     schema.TypeString,
+				Optional: true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_CERT_FILE",
+				}, nil),
+			},
+			"minio_key_file": {
+				Type:     schema.TypeString,
+				Optional: true,
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_KEY_FILE",
+				}, nil),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

@@ -36,6 +36,13 @@ type S3MinioBucket struct {
 	MinioForceDestroy bool
 }
 
+//S3MinioBucketPolicy defines bucket policy config
+type S3MinioBucketPolicy struct {
+	MinioClient       *minio.Client
+	MinioBucket       string
+	MinioBucketPolicy string
+}
+
 //S3MinioIAMUserConfig defines IAM config
 type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient

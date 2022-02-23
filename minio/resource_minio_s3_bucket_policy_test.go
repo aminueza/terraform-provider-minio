@@ -98,7 +98,7 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
 			},
 
 			{
-				Config: testAccBucketPolicyConfig_updated(name),
+				Config: testAccBucketPolicyConfigUpdated(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
 					testAccCheckBucketHasPolicy("minio_s3_bucket.bucket", expectedPolicyText2),
@@ -140,7 +140,7 @@ EOF
 `, bucketName)
 }
 
-func testAccBucketPolicyConfig_updated(bucketName string) string {
+func testAccBucketPolicyConfigUpdated(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
@@ -172,25 +172,25 @@ func testAccCheckBucketHasPolicy(n string, expectedPolicyText string) resource.T
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("GetBucketPolicy error: %v", err)
+			return fmt.Errorf("error on GetBucketPolicy: %v", err)
 		}
 
 		equivalent, err := awspolicy.PoliciesAreEquivalent(actualPolicyText, expectedPolicyText)
 		if err != nil {
-			return fmt.Errorf("Error testing policy equivalence: %s", err)
+			return fmt.Errorf("error testing policy equivalence: %s", err)
 		}
 		if !equivalent {
-			return fmt.Errorf("Non-equivalent policy error:\n\nexpected: %s\n\ngot: %s\n",
+			return fmt.Errorf("non-equivalent policy error:\n\nexpected: %s\n\ngot: %s",
 				expectedPolicyText, actualPolicyText)
 		}
 

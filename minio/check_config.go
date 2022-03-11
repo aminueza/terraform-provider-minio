@@ -20,6 +20,17 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	}
 }
 
+//BucketPolicyConfig creates config for managing minio bucket policies
+func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketPolicy {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBucketPolicy{
+		MinioClient:       m.S3Client,
+		MinioBucket:       d.Get("bucket").(string),
+		MinioBucketPolicy: d.Get("policy").(string),
+	}
+}
+
 //NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	return &S3MinioConfig{

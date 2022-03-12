@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	awspolicy "github.com/jen20/awspolicyequivalence"
 )
 
 func TestAccS3BucketPolicy_basic(t *testing.T) {
@@ -114,6 +114,40 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
 	})
 }
 
+func TestAccS3BucketPolicy_order(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	expectedPolicyText := fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+	  "Principal": {"AWS": ["*"]},
+      "Resource": [
+		"arn:aws:s3:::%[1]s",
+		"arn:aws:s3:::%[1]s/*"
+      ],
+	  "Action": ["s3:ListBucket", "s3:ListBucketVersions"]
+    }
+  ]
+}`, name)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketPolicyConfigOrder(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasPolicy("minio_s3_bucket.bucket", expectedPolicyText),
+				),
+			},
+		},
+	})
+}
+
 func testAccBucketPolicyConfig(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
@@ -160,6 +194,35 @@ resource "minio_s3_bucket_policy" "bucket" {
         "arn:aws:s3:::${minio_s3_bucket.bucket.bucket}"
       ],
 	  "Action": ["s3:ListBucketVersions"]
+    }
+  ]
+}
+EOF
+}
+`, bucketName)
+}
+
+func testAccBucketPolicyConfigOrder(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = %[1]q
+}
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["*"]
+      },
+      "Resource": [
+		"arn:aws:s3:::${minio_s3_bucket.bucket.bucket}/*",
+        "arn:aws:s3:::${minio_s3_bucket.bucket.bucket}"
+      ],
+	  "Action": ["s3:ListBucketVersions", "s3:ListBucket"]
     }
   ]
 }

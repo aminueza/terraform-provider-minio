@@ -8,11 +8,11 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
-	awspolicy "github.com/jen20/awspolicyequivalence"
 )
 
 func resourceMinioIAMPolicy() *schema.Resource {

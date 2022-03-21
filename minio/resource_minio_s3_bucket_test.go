@@ -39,7 +39,7 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl"},
+					"force_destroy"},
 			},
 		},
 	})
@@ -65,7 +65,7 @@ func TestAccMinioS3Bucket_Bucket_EmptyString(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl"},
+					"force_destroy"},
 			},
 		},
 	})
@@ -92,7 +92,7 @@ func TestAccMinioS3Bucket_namePrefix(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl", "bucket_prefix"},
+					"force_destroy", "bucket_prefix"},
 			},
 		},
 	})

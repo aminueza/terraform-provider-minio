@@ -2,27 +2,28 @@ package minio
 
 import (
 	"fmt"
+	"github.com/minio/minio-go/v7/pkg/policy"
 
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-//ReadWritePolicy returns readonly policy
+// ReadWritePolicy returns a policy where objects can be uploaded and read
 func ReadWritePolicy(bucket *S3MinioBucket) BucketPolicy {
 	return BucketPolicy{
 		Version: "2012-10-17",
-		Statements: []Stmt{
+		Statements: []policy.Statement{
 			{
 				Sid:       "ListObjectsInBucket",
 				Actions:   readOnlyBucketActions,
 				Effect:    "Allow",
-				Principal: "*",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 			{
 				Sid:       "UploadObjectActions",
 				Actions:   uploadObjectActions,
 				Effect:    "Allow",
-				Principal: "*",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
 				Resources: set.CreateStringSet([]string{fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)}...),
 			},
 		},

@@ -3,6 +3,7 @@ package minio
 import (
 	"github.com/minio/madmin-go"
 	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/policy"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
@@ -98,16 +99,6 @@ type S3MinioIAMGroupPolicyConfig struct {
 	MinioIAMGroup      string
 }
 
-//Stmt defines policy statement
-type Stmt struct {
-	Sid        string
-	Actions    set.StringSet `json:"Action"`
-	Conditions ConditionMap  `json:"Condition,omitempty"`
-	Effect     string        `json:",omitempty"`
-	Principal  string        `json:"Principal,omitempty"`
-	Resources  set.StringSet `json:"Resource"`
-}
-
 //Princ defines policy princ
 type Princ struct {
 	AWS           set.StringSet `json:"AWS,omitempty"`
@@ -116,9 +107,9 @@ type Princ struct {
 
 //BucketPolicy defines bucket policy
 type BucketPolicy struct {
-	Version    string `json:",omitempty"`
-	ID         string `json:",omitempty"`
-	Statements []Stmt `json:"Statement"`
+	Version    string             `json:",omitempty"`
+	ID         string             `json:",omitempty"`
+	Statements []policy.Statement `json:"Statement"`
 }
 
 //IAMPolicyDoc returns IAM policy

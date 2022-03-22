@@ -39,7 +39,7 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl"},
+					"force_destroy"},
 			},
 		},
 	})
@@ -65,7 +65,7 @@ func TestAccMinioS3Bucket_Bucket_EmptyString(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl"},
+					"force_destroy"},
 			},
 		},
 	})
@@ -92,7 +92,7 @@ func TestAccMinioS3Bucket_namePrefix(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl", "bucket_prefix"},
+					"force_destroy", "bucket_prefix"},
 			},
 		},
 	})
@@ -117,7 +117,7 @@ func TestAccMinioS3Bucket_generatedName(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl", "bucket_prefix"},
+					"force_destroy", "bucket_prefix"},
 			},
 		},
 	})
@@ -144,18 +144,24 @@ func TestAccMinioS3Bucket_UpdateAcl(t *testing.T) {
 			},
 			{
 				ResourceName:      resourceName,
+				ImportStateId:     ri,
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"force_destroy", "acl"},
+					"force_destroy"},
 			},
 			{
-				Config: postConfig,
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioS3BucketExists(resourceName),
-					resource.TestCheckResourceAttr(
-						resourceName, "acl", "private"),
-				),
+				ResourceName: resourceName,
+				Config:       postConfig,
+				Check:        testAccCheckMinioS3BucketACLInState(resourceName, "private"),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportStateId:     ri,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy"},
 			},
 		},
 	})
@@ -298,6 +304,29 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 		if err != nil {
 			return fmt.Errorf("Error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
 		}
+		return nil
+	}
+}
+
+func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("Not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("No ID is set")
+		}
+
+		attr, ok := rs.Primary.Attributes["acl"]
+		if !ok {
+			return fmt.Errorf("Attribute acl not found")
+		}
+		if attr != acl {
+			return fmt.Errorf("Attribute acl %s, wanted: %s", attr, acl)
+		}
+
 		return nil
 	}
 }

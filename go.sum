@@ -123,6 +123,8 @@ github.com/aws/aws-sdk-go v1.43.23 h1:/YmZzPMK6Xzi0B/W9O/Pq7nyIXpBv6mTiJdDDFC7u9
 github.com/aws/aws-sdk-go v1.43.23/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/aws/aws-sdk-go v1.43.24 h1:7c2PniJ0wpmWsIA6OtYBw6wS7DF0IjbhvPq+0ZQYNXw=
 github.com/aws/aws-sdk-go v1.43.24/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
+github.com/aws/aws-sdk-go v1.43.25 h1:PtdVewK7GZAGnu7JFdi4XFgH+j2AICXkHRjaAXow/4s=
+github.com/aws/aws-sdk-go v1.43.25/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d h1:xDfNPAt8lFiC1UJrqV3uuy861HCTo708pDMbjHHdCas=
 github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d/go.mod h1:6QX/PXZ00z/TKoufEY6K/a0k6AhaJrQKdFe6OfVXsa4=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=

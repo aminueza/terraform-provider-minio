@@ -220,9 +220,9 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
 
 	defaultPolicies := map[string]string{
-		"private":           exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"private":           "",
 		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read":       exportPolicyString(PublicReadPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
 	}
@@ -233,7 +233,7 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 		return NewResourceError("Unsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
 	}
 
-	if policyString != "none" {
+	if policyString != "" {
 		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
 			log.Printf("%s", NewResourceErrorStr("Unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("Unable to set bucket policy", bucketConfig.MinioBucket, err)
@@ -241,16 +241,6 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	}
 
 	return nil
-}
-
-func findValuePolicies(ctx context.Context, bucketConfig *S3MinioBucket) bool {
-	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(ctx)
-	for key := range policies {
-		if key == bucketConfig.MinioACL {
-			return true
-		}
-	}
-	return false
 }
 
 func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {

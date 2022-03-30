@@ -125,8 +125,8 @@ func TestAccMinioS3Bucket_generatedName(t *testing.T) {
 
 func TestAccMinioS3Bucket_UpdateAcl(t *testing.T) {
 	ri := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
-	preConfig := fmt.Sprintf(testAccMinioS3BucketConfigWithACL, ri)
-	postConfig := fmt.Sprintf(testAccMinioS3BucketConfigWithACLUpdate, ri)
+	preConfig := testAccMinioS3BucketConfigWithACL(ri, "public-read")
+	postConfig := testAccMinioS3BucketConfigWithACL(ri, "public")
 	resourceName := "minio_s3_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -153,7 +153,7 @@ func TestAccMinioS3Bucket_UpdateAcl(t *testing.T) {
 			{
 				ResourceName: resourceName,
 				Config:       postConfig,
-				Check:        testAccCheckMinioS3BucketACLInState(resourceName, "private"),
+				Check:        testAccCheckMinioS3BucketACLInState(resourceName, "public"),
 			},
 			{
 				ResourceName:      resourceName,
@@ -410,19 +410,14 @@ resource "minio_s3_bucket" "bucket" {
 `, randInt)
 }
 
-var testAccMinioS3BucketConfigWithACL = `
+func testAccMinioS3BucketConfigWithACL(name, acl string) string {
+	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
 	bucket = "%s"
-	acl = "public-read"
+	acl = "%s"
 }
-`
-
-var testAccMinioS3BucketConfigWithACLUpdate = `
-resource "minio_s3_bucket" "bucket" {
-	bucket = "%s"
-	acl = "private"
+`, name, acl)
 }
-`
 
 func testAccMinioS3BucketConfigForceDestroy(bucketName string) string {
 	return fmt.Sprintf(`

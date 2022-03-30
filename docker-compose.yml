@@ -1,7 +1,7 @@
 version: "3"
 services:
   minio:
-    image: docker.io/minio/minio:RELEASE.2022-02-07T08-17-33Z
+    image: docker.io/minio/minio:RELEASE.2022-03-26T06-49-28Z
     ports:
       - "9000:9000"
       - "9001:9001"

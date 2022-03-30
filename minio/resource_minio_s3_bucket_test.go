@@ -3,6 +3,8 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -202,6 +204,29 @@ func TestAccMinioS3Bucket_forceDestroy(t *testing.T) {
 				Config: testAccMinioS3BucketConfigForceDestroy(bucketName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_PrivateBucketUnreadable(t *testing.T) {
+	ri := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	preConfig := testAccMinioS3BucketConfigWithACL(ri, "private")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: preConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(
+						resourceName, "acl", "private"),
+					testAccCheckBucketNotReadableAnonymously(resourceName),
 				),
 			},
 		},
@@ -449,3 +474,16 @@ resource "minio_s3_bucket" "test" {
 	bucket_prefix = "tf-test-"
 }
 `
+
+func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		resp, err := http.Get("http://" + os.Getenv("MINIO_ENDPOINT") + "/" + bucket)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode != 403 {
+			return fmt.Errorf("Should not be able to list buckets")
+		}
+		return nil
+	}
+}

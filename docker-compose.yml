@@ -8,6 +8,7 @@ services:
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
+      MINIO_CI_CD: '1'
     command: server --console-address :9001 /data{0...3}
   adminio-ui:
     image: docker.io/rzrbld/adminio-ui:v1.93

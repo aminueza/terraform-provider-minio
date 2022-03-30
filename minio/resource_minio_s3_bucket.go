@@ -243,16 +243,6 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	return nil
 }
 
-func findValuePolicies(ctx context.Context, bucketConfig *S3MinioBucket) bool {
-	policies, _ := bucketConfig.MinioAdmin.ListCannedPolicies(ctx)
-	for key := range policies {
-		if key == bucketConfig.MinioACL {
-			return true
-		}
-	}
-	return false
-}
-
 func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 	policyJSON, err := json.Marshal(policyStruct)
 	if err != nil {

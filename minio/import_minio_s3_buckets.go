@@ -37,8 +37,7 @@ func resourceMinioS3BucketImportState(
 func policyToACLName(bucketConfig *S3MinioBucket, pol string) string {
 
 	defaultPolicies := map[string]string{
-		"private":           exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read":       exportPolicyString(PublicReadPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),

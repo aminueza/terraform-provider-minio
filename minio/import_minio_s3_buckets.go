@@ -6,7 +6,6 @@ import (
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/minio-go/v7/pkg/policy"
 )
 
 func resourceMinioS3BucketImportState(
@@ -52,21 +51,4 @@ func policyToACLName(bucketConfig *S3MinioBucket, pol string) string {
 	}
 
 	return "private"
-}
-
-func policyNameToACLBucket(policyName string) string {
-
-	policyMapping := map[string]string{
-		policy.BucketPolicyReadOnly:     "public-read",
-		policy.BucketPolicyWriteOnly:    "public-write",
-		policy.BucketPolicyReadWrite:    "public-read-write",
-		string(policy.BucketPolicyNone): "private",
-		"":                              "private",
-	}
-
-	x, ok := policyMapping[policyName]
-	if !ok {
-		return "custom"
-	}
-	return x
 }

@@ -35,7 +35,7 @@ jobs:
         id: go
       - name: Build the docker-compose stack
         run: docker-compose up -d minio
-      - uses: hashicorp/setup-terraform@v1
+      - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 0.14.0
           terraform_wrapper: false

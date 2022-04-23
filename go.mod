@@ -10,5 +10,5 @@ require (
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0
 	github.com/minio/madmin-go v1.3.12
 	github.com/minio/minio-go/v7 v7.0.24
-	gotest.tools/v3 v3.1.0
+	gotest.tools/v3 v3.2.0
 )

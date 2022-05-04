@@ -361,6 +361,8 @@ github.com/hashicorp/hcl/v2 v2.3.0 h1:iRly8YaMwTBAKhn1Ybk7VSdzbnopghktCD031P8ggU
 github.com/hashicorp/hcl/v2 v2.3.0/go.mod h1:d+FwDBbOLvpAM3Z6J7gPj/VoAGkNe/gm352ZhjJ/Zv8=
 github.com/hashicorp/hcl/v2 v2.11.1 h1:yTyWcXcm9XB0TEkyU/JCRU6rYy4K+mgLtzn2wlrJbcc=
 github.com/hashicorp/hcl/v2 v2.11.1/go.mod h1:FwWsfWEjyV/CMj8s/gqAuiviY72rJ1/oayI9WftqcKg=
+github.com/hashicorp/hcl/v2 v2.12.0 h1:PsYxySWpMD4KPaoJLnsHwtK5Qptvj/4Q6s0t4sUxZf4=
+github.com/hashicorp/hcl/v2 v2.12.0/go.mod h1:FwWsfWEjyV/CMj8s/gqAuiviY72rJ1/oayI9WftqcKg=
 github.com/hashicorp/logutils v1.0.0 h1:dLEQVugN8vlakKOUE3ihGLTZJRB4j+M2cdTm/ORI65Y=
 github.com/hashicorp/logutils v1.0.0/go.mod h1:QIAnNjmIWmVIIkWDTG1z5v++HQmx9WQRO+LraFDTW64=
 github.com/hashicorp/mdns v1.0.0/go.mod h1:tL+uN++7HEJ6SQLQ2/p+z2pH24WQKWjBPkE0mNTz8vQ=
@@ -384,6 +386,8 @@ github.com/hashicorp/terraform-plugin-log v0.2.0 h1:rjflRuBqCnSk3UHOR25MP1G5BDLK
 github.com/hashicorp/terraform-plugin-log v0.2.0/go.mod h1:E1kJmapEHzqu1x6M++gjvhzM2yMQNXPVWZRCB8sgYjg=
 github.com/hashicorp/terraform-plugin-log v0.3.0 h1:NPENNOjaJSVX0f7JJTl4f/2JKRPQ7S2ZN9B4NSqq5kA=
 github.com/hashicorp/terraform-plugin-log v0.3.0/go.mod h1:EjueSP/HjlyFAsDqt+okpCPjkT4NDynAe32AeDC4vps=
+github.com/hashicorp/terraform-plugin-log v0.4.0 h1:F3eVnm8r2EfQCe2k9blPIiF/r2TT01SHijXnS7bujvc=
+github.com/hashicorp/terraform-plugin-log v0.4.0/go.mod h1:9KclxdunFownr4pIm1jdmwKRmE4d6HVG2c9XDq47rpg=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.10.1 h1:B9AocC+dxrCqcf4vVhztIkSkt3gpRjUkEka8AmZWGlQ=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.10.1/go.mod h1:FjM9DXWfP0w/AeOtJoSKHBZ01LqmaO6uP4bXhv3fekw=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.11.0 h1:ZcHivbkgrQMHOLm6LBvPev7DTUMKmsC8SNcskgLpOYc=
@@ -394,6 +398,8 @@ github.com/hashicorp/terraform-plugin-sdk/v2 v2.13.0 h1:MyzzWWHOQgYCsoJZEC9YgDqy
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.13.0/go.mod h1:TPjMXvpPNWagHzYOmVPzzRRIBTuaLVukR+esL08tgzg=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0 h1:GZ8NY74rxObB7QHE/JiuBW0ZEr04rlplR/TVrkgw3rw=
 github.com/hashicorp/terraform-plugin-sdk/v2 v2.14.0/go.mod h1:+m4FDQ8h1ulz7zpWtqmZn2JSZQDXUVibhUShbkQVId4=
+github.com/hashicorp/terraform-plugin-sdk/v2 v2.15.0 h1:nBRM7JBvaYDV8bJjtBUyDZZrprr7UWur1/P8j4vgvqY=
+github.com/hashicorp/terraform-plugin-sdk/v2 v2.15.0/go.mod h1:oCj7EsihOUat3iY2WNFQzH8OLThqjmQ6tJxsmD7Ay9U=
 github.com/hashicorp/terraform-registry-address v0.0.0-20210412075316-9b2996cce896 h1:1FGtlkJw87UsTMg5s8jrekrHmUPUJaMcu6ELiVhQrNw=
 github.com/hashicorp/terraform-registry-address v0.0.0-20210412075316-9b2996cce896/go.mod h1:bzBPnUIkI0RxauU8Dqo+2KrZZ28Cf48s8V6IHt3p4co=
 github.com/hashicorp/terraform-svchost v0.0.0-20200729002733-f050f53b9734 h1:HKLsbzeOsfXmKNpr3GiT18XAblV0BjCbzL8KQAMZGa0=
@@ -522,6 +528,8 @@ github.com/mitchellh/mapstructure v1.4.2 h1:6h7AQ0yhTcIsmFmnAwQls75jp2Gzs4iB8W7p
 github.com/mitchellh/mapstructure v1.4.2/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/mapstructure v1.4.3 h1:OVowDSCllw/YjdLkam3/sm7wEtOy59d8ndGgCcyj8cs=
 github.com/mitchellh/mapstructure v1.4.3/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
+github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
+github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=

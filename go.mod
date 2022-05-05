@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/awspolicyequivalence v1.5.0
 	github.com/hashicorp/go-cty v1.4.1-0.20200414143053-d3edf31b6320
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.15.0
-	github.com/minio/madmin-go v1.3.12
+	github.com/minio/madmin-go v1.3.13
 	github.com/minio/minio-go/v7 v7.0.24
 	gotest.tools/v3 v3.2.0
 )

@@ -94,12 +94,17 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 		return NewResourceError("putting object failed", d.Id(), errors.New("one of source / content / content_base64 is not set"))
 	}
 
+	options := minio.PutObjectOptions{}
+	if v, ok := d.GetOk("content_type"); ok {
+		options.ContentType = v.(string)
+	}
+
 	_, err := m.S3Client.PutObject(
 		ctx,
 		d.Get("bucket_name").(string),
 		d.Get("object_name").(string),
 		body, -1,
-		minio.PutObjectOptions{},
+		options,
 	)
 
 	if err != nil {
@@ -134,6 +139,9 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
 	if err := d.Set("version_id", objInfo.VersionID); err != nil {
+		return NewResourceError("reading object failed", d.Id(), err)
+	}
+	if err := d.Set("content_type", objInfo.ContentType); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
 

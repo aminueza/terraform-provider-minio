@@ -1,9 +1,9 @@
 name: Terraform Provider CI
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
 jobs:
   checkup:
     name: Checkup
@@ -28,10 +28,10 @@ jobs:
           path: minio/...
       - name: Run linter
         uses: aminueza/go-github-action/lint@master
-      - name: Set up Go 
+      - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.16.x
+          go-version: 1.18.x
         id: go
       - name: Build the docker-compose stack
         run: docker-compose up -d minio
@@ -42,7 +42,7 @@ jobs:
       - name: Install Task
         uses: arduino/setup-task@v1
         with:
-          version: '3.x'
+          version: "3.x"
       - name: Run install task
         run: task install
       - name: Run test task

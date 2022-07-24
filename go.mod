@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-cty v1.4.1-0.20200414143053-d3edf31b6320
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.19.0
 	github.com/minio/madmin-go v1.4.6
-	github.com/minio/minio-go/v7 v7.0.31
+	github.com/minio/minio-go/v7 v7.0.32
 	gotest.tools/v3 v3.3.0
 )
 

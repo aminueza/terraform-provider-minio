@@ -34,6 +34,8 @@ github.com/aws/aws-sdk-go v1.44.65 h1:G+kuQ0+kcg8ltLZqju3OA9NDtGsGuSDrNWaXwgYFEH
 github.com/aws/aws-sdk-go v1.44.65/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/aws/aws-sdk-go v1.44.66 h1:xdH4EvHyUnkm4I8d536ui7yMQKYzrkbSDQ2LvRRHqsg=
 github.com/aws/aws-sdk-go v1.44.66/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
+github.com/aws/aws-sdk-go v1.44.67 h1:+nxfXbMe8QUB6svLsuLYsp+WhZBKM26w62Zidir739A=
+github.com/aws/aws-sdk-go v1.44.67/go.mod h1:y4AeaBuwd2Lk+GepC1E9v0qOiTws0MIWAX4oIKwKHZo=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=

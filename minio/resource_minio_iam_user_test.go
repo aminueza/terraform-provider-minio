@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -289,10 +290,11 @@ func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
-			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
-			S3UserAccess: rs.Primary.Attributes["name"],
-			S3UserSecret: rs.Primary.Attributes["secret"],
-			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+			S3HostPort:      os.Getenv("MINIO_ENDPOINT"),
+			S3UserAccess:    rs.Primary.Attributes["name"],
+			S3UserSecret:    rs.Primary.Attributes["secret"],
+			S3SSL:           map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+			S3SSLSkipVerify: true,
 		}
 		return minioUIwebrpcLogin(cfg)
 	}
@@ -322,12 +324,17 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 	}
 	requestData, _ := json.Marshal(loginData)
 
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", "http://localhost:9001/login", strings.NewReader(string(requestData)))
-	if err != nil {
-		return err
+	var schema string
+	var transport http.RoundTripper
+	if os.Getenv("MINIO_ENABLE_HTTPS") == "true" {
+		schema = "https"
+		transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
+	} else {
+		schema = "http"
+		transport = http.DefaultTransport
 	}
-
+	client := http.Client{Transport: transport}
+	req, err := http.NewRequest("POST", schema+"://localhost:9001/login", strings.NewReader(string(requestData)))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
 

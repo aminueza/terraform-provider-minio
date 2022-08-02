@@ -9,7 +9,10 @@ services:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
       MINIO_CI_CD: '1'
-    command: server --console-address :9001 /data{0...3}
+    command: server --console-address :9001 --certs-dir /.minio/certs /data{0...3}
+    volumes:
+      - ./.fixtures/private.key:/.minio/certs/private.key:Z
+      - ./.fixtures/public.crt:/.minio/certs/public.crt:Z
   adminio-ui:
     image: docker.io/rzrbld/adminio-ui:v1.93
     environment:

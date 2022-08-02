@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -364,7 +365,13 @@ func testAccBucketName(randInt string) string {
 }
 
 func testAccBucketDomainName(randInt string) string {
-	return fmt.Sprintf("http://localhost:9000/minio/%s", randInt)
+	var schema string
+	if os.Getenv("MINIO_ENABLE_HTTPS") == "true" {
+		schema = "https"
+	} else {
+		schema = "http"
+	}
+	return fmt.Sprintf(schema+"://localhost:9000/minio/%s", randInt)
 }
 
 func testAccBucketACL(acl string) string {
@@ -444,7 +451,16 @@ resource "minio_s3_bucket" "test" {
 
 func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		resp, err := http.Get("http://" + os.Getenv("MINIO_ENDPOINT") + "/" + bucket)
+		var schema string
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		if os.Getenv("MINIO_ENABLE_HTTPS") == "true" {
+			schema = "https"
+			transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		} else {
+			schema = "http"
+		}
+		client := http.Client{Transport: transport}
+		resp, err := client.Get(schema + "://" + os.Getenv("MINIO_ENDPOINT") + "/" + bucket)
 		if err != nil {
 			return err
 		}

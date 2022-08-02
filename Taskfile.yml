@@ -55,7 +55,8 @@ tasks:
       MINIO_ENDPOINT: localhost:9000
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
-      MINIO_ENABLE_HTTPS: false
+      MINIO_ENABLE_HTTPS: 'true'
+      MINIO_INSECURE: 'true'
     cmds:
       - go test -v -cover ./minio
     silent: true

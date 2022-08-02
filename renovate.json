@@ -4,6 +4,10 @@
     {
       "matchUpdateTypes": ["patch", "pin", "digest"],
       "automerge": true
+    },
+    {
+      "matchPackagePatterns": ["aws-sdk"],
+      "schedule": ["after 9pm on friday"]
     }
   ],
   "dependencyDashboard": false

@@ -40,8 +40,8 @@ You can provide your configuration via the environment variables representing yo
 
 ```
 $ export MINIO_ENDPOINT="http://myendpoint"
-$ export MINIO_ACCESS_KEY="244tefewg"
-$ export MINIO_SECRET_KEY="xgwgwqqwv"
+$ export MINIO_ROOT_USER="244tefewg"
+$ export MINIO_ROOT_PASSWORD="xgwgwqqwv"
 ```
 
 When using this method, you may omit the
@@ -61,10 +61,10 @@ The following arguments are supported in the `provider` block:
   it can also be sourced from the `MINIO_ENDPOINT` environment variable
 
 * `minio_access_key` - (Required) Minio Access Key. It must be provided, but
-  it can also be sourced from the `MINIO_ACCESS_KEY` environment variable
+  it can also be sourced from the `MINIO_ROOT_USER` environment variable
 
 * `minio_secret_key` - (Required) Minio Secret Key. It must be provided, but
-  it can also be sourced from the `MINIO_SECRET_KEY` environment variable
+  it can also be sourced from the `MINIO_ROOT_PASSWORD` environment variable
 
 * `minio_region` - (Optional) Minio Region (`default: us-east-1`).
 

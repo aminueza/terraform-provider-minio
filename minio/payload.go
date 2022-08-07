@@ -160,14 +160,8 @@ const awsResourcePrefix = "arn:aws:s3:::"
 // All bucket actions.
 var allBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetObject", "s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification") //"s3:PutBucketLifecycle", "s3:GetBucketLifecycle"
 
-// Common bucket actions for both read and write policies.
-var commonBucketActions = set.CreateStringSet("s3:GetBucketLocation")
-
 // Read only bucket actions.
 var readOnlyBucketActions = set.CreateStringSet("s3:ListBucket")
-
-// Write only bucket actions.
-var writeOnlyBucketActions = set.CreateStringSet("s3:ListBucketMultipartUploads")
 
 // Read only all bucket actions.
 var readOnlyAllBucketsActions = set.CreateStringSet("s3:ListBucket", "s3:ListAllMyBuckets")
@@ -178,22 +172,7 @@ var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 // Write object actions.
 var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 
-// Write object acl.
-var uploadObjectACL = set.CreateStringSet("s3:PutObjectAcl")
-
 // Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
-// All object actions.
-var allObjectActions = set.CreateStringSet("s3:*Object")
-
-// Read and write object actions.
-var readWriteObjectActions = readOnlyObjectActions.Union(writeOnlyObjectActions)
-
-var readListObjectActions = readOnlyBucketActions.Union(commonBucketActions)
-
-var readListMultObjectActions = readListObjectActions.Union(writeOnlyBucketActions)
-
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
-
-var uploadMyObjectActions = uploadObjectActions.Union(uploadObjectACL)

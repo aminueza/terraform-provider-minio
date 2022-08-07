@@ -177,11 +177,6 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 		return NewResourceError("reading IAM user failed", d.Id(), err)
 	}
 
-	if &output == nil {
-		log.Printf("[WARN] No IAM user by name (%s) found, removing from state", d.Id())
-		d.SetId("")
-		return nil
-	}
 	return nil
 }
 

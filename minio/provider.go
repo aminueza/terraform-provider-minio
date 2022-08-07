@@ -30,7 +30,7 @@ func Provider() *schema.Provider {
 				Required:    true,
 				Description: "Minio Access Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_ROOT_USER", "MINIO_ACCESS_KEY",
+					"MINIO_USER", "MINIO_ACCESS_KEY",
 				}, nil),
 			},
 			"minio_secret_key": {
@@ -38,7 +38,7 @@ func Provider() *schema.Provider {
 				Required:    true,
 				Description: "Minio Secret Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_ROOT_PASSWORD", "MINIO_SECRET_KEY",
+					"MINIO_PASSWORD", "MINIO_SECRET_KEY",
 				}, nil),
 			},
 			"minio_api_version": {

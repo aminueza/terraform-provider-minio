@@ -24,7 +24,7 @@ var (
 	length            int
 )
 
-//ParseString parses a string to bool
+// ParseString parses a string to bool
 func ParseString(s string) bool {
 	debugbool, err := strconv.ParseBool(s)
 	if err != nil {
@@ -90,7 +90,7 @@ func mustGenerateAccessKeyID() []byte {
 	return alpha
 }
 
-//Encode queues message
+// Encode queues message
 func Encode(value []byte) []byte {
 	length = len(value)
 	encoded := make([]byte, base64.URLEncoding.EncodedLen(length))
@@ -98,7 +98,7 @@ func Encode(value []byte) []byte {
 	return encoded
 }
 
-//Decode queues message
+// Decode queues message
 func Decode(value []byte) ([]byte, error) {
 	length = len(value)
 	decoded := make([]byte, base64.URLEncoding.DecodedLen(length))
@@ -110,7 +110,7 @@ func Decode(value []byte) ([]byte, error) {
 	return decoded[:n], nil
 }
 
-//getStringList get array of strings
+// getStringList get array of strings
 func getStringList(listString []interface{}) []*string {
 	arrayString := make([]*string, 0, len(listString))
 	for _, v := range listString {

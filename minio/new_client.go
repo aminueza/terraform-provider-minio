@@ -14,7 +14,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-//NewClient returns a new minio client
+// NewClient returns a new minio client
 func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 
 	var minioClient *minio.Client

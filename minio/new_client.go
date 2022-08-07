@@ -5,9 +5,9 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
@@ -92,7 +92,7 @@ func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
 	}
 
 	if config.S3SSLCACertFile != "" {
-		minioCACert, err := ioutil.ReadFile(config.S3SSLCACertFile)
+		minioCACert, err := os.ReadFile(config.S3SSLCACertFile)
 		if err != nil {
 			return nil, err
 		}

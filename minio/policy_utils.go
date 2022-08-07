@@ -33,9 +33,7 @@ func (ckm ConditionKeyMap) Remove(key string, value set.StringSet) {
 
 // RemoveKey - removes key and its value.
 func (ckm ConditionKeyMap) RemoveKey(key string) {
-	if _, ok := ckm[key]; ok {
-		delete(ckm, key)
-	}
+	delete(ckm, key)
 }
 
 // CopyConditionKeyMap - returns new copy of given ConditionKeyMap.
@@ -78,28 +76,7 @@ func (cond ConditionMap) Add(condKey string, condKeyMap ConditionKeyMap) {
 
 // Remove - removes condition key and its value.
 func (cond ConditionMap) Remove(condKey string) {
-	if _, ok := cond[condKey]; ok {
-		delete(cond, condKey)
-	}
-}
-
-// mergeConditionMap - returns new ConditionMap which contains merged key/value of two ConditionMap.
-func mergeConditionMap(condMap1 ConditionMap, condMap2 ConditionMap) ConditionMap {
-	out := make(ConditionMap)
-
-	for k, v := range condMap1 {
-		out[k] = CopyConditionKeyMap(v)
-	}
-
-	for k, v := range condMap2 {
-		if ev, ok := out[k]; ok {
-			out[k] = mergeConditionKeyMap(ev, v)
-		} else {
-			out[k] = CopyConditionKeyMap(v)
-		}
-	}
-
-	return out
+	delete(cond, condKey)
 }
 
 func minioDecodePolicyStringList(lI []interface{}) interface{} {
@@ -116,7 +93,7 @@ func minioDecodePolicyStringList(lI []interface{}) interface{} {
 }
 
 func (s *IAMPolicyDoc) merge(newDoc *IAMPolicyDoc) {
-	// adopt newDoc's Id
+	// adopt newDoc's ID
 	if len(newDoc.ID) > 0 {
 		s.ID = newDoc.ID
 	}

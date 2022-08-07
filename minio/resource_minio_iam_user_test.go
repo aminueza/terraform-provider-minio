@@ -241,7 +241,7 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 
 func testAccCheckMinioUserAttributes(n string, name string, status string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		rs, _ := s.RootModule().Resources[n]
+		rs := s.RootModule().Resources[n]
 
 		if rs.Primary.Attributes["name"] != name {
 			return fmt.Errorf("bad name: %s", name)
@@ -276,7 +276,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 
 func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		rs, _ := s.RootModule().Resources[n]
+		rs := s.RootModule().Resources[n]
 
 		*accessKey = rs.Primary.Attributes["secret"]
 
@@ -285,7 +285,7 @@ func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resou
 }
 func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		rs, _ := s.RootModule().Resources[n]
+		rs := s.RootModule().Resources[n]
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
@@ -300,7 +300,7 @@ func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 
 func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		rs, _ := s.RootModule().Resources[n]
+		rs := s.RootModule().Resources[n]
 
 		if rs.Primary.Attributes["secret"] == *oldAccessKey {
 			return fmt.Errorf("secret has not been rotated")
@@ -324,8 +324,13 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", "http://localhost:9001/login", strings.NewReader(string(requestData)))
+	if err != nil {
+		return err
+	}
+
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

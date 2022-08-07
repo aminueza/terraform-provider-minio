@@ -281,6 +281,9 @@ func testAccCheckMinioS3BucketDestroy(s *terraform.State) error {
 			}
 
 			bucket, err := conn.BucketExists(context.Background(), rs.Primary.ID)
+			if err != nil {
+				return err
+			}
 			if !bucket {
 				return fmt.Errorf("bucket still exists")
 			}
@@ -357,7 +360,7 @@ func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestChec
 }
 
 func testAccBucketName(randInt string) string {
-	return fmt.Sprintf("%s", randInt)
+	return randInt
 }
 
 func testAccBucketDomainName(randInt string) string {

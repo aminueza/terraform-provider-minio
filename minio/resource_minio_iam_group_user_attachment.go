@@ -42,9 +42,7 @@ func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 
-	var groupAddRemove madmin.GroupAddRemove
-
-	groupAddRemove = madmin.GroupAddRemove{
+	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  []string{iamGroupMembershipConfig.MinioIAMUser},
 		IsRemove: false,
@@ -82,9 +80,8 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
-	var groupAddRemove madmin.GroupAddRemove
 
-	groupAddRemove = madmin.GroupAddRemove{
+	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  []string{iamGroupMembershipConfig.MinioIAMUser},
 		IsRemove: true,
@@ -92,7 +89,7 @@ func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return diag.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
+		return diag.Errorf("error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	return nil

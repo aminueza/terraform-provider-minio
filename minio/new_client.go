@@ -67,10 +67,7 @@ func isValidCertificate(c []byte) bool {
 		return false
 	}
 	_, err := x509.ParseCertificates(p.Bytes)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func (config *S3MinioConfig) customTransport() (*http.Transport, error) {

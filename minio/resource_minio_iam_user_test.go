@@ -168,15 +168,6 @@ func testAccMinioUserConfigDisabled(rName string) string {
 		}`, rName)
 }
 
-func testAccMinioUserConfigForceDestroy(rName string) string {
-	return fmt.Sprintf(`
-resource "minio_iam_user" "test2" {
-  force_destroy = true
-  name          = %q
-}
-`, rName)
-}
-
 func testAccMinioUserConfigWithoutSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test3" {

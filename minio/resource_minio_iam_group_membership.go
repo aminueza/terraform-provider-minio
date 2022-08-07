@@ -143,19 +143,6 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 	return nil
 }
 
-func isMinioIamUser(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []*string) []string {
-
-	var users []string
-
-	for _, user := range usersToRemove {
-		if userInfo, _ := iamGroupMembershipConfig.MinioAdmin.GetUserInfo(ctx, aws.StringValue(user)); userInfo.SecretKey != "" {
-			users = append(users, aws.StringValue(user))
-		}
-	}
-
-	return users
-}
-
 func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []*string) error {
 	var users []string
 

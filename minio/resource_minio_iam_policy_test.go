@@ -198,16 +198,6 @@ func testCheckJSONResourceAttr(name, key, value string) resource.TestCheckFunc {
 	}
 }
 
-func testAccMinioIAMPolicyConfigDescription(rName, description string) string {
-	return fmt.Sprintf(`
-resource "minio_iam_policy" "test" {
-  description = %q
-  name        = %q
-  policy      = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:ListBucket*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
-}
-`, description, rName)
-}
-
 func testAccMinioIAMPolicyConfigName(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_policy" "test" {

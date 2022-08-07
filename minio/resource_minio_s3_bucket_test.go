@@ -381,22 +381,6 @@ func testAccBucketACL(acl string) string {
 	return ""
 }
 
-func testAccMinioS3BucketPolicy(randInt int, partition string) string {
-	return fmt.Sprintf(`{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Sid": "",
-			"Effect": "Allow",
-			"Principal": {"Minio": "*"},
-			"Action": "s3:GetObject",
-			"Resource": "arn:%s:s3:::tf-test-bucket-%d/*"
-		}
-	]
-}
-`, partition, randInt)
-}
-
 func testAccMinioS3BucketConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
@@ -406,31 +390,11 @@ resource "minio_s3_bucket" "bucket" {
 `, randInt)
 }
 
-func testAccMinioS3BucketConfigWithNoTags(bucketName string) string {
-	return fmt.Sprintf(`
-resource "minio_s3_bucket" "bucket" {
-  bucket = %[1]q
-  acl = "private"
-  force_destroy = false
-}
-`, bucketName)
-}
-
 func testAccMinioS3BucketDestroyedConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
   acl    = "public-read"
-}
-`, randInt)
-}
-
-func testAccMinioS3BucketConfigWithEmptyPolicy(randInt string) string {
-	return fmt.Sprintf(`
-resource "minio_s3_bucket" "bucket" {
-  bucket = "%s"
-  acl    = "public-read"
-  policy = ""
 }
 `, randInt)
 }

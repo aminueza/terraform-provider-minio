@@ -5,15 +5,15 @@ variable "minio_region" {
 
 variable "minio_server" {
   description = "Default MINIO host and port"
-  default = "localhost:9000"
+  default     = "localhost:9000"
 }
 
-variable "minio_access_key" {
+variable "minio_user" {
   description = "MINIO user"
-  default = "minio"
+  default     = "minio"
 }
 
-variable "minio_secret_key" {
-  description = "MINIO secret user"
-  default = "minio123"
+variable "minio_password" {
+  description = "MINIO password"
+  default     = "minio123"
 }

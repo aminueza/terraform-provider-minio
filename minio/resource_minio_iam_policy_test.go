@@ -128,11 +128,11 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resource]
 		if !ok {
-			return fmt.Errorf("Not found: %s", resource)
+			return fmt.Errorf("not found: %s", resource)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No Policy name is set")
+			return fmt.Errorf("no Policy name is set")
 		}
 
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
@@ -151,7 +151,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 		}
 
 		if output, _ := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID); output != nil {
-			return fmt.Errorf("IAM Policy (%s) still exists", rs.Primary.ID)
+			return fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID)
 		}
 
 	}
@@ -178,7 +178,7 @@ func testCheckJSONResourceAttr(name, key, value string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[name]
 		if !ok {
-			return fmt.Errorf("Not found: %s", name)
+			return fmt.Errorf("not found: %s", name)
 		}
 
 		v, ok := rs.Primary.Attributes[key]

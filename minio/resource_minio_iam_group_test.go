@@ -102,11 +102,11 @@ func testAccCheckMinioGroupExists(n string, res *madmin.GroupDesc) resource.Test
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No Group name is set")
+			return fmt.Errorf("no Group name is set")
 		}
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
@@ -126,11 +126,11 @@ func testAccCheckMinioGroupAttributes(group *madmin.GroupDesc, name string, stat
 	return func(s *terraform.State) error {
 
 		if group.Name != name {
-			return fmt.Errorf("Bad name: %s", group.Name)
+			return fmt.Errorf("bad name: %s", group.Name)
 		}
 
 		if group.Status != status {
-			return fmt.Errorf("Bad status: %s", group.Status)
+			return fmt.Errorf("bad status: %s", group.Status)
 		}
 
 		return nil
@@ -142,7 +142,7 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
 		if group.Name != name {
-			return fmt.Errorf("Bad name: %s", group.Name)
+			return fmt.Errorf("bad name: %s", group.Name)
 		}
 
 		err := minioIam.SetGroupStatus(context.Background(), group.Name, madmin.GroupStatus("disabled"))
@@ -156,7 +156,7 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 		}
 
 		if resp.Status != status {
-			return fmt.Errorf("Bad status: %s", resp.Status)
+			return fmt.Errorf("bad status: %s", resp.Status)
 		}
 
 		return nil

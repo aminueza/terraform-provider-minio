@@ -61,7 +61,7 @@ func tagsSchemaForceNew() *schema.Schema {
 func generateAccessKeyID() ([]byte, error) {
 	alpha := make([]byte, minioAccessID)
 	if _, e := rand.Read(alpha); e != nil {
-		return nil, errors.New("Could not generate Access Key")
+		return nil, errors.New("could not generate Access Key")
 	}
 	for i := 0; i < minioAccessID; i++ {
 		alpha[i] = alphaNumericTable[alpha[i]%byte(len(alphaNumericTable))]
@@ -73,7 +73,7 @@ func generateAccessKeyID() ([]byte, error) {
 func generateSecretAccessKey() (string, error) {
 	rb := make([]byte, minioSecretID)
 	if _, e := rand.Read(rb); e != nil {
-		return "", errors.New("Could not generate Secret Key")
+		return "", errors.New("could not generate Secret Key")
 	}
 
 	return string(Encode(rb)), nil

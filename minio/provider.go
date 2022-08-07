@@ -112,7 +112,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	minioConfig := NewConfig(d)
 	client, err := minioConfig.NewClient()
 	if err != nil {
-		return nil, NewResourceError("Client creation failed", "client", err)
+		return nil, NewResourceError("client creation failed", "client", err)
 	}
 
 	return client, nil

@@ -155,7 +155,7 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 		}
 
 		if output, _ := conn.InfoCannedPolicy(context.Background(), name); output != nil {
-			return fmt.Errorf("Found IAM group policy, expected none %s: %s", name, err)
+			return fmt.Errorf("found IAM group policy, expected none %s: %s", name, err)
 
 		}
 
@@ -171,7 +171,7 @@ func testAccCheckIAMGroupPolicyDisappears(
 
 		policy, ok := s.RootModule().Resources[iamGroupPolicyResource]
 		if !ok {
-			return fmt.Errorf("Not Found: %s", iamGroupPolicyResource)
+			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
 		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
@@ -196,16 +196,16 @@ func testAccCheckIAMGroupPolicyExists(
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[iamGroupResource]
 		if !ok {
-			return fmt.Errorf("Not Found: %s", iamGroupResource)
+			return fmt.Errorf("not Found: %s", iamGroupResource)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		policy, ok := s.RootModule().Resources[iamGroupPolicyResource]
 		if !ok {
-			return fmt.Errorf("Not Found: %s", iamGroupPolicyResource)
+			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
 		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
@@ -226,7 +226,7 @@ func testAccCheckIAMGroupPolicyExists(
 func testAccCheckMinioIAMGroupPolicyNameChanged(i, j *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if aws.StringValue(i) == aws.StringValue(j) {
-			return fmt.Errorf("IAM Group Policy name did not change %s to %s", *i, *j)
+			return fmt.Errorf("the IAM Group Policy name did not change %s to %s", *i, *j)
 		}
 
 		return nil
@@ -236,7 +236,7 @@ func testAccCheckMinioIAMGroupPolicyNameChanged(i, j *string) resource.TestCheck
 func testAccCheckMinioIAMGroupPolicyNameExists(i *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if aws.StringValue(i) == "" {
-			return errors.New("IAM Group Policy name does not exist")
+			return errors.New("the IAM Group Policy name does not exist")
 		}
 
 		return nil

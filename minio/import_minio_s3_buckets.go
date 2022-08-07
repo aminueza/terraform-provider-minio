@@ -14,7 +14,7 @@ func resourceMinioS3BucketImportState(
 	meta interface{}) ([]*schema.ResourceData, error) {
 
 	if diag := minioReadBucket(ctx, d, meta); diag.HasError() {
-		return nil, fmt.Errorf("Could not read minio bucket")
+		return nil, fmt.Errorf("could not read minio bucket")
 	}
 
 	bucketConfig := BucketConfig(d, meta)
@@ -22,7 +22,7 @@ func resourceMinioS3BucketImportState(
 	conn := meta.(*S3MinioClient).S3Client
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
-		return nil, fmt.Errorf("Error importing Minio S3 bucket policy: %s", err)
+		return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
 	}
 	if pol == "" {
 		_ = d.Set("acl", "private")

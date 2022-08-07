@@ -277,12 +277,12 @@ func testAccCheckMinioS3BucketDestroy(s *terraform.State) error {
 		if ok, _ := conn.BucketExists(context.Background(), rs.Primary.ID); ok {
 			err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 			if err != nil {
-				return fmt.Errorf("Error removing bucket: %s", err)
+				return fmt.Errorf("error removing bucket: %s", err)
 			}
 
 			bucket, err := conn.BucketExists(context.Background(), rs.Primary.ID)
 			if !bucket {
-				return fmt.Errorf("Bucket still exists")
+				return fmt.Errorf("bucket still exists")
 			}
 		}
 	}
@@ -293,18 +293,18 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
 		isBucket, _ := minioC.BucketExists(context.Background(), rs.Primary.ID)
 
 		if !isBucket {
-			return fmt.Errorf("S3 bucket not found")
+			return fmt.Errorf("s3 bucket not found")
 
 		}
 
@@ -317,17 +317,17 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No S3 Bucket ID is set")
+			return fmt.Errorf("no S3 Bucket ID is set")
 		}
 
 		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
 		err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("Error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
+			return fmt.Errorf("error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
 		}
 		return nil
 	}
@@ -337,19 +337,19 @@ func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestChec
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		attr, ok := rs.Primary.Attributes["acl"]
 		if !ok {
-			return fmt.Errorf("Attribute acl not found")
+			return fmt.Errorf("attribute acl not found")
 		}
 		if attr != acl {
-			return fmt.Errorf("Attribute acl %s, wanted: %s", attr, acl)
+			return fmt.Errorf("attribute acl %s, wanted: %s", attr, acl)
 		}
 
 		return nil
@@ -482,7 +482,7 @@ func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckF
 			return err
 		}
 		if resp.StatusCode != 403 {
-			return fmt.Errorf("Should not be able to list buckets")
+			return fmt.Errorf("should not be able to list buckets")
 		}
 		return nil
 	}

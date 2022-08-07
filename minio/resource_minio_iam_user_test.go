@@ -206,11 +206,11 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s %s", n, s)
+			return fmt.Errorf("not found: %s %s", n, s)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No User name is set")
+			return fmt.Errorf("no User name is set")
 		}
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
@@ -230,18 +230,18 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s %s", n, s)
+			return fmt.Errorf("not found: %s %s", n, s)
 		}
 
 		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("Error getting user %s", err)
+			return fmt.Errorf("error getting user %s", err)
 		}
 
 		if rs.Primary.Attributes["status"] != string(madmin.AccountDisabled) || resp.Status != madmin.AccountDisabled {
-			return fmt.Errorf("User still enabled: state:%s server:%s", rs.Primary.Attributes["status"], resp.Status)
+			return fmt.Errorf("user still enabled: state:%s server:%s", rs.Primary.Attributes["status"], resp.Status)
 		}
 
 		return nil
@@ -253,11 +253,11 @@ func testAccCheckMinioUserAttributes(n string, name string, status string) resou
 		rs, _ := s.RootModule().Resources[n]
 
 		if rs.Primary.Attributes["name"] != name {
-			return fmt.Errorf("Bad name: %s", name)
+			return fmt.Errorf("bad name: %s", name)
 		}
 
 		if rs.Primary.Attributes["status"] != status {
-			return fmt.Errorf("Bad status: %s", status)
+			return fmt.Errorf("bad status: %s", status)
 		}
 
 		return nil
@@ -275,7 +275,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 		// Try to get user
 		_, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err == nil {
-			return fmt.Errorf("User still exists")
+			return fmt.Errorf("user still exists")
 		}
 
 	}
@@ -312,7 +312,7 @@ func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resou
 		rs, _ := s.RootModule().Resources[n]
 
 		if rs.Primary.Attributes["secret"] == *oldAccessKey {
-			return fmt.Errorf("Secret has not been rotated")
+			return fmt.Errorf("secret has not been rotated")
 		}
 
 		return nil
@@ -344,5 +344,5 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return nil
 	}
-	return fmt.Errorf("Login failure: user:%s %s", cfg.S3UserAccess, resp.Status)
+	return fmt.Errorf("login failure: user:%s %s", cfg.S3UserAccess, resp.Status)
 }

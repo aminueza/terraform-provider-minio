@@ -127,7 +127,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_duplicateSid(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioIAMPolicyDocumentDuplicateSidConfig,
-				ExpectError: regexp.MustCompile(`Found duplicate sid`),
+				ExpectError: regexp.MustCompile(`found duplicate sid`),
 			},
 			{
 				Config: testAccMinioIAMPolicyDocumentDuplicateBlankSidConfig,

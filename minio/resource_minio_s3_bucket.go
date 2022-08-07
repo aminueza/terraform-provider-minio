@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/minio/minio-go/v7"
 	"log"
 	"net/url"
 	"regexp"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/minio/minio-go/v7"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -88,21 +89,21 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Creating bucket: [%s] in region: [%s]", bucket, region)
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
-		return NewResourceError("Unable to create bucket", bucket, err)
+		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
 	if e, err := bucketConfig.MinioClient.BucketExists(ctx, bucket); err != nil {
-		return NewResourceError("Unable to check bucket", bucket, err)
+		return NewResourceError("unable to check bucket", bucket, err)
 	} else if e {
-		return NewResourceError("Bucket already exists!", bucket, err)
+		return NewResourceError("ucket already exists!", bucket, err)
 	}
 
 	err := bucketConfig.MinioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{
 		Region: region,
 	})
 	if err != nil {
-		log.Printf("%s", NewResourceErrorStr("Unable to create bucket", bucket, err))
-		return NewResourceError("Unable to create bucket", bucket, err)
+		log.Printf("%s", NewResourceErrorStr("unable to create bucket", bucket, err))
+		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
 	_ = d.Set("bucket", bucket)
@@ -111,7 +112,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	bucketConfig = BucketConfig(d, meta)
 
 	if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
-		log.Printf("%s", NewResourceErrorStr("Unable to create bucket", bucket, errACL))
+		log.Printf("%s", NewResourceErrorStr("unable to create bucket", bucket, errACL))
 		return NewResourceError("[ACL] Unable to create bucket", bucket, errACL)
 	}
 
@@ -127,7 +128,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	found, err := bucketConfig.MinioClient.BucketExists(ctx, d.Id())
 	if !found {
-		log.Printf("%s", NewResourceErrorStr("Unable to find bucket", d.Id(), err))
+		log.Printf("%s", NewResourceErrorStr("unable to find bucket", d.Id(), err))
 		d.SetId("")
 		return nil
 	}
@@ -153,7 +154,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
 		if err := minioSetBucketACL(ctx, bucketConfig); err != nil {
-			log.Printf("%s", NewResourceErrorStr("Unable to update bucket", bucketConfig.MinioBucket, err))
+			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
 
@@ -196,7 +197,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 				errorCh := bucketConfig.MinioClient.RemoveObjects(ctx, d.Id(), objectsCh, minio.RemoveObjectsOptions{})
 
 				if len(errorCh) > 0 {
-					return NewResourceError("Unable to remove bucket", d.Id(), errors.New("could not delete objects"))
+					return NewResourceError("unable to remove bucket", d.Id(), errors.New("could not delete objects"))
 				}
 
 				return minioDeleteBucket(ctx, d, meta)
@@ -204,9 +205,9 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 		}
 
-		log.Printf("%s", NewResourceErrorStr("Unable to remove bucket", d.Id(), err))
+		log.Printf("%s", NewResourceErrorStr("unable to remove bucket", d.Id(), err))
 
-		return NewResourceError("Unable to remove bucket", d.Id(), err)
+		return NewResourceError("unable to remove bucket", d.Id(), err)
 	}
 
 	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", d.Id(), bucketConfig.MinioRegion)
@@ -230,13 +231,13 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
 	if !policyExists {
-		return NewResourceError("Unsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
+		return NewResourceError("nsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
 	}
 
 	if policyString != "" {
 		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
-			log.Printf("%s", NewResourceErrorStr("Unable to set bucket policy", bucketConfig.MinioBucket, err))
-			return NewResourceError("Unable to set bucket policy", bucketConfig.MinioBucket, err)
+			log.Printf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
+			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
 	}
 
@@ -246,8 +247,8 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 	policyJSON, err := json.Marshal(policyStruct)
 	if err != nil {
-		log.Printf("%s", NewResourceErrorStr("Unable to parse bucket policy", bucketName, err))
-		return NewResourceError("Unable to parse bucket policy", bucketName, err)[0].Summary
+		log.Printf("%s", NewResourceErrorStr("unable to parse bucket policy", bucketName, err))
+		return NewResourceError("unable to parse bucket policy", bucketName, err)[0].Summary
 	}
 	return string(policyJSON)
 }

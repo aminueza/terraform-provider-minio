@@ -39,10 +39,10 @@ func testAccPreCheck(t *testing.T) {
 	if _, ok := os.LookupEnv("MINIO_ENDPOINT"); !ok {
 		valid = false
 	}
-	if _, ok := os.LookupEnv("MINIO_ROOT_USER"); !ok {
+	if _, ok := os.LookupEnv("MINIO_USER"); !ok {
 		valid = false
 	}
-	if _, ok := os.LookupEnv("MINIO_ROOT_PASSWORD"); !ok {
+	if _, ok := os.LookupEnv("MINIO_PASSWORD"); !ok {
 		valid = false
 	}
 	if _, ok := os.LookupEnv("MINIO_ENABLE_HTTPS"); !ok {

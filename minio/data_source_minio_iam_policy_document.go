@@ -135,7 +135,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 
 			if sid, ok := cfgStmt["sid"]; ok {
 				if _, ok := sidMap[sid.(string)]; ok {
-					return fmt.Errorf("Found duplicate sid (%s). Either remove the sid or ensure the sid is unique across all statements", sid.(string))
+					return fmt.Errorf("found duplicate sid (%s), either remove the sid or ensure the sid is unique across all statements", sid.(string))
 				}
 				stmt.Sid = sid.(string)
 				if len(stmt.Sid) > 0 {
@@ -249,26 +249,4 @@ func dataSourceMinioIAMPolicyDocumentMakeConditions(in []interface{}, version st
 		out = condMap
 	}
 	return out, nil
-}
-
-func dataSourceMinioIAMPrincipalPolicySchema() *schema.Schema {
-	return &schema.Schema{
-		Type:     schema.TypeSet,
-		Optional: true,
-		Elem: &schema.Resource{
-			Schema: map[string]*schema.Schema{
-				"type": {
-					Type:     schema.TypeString,
-					Required: true,
-				},
-				"identifiers": {
-					Type:     schema.TypeSet,
-					Required: true,
-					Elem: &schema.Schema{
-						Type: schema.TypeString,
-					},
-				},
-			},
-		},
-	}
 }

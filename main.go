@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"log"
 
-	minio "github.com/aminueza/terraform-provider-minio/minio"
+	"github.com/aminueza/terraform-provider-minio/minio"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 
@@ -15,16 +13,9 @@ func main() {
 	flag.BoolVar(&debugMode, "debuggable", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 
-	if debugMode {
-		err := plugin.Debug(context.Background(), "registry.terraform.io/aminueza/minio",
-			&plugin.ServeOpts{
-				ProviderFunc: minio.Provider,
-			})
-		if err != nil {
-			log.Println(err.Error())
-		}
-	} else {
-		plugin.Serve(&plugin.ServeOpts{
-			ProviderFunc: minio.Provider})
-	}
+	plugin.Serve(&plugin.ServeOpts{
+		ProviderFunc: minio.Provider,
+		Debug:        debugMode,
+		ProviderAddr: "registry.terraform.io/aminueza/minio",
+	})
 }

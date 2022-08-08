@@ -42,9 +42,7 @@ func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
 
-	var groupAddRemove madmin.GroupAddRemove
-
-	groupAddRemove = madmin.GroupAddRemove{
+	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  []string{iamGroupMembershipConfig.MinioIAMUser},
 		IsRemove: false,
@@ -66,7 +64,7 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
 	if err != nil {
-		return NewResourceError("Fail to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
+		return NewResourceError("failed to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 	if !Contains(groupDesc.Members, iamGroupMembershipConfig.MinioIAMUser) {
 		log.Printf(
@@ -82,9 +80,8 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupMembershipConfig := IAMGroupAttachmentConfig(d, meta)
-	var groupAddRemove madmin.GroupAddRemove
 
-	groupAddRemove = madmin.GroupAddRemove{
+	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  []string{iamGroupMembershipConfig.MinioIAMUser},
 		IsRemove: true,
@@ -92,7 +89,7 @@ func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return diag.Errorf("Error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
+		return diag.Errorf("error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	return nil
@@ -109,11 +106,11 @@ func minioImportGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := d.Set("user_name", userName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
 	err = d.Set("group_name", groupName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s/%s", groupName, userName)))
 	return []*schema.ResourceData{d}, nil

@@ -46,7 +46,7 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
 	err := minioAdmin.SetPolicy(ctx, policyName, groupName, true)
 	if err != nil {
-		return NewResourceError("Unable to attach group policy", groupName+" "+policyName, err)
+		return NewResourceError("unable to attach group policy", groupName+" "+policyName, err)
 	}
 
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
@@ -61,7 +61,7 @@ func minioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData,
 
 	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
 	if errGroup != nil {
-		return NewResourceError("Fail to load group infos", groupName, errGroup)
+		return NewResourceError("failed to load group infos", groupName, errGroup)
 	}
 
 	if groupInfo.Policy == "" {
@@ -71,7 +71,7 @@ func minioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData,
 	}
 
 	if err := d.Set("policy_name", string(groupInfo.Policy)); err != nil {
-		return NewResourceError("Fail to load group infos", groupName, err)
+		return NewResourceError("failed to load group infos", groupName, err)
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	errIam := minioAdmin.SetPolicy(ctx, "", groupName, true)
 	if errIam != nil {
-		return NewResourceError("Unable to delete user policy", groupName, errIam)
+		return NewResourceError("unable to delete user policy", groupName, errIam)
 	}
 
 	return nil
@@ -101,11 +101,11 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	err := d.Set("group_name", groupName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import group policy", groupName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import group policy", groupName, err))
 	}
 	err = d.Set("policy_name", policyName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import group policy", groupName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import group policy", groupName, err))
 	}
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
 	return []*schema.ResourceData{d}, nil

@@ -69,7 +69,7 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
-		return NewResourceError("Unable to create policy", name, err)
+		return NewResourceError("unable to create policy", name, err)
 	}
 
 	d.SetId(aws.StringValue(&name))
@@ -85,7 +85,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	output, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, d.Id())
 	if err != nil {
-		return NewResourceError("Unable to read policy", d.Id(), err)
+		return NewResourceError("unable to read policy", d.Id(), err)
 	}
 
 	if err := d.Set("name", d.Id()); err != nil {
@@ -106,7 +106,7 @@ func minioUpdatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, d.Id(), []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
-		return NewResourceError("Unable to update policy", d.Id(), err)
+		return NewResourceError("unable to update policy", d.Id(), err)
 	}
 
 	return minioReadPolicy(ctx, d, meta)
@@ -117,7 +117,7 @@ func minioDeletePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	err := iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, d.Id())
 	if err != nil {
-		return NewResourceError("Unable to delete policy", d.Id(), err)
+		return NewResourceError("unable to delete policy", d.Id(), err)
 	}
 
 	_ = d.Set("policy", "")

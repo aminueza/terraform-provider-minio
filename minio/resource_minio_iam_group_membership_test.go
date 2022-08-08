@@ -90,7 +90,7 @@ func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
 
 		_, err := iamconn.GetGroupDescription(context.Background(), group)
 		if err == nil {
-			return fmt.Errorf("Group still exists")
+			return fmt.Errorf("group still exists")
 		}
 	}
 
@@ -101,11 +101,11 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No User name is set")
+			return fmt.Errorf("no User name is set")
 		}
 
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
@@ -113,7 +113,7 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 
 		resp, err := iamconn.GetGroupDescription(context.Background(), gn)
 		if err != nil {
-			return fmt.Errorf("Error: Group (%s) not found", gn)
+			return fmt.Errorf("error: Group (%s) not found", gn)
 		}
 
 		log.Printf("MEMBERS: %v", resp.Members)
@@ -127,7 +127,7 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 func testAccCheckMinioGroupMembershipAttributes(group *madmin.GroupDesc, groupName string, users []string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if !strings.Contains(group.Name, groupName) {
-			return fmt.Errorf("Bad group membership: expected %s, got %s", groupName, group.Name)
+			return fmt.Errorf("bad group membership: expected %s, got %s", groupName, group.Name)
 		}
 
 		log.Printf("MEMBERS: %v  and %v", group.Members, users)
@@ -142,7 +142,7 @@ func testAccCheckMinioGroupMembershipAttributes(group *madmin.GroupDesc, groupNa
 		}
 
 		if uc > 0 {
-			return fmt.Errorf("Bad group membership count, expected (%v), but only (%v) found", users, group.Members)
+			return fmt.Errorf("bad group membership count, expected (%v), but only (%v) found", users, group.Members)
 		}
 		return nil
 	}

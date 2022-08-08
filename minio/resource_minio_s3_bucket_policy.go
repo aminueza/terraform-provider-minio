@@ -42,7 +42,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	policy, err := structure.NormalizeJsonString(bucketPolicyConfig.MinioBucketPolicy)
 
 	if err != nil {
-		return NewResourceError("Unable to set bucket policy with invalid JSON: %w", policy, err)
+		return NewResourceError("unable to set bucket policy with invalid JSON: %w", policy, err)
 	}
 
 	log.Printf("[DEBUG] S3 bucket: %s, put policy: %s", bucketPolicyConfig.MinioBucket, policy)
@@ -50,7 +50,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	err = bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, policy)
 
 	if err != nil {
-		return NewResourceError("Error putting bucket policy: %s", policy, err)
+		return NewResourceError("error putting bucket policy: %s", policy, err)
 	}
 
 	d.SetId(bucketPolicyConfig.MinioBucket)
@@ -65,17 +65,17 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 
 	actualPolicyText, err := bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
-		return NewResourceError("Failed to load bucket policy", d.Id(), err)
+		return NewResourceError("failed to load bucket policy", d.Id(), err)
 	}
 
 	policy, err := secondJSONUnlessEquivalent(d.Get("policy").(string), actualPolicyText)
 	if err != nil {
-		return NewResourceError("Error while setting policy", policy, err)
+		return NewResourceError("error while setting policy", policy, err)
 	}
 
 	policy, err = structure.NormalizeJsonString(policy)
 	if err != nil {
-		return NewResourceError("Policy is invalid JSON", policy, err)
+		return NewResourceError("policy is invalid JSON", policy, err)
 	}
 
 	if err := d.Set("policy", policy); err != nil {
@@ -97,7 +97,7 @@ func minioDeleteBucketPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, "")
 
 	if err != nil {
-		return NewResourceError("Error deleting bucket", bucketPolicyConfig.MinioBucket, err)
+		return NewResourceError("error deleting bucket", bucketPolicyConfig.MinioBucket, err)
 	}
 
 	return nil

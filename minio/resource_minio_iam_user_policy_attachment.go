@@ -44,7 +44,7 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	err := minioAdmin.SetPolicy(ctx, policyName, userName, false)
 	if err != nil {
-		return NewResourceError("Unable to Set User policy", userName+" "+policyName, err)
+		return NewResourceError("unable to Set User policy", userName+" "+policyName, err)
 	}
 
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
@@ -58,7 +58,7 @@ func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, 
 
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
 	if errUser != nil {
-		return NewResourceError("Fail to load user Infos", userName, errUser)
+		return NewResourceError("failed to load user Infos", userName, errUser)
 	}
 
 	if userInfo.PolicyName == "" {
@@ -80,7 +80,7 @@ func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 
 	errIam := minioAdmin.SetPolicy(ctx, "", userName, false)
 	if errIam != nil {
-		return NewResourceError("Unable to delete user policy", userName, errIam)
+		return NewResourceError("unable to delete user policy", userName, errIam)
 	}
 
 	return nil
@@ -97,11 +97,11 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 
 	err := d.Set("user_name", userName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
 	err = d.Set("policy_name", policyName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("Unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
 	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
 	return []*schema.ResourceData{d}, nil

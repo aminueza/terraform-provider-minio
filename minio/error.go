@@ -9,16 +9,17 @@ import (
 
 // NewResourceError creates a new error with the given msg argument.
 func NewResourceError(msg string, resource string, err interface{}) diag.Diagnostics {
-	switch err.(type) {
+	switch err := err.(type) {
 	case diag.Diagnostics:
-		return append(err.(diag.Diagnostics), diag.Diagnostic{
+		return append(err, diag.Diagnostic{
 			Severity: diag.Error,
 			Summary:  fmt.Sprintf("[FATAL] %s (%s)", msg, resource),
 		})
 	case error:
 		return diag.Errorf("[FATAL] %s (%s): %s", msg, resource, err)
+	default:
+		return diag.Errorf("[FATAL] %s (%s): %v", msg, resource, err)
 	}
-	return diag.Errorf("[FATAL] %s (%s): %v", msg, resource, err)
 }
 
 // NewResourceErrorStr creates a new error with the given msg argument.

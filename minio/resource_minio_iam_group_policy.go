@@ -18,7 +18,7 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 		UpdateContext: minioUpdateGroupPolicy,
 		DeleteContext: minioDeleteGroupPolicy,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -69,7 +69,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 
 	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
-		return NewResourceError("Unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
+		return NewResourceError("unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
 	}
 
 	d.SetId(fmt.Sprintf("%s:%s", iAMGroupPolicyConfig.MinioIAMGroup, name))
@@ -139,12 +139,12 @@ func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		log.Println("[DEBUG] Update IAM Group Policy:", policyName)
 		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, on.(string))
 		if err != nil {
-			return NewResourceError("Unable to update group policy", name, err)
+			return NewResourceError("unable to update group policy", name, err)
 		}
 
 		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, nn.(string), []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {
-			return NewResourceError("Unable to update group policy", name, err)
+			return NewResourceError("unable to update group policy", name, err)
 		}
 
 		d.SetId(fmt.Sprintf("%s:%s", groupName, policyName))
@@ -169,7 +169,7 @@ func minioDeleteGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 
 	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, policyName)
 	if err != nil {
-		return NewResourceError("Unable to delete group policy", d.Id(), err)
+		return NewResourceError("unable to delete group policy", d.Id(), err)
 	}
 
 	return nil

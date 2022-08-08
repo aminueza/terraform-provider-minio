@@ -5,16 +5,16 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/minio/madmin-go"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-//NewClient returns a new minio client
+// NewClient returns a new minio client
 func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 
 	var minioClient *minio.Client
@@ -38,7 +38,7 @@ func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 			Transport: tr,
 		})
 	} else {
-		return nil, fmt.Errorf("Unknown S3 API signature: %s, must be v2 or v4", config.S3APISignature)
+		return nil, fmt.Errorf("unknown S3 API signature: %s, must be v2 or v4", config.S3APISignature)
 	}
 	if err != nil {
 		log.Println("[FATAL] Error building client for S3 server.")
@@ -67,10 +67,7 @@ func isValidCertificate(c []byte) bool {
 		return false
 	}
 	_, err := x509.ParseCertificates(p.Bytes)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }
 
 func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
@@ -92,13 +89,13 @@ func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
 	}
 
 	if config.S3SSLCACertFile != "" {
-		minioCACert, err := ioutil.ReadFile(config.S3SSLCACertFile)
+		minioCACert, err := os.ReadFile(config.S3SSLCACertFile)
 		if err != nil {
 			return nil, err
 		}
 
 		if !isValidCertificate(minioCACert) {
-			return nil, fmt.Errorf("Minio CA Cert is not a valid x509 certificate")
+			return nil, fmt.Errorf("minio CA Cert is not a valid x509 certificate")
 		}
 
 		rootCAs, _ := x509.SystemCertPool()

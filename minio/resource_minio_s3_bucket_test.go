@@ -277,12 +277,15 @@ func testAccCheckMinioS3BucketDestroy(s *terraform.State) error {
 		if ok, _ := conn.BucketExists(context.Background(), rs.Primary.ID); ok {
 			err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 			if err != nil {
-				return fmt.Errorf("Error removing bucket: %s", err)
+				return fmt.Errorf("error removing bucket: %s", err)
 			}
 
 			bucket, err := conn.BucketExists(context.Background(), rs.Primary.ID)
+			if err != nil {
+				return err
+			}
 			if !bucket {
-				return fmt.Errorf("Bucket still exists")
+				return fmt.Errorf("bucket still exists")
 			}
 		}
 	}
@@ -293,18 +296,18 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
 		isBucket, _ := minioC.BucketExists(context.Background(), rs.Primary.ID)
 
 		if !isBucket {
-			return fmt.Errorf("S3 bucket not found")
+			return fmt.Errorf("s3 bucket not found")
 
 		}
 
@@ -317,17 +320,17 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No S3 Bucket ID is set")
+			return fmt.Errorf("no S3 Bucket ID is set")
 		}
 
 		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
 		err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("Error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
+			return fmt.Errorf("error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
 		}
 		return nil
 	}
@@ -337,19 +340,19 @@ func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestChec
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
-			return fmt.Errorf("Not found: %s", n)
+			return fmt.Errorf("not found: %s", n)
 		}
 
 		if rs.Primary.ID == "" {
-			return fmt.Errorf("No ID is set")
+			return fmt.Errorf("no ID is set")
 		}
 
 		attr, ok := rs.Primary.Attributes["acl"]
 		if !ok {
-			return fmt.Errorf("Attribute acl not found")
+			return fmt.Errorf("attribute acl not found")
 		}
 		if attr != acl {
-			return fmt.Errorf("Attribute acl %s, wanted: %s", attr, acl)
+			return fmt.Errorf("attribute acl %s, wanted: %s", attr, acl)
 		}
 
 		return nil
@@ -357,7 +360,7 @@ func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestChec
 }
 
 func testAccBucketName(randInt string) string {
-	return fmt.Sprintf("%s", randInt)
+	return randInt
 }
 
 func testAccBucketDomainName(randInt string) string {
@@ -381,22 +384,6 @@ func testAccBucketACL(acl string) string {
 	return ""
 }
 
-func testAccMinioS3BucketPolicy(randInt int, partition string) string {
-	return fmt.Sprintf(`{
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Sid": "",
-			"Effect": "Allow",
-			"Principal": {"Minio": "*"},
-			"Action": "s3:GetObject",
-			"Resource": "arn:%s:s3:::tf-test-bucket-%d/*"
-		}
-	]
-}
-`, partition, randInt)
-}
-
 func testAccMinioS3BucketConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
@@ -406,31 +393,11 @@ resource "minio_s3_bucket" "bucket" {
 `, randInt)
 }
 
-func testAccMinioS3BucketConfigWithNoTags(bucketName string) string {
-	return fmt.Sprintf(`
-resource "minio_s3_bucket" "bucket" {
-  bucket = %[1]q
-  acl = "private"
-  force_destroy = false
-}
-`, bucketName)
-}
-
 func testAccMinioS3BucketDestroyedConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
   acl    = "public-read"
-}
-`, randInt)
-}
-
-func testAccMinioS3BucketConfigWithEmptyPolicy(randInt string) string {
-	return fmt.Sprintf(`
-resource "minio_s3_bucket" "bucket" {
-  bucket = "%s"
-  acl    = "public-read"
-  policy = ""
 }
 `, randInt)
 }
@@ -482,7 +449,7 @@ func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckF
 			return err
 		}
 		if resp.StatusCode != 403 {
-			return fmt.Errorf("Should not be able to list buckets")
+			return fmt.Errorf("should not be able to list buckets")
 		}
 		return nil
 	}

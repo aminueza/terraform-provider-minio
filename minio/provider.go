@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-//Provider creates a new provider
+// Provider creates a new provider
 func Provider() *schema.Provider {
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
@@ -112,7 +112,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	minioConfig := NewConfig(d)
 	client, err := minioConfig.NewClient()
 	if err != nil {
-		return nil, NewResourceError("Client creation failed", "client", err)
+		return nil, NewResourceError("client creation failed", "client", err)
 	}
 
 	return client, nil

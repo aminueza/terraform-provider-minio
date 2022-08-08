@@ -7,7 +7,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-//S3MinioConfig defines variable for minio
+// S3MinioConfig defines variable for minio
 type S3MinioConfig struct {
 	S3HostPort      string
 	S3UserAccess    string
@@ -21,7 +21,7 @@ type S3MinioConfig struct {
 	S3SSLSkipVerify bool
 }
 
-//S3MinioClient defines default minio
+// S3MinioClient defines default minio
 type S3MinioClient struct {
 	S3UserAccess string
 	S3Region     string
@@ -29,7 +29,7 @@ type S3MinioClient struct {
 	S3Admin      *madmin.AdminClient
 }
 
-//S3MinioBucket defines minio config
+// S3MinioBucket defines minio config
 type S3MinioBucket struct {
 	MinioClient       *minio.Client
 	MinioAdmin        *madmin.AdminClient
@@ -41,14 +41,14 @@ type S3MinioBucket struct {
 	MinioForceDestroy bool
 }
 
-//S3MinioBucketPolicy defines bucket policy config
+// S3MinioBucketPolicy defines bucket policy config
 type S3MinioBucketPolicy struct {
 	MinioClient       *minio.Client
 	MinioBucket       string
 	MinioBucketPolicy string
 }
 
-//S3MinioIAMUserConfig defines IAM config
+// S3MinioIAMUserConfig defines IAM config
 type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
@@ -59,7 +59,7 @@ type S3MinioIAMUserConfig struct {
 	MinioIAMTags      map[string]string
 }
 
-//S3MinioIAMGroupConfig defines IAM Group config
+// S3MinioIAMGroupConfig defines IAM Group config
 type S3MinioIAMGroupConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
@@ -67,14 +67,14 @@ type S3MinioIAMGroupConfig struct {
 	MinioForceDestroy bool
 }
 
-//S3MinioIAMGroupAttachmentConfig defines IAM Group membership config
+// S3MinioIAMGroupAttachmentConfig defines IAM Group membership config
 type S3MinioIAMGroupAttachmentConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioIAMUser  string
 	MinioIAMGroup string
 }
 
-//S3MinioIAMGroupMembershipConfig defines IAM Group membership config
+// S3MinioIAMGroupMembershipConfig defines IAM Group membership config
 type S3MinioIAMGroupMembershipConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioIAMName  string
@@ -82,7 +82,7 @@ type S3MinioIAMGroupMembershipConfig struct {
 	MinioIAMGroup string
 }
 
-//S3MinioIAMPolicyConfig defines IAM Policy config
+// S3MinioIAMPolicyConfig defines IAM Policy config
 type S3MinioIAMPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient
 	MinioIAMName       string
@@ -90,7 +90,7 @@ type S3MinioIAMPolicyConfig struct {
 	MinioIAMPolicy     string
 }
 
-//S3MinioIAMGroupPolicyConfig defines IAM Policy config
+// S3MinioIAMGroupPolicyConfig defines IAM Policy config
 type S3MinioIAMGroupPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient
 	MinioIAMName       string
@@ -99,27 +99,27 @@ type S3MinioIAMGroupPolicyConfig struct {
 	MinioIAMGroup      string
 }
 
-//Princ defines policy princ
+// Princ defines policy princ
 type Princ struct {
 	AWS           set.StringSet `json:"AWS,omitempty"`
 	CanonicalUser set.StringSet `json:"CanonicalUser,omitempty"`
 }
 
-//BucketPolicy defines bucket policy
+// BucketPolicy defines bucket policy
 type BucketPolicy struct {
 	Version    string             `json:",omitempty"`
 	ID         string             `json:",omitempty"`
 	Statements []policy.Statement `json:"Statement"`
 }
 
-//IAMPolicyDoc returns IAM policy
+// IAMPolicyDoc returns IAM policy
 type IAMPolicyDoc struct {
 	Version    string                `json:"Version,omitempty"`
 	ID         string                `json:"Id,omitempty"`
 	Statements []*IAMPolicyStatement `json:"Statement"`
 }
 
-//IAMPolicyStatement returns IAM policy statement
+// IAMPolicyStatement returns IAM policy statement
 type IAMPolicyStatement struct {
 	Sid        string
 	Effect     string      `json:",omitempty"`
@@ -129,14 +129,14 @@ type IAMPolicyStatement struct {
 	Conditions interface{} `json:"Condition,omitempty"`
 }
 
-//IAMPolicyStatementCondition returns IAM policy condition
+// IAMPolicyStatementCondition returns IAM policy condition
 type IAMPolicyStatementCondition struct {
 	Test     string `json:"-"`
 	Variable string `json:"-"`
 	Values   interface{}
 }
 
-//IAMPolicyStatementConditionSet returns IAM policy condition set
+// IAMPolicyStatementConditionSet returns IAM policy condition set
 type IAMPolicyStatementConditionSet []IAMPolicyStatementCondition
 
 // UserStatus User status
@@ -146,7 +146,7 @@ type UserStatus struct {
 	Status    madmin.AccountStatus `json:"status,omitempty"`
 }
 
-//ResponseError handles error message
+// ResponseError handles error message
 type ResponseError struct {
 	Code       string `json:"Code,omitempty"`
 	Message    string `json:"Message,omitempty"`
@@ -160,14 +160,8 @@ const awsResourcePrefix = "arn:aws:s3:::"
 // All bucket actions.
 var allBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetObject", "s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification") //"s3:PutBucketLifecycle", "s3:GetBucketLifecycle"
 
-// Common bucket actions for both read and write policies.
-var commonBucketActions = set.CreateStringSet("s3:GetBucketLocation")
-
 // Read only bucket actions.
 var readOnlyBucketActions = set.CreateStringSet("s3:ListBucket")
-
-// Write only bucket actions.
-var writeOnlyBucketActions = set.CreateStringSet("s3:ListBucketMultipartUploads")
 
 // Read only all bucket actions.
 var readOnlyAllBucketsActions = set.CreateStringSet("s3:ListBucket", "s3:ListAllMyBuckets")
@@ -178,22 +172,7 @@ var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 // Write object actions.
 var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 
-// Write object acl.
-var uploadObjectACL = set.CreateStringSet("s3:PutObjectAcl")
-
 // Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
-// All object actions.
-var allObjectActions = set.CreateStringSet("s3:*Object")
-
-// Read and write object actions.
-var readWriteObjectActions = readOnlyObjectActions.Union(writeOnlyObjectActions)
-
-var readListObjectActions = readOnlyBucketActions.Union(commonBucketActions)
-
-var readListMultObjectActions = readListObjectActions.Union(writeOnlyBucketActions)
-
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
-
-var uploadMyObjectActions = uploadObjectActions.Union(uploadObjectACL)

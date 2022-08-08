@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-//BucketConfig creates a new config for minio buckets
+// BucketConfig creates a new config for minio buckets
 func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	m := meta.(*S3MinioClient)
 
@@ -20,7 +20,7 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	}
 }
 
-//BucketPolicyConfig creates config for managing minio bucket policies
+// BucketPolicyConfig creates config for managing minio bucket policies
 func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketPolicy {
 	m := meta.(*S3MinioClient)
 
@@ -31,7 +31,7 @@ func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket
 	}
 }
 
-//NewConfig creates a new config for minio
+// NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	return &S3MinioConfig{
 		S3HostPort:      d.Get("minio_server").(string),
@@ -47,7 +47,7 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	}
 }
 
-//IAMUserConfig creates new user config
+// IAMUserConfig creates new user config
 func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConfig {
 	m := meta.(*S3MinioClient)
 
@@ -61,7 +61,7 @@ func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConf
 	}
 }
 
-//IAMGroupConfig creates new group config
+// IAMGroupConfig creates new group config
 func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupConfig {
 	m := meta.(*S3MinioClient)
 
@@ -73,7 +73,7 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
-//IAMGroupAttachmentConfig creates new membership config for a single user
+// IAMGroupAttachmentConfig creates new membership config for a single user
 func IAMGroupAttachmentConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupAttachmentConfig {
 	m := meta.(*S3MinioClient)
 
@@ -84,7 +84,7 @@ func IAMGroupAttachmentConfig(d *schema.ResourceData, meta interface{}) *S3Minio
 	}
 }
 
-//IAMGroupMembersipConfig creates new membership config
+// IAMGroupMembersipConfig creates new membership config
 func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupMembershipConfig {
 	m := meta.(*S3MinioClient)
 
@@ -96,7 +96,7 @@ func IAMGroupMembersipConfig(d *schema.ResourceData, meta interface{}) *S3MinioI
 	}
 }
 
-//IAMPolicyConfig creates new policy config
+// IAMPolicyConfig creates new policy config
 func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicyConfig {
 	m := meta.(*S3MinioClient)
 
@@ -108,7 +108,7 @@ func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicy
 	}
 }
 
-//IAMGroupPolicyConfig creates new group policy config
+// IAMGroupPolicyConfig creates new group policy config
 func IAMGroupPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupPolicyConfig {
 	m := meta.(*S3MinioClient)
 

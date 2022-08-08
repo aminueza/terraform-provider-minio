@@ -86,7 +86,7 @@ func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 
 		err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 		if err != nil {
-			return NewResourceError("Error updating IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
 		}
 
 		d.SetId(nn.(string))
@@ -95,7 +95,7 @@ func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 	if iamGroupConfig.MinioDisableGroup {
 		err := minioDisableGroup(ctx, d, meta)
 		if err != nil {
-			return NewResourceError("Error updating IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
 		}
 	}
 
@@ -120,13 +120,13 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)
 
 	if err := d.Set("group_name", string(output.Name)); err != nil {
-		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil
@@ -144,7 +144,7 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("Error reading IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	if groupDesc.Name == "" {
@@ -162,7 +162,7 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		err := deleteMinioGroup(ctx, iamGroupConfig, groupDesc.Members)
 
 		if err != nil {
-			return NewResourceError("Error deleting IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
 		}
 
 	}
@@ -172,7 +172,7 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		err := deleteMinioGroup(ctx, iamGroupConfig, []string{})
 
 		if err != nil {
-			return NewResourceError("Error deleting IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
 		}
 
 	}
@@ -189,7 +189,7 @@ func minioDisableGroup(ctx context.Context, d *schema.ResourceData, meta interfa
 	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, madmin.GroupDisabled)
 
 	if err != nil {
-		return fmt.Errorf("Error disabling IAM Group %s: %s", d.Id(), err)
+		return fmt.Errorf("error disabling IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil

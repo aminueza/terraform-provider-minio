@@ -5,20 +5,8 @@ tasks:
       sed -i 's/http:\/\/localhost:8080/$API_BASE_URL/g' ${DOCKER_COMPOSE_GITPOD_PATH} &&
       export API_BASE_URL=`gp url 8080` &&
       docker-compose -f ${DOCKER_COMPOSE_GITPOD_PATH} up
-  - env:
-      TERRAFORM_VERSION: 0.14.0
-    init: >
-      export TERRAFORM_DOWNLOAD_FILE_NAME=terraform_${TERRAFORM_VERSION}_linux_amd64.zip &&
-      wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/${TERRAFORM_DOWNLOAD_FILE_NAME} &&
-      unzip ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
-      rm ${TERRAFORM_DOWNLOAD_FILE_NAME} &&
-      wget https://dl.min.io/client/mc/release/linux-amd64/mc &&
-      chmod +x mc &&
-      sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b .
-    command: |
-      sudo mv terraform /usr/local/bin/terraform
-      sudo mv mc /usr/local/bin/mc
-      sudo mv task /usr/local/bin/task
+  - command: |
+      (cd /tmp && brew install hashicorp/tap/terraform go-task/tap/go-task minio-mc)
       go get -v -t -d ./...
       task install
       gp await-port 9000 && gp await-port 8080 && gp await-port 8000
@@ -42,3 +30,4 @@ vscode:
   extensions:
     - golang.go
     - hashicorp.terraform
+    - streetsidesoftware.code-spell-checker

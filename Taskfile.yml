@@ -5,6 +5,7 @@ version: '3'
 vars:
   PLUGIN_VERSION: 1.4.0
   OUTPUT_FILENAME: terraform-provider-minio
+  CWD: { sh: pwd }
 
 tasks:
   default:
@@ -50,13 +51,14 @@ tasks:
 
   test:
     desc: Run the package tests.
-    env: 
+    env:
       TF_ACC: 0
       MINIO_ENDPOINT: localhost:9000
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: minio123
       MINIO_ENABLE_HTTPS: 'true'
-      MINIO_INSECURE: 'true'
+      MINIO_INSECURE: 'false'
+      MINIO_CACERT_FILE: '{{.CWD}}/.fixtures/public.crt'
     cmds:
       - go test -v -cover ./minio
     silent: true

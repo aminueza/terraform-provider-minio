@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/minio-go/v7"
 
+	"github.com/minio/madmin-go"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -61,6 +63,10 @@ func resourceMinioBucket() *schema.Resource {
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+			"quota": {
+				Type:     schema.TypeInt,
+				Optional: true,
 			},
 		},
 	}
@@ -139,6 +145,14 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		_ = d.Set("bucket", d.Id())
 	}
 
+	if _, ok := d.GetOk("quota"); !ok {
+		bucketQuota, err := bucketConfig.MinioAdmin.GetBucketQuota(ctx, bucketConfig.MinioBucket)
+		if err != nil {
+			return diag.Errorf("unable to get quota")
+		}
+		_ = d.Set("quota", bucketQuota.Quota)
+	}
+
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
@@ -161,6 +175,22 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
 		_ = d.Set("acl", bucketConfig.MinioACL)
 	}
+
+	if d.HasChange("quota") {
+		log.Printf("[DEBUG] Updating bucket, quota changed. Bucket: [%s], Region: [%s]",
+			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+
+		bucketQuota := madmin.BucketQuota{Quota: uint64(d.Get("quota").(int)), Type: madmin.HardQuota}
+
+		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {
+			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
+			return NewResourceError("[Quota] Unable to update bucket", bucketConfig.MinioBucket, err)
+		}
+
+		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
+		_ = d.Set("quota", bucketQuota.Quota)
+	}
+
 	return minioReadBucket(ctx, d, meta)
 }
 
@@ -239,6 +269,20 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 			log.Printf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
+	}
+
+	return nil
+}
+
+func minioSetBucketQuota(ctx context.Context, bucketConfig *S3MinioBucket, bucketQuota *madmin.BucketQuota) diag.Diagnostics {
+
+	if !bucketQuota.IsValid() {
+		return NewResourceError("invalid quota", fmt.Sprint(bucketQuota.Quota), errors.New("quota must be larger than 0"))
+	}
+
+	if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, bucketQuota); err != nil {
+		log.Printf("%s", NewResourceErrorStr("unable to set bucket quota", bucketConfig.MinioBucket, err))
+		return NewResourceError("unable to set bucket quota", bucketConfig.MinioBucket, err)
 	}
 
 	return nil

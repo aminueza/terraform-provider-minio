@@ -95,7 +95,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	if e, err := bucketConfig.MinioClient.BucketExists(ctx, bucket); err != nil {
 		return NewResourceError("unable to check bucket", bucket, err)
 	} else if e {
-		return NewResourceError("ucket already exists!", bucket, err)
+		return NewResourceError("bucket already exists!", bucket, err)
 	}
 
 	err := bucketConfig.MinioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{
@@ -231,7 +231,7 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
 	if !policyExists {
-		return NewResourceError("nsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
+		return NewResourceError("unsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
 	}
 
 	if policyString != "" {

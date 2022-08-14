@@ -145,14 +145,6 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		_ = d.Set("bucket", d.Id())
 	}
 
-	if _, ok := d.GetOk("quota"); !ok {
-		bucketQuota, err := bucketConfig.MinioAdmin.GetBucketQuota(ctx, bucketConfig.MinioBucket)
-		if err != nil {
-			return diag.Errorf("unable to get quota")
-		}
-		_ = d.Set("quota", bucketQuota.Quota)
-	}
-
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))

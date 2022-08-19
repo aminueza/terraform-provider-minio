@@ -118,7 +118,7 @@ task install
 In case you are developing, increase the `PLUGIN_VERSION` in the `Taskfile.yml`,
 so that the provider is recognized as new when executing terraform.
 
-## Testing
+### Testing
 
 For testing locally, run the docker compose to spin up a minio server:
 
@@ -127,6 +127,14 @@ docker-compose up
 ```
 
 Access http://localhost:8000 on your browser, apply your terraform templates and watch them going live.
+
+#### Testing without SSL
+
+In case you need unencrypted communications for debugging behaviour:
+
+* set `MINIO_ENABLE_HTTPS` to `false` in `Taskfile.yml`
+* remove `--certs-dir /.minio/certs` from `docker-compose.yml`
+* set `MINIO_SSL` in `docker-compose.yml`
 
 ## Roadmap
 

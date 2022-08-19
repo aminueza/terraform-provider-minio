@@ -334,7 +334,7 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 		transport = http.DefaultTransport
 	}
 	client := http.Client{Transport: transport}
-	req, err := http.NewRequest("POST", schema+"://localhost:9001/login", strings.NewReader(string(requestData)))
+	req, _ := http.NewRequest("POST", schema+"://localhost:9001/login", strings.NewReader(string(requestData)))
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
 

@@ -52,25 +52,17 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
 It just means that we can't guarantee backward compatibility.
 
-## Building and Installing
+## Usage
 
-Prebuilt versions of this provider are available for MacOS and Linux on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
+See the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio) for releases, otherwise
+prebuilt versions of this provider are available for macOS and Linux on the
+[releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
-But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
+### Examples
 
-```sh
-go install github.com/go-task/task/v3/cmd/task@latest
-```
+See our [Examples](./examples) folder.
 
-And run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):
-
-```sh
-task install
-```
-
-## Examples
-
-Use [examples/main.tf](./examples/user/main.tf) to create some test config, such as:
+For example use [examples/main.tf](./examples/user/main.tf) to create some test config, such as:
 
 ```hcl
 provider "minio" {
@@ -105,6 +97,24 @@ variable "minio_secret_key" {
 }
 ```
 
+## Development
+
+### Building and Installing
+
+For development or just building the provider yourself, you need to clone repository and
+[install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
+
+```sh
+go install github.com/go-task/task/v3/cmd/task@latest
+```
+
+And run the following command to build and install the plugin in the correct
+folder (resolved automatically based on the current Operating System):
+
+```sh
+task install
+```
+
 ## Testing
 
 For testing locally, run the docker compose to spin up a minio server:
@@ -115,13 +125,11 @@ docker-compose up
 
 Access http://localhost:8000 on your browser, apply your terraform templates and watch them going live.
 
-## Usage
-
-See our [Examples](./examples/) folder.
-
 ## Roadmap
 
-See the [open issues](https://github.com/aminueza/terraform-provider-minio/issues) for a list of proposed features (and known issues). See [CONTRIBUTING](./CONTRIBUTING.md) for more information.
+See the [open issues](https://github.com/aminueza/terraform-provider-minio/issues)
+for a list of proposed features (and known issues). See [CONTRIBUTING](./CONTRIBUTING.md)
+for more information.
 
 ## License
 

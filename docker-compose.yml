@@ -28,8 +28,12 @@ services:
       MINIO_ACCESS: minio
       MINIO_SECRET: minio123
       MINIO_HOST_PORT: minio:9000
+      MINIO_SSL: 'true'
+      MINIO_SSL_CACERT: /.minio/certs/ca.crt
       MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
       ADMINIO_HOST_PORT: :8080
+    volumes:
+      - ./.fixtures/ca.crt:/.minio/certs/ca.crt:Z
     depends_on:
       - minio
       - adminio-ui

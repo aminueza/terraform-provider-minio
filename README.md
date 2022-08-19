@@ -115,6 +115,9 @@ folder (resolved automatically based on the current Operating System):
 task install
 ```
 
+In case you are developing, increase the `PLUGIN_VERSION` in the `Taskfile.yml`,
+so that the provider is recognized as new when executing terraform.
+
 ## Testing
 
 For testing locally, run the docker compose to spin up a minio server:

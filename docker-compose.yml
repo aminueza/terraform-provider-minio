@@ -20,7 +20,7 @@ services:
     ports:
       - "8000:80"
   adminio-api:
-    image: docker.io/rzrbld/adminio-api:v1.82
+    image: docker.io/rzrbld/adminio-api:v1.84
     environment:
       MINIO_ACCESS: minio
       MINIO_SECRET: minio123

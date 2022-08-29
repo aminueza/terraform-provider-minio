@@ -41,6 +41,7 @@ output "minio_url" {
 
 ### Read-Only
 
+- **arn** (String)
 - **bucket_domain_name** (String)
 
 

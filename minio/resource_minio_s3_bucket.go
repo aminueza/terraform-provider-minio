@@ -60,6 +60,10 @@ func resourceMinioBucket() *schema.Resource {
 				Default:  "private",
 				ForceNew: true,
 			},
+			"arn": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
 				Computed: true,
@@ -147,6 +151,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
+	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
 	return nil
@@ -287,6 +292,10 @@ func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 		return NewResourceError("unable to parse bucket policy", bucketName, err)[0].Summary
 	}
 	return string(policyJSON)
+}
+
+func bucketArn(bucket string) string {
+	return fmt.Sprintf("%s%s", awsResourcePrefix, bucket)
 }
 
 func bucketDomainName(bucket string, bucketConfig *url.URL) string {

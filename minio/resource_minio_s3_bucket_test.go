@@ -31,6 +31,8 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(
 						resourceName, "bucket", testAccBucketName(rInt)),
 					resource.TestCheckResourceAttr(
+						resourceName, "arn", testAccBucketArn(rInt)),
+					resource.TestCheckResourceAttr(
 						resourceName, "bucket_domain_name", testAccBucketDomainName(rInt)),
 					resource.TestCheckResourceAttr(
 						resourceName, "acl", testAccBucketACL(acl)),
@@ -361,6 +363,10 @@ func testAccCheckMinioS3BucketACLInState(n string, acl string) resource.TestChec
 
 func testAccBucketName(randInt string) string {
 	return randInt
+}
+
+func testAccBucketArn(randInt string) string {
+	return fmt.Sprintf("arn:aws:s3:::%s", randInt)
 }
 
 func testAccBucketDomainName(randInt string) string {

@@ -226,6 +226,8 @@ github.com/minio/minio-go/v7 v7.0.34 h1:JMfS5fudx1mN6V2MMNyCJ7UMrjEzZzIvMgfkWc1V
 github.com/minio/minio-go/v7 v7.0.34/go.mod h1:nCrRzjoSUQh8hgKKtu3Y708OLvRLtuASMg2/nvmbarw=
 github.com/minio/minio-go/v7 v7.0.35 h1:JuPPxWLdxQmNLSaS8AWZnO5HBadeI1xg6FGrEELQEVU=
 github.com/minio/minio-go/v7 v7.0.35/go.mod h1:nCrRzjoSUQh8hgKKtu3Y708OLvRLtuASMg2/nvmbarw=
+github.com/minio/minio-go/v7 v7.0.36 h1:KPzAl8C6jcRFEUsGUHR6deRivvKATPNZThzi7D9y/sc=
+github.com/minio/minio-go/v7 v7.0.36/go.mod h1:nCrRzjoSUQh8hgKKtu3Y708OLvRLtuASMg2/nvmbarw=
 github.com/minio/sha256-simd v1.0.0 h1:v1ta+49hkWZyvaKwrQB8elexRqm6Y0aMLjCNsrYxo6g=
 github.com/minio/sha256-simd v1.0.0/go.mod h1:OuYzVNI5vcoYIAmbIvHPl3N3jUzVedXbKy5RFepssQM=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=

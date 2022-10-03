@@ -84,3 +84,6 @@ The following arguments are supported in the `provider` block:
 
 - `minio_ssl` - (Optional) Minio SSL enabled (default: `false`). It can also be sourced from the
   `MINIO_ENABLE_HTTPS` environment variable
+
+- `minio_insecure` - (Optional) Disable SSL certificate verification (default: `false`).
+  It can also be sourced from the `MINIO_INSECURE` environment variable.

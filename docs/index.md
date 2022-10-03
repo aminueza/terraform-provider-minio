@@ -20,6 +20,7 @@ provider minio {
   minio_region      = "..."
   minio_api_version = "..."
   minio_ssl         = "..."
+  minio_insecure    = "..."
 }
 ```
 

@@ -56,8 +56,9 @@ func Provider() *schema.Provider {
 				}, nil),
 			},
 			"minio_insecure": {
-				Type:     schema.TypeBool,
-				Optional: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Disable SSL certificate verification (default: false)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_INSECURE",
 				}, nil),

@@ -58,7 +58,7 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "private",
-				ForceNew: true,
+				ForceNew: false,
 			},
 			"arn": {
 				Type:     schema.TypeString,

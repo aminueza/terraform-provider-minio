@@ -47,6 +47,18 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	}
 }
 
+// ServiceAccountConfig creates new service account config
+func ServiceAccountConfig(d *schema.ResourceData, meta interface{}) *S3MinioServiceAccountConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServiceAccountConfig{
+		MinioAdmin:       m.S3Admin,
+		MinioTargetUser:  d.Get("target_user").(string),
+		MinioDisableUser: d.Get("disable_user").(bool),
+		MinioUpdateKey:   d.Get("update_secret").(bool),
+	}
+}
+
 // IAMUserConfig creates new user config
 func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConfig {
 	m := meta.(*S3MinioClient)

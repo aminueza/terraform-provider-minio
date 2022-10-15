@@ -97,6 +97,7 @@ func Provider() *schema.Provider {
 			"minio_iam_group":                   resourceMinioIAMGroup(),
 			"minio_iam_group_membership":        resourceMinioIAMGroupMembership(),
 			"minio_iam_user":                    resourceMinioIAMUser(),
+			"minio_iam_service_account":         resourceMinioServiceAccount(),
 			"minio_iam_group_policy":            resourceMinioIAMGroupPolicy(),
 			"minio_iam_policy":                  resourceMinioIAMPolicy(),
 			"minio_iam_user_policy_attachment":  resourceMinioIAMUserPolicyAttachment(),

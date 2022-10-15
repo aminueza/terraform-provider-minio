@@ -48,6 +48,18 @@ type S3MinioBucketPolicy struct {
 	MinioBucketPolicy string
 }
 
+// S3MinioServiceAccountConfig defines service account config
+type S3MinioServiceAccountConfig struct {
+	MinioAdmin        *madmin.AdminClient
+	MinioTargetUser   string
+	MinioAccessKey    string
+	MinioSecretKey    string
+	MinioDisableUser  bool
+	MinioForceDestroy bool
+	MinioUpdateKey    bool
+	MinioIAMTags      map[string]string
+}
+
 // S3MinioIAMUserConfig defines IAM config
 type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
@@ -138,6 +150,13 @@ type IAMPolicyStatementCondition struct {
 
 // IAMPolicyStatementConditionSet returns IAM policy condition set
 type IAMPolicyStatementConditionSet []IAMPolicyStatementCondition
+
+// ServiceAccountStatus User status
+type ServiceAccountStatus struct {
+	AccessKey     string `json:"accessKey,omitempty"`
+	SecretKey     string `json:"secretKey,omitempty"`
+	AccountStatus string `json:"status,omitempty"`
+}
 
 // UserStatus User status
 type UserStatus struct {

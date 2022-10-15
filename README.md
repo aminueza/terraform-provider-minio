@@ -54,7 +54,7 @@ It just means that we can't guarantee backward compatibility.
 
 ## Building and Installing
 
-Prebuilt versions of this provider are available for MacOS and Linux on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
+Prebuilt versions of this provider are available on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
 But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
 

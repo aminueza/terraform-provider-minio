@@ -18,6 +18,7 @@ import (
 func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 
 	var minioClient *minio.Client
+	var minioCredentials *credentials.Credentials
 
 	tr, err := config.customTransport()
 	if err != nil {
@@ -26,14 +27,16 @@ func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 	}
 
 	if config.S3APISignature == "v2" {
+		minioCredentials = credentials.NewStaticV2(config.S3UserAccess, config.S3UserSecret, config.S3SessionToken)
 		minioClient, err = minio.New(config.S3HostPort, &minio.Options{
-			Creds:     credentials.NewStaticV2(config.S3UserAccess, config.S3UserSecret, ""),
+			Creds:     minioCredentials,
 			Secure:    config.S3SSL,
 			Transport: tr,
 		})
 	} else if config.S3APISignature == "v4" {
+		minioCredentials = credentials.NewStaticV4(config.S3UserAccess, config.S3UserSecret, config.S3SessionToken)
 		minioClient, err = minio.New(config.S3HostPort, &minio.Options{
-			Creds:     credentials.NewStaticV4(config.S3UserAccess, config.S3UserSecret, ""),
+			Creds:     minioCredentials,
 			Secure:    config.S3SSL,
 			Transport: tr,
 		})
@@ -45,7 +48,10 @@ func (config *S3MinioConfig) NewClient() (client interface{}, err error) {
 		return nil, err
 	}
 
-	minioAdmin, err := madmin.New(config.S3HostPort, config.S3UserAccess, config.S3UserSecret, config.S3SSL)
+	minioAdmin, err := madmin.NewWithOptions(config.S3HostPort, &madmin.Options{
+		Creds:  minioCredentials,
+		Secure: config.S3SSL,
+	})
 	//minioAdmin.TraceOn(nil)
 	if err != nil {
 		log.Println("[FATAL] Error building admin client for S3 server.")

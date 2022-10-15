@@ -41,6 +41,14 @@ func Provider() *schema.Provider {
 					"MINIO_SECRET_KEY",
 				}, nil),
 			},
+			"minio_session_token": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Minio Session Token",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_SESSION_TOKEN",
+				}, ""),
+			},
 			"minio_api_version": {
 				Type:        schema.TypeString,
 				Optional:    true,

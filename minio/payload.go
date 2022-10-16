@@ -13,6 +13,7 @@ type S3MinioConfig struct {
 	S3UserAccess    string
 	S3UserSecret    string
 	S3Region        string
+	S3SessionToken  string
 	S3APISignature  string
 	S3SSL           bool
 	S3SSLCACertFile string

@@ -38,6 +38,7 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3Region:        d.Get("minio_region").(string),
 		S3UserAccess:    d.Get("minio_access_key").(string),
 		S3UserSecret:    d.Get("minio_secret_key").(string),
+		S3SessionToken:  d.Get("minio_session_token").(string),
 		S3APISignature:  d.Get("minio_api_version").(string),
 		S3SSL:           d.Get("minio_ssl").(bool),
 		S3SSLCACertFile: d.Get("minio_cert_file").(string),

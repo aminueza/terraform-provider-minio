@@ -17,10 +17,11 @@ provider minio {
   minio_secret_key   = "..."
 
   // optional
-  minio_region      = "..."
-  minio_api_version = "..."
-  minio_ssl         = "..."
-  minio_insecure    = "..."
+  minio_session_token = "..."
+  minio_region        = "..."
+  minio_api_version   = "..."
+  minio_ssl           = "..."
+  minio_insecure      = "..."
 }
 ```
 
@@ -78,6 +79,9 @@ The following arguments are supported in the `provider` block:
 
 - `minio_secret_key` - (Required) Minio Secret Key. It must be provided, but
   it can also be sourced from the `MINIO_SECRET_KEY` environment variable
+
+- `minio_session_token` - (Optional) Minio Session Token. It can also be sourced from
+  the `MINIO_SESSION_TOKEN` environment variable
 
 - `minio_region` - (Optional) Minio Region (`default: us-east-1`).
 

@@ -97,6 +97,7 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
+	userStatus := UserStatus{}
 
 	var err error
 	secretKey := iamUserConfig.MinioSecret
@@ -124,10 +125,18 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		d.SetId(nn.(string))
 	}
 
-	userStatus := UserStatus{
-		AccessKey: iamUserConfig.MinioIAMName,
-		SecretKey: secretKey,
-		Status:    madmin.AccountEnabled,
+	if d.HasChangeExcept(iamUserConfig.MinioSecret ) {
+		userStatus = UserStatus{
+			AccessKey: iamUserConfig.MinioIAMName,
+			SecretKey: iamUserConfig.MinioSecret,
+			Status:    madmin.AccountEnabled,
+		}
+	}else{
+		userStatus = UserStatus{
+			AccessKey: iamUserConfig.MinioIAMName,
+			SecretKey: secretKey,
+			Status:    madmin.AccountEnabled,
+		}	
 	}
 
 	if iamUserConfig.MinioDisableUser {

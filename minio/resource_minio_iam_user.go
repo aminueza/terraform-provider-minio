@@ -102,7 +102,7 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	var err error
 	secretKey := iamUserConfig.MinioSecret
 
-	if secretKey == "" {
+	if secretKey == "" || iamUserConfig.MinioUpdateKey {
 		if secretKey, err = generateSecretAccessKey(); err != nil {
 			return NewResourceError("error creating user", d.Id(), err)
 		}

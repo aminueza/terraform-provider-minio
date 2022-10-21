@@ -49,6 +49,18 @@ type S3MinioBucketPolicy struct {
 	MinioBucketPolicy string
 }
 
+// S3MinioBucketVersioningConfiguration defines bucket versioning config
+type S3MinioBucketVersioningConfiguration struct {
+	Status string
+}
+
+// S3MinioBucketVersioning defines bucket versioning
+type S3MinioBucketVersioning struct {
+	MinioClient             *minio.Client
+	MinioBucket             string
+	VersioningConfiguration *S3MinioBucketVersioningConfiguration
+}
+
 // S3MinioServiceAccountConfig defines service account config
 type S3MinioServiceAccountConfig struct {
 	MinioAdmin        *madmin.AdminClient

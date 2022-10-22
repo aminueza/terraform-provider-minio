@@ -1,8 +1,8 @@
 provider minio {
   // required
-  minio_server       = "..."
-  minio_access_key   = "..."
-  minio_secret_key   = "..."
+  minio_server   = "..."
+  minio_user     = "..."
+  minio_password = "..."
 
   // optional
   minio_region      = "..."

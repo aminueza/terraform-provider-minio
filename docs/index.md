@@ -12,9 +12,9 @@ This is a terraform provider plugin for managing [Minio](https://min.io/) S3 buc
 ```terraform
 provider minio {
   // required
-  minio_server       = "..."
-  minio_access_key   = "..."
-  minio_secret_key   = "..."
+  minio_server   = "..."
+  minio_user     = "..."
+  minio_password = "..."
 
   // optional
   minio_session_token = "..."
@@ -35,16 +35,16 @@ authentication, in this order, and explained below:
 
 ### Static API Key
 
-Static credentials can be provided by adding the `minio-server`, `minio_access_key` and `minio_secret_key` variables in-line in the
+Static credentials can be provided by adding the `minio-server`, `minio_user` and `minio_password` variables in-line in the
 Minio provider block:
 
 Usage:
 
 ```hcl
 provider "minio" {
-  minio_server       = "..."
-  minio_access_key   = "..."
-  minio_secret_key   = "..."
+  minio_server   = "..."
+  minio_user     = "..."
+  minio_password = "..."
 }
 ```
 
@@ -52,10 +52,10 @@ provider "minio" {
 
 You can provide your configuration via the environment variables representing your minio credentials:
 
-```bash
+```
 export MINIO_ENDPOINT="http://myendpoint"
-export MINIO_ACCESS_KEY="244tefewg"
-export MINIO_SECRET_KEY="xgwgwqqwv"
+export MINIO_ROOT_USER="244tefewg"
+export MINIO_ROOT_PASSWORD="xgwgwqqwv"
 ```
 
 When using this method, you may omit the
@@ -74,11 +74,11 @@ The following arguments are supported in the `provider` block:
 - `minio_server` - (Required) Minio Host and Port. It must be provided, but
   it can also be sourced from the `MINIO_ENDPOINT` environment variable
 
-- `minio_access_key` - (Required) Minio Access Key. It must be provided, but
-  it can also be sourced from the `MINIO_ACCESS_KEY` environment variable
+- `minio_user` - (Required) Minio User. It must be provided, but
+  it can also be sourced from the `MINIO_USER` environment variable
 
-- `minio_secret_key` - (Required) Minio Secret Key. It must be provided, but
-  it can also be sourced from the `MINIO_SECRET_KEY` environment variable
+- `minio_password` - (Required) Minio Password. It must be provided, but
+  it can also be sourced from the `MINIO_PASSWORD` environment variable
 
 - `minio_session_token` - (Optional) Minio Session Token. It can also be sourced from
   the `MINIO_SESSION_TOKEN` environment variable

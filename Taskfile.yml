@@ -53,8 +53,8 @@ tasks:
     env: 
       TF_ACC: 0
       MINIO_ENDPOINT: localhost:9000
-      MINIO_ACCESS_KEY: minio
-      MINIO_SECRET_KEY: minio123
+      MINIO_USER: minio
+      MINIO_PASSWORD: minio123
       MINIO_ENABLE_HTTPS: false
     cmds:
       - go test -v -cover ./minio

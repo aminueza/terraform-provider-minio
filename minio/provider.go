@@ -27,19 +27,39 @@ func Provider() *schema.Provider {
 			},
 			"minio_access_key": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Minio Access Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_ACCESS_KEY",
 				}, nil),
+				Deprecated: "use minio_user instead",
 			},
 			"minio_secret_key": {
 				Type:        schema.TypeString,
-				Required:    true,
+				Optional:    true,
 				Description: "Minio Secret Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_SECRET_KEY",
 				}, nil),
+				Deprecated: "use minio_password instead",
+			},
+			"minio_user": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Minio User",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_USER",
+				}, nil),
+				ConflictsWith: []string{"minio_access_key"},
+			},
+			"minio_password": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Minio Password",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_PASSWORD",
+				}, nil),
+				ConflictsWith: []string{"minio_secret_key"},
 			},
 			"minio_session_token": {
 				Type:        schema.TypeString,

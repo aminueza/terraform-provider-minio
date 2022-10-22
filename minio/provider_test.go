@@ -30,21 +30,26 @@ func TestProvider_impl(t *testing.T) {
 }
 
 func testAccPreCheck(t *testing.T) {
-	ok := os.Getenv("TF_ACC") == ""
+	valid := true
 
-	if os.Getenv("MINIO_ENDPOINT") != "" {
-		ok = true
+	if v, _ := os.LookupEnv("TF_ACC"); v == "" {
+		valid = false
 	}
-	if os.Getenv("MINIO_ACCESS_KEY") != "" {
-		ok = true
+
+	if _, ok := os.LookupEnv("MINIO_ENDPOINT"); !ok {
+		valid = false
 	}
-	if os.Getenv("MINIO_SECRET_KEY") != "" {
-		ok = true
+	if _, ok := os.LookupEnv("MINIO_USER"); !ok {
+		valid = false
 	}
-	if os.Getenv("MINIO_ENABLE_HTTPS") != "" {
-		ok = true
+	if _, ok := os.LookupEnv("MINIO_PASSWORD"); !ok {
+		valid = false
 	}
-	if !ok {
-		panic("you must to set env variables for integration tests!")
+	if _, ok := os.LookupEnv("MINIO_ENABLE_HTTPS"); !ok {
+		valid = false
+	}
+
+	if !valid {
+		t.Fatal("you must to set env variables for integration tests!")
 	}
 }

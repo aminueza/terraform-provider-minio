@@ -1,14 +1,14 @@
 version: "3"
 services:
   minio:
-    image: docker.io/minio/minio:RELEASE.2022-07-30T05-21-40Z
+    image: docker.io/minio/minio:RELEASE.2022-10-21T22-37-48Z
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
-      MINIO_CI_CD: '1'
+      MINIO_CI_CD: "1"
     command: server --console-address :9001 /data{0...3}
   adminio-ui:
     image: docker.io/rzrbld/adminio-ui:v1.93

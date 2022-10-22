@@ -7,5 +7,6 @@ output "minio_user_status" {
 }
 
 output "minio_user_secret" {
-  value = minio_iam_user.minio_user.secret
+  value     = minio_iam_user.minio_user.secret
+  sensitive = true
 }

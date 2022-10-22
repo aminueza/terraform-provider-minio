@@ -17,9 +17,11 @@ provider minio {
   minio_password = "..."
 
   // optional
-  minio_region      = "..."
-  minio_api_version = "..."
-  minio_ssl         = "..."
+  minio_session_token = "..."
+  minio_region        = "..."
+  minio_api_version   = "..."
+  minio_ssl           = "..."
+  minio_insecure      = "..."
 }
 ```
 
@@ -51,9 +53,9 @@ provider "minio" {
 You can provide your configuration via the environment variables representing your minio credentials:
 
 ```
-$ export MINIO_ENDPOINT="http://myendpoint"
-$ export MINIO_ROOT_USER="244tefewg"
-$ export MINIO_ROOT_PASSWORD="xgwgwqqwv"
+export MINIO_ENDPOINT="http://myendpoint"
+export MINIO_ROOT_USER="244tefewg"
+export MINIO_ROOT_PASSWORD="xgwgwqqwv"
 ```
 
 When using this method, you may omit the
@@ -69,18 +71,24 @@ resource "minio_s3_bucket" "state_terraform_s3" {
 
 The following arguments are supported in the `provider` block:
 
-* `minio_server` - (Required) Minio Host and Port. It must be provided, but
+- `minio_server` - (Required) Minio Host and Port. It must be provided, but
   it can also be sourced from the `MINIO_ENDPOINT` environment variable
 
-* `minio_user` - (Required) Minio User. It must be provided, but
+- `minio_user` - (Required) Minio User. It must be provided, but
   it can also be sourced from the `MINIO_USER` environment variable
 
-* `minio_password` - (Required) Minio Password. It must be provided, but
+- `minio_password` - (Required) Minio Password. It must be provided, but
   it can also be sourced from the `MINIO_PASSWORD` environment variable
 
-* `minio_region` - (Optional) Minio Region (`default: us-east-1`).
+- `minio_session_token` - (Optional) Minio Session Token. It can also be sourced from
+  the `MINIO_SESSION_TOKEN` environment variable
 
-* `minio_api_version` - (Optional) Minio API Version (type: string, options: `v2` or `v4`, default: `v4`).
+- `minio_region` - (Optional) Minio Region (`default: us-east-1`).
 
-* `minio_ssl` - (Optional) Minio SSL enabled (default: `false`). It can also be sourced from the
+- `minio_api_version` - (Optional) Minio API Version (type: string, options: `v2` or `v4`, default: `v4`).
+
+- `minio_ssl` - (Optional) Minio SSL enabled (default: `false`). It can also be sourced from the
   `MINIO_ENABLE_HTTPS` environment variable
+
+- `minio_insecure` - (Optional) Disable SSL certificate verification (default: `false`).
+  It can also be sourced from the `MINIO_INSECURE` environment variable.

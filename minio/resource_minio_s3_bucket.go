@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/minio-go/v7"
 
+	"github.com/minio/madmin-go"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -56,11 +58,19 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Default:  "private",
-				ForceNew: true,
+				ForceNew: false,
+			},
+			"arn": {
+				Type:     schema.TypeString,
+				Computed: true,
 			},
 			"bucket_domain_name": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+			"quota": {
+				Type:     schema.TypeInt,
+				Optional: true,
 			},
 		},
 	}
@@ -95,7 +105,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	if e, err := bucketConfig.MinioClient.BucketExists(ctx, bucket); err != nil {
 		return NewResourceError("unable to check bucket", bucket, err)
 	} else if e {
-		return NewResourceError("ucket already exists!", bucket, err)
+		return NewResourceError("bucket already exists!", bucket, err)
 	}
 
 	err := bucketConfig.MinioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{
@@ -141,6 +151,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
+	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
 	return nil
@@ -161,6 +172,22 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
 		_ = d.Set("acl", bucketConfig.MinioACL)
 	}
+
+	if d.HasChange("quota") {
+		log.Printf("[DEBUG] Updating bucket, quota changed. Bucket: [%s], Region: [%s]",
+			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+
+		bucketQuota := madmin.BucketQuota{Quota: uint64(d.Get("quota").(int)), Type: madmin.HardQuota}
+
+		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {
+			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
+			return NewResourceError("[Quota] Unable to update bucket", bucketConfig.MinioBucket, err)
+		}
+
+		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
+		_ = d.Set("quota", bucketQuota.Quota)
+	}
+
 	return minioReadBucket(ctx, d, meta)
 }
 
@@ -231,7 +258,7 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
 
 	if !policyExists {
-		return NewResourceError("nsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
+		return NewResourceError("unsupported ACL", bucketConfig.MinioACL, errors.New("(valid acl: private, public-write, public-read, public-read-write, public)"))
 	}
 
 	if policyString != "" {
@@ -244,6 +271,20 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	return nil
 }
 
+func minioSetBucketQuota(ctx context.Context, bucketConfig *S3MinioBucket, bucketQuota *madmin.BucketQuota) diag.Diagnostics {
+
+	if !bucketQuota.IsValid() {
+		return NewResourceError("invalid quota", fmt.Sprint(bucketQuota.Quota), errors.New("quota must be larger than 0"))
+	}
+
+	if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, bucketQuota); err != nil {
+		log.Printf("%s", NewResourceErrorStr("unable to set bucket quota", bucketConfig.MinioBucket, err))
+		return NewResourceError("unable to set bucket quota", bucketConfig.MinioBucket, err)
+	}
+
+	return nil
+}
+
 func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 	policyJSON, err := json.Marshal(policyStruct)
 	if err != nil {
@@ -251,6 +292,10 @@ func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 		return NewResourceError("unable to parse bucket policy", bucketName, err)[0].Summary
 	}
 	return string(policyJSON)
+}
+
+func bucketArn(bucket string) string {
+	return fmt.Sprintf("%s%s", awsResourcePrefix, bucket)
 }
 
 func bucketDomainName(bucket string, bucketConfig *url.URL) string {

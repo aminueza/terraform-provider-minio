@@ -19,11 +19,11 @@ func TestAccS3BucketPolicy_basic(t *testing.T) {
   "Statement": [
     {
       "Effect": "Allow",
-	  "Principal": {"AWS": ["*"]},
+      "Principal": {"AWS": ["*"]},
       "Resource": [
-		"arn:aws:s3:::%[1]s"
+        "arn:aws:s3:::%[1]s"
       ],
-	  "Action": ["s3:ListBucket"]
+      "Action": ["s3:ListBucket"]
     }
   ]
 }`, name)
@@ -63,7 +63,7 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
       "Resource": [
         "arn:aws:s3:::%[1]s"
       ],
-	  "Action": ["s3:ListBucket"]
+      "Action": ["s3:ListBucket"]
     }
   ]
 }`, name)
@@ -79,7 +79,7 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
       "Resource": [
         "arn:aws:s3:::%[1]s"
       ],
-	  "Action": ["s3:ListBucketVersions"]
+      "Action": ["s3:ListBucketVersions"]
     }
   ]
 }`, name)
@@ -122,12 +122,12 @@ func TestAccS3BucketPolicy_order(t *testing.T) {
   "Statement": [
     {
       "Effect": "Allow",
-	  "Principal": {"AWS": ["*"]},
+      "Principal": {"AWS": ["*"]},
       "Resource": [
-		"arn:aws:s3:::%[1]s",
-		"arn:aws:s3:::%[1]s/*"
+        "arn:aws:s3:::%[1]s",
+	"arn:aws:s3:::%[1]s/*"
       ],
-	  "Action": ["s3:ListBucket", "s3:ListBucketVersions"]
+      "Action": ["s3:ListBucket", "s3:ListBucketVersions"]
     }
   ]
 }`, name)
@@ -161,11 +161,11 @@ resource "minio_s3_bucket_policy" "bucket" {
   "Statement": [
     {
       "Effect": "Allow",
-	  "Principal": {"AWS": ["*"]},
+      "Principal": {"AWS": ["*"]},
       "Resource": [
-		"arn:aws:s3:::${minio_s3_bucket.bucket.bucket}"
+        "${minio_s3_bucket.bucket.arn}"
       ],
-	  "Action": ["s3:ListBucket"]
+      "Action": ["s3:ListBucket"]
     }
   ]
 }
@@ -191,9 +191,9 @@ resource "minio_s3_bucket_policy" "bucket" {
         "AWS": ["*"]
       },
       "Resource": [
-        "arn:aws:s3:::${minio_s3_bucket.bucket.bucket}"
+        "${minio_s3_bucket.bucket.arn}"
       ],
-	  "Action": ["s3:ListBucketVersions"]
+      "Action": ["s3:ListBucketVersions"]
     }
   ]
 }
@@ -219,10 +219,10 @@ resource "minio_s3_bucket_policy" "bucket" {
         "AWS": ["*"]
       },
       "Resource": [
-		"arn:aws:s3:::${minio_s3_bucket.bucket.bucket}/*",
-        "arn:aws:s3:::${minio_s3_bucket.bucket.bucket}"
+        "${minio_s3_bucket.bucket.arn}/*",
+        "${minio_s3_bucket.bucket.arn}"
       ],
-	  "Action": ["s3:ListBucketVersions", "s3:ListBucket"]
+      "Action": ["s3:ListBucketVersions", "s3:ListBucket"]
     }
   ]
 }

@@ -61,6 +61,14 @@ func Provider() *schema.Provider {
 				}, nil),
 				ConflictsWith: []string{"minio_secret_key"},
 			},
+			"minio_session_token": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Minio Session Token",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					"MINIO_SESSION_TOKEN",
+				}, ""),
+			},
 			"minio_api_version": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -76,8 +84,9 @@ func Provider() *schema.Provider {
 				}, nil),
 			},
 			"minio_insecure": {
-				Type:     schema.TypeBool,
-				Optional: true,
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Disable SSL certificate verification (default: false)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					"MINIO_INSECURE",
 				}, nil),
@@ -112,10 +121,12 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"minio_s3_bucket":                   resourceMinioBucket(),
 			"minio_s3_bucket_policy":            resourceMinioBucketPolicy(),
+			"minio_s3_bucket_versioning":        resourceMinioBucketVersioning(),
 			"minio_s3_object":                   resourceMinioObject(),
 			"minio_iam_group":                   resourceMinioIAMGroup(),
 			"minio_iam_group_membership":        resourceMinioIAMGroupMembership(),
 			"minio_iam_user":                    resourceMinioIAMUser(),
+			"minio_iam_service_account":         resourceMinioServiceAccount(),
 			"minio_iam_group_policy":            resourceMinioIAMGroupPolicy(),
 			"minio_iam_policy":                  resourceMinioIAMPolicy(),
 			"minio_iam_user_policy_attachment":  resourceMinioIAMUserPolicyAttachment(),

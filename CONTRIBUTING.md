@@ -18,4 +18,3 @@ Contributions are what make the open source community such an amazing place to b
 
 1. As soon as possible the authors will review your pull request, answering to your message.
 2. **ALL CI tests** must be passed. <span style="color: #008000;">&#10004;</span>
-3. Make sure you have added your name to the list of AUTHORS.md.

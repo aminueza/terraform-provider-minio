@@ -3,7 +3,7 @@
 version: '3'
 
 vars:
-  PLUGIN_VERSION: 1.4.0
+  PLUGIN_VERSION: $(git describe --tags `git rev-list --tags --max-count=1` | sed 's/v//')
   OUTPUT_FILENAME: terraform-provider-minio
 
 tasks:

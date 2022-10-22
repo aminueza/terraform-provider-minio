@@ -31,6 +31,19 @@ func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket
 	}
 }
 
+// BucketVersioningConfig creates config for managing minio bucket versioning
+func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketVersioning {
+	m := meta.(*S3MinioClient)
+
+	versioningConfig := getBucketVersioningConfig(d.Get("versioning_configuration").([]interface{}))
+
+	return &S3MinioBucketVersioning{
+		MinioClient:             m.S3Client,
+		MinioBucket:             d.Get("bucket").(string),
+		VersioningConfiguration: versioningConfig,
+	}
+}
+
 // NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	user := d.Get("minio_user").(string)
@@ -48,12 +61,25 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3Region:        d.Get("minio_region").(string),
 		S3UserAccess:    user,
 		S3UserSecret:    password,
+		S3SessionToken:  d.Get("minio_session_token").(string),
 		S3APISignature:  d.Get("minio_api_version").(string),
 		S3SSL:           d.Get("minio_ssl").(bool),
 		S3SSLCACertFile: d.Get("minio_cert_file").(string),
 		S3SSLCertFile:   d.Get("minio_cert_file").(string),
 		S3SSLKeyFile:    d.Get("minio_key_file").(string),
 		S3SSLSkipVerify: d.Get("minio_insecure").(bool),
+	}
+}
+
+// ServiceAccountConfig creates new service account config
+func ServiceAccountConfig(d *schema.ResourceData, meta interface{}) *S3MinioServiceAccountConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServiceAccountConfig{
+		MinioAdmin:       m.S3Admin,
+		MinioTargetUser:  d.Get("target_user").(string),
+		MinioDisableUser: d.Get("disable_user").(bool),
+		MinioUpdateKey:   d.Get("update_secret").(bool),
 	}
 }
 

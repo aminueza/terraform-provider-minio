@@ -46,7 +46,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 
 ## Supported Versions
 
-- Terraform v0.14
+- Terraform v1.2
 - Go v1.19
 
 It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
@@ -54,7 +54,7 @@ It just means that we can't guarantee backward compatibility.
 
 ## Building and Installing
 
-Prebuilt versions of this provider are available for MacOS and Linux on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
+Prebuilt versions of this provider are available on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
 
 But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
 

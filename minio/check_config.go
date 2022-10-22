@@ -31,6 +31,19 @@ func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket
 	}
 }
 
+// BucketVersioningConfig creates config for managing minio bucket versioning
+func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketVersioning {
+	m := meta.(*S3MinioClient)
+
+	versioningConfig := getBucketVersioningConfig(d.Get("versioning_configuration").([]interface{}))
+
+	return &S3MinioBucketVersioning{
+		MinioClient:             m.S3Client,
+		MinioBucket:             d.Get("bucket").(string),
+		VersioningConfiguration: versioningConfig,
+	}
+}
+
 // NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	return &S3MinioConfig{

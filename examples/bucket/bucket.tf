@@ -34,3 +34,9 @@ resource "minio_s3_bucket_policy" "policy" {
 }
 EOF
 }
+
+resource "minio_s3_bucket_versioning" "bucket" {
+  depends_on = [minio_s3_bucket.state_terraform_s3]
+  bucket = minio_s3_bucket.state_terraform_s3.bucket
+  status = "Enabled"
+}

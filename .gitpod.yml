@@ -9,7 +9,7 @@ tasks:
       (cd /tmp && brew install hashicorp/tap/terraform go-task/tap/go-task minio-mc)
       go get -v -t -d ./...
       task install
-      gp await-port 9000 && gp await-port 8080 && gp await-port 8000
+      gp ports await 9000 && gp ports await 8080 && gp ports await 8000
       mc alias set local http://localhost:9000 minio minio123 && echo "MinIO Local Server Stats:" && mc admin info local
 
 ports:

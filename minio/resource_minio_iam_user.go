@@ -129,7 +129,6 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		AccessKey: iamUserConfig.MinioIAMName,
 		SecretKey: secretKey,
 		Status:    madmin.AccountEnabled,
-
 	}
 
 	if iamUserConfig.MinioDisableUser {

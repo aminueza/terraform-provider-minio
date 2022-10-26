@@ -161,40 +161,40 @@ func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
 	resourceName := "minio_iam_user.test5"
 
 	resource.ParallelTest(t, resource.TestCase{
-			PreCheck:          func() { testAccPreCheck(t) },
-			ProviderFactories: testAccProviders,
-			CheckDestroy:      testAccCheckMinioUserDestroy,
-			Steps: []resource.TestStep{
-					{
-							Config: testAccMinioUserConfigWithSecretOne(name),
-							Check: resource.ComposeTestCheckFunc(
-									testAccCheckMinioUserExists(resourceName, &user),
-									testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
-									testAccCheckMinioUserCanLogIn(resourceName),
-							),
-					},
-					{
-							Config: testAccMinioUserConfigWithSecretTwo(name),
-							Check: resource.ComposeTestCheckFunc(
-									testAccCheckMinioUserExists(resourceName, &user),
-									testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
-									testAccCheckMinioUserCanLogIn(resourceName),
-							),
-					},
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfigWithSecretOne(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
+				),
 			},
+			{
+				Config: testAccMinioUserConfigWithSecretTwo(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioUserCanLogIn(resourceName),
+				),
+			},
+		},
 	})
 }
 
 func testAccMinioUserConfigWithSecretOne(rName string) string {
-	      return fmt.Sprintf(`
+	return fmt.Sprintf(`
 	resource "minio_iam_user" "test5" {
 	  secret = "secret1234"
 	  name   = %q
 	}
 	`, rName)
-	}
-	func testAccMinioUserConfigWithSecretTwo(rName string) string {
-	       return fmt.Sprintf(`
+}
+func testAccMinioUserConfigWithSecretTwo(rName string) string {
+	return fmt.Sprintf(`
 	resource "minio_iam_user" "test5" {
 	  secret = "secret4321"
 	  name   = %q

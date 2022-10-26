@@ -182,6 +182,55 @@ func TestAccAWSUser_SettingAccessKey(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
+	var user madmin.UserInfo
+	var oldAccessKey string
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test5"
+
+	resource.ParallelTest(t, resource.TestCase{
+			PreCheck:          func() { testAccPreCheck(t) },
+			ProviderFactories: testAccProviders,
+			CheckDestroy:      testAccCheckMinioUserDestroy,
+			Steps: []resource.TestStep{
+					{
+							Config: testAccMinioUserConfigWithSecretOne(name),
+							Check: resource.ComposeTestCheckFunc(
+									testAccCheckMinioUserExists(resourceName, &user),
+									testAccCheckMinioUserExfiltrateAccessKey(resourceName, &oldAccessKey),
+									testAccCheckMinioUserCanLogIn(resourceName),
+							),
+					},
+					{
+							Config: testAccMinioUserConfigWithSecretTwo(name),
+							Check: resource.ComposeTestCheckFunc(
+									testAccCheckMinioUserExists(resourceName, &user),
+									testAccCheckMinioUserRotatesAccessKey(resourceName, &oldAccessKey),
+									testAccCheckMinioUserCanLogIn(resourceName),
+							),
+					},
+			},
+	})
+}
+
+func testAccMinioUserConfigWithSecretOne(rName string) string {
+	      return fmt.Sprintf(`
+	resource "minio_iam_user" "test5" {
+	  secret = "secret1234"
+	  name   = %q
+	}
+	`, rName)
+	}
+	func testAccMinioUserConfigWithSecretTwo(rName string) string {
+	       return fmt.Sprintf(`
+	resource "minio_iam_user" "test5" {
+	  secret = "secret4321"
+	  name   = %q
+	}
+	`, rName)
+}
+
 func testAccMinioUserConfig(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test" {
@@ -352,7 +401,7 @@ func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
 	requestData, _ := json.Marshal(loginData)
 
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", "http://localhost:9001/login", strings.NewReader(string(requestData)))
+	req, err := http.NewRequest("POST", "http://localhost:9001/api/v1/login", strings.NewReader(string(requestData)))
 	if err != nil {
 		return err
 	}

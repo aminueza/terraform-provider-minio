@@ -29,6 +29,7 @@ func resourceMinioIAMUser() *schema.Resource {
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateMinioIamUserName,
+				ForceNew:     true,
 			},
 			"force_destroy": {
 				Type:        schema.TypeBool,
@@ -107,23 +108,6 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 			return NewResourceError("error creating user", d.Id(), err)
 		}
 		_ = d.Set("secret", secretKey)
-	}
-
-	if d.HasChange(iamUserConfig.MinioIAMName) {
-		on, nn := d.GetChange(iamUserConfig.MinioIAMName)
-
-		log.Println("[DEBUG] Update IAM User:", iamUserConfig.MinioIAMName)
-		err := iamUserConfig.MinioAdmin.RemoveUser(ctx, on.(string))
-		if err != nil {
-			return NewResourceError("error updating IAM User %s: %s", d.Id(), err)
-		}
-
-		err = iamUserConfig.MinioAdmin.AddUser(ctx, nn.(string), secretKey)
-		if err != nil {
-			return NewResourceError("error updating IAM User %s: %s", d.Id(), err)
-		}
-
-		d.SetId(nn.(string))
 	}
 
 	userStatus := UserStatus{

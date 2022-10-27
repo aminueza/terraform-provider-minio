@@ -99,24 +99,9 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
-	var err error
-	secretKey := iamUserConfig.MinioSecret
-
-	if secretKey == "" || iamUserConfig.MinioUpdateKey {
-		if secretKey, err = generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating user", d.Id(), err)
-		}
-		_ = d.Set("secret", secretKey)
-	}
-
-	userStatus := UserStatus{
-		AccessKey: iamUserConfig.MinioIAMName,
-		SecretKey: secretKey,
-		Status:    madmin.AccountEnabled,
-	}
-
+	wantedStatus := madmin.AccountEnabled
 	if iamUserConfig.MinioDisableUser {
-		userStatus.Status = madmin.AccountDisabled
+		wantedStatus = madmin.AccountDisabled
 	}
 
 	if iamUserConfig.MinioForceDestroy {
@@ -124,18 +109,28 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	userServerInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
-	if userServerInfo.Status != userStatus.Status {
-		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, userStatus.AccessKey, userStatus.Status)
+	if userServerInfo.Status != wantedStatus {
+		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, iamUserConfig.MinioIAMName, wantedStatus)
 		if err != nil {
 			return NewResourceError("error to disable IAM User %s: %s", d.Id(), err)
 		}
 	}
 
-	if d.HasChange("secret") {
-		err := iamUserConfig.MinioAdmin.SetUser(ctx, userStatus.AccessKey, userStatus.SecretKey, userStatus.Status)
+	wantedSecret := iamUserConfig.MinioSecret
+	if iamUserConfig.MinioUpdateKey {
+		if secretKey, err := generateSecretAccessKey(); err != nil {
+			return NewResourceError("error creating user", d.Id(), err)
+		} else {
+			wantedSecret = secretKey
+		}
+	}
+
+	if d.HasChange("secret") || iamUserConfig.MinioSecret != wantedSecret {
+		err := iamUserConfig.MinioAdmin.SetUser(ctx, iamUserConfig.MinioIAMName, wantedSecret, wantedStatus)
 		if err != nil {
 			return NewResourceError("error updating IAM User Key %s: %s", d.Id(), err)
 		}
+		_ = d.Set("secret", wantedSecret)
 	}
 
 	return minioReadUser(ctx, d, meta)

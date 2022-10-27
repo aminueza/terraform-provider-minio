@@ -6,7 +6,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go"
@@ -15,7 +14,7 @@ import (
 func TestServiceAccount_basic(t *testing.T) {
 	var serviceAccount madmin.InfoServiceAccountResp
 
-	targetUser := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	targetUser := "minio"
 	status := "on"
 	resourceName := "minio_iam_service_account.test"
 
@@ -38,7 +37,7 @@ func TestServiceAccount_basic(t *testing.T) {
 func TestServiceAccount_Disable(t *testing.T) {
 	var serviceAccount madmin.InfoServiceAccountResp
 
-	targetUser := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	targetUser := "minio"
 	resourceName := "minio_iam_service_account.test1"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -61,7 +60,7 @@ func TestServiceAccount_RotateAccessKey(t *testing.T) {
 	var serviceAccount madmin.InfoServiceAccountResp
 	var oldAccessKey string
 
-	targetUser := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	targetUser := "minio"
 	resourceName := "minio_iam_service_account.test3"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -107,7 +106,7 @@ func testAccMinioServiceAccountConfigDisabled(rName string) string {
 func testAccMinioServiceAccountConfigWithoutSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_service_account" "test3" {
-  target_user          = %q
+  target_user = %q
 }
 `, rName)
 }
@@ -115,7 +114,7 @@ func testAccMinioServiceAccountConfigUpdateSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_service_account" "test3" {
   update_secret = true
-  target_user          = %q
+  target_user   = %q
 }
 `, rName)
 }
@@ -213,12 +212,18 @@ func testAccCheckMinioServiceAccountCanLogIn(n string) resource.TestCheckFunc {
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
-			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
-			S3UserAccess: rs.Primary.Attributes["access_key"],
-			S3UserSecret: rs.Primary.Attributes["secret_key"],
-			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+			S3APISignature: "v4",
+			S3HostPort:     os.Getenv("MINIO_ENDPOINT"),
+			S3UserAccess:   rs.Primary.Attributes["access_key"],
+			S3UserSecret:   rs.Primary.Attributes["secret_key"],
+			S3SSL:          map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
-		return minioUIwebrpcLogin(cfg)
+		client, err := cfg.NewClient()
+		if err != nil {
+			return err
+		}
+		_, err = client.(*S3MinioClient).S3Client.ListBuckets(context.Background())
+		return err
 	}
 }
 

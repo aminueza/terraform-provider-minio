@@ -2,10 +2,11 @@ package minio
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go"
 )
@@ -24,6 +25,7 @@ func resourceMinioServiceAccount() *schema.Resource {
 			"target_user": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"disable_user": {
 				Type:        schema.TypeBool,
@@ -89,62 +91,43 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
 
-	var err error
-	secretKey := ""
-
-	if serviceAccountConfig.MinioUpdateKey {
-		if secretKey, err = generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating service account", d.Id(), err)
-		}
-	}
-
-	if d.HasChange(serviceAccountConfig.MinioTargetUser) {
-		on, nn := d.GetChange(serviceAccountConfig.MinioTargetUser)
-
-		log.Println("[DEBUG] Update service account:", serviceAccountConfig.MinioTargetUser)
-		err := serviceAccountConfig.MinioAdmin.DeleteServiceAccount(ctx, on.(string))
-		if err != nil {
-			return NewResourceError("error updating service account %s: %s", d.Id(), err)
-		}
-
-		_, err = serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{AccessKey: nn.(string), SecretKey: secretKey})
-		if err != nil {
-			return NewResourceError("error updating service account %s: %s", d.Id(), err)
-		}
-
-		d.SetId(nn.(string))
-	}
-
-	serviceAccountStatus := ServiceAccountStatus{
-		AccessKey:     d.Id(),
-		SecretKey:     secretKey,
-		AccountStatus: "on",
-	}
-
+	wantedStatus := "on"
 	if serviceAccountConfig.MinioDisableUser {
-		serviceAccountStatus.AccountStatus = "off"
+		wantedStatus = "off"
 	}
 
-	serviceAccountServerInfo, _ := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, serviceAccountConfig.MinioTargetUser)
-	if serviceAccountServerInfo.AccountStatus != serviceAccountStatus.AccountStatus {
-		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountStatus.AccessKey, madmin.UpdateServiceAccountReq{
-			NewStatus: serviceAccountStatus.AccountStatus,
+	serviceAccountServerInfo, err := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
+	if err != nil {
+		return NewResourceError("error to disable service account", d.Id(), err)
+	}
+	if serviceAccountServerInfo.AccountStatus != wantedStatus {
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountConfig.MinioAccessKey, madmin.UpdateServiceAccountReq{
+			NewStatus: wantedStatus,
 		})
 		if err != nil {
-			return NewResourceError("error to disable service account %s: %s", d.Id(), err)
+			return NewResourceError("error to disable service account", d.Id(), err)
 		}
 	}
 
+	wantedSecret := serviceAccountConfig.MinioAccessKey
 	if serviceAccountConfig.MinioUpdateKey {
-		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountStatus.AccessKey, madmin.UpdateServiceAccountReq{
+		if secretKey, err := generateSecretAccessKey(); err != nil {
+			return NewResourceError("error creating user", d.Id(), err)
+		} else {
+			wantedSecret = secretKey
+		}
+	}
+
+	if d.HasChange("secret_key") || serviceAccountConfig.MinioSecretKey != wantedSecret {
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewPolicy:    nil,
-			NewSecretKey: serviceAccountStatus.SecretKey,
+			NewSecretKey: wantedSecret,
 		})
 		if err != nil {
 			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
 		}
 
-		_ = d.Set("secret_key", secretKey)
+		_ = d.Set("secret_key", wantedSecret)
 	}
 
 	return minioReadServiceAccount(ctx, d, meta)
@@ -159,7 +142,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("error reading service account %s: %s", d.Id(), err)
 	}
 
-	log.Printf("[WARN] (%v)", output)
+	log.Printf("[DEBUG] (%v)", output)
 
 	if _, ok := d.GetOk("access_key"); !ok {
 		_ = d.Set("access_key", d.Id())
@@ -195,11 +178,11 @@ func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3Mini
 		if err != nil {
 			return err
 		}
-		if !Contains(serviceAccountList.Accounts, serviceAccountConfig.MinioAccessKey) {
-			return nil
+		if Contains(serviceAccountList.Accounts, serviceAccountConfig.MinioAccessKey) {
+			return fmt.Errorf("service account %s not deleted", serviceAccountConfig.MinioAccessKey)
 		}
 
-		return err
+		return nil
 	}
 	return nil
 }

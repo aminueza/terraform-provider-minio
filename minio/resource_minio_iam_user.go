@@ -27,7 +27,6 @@ func resourceMinioIAMUser() *schema.Resource {
 			"name": {
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     true,
 				ValidateFunc: validateMinioIamUserName,
 				ForceNew:     true,
 			},

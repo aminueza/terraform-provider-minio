@@ -92,6 +92,8 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
 
 	wantedStatus := "on"
+	var err error
+
 	if serviceAccountConfig.MinioDisableUser {
 		wantedStatus = "off"
 	}

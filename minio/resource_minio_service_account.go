@@ -24,6 +24,7 @@ func resourceMinioServiceAccount() *schema.Resource {
 			"target_user": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"disable_user": {
 				Type:        schema.TypeBool,
@@ -96,23 +97,6 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		if secretKey, err = generateSecretAccessKey(); err != nil {
 			return NewResourceError("error creating service account", d.Id(), err)
 		}
-	}
-
-	if d.HasChange(serviceAccountConfig.MinioTargetUser) {
-		on, nn := d.GetChange(serviceAccountConfig.MinioTargetUser)
-
-		log.Println("[DEBUG] Update service account:", serviceAccountConfig.MinioTargetUser)
-		err := serviceAccountConfig.MinioAdmin.DeleteServiceAccount(ctx, on.(string))
-		if err != nil {
-			return NewResourceError("error updating service account %s: %s", d.Id(), err)
-		}
-
-		_, err = serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{AccessKey: nn.(string), SecretKey: secretKey})
-		if err != nil {
-			return NewResourceError("error updating service account %s: %s", d.Id(), err)
-		}
-
-		d.SetId(nn.(string))
 	}
 
 	serviceAccountStatus := ServiceAccountStatus{

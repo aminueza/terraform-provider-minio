@@ -2,10 +2,11 @@ package minio
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go"
 )
@@ -141,7 +142,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("error reading service account %s: %s", d.Id(), err)
 	}
 
-	log.Printf("[WARN] (%v)", output)
+	log.Printf("[DEBUG] (%v)", output)
 
 	if _, ok := d.GetOk("access_key"); !ok {
 		_ = d.Set("access_key", d.Id())
@@ -177,11 +178,11 @@ func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3Mini
 		if err != nil {
 			return err
 		}
-		if !Contains(serviceAccountList.Accounts, serviceAccountConfig.MinioAccessKey) {
-			return nil
+		if Contains(serviceAccountList.Accounts, serviceAccountConfig.MinioAccessKey) {
+			return fmt.Errorf("service account %s not deleted", serviceAccountConfig.MinioAccessKey)
 		}
 
-		return err
+		return nil
 	}
 	return nil
 }

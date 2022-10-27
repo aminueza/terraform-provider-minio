@@ -212,12 +212,18 @@ func testAccCheckMinioServiceAccountCanLogIn(n string) resource.TestCheckFunc {
 
 		// Check if we can log in
 		cfg := &S3MinioConfig{
-			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
-			S3UserAccess: rs.Primary.Attributes["access_key"],
-			S3UserSecret: rs.Primary.Attributes["secret_key"],
-			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+			S3APISignature: "v4",
+			S3HostPort:     os.Getenv("MINIO_ENDPOINT"),
+			S3UserAccess:   rs.Primary.Attributes["access_key"],
+			S3UserSecret:   rs.Primary.Attributes["secret_key"],
+			S3SSL:          map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
-		return minioUIwebrpcLogin(cfg)
+		client, err := cfg.NewClient()
+		if err != nil {
+			return err
+		}
+		_, err = client.(*S3MinioClient).S3Client.ListBuckets(context.Background())
+		return err
 	}
 }
 

@@ -77,6 +77,7 @@ func ServiceAccountConfig(d *schema.ResourceData, meta interface{}) *S3MinioServ
 
 	return &S3MinioServiceAccountConfig{
 		MinioAdmin:       m.S3Admin,
+		MinioAccessKey:   d.Get("access_key").(string),
 		MinioTargetUser:  d.Get("target_user").(string),
 		MinioDisableUser: d.Get("disable_user").(bool),
 		MinioUpdateKey:   d.Get("update_secret").(bool),

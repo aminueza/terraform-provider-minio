@@ -90,45 +90,43 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
 
-	var err error
-	secretKey := ""
-
-	if serviceAccountConfig.MinioUpdateKey {
-		if secretKey, err = generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating service account", d.Id(), err)
-		}
-	}
-
-	serviceAccountStatus := ServiceAccountStatus{
-		AccessKey:     d.Id(),
-		SecretKey:     secretKey,
-		AccountStatus: "on",
-	}
-
+	wantedStatus := "on"
 	if serviceAccountConfig.MinioDisableUser {
-		serviceAccountStatus.AccountStatus = "off"
+		wantedStatus = "off"
 	}
 
-	serviceAccountServerInfo, _ := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, serviceAccountConfig.MinioTargetUser)
-	if serviceAccountServerInfo.AccountStatus != serviceAccountStatus.AccountStatus {
-		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountStatus.AccessKey, madmin.UpdateServiceAccountReq{
-			NewStatus: serviceAccountStatus.AccountStatus,
+	serviceAccountServerInfo, err := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
+	if err != nil {
+		return NewResourceError("error to disable service account", d.Id(), err)
+	}
+	if serviceAccountServerInfo.AccountStatus != wantedStatus {
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountConfig.MinioAccessKey, madmin.UpdateServiceAccountReq{
+			NewStatus: wantedStatus,
 		})
 		if err != nil {
-			return NewResourceError("error to disable service account %s: %s", d.Id(), err)
+			return NewResourceError("error to disable service account", d.Id(), err)
 		}
 	}
 
+	wantedSecret := serviceAccountConfig.MinioAccessKey
 	if serviceAccountConfig.MinioUpdateKey {
-		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountStatus.AccessKey, madmin.UpdateServiceAccountReq{
+		if secretKey, err := generateSecretAccessKey(); err != nil {
+			return NewResourceError("error creating user", d.Id(), err)
+		} else {
+			wantedSecret = secretKey
+		}
+	}
+
+	if d.HasChange("secret_key") || serviceAccountConfig.MinioSecretKey != wantedSecret {
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewPolicy:    nil,
-			NewSecretKey: serviceAccountStatus.SecretKey,
+			NewSecretKey: wantedSecret,
 		})
 		if err != nil {
 			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
 		}
 
-		_ = d.Set("secret_key", secretKey)
+		_ = d.Set("secret_key", wantedSecret)
 	}
 
 	return minioReadServiceAccount(ctx, d, meta)

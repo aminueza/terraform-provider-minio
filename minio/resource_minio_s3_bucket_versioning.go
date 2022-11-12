@@ -37,6 +37,17 @@ func resourceMinioBucketVersioning() *schema.Resource {
 							Required:     true,
 							ValidateFunc: validation.StringInSlice([]string{minio.Enabled, minio.Suspended}, false),
 						},
+						"excluded_prefixes": {
+							Type:     schema.TypeList,
+							Optional: true,
+							Elem: &schema.Schema{
+								Type: schema.TypeString,
+							},
+						},
+						"exclude_folders": {
+							Type:     schema.TypeBool,
+							Optional: true,
+						},
 					},
 				},
 			},
@@ -52,18 +63,16 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, put versioning configuration: %s", bucketVersioningConfig.MinioBucket, versioningConfig)
+	log.Printf("[DEBUG] S3 bucket: %s, put versioning configuration: %v", bucketVersioningConfig.MinioBucket, versioningConfig)
 
 	err := bucketVersioningConfig.MinioClient.SetBucketVersioning(
 		ctx,
 		bucketVersioningConfig.MinioBucket,
-		minio.BucketVersioningConfiguration{
-			Status: versioningConfig.Status,
-		},
+		convertBucketVersioningConfig(*versioningConfig),
 	)
 
 	if err != nil {
-		return NewResourceError("error putting bucket versioning configuration with status: %s", versioningConfig.Status, err)
+		return NewResourceError("error putting bucket versioning configuration: %v", d.Id(), err)
 	}
 
 	d.SetId(bucketVersioningConfig.MinioBucket)
@@ -86,6 +95,13 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 	if versioningConfig.Status != "" {
 		config["status"] = versioningConfig.Status
 	}
+
+	config["excluded_prefixes"] = []string{}
+	for _, val := range versioningConfig.ExcludedPrefixes {
+		config["excluded_prefixes"] = append(config["excluded_prefixes"].([]string), val.Prefix)
+	}
+
+	config["exclude_folders"] = versioningConfig.ExcludeFolders
 
 	if err := d.Set("bucket", d.Id()); err != nil {
 		return diag.FromErr(err)
@@ -116,6 +132,19 @@ func minioDeleteBucketVersioning(ctx context.Context, d *schema.ResourceData, me
 	return nil
 }
 
+func convertBucketVersioningConfig(c S3MinioBucketVersioningConfiguration) minio.BucketVersioningConfiguration {
+	conf := minio.BucketVersioningConfiguration{
+		Status:         c.Status,
+		ExcludeFolders: c.ExcludeFolders,
+	}
+
+	for _, prefix := range c.ExcludedPrefixes {
+		conf.ExcludedPrefixes = append(conf.ExcludedPrefixes, minio.ExcludedPrefix{Prefix: prefix})
+	}
+
+	return conf
+}
+
 func getBucketVersioningConfig(v []interface{}) *S3MinioBucketVersioningConfiguration {
 	if len(v) == 0 || v[0] == nil {
 		return nil
@@ -130,6 +159,18 @@ func getBucketVersioningConfig(v []interface{}) *S3MinioBucketVersioningConfigur
 
 	if status, ok := tfMap["status"].(string); ok && status != "" {
 		result.Status = status
+	}
+
+	if excludedPrefixes, ok := tfMap["excluded_prefixes"].([]interface{}); ok {
+		for _, prefix := range excludedPrefixes {
+			if v, ok := prefix.(string); ok {
+				result.ExcludedPrefixes = append(result.ExcludedPrefixes, v)
+			}
+		}
+	}
+
+	if excludeFolders, ok := tfMap["exclude_folders"].(bool); ok {
+		result.ExcludeFolders = excludeFolders
 	}
 
 	return result

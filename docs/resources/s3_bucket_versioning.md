@@ -41,3 +41,8 @@ resource "minio_s3_bucket_versioning" "bucket" {
 Required:
 
 - `status` (String) Versioning status, one of "Enabled", "Suspended".
+
+Optional:
+
+- `exclude_folders` (Boolean)
+- `excluded_prefixes` (List of String)

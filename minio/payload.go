@@ -51,7 +51,9 @@ type S3MinioBucketPolicy struct {
 
 // S3MinioBucketVersioningConfiguration defines bucket versioning config
 type S3MinioBucketVersioningConfiguration struct {
-	Status string
+	Status           string
+	ExcludedPrefixes []string
+	ExcludeFolders   bool
 }
 
 // S3MinioBucketVersioning defines bucket versioning

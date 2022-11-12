@@ -77,6 +77,35 @@ func TestAccAWSUser_basic(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_UpdateName(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	status := "enabled"
+	resourceName := "minio_iam_user.test"
+	updatedName := fmt.Sprintf("test-user-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+				),
+			},
+			{
+				Config: testAccMinioUserConfig(updatedName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserAttributes(resourceName, updatedName, status),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAWSUser_DisableUser(t *testing.T) {
 	var user madmin.UserInfo
 

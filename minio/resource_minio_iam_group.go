@@ -113,7 +113,7 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
-	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupConfig.MinioIAMName)
+	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
 	if err != nil {
 		if strings.Contains(err.Error(), "group does not exist") {
 			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())

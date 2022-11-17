@@ -77,6 +77,12 @@ func TestAccAWSGroup_Basic(t *testing.T) {
 					testAccCheckMinioGroupDisable(&conf, groupName2, status2),
 				),
 			},
+			{
+				ResourceName:            "minio_iam_group.test2",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"disable_group", "force_destroy", "name"},
+			},
 		},
 	})
 }

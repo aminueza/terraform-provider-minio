@@ -44,6 +44,18 @@ func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBu
 	}
 }
 
+// BucketNotificationConfig creates config for managing minio bucket notifications
+func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketNotification {
+	m := meta.(*S3MinioClient)
+	config := getNotificationConfiguration(d)
+
+	return &S3MinioBucketNotification{
+		MinioClient:   m.S3Client,
+		MinioBucket:   d.Get("bucket").(string),
+		Configuration: &config,
+	}
+}
+
 // NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	user := d.Get("minio_user").(string)

@@ -43,3 +43,20 @@ resource "minio_s3_bucket_versioning" "bucket" {
     status = "Enabled"
   }
 }
+
+resource "minio_s3_bucket_notification" "bucket" {
+  bucket = minio_s3_bucket.state_terraform_s3.bucket
+
+  queue {
+    id        = "notification-queue"
+    queue_arn = "arn:minio:sqs::primary:webhook"
+
+    events = [
+      "s3:ObjectCreated:*",
+      "s3:ObjectRemoved:Delete",
+    ]
+
+    filter_prefix = "example/"
+    filter_suffix = ".png"
+  }
+}

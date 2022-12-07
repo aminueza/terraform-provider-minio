@@ -3,6 +3,7 @@ package minio
 import (
 	"github.com/minio/madmin-go"
 	minio "github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/policy"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
@@ -61,6 +62,13 @@ type S3MinioBucketVersioning struct {
 	MinioClient             *minio.Client
 	MinioBucket             string
 	VersioningConfiguration *S3MinioBucketVersioningConfiguration
+}
+
+// S3MinioBucketNotification
+type S3MinioBucketNotification struct {
+	MinioClient   *minio.Client
+	MinioBucket   string
+	Configuration *notification.Configuration
 }
 
 // S3MinioServiceAccountConfig defines service account config

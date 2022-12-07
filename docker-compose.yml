@@ -9,6 +9,8 @@ services:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
       MINIO_CI_CD: "1"
+      MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
   adminio-ui:
     image: docker.io/rzrbld/adminio-ui:v1.93

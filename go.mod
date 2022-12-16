@@ -3,7 +3,7 @@ module github.com/aminueza/terraform-provider-minio
 go 1.19
 
 require (
-	github.com/aws/aws-sdk-go v1.44.157
+	github.com/aws/aws-sdk-go v1.44.162
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/awspolicyequivalence v1.6.0
 	github.com/hashicorp/go-cty v1.4.1-0.20200723130312-85980079f637

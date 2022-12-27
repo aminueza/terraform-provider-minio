@@ -34,7 +34,7 @@ func TestAccILMPolicy_basic(t *testing.T) {
 	})
 }
 
-func TestAccILMPolicy_days(t *testing.T) {
+func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-rule2-%d", acctest.RandInt())
 	resourceName := "minio_ilm_policy.rule2"
@@ -44,6 +44,13 @@ func TestAccILMPolicy_days(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigDeleteMarker(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
 			{
 				Config: testAccMinioILMPolicyConfigDays(name),
 				Check: resource.ComposeTestCheckFunc(
@@ -115,6 +122,22 @@ resource "minio_ilm_policy" "rule2" {
 	id = "asdf"
 	expiration = "5d"
 	filter = "temp/"
+  }
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyConfigDeleteMarker(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket2" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+resource "minio_ilm_policy" "rule2" {
+  bucket = "${minio_s3_bucket.bucket2.id}"
+  rule {
+	id = "asdf"
+	expiration = "DeleteMarker"
   }
 }
 `, randInt)

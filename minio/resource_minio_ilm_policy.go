@@ -64,7 +64,7 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 	exp := parseILMExpiration(value)
 
 	if (lifecycle.Expiration{}) == exp {
-		return diag.Errorf("expiration must be a duration (5d) or date (1970-01-01)")
+		return diag.Errorf("expiration must be a duration (5d), date (1970-01-01), or \"DeleteMarker\"")
 	}
 
 	return
@@ -115,7 +115,9 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 
 	for _, r := range config.Rules {
 		var expiration string
-		if r.Expiration.Days != 0 {
+		if r.Expiration.DeleteMarker {
+			expiration = "DeleteMarker"
+		} else if r.Expiration.Days != 0 {
 			expiration = fmt.Sprintf("%dd", r.Expiration.Days)
 		} else {
 			expiration = r.Expiration.Date.Format("2006-01-02")
@@ -161,6 +163,9 @@ func minioDeleteILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 func parseILMExpiration(s string) lifecycle.Expiration {
 	var days int
+	if s == "DeleteMarker" {
+		return lifecycle.Expiration{DeleteMarker: true}
+	}
 	if _, err := fmt.Sscanf(s, "%dd", &days); err == nil {
 		return lifecycle.Expiration{Days: lifecycle.ExpirationDays(days)}
 	}

@@ -46,11 +46,9 @@ Required:
 
 Optional:
 
-- **expiration** (String)
+- **expiration** (String) The expiration as a duration (5d), date (1970-01-01), or "DeleteMarker"
 - **filter** (String)
 
 Read-Only:
 
 - **status** (String)
-
-

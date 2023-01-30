@@ -62,6 +62,34 @@ func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 	})
 }
 
+func TestAccILMPolicy_filterTags(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-rule3-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.rule3"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyFilterWithPrefix(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
+			{
+				Config: testAccMinioILMPolicyFilterWithPrefixAndTags(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioLifecycleConfigurationValid(config *lifecycle.Configuration) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if config.Empty() || len(config.Rules) == 0 {
@@ -138,6 +166,44 @@ resource "minio_ilm_policy" "rule2" {
   rule {
 	id = "asdf"
 	expiration = "DeleteMarker"
+  }
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyFilterWithPrefix(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket3" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+resource "minio_ilm_policy" "rule3" {
+  bucket = "${minio_s3_bucket.bucket3.id}"
+  rule {
+	id = "withPrefix"
+	expiration = "5d"
+	filter = "temp/"
+  }
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyFilterWithPrefixAndTags(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket3" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+resource "minio_ilm_policy" "rule3" {
+  bucket = "${minio_s3_bucket.bucket3.id}"
+  rule {
+	id = "withPrefixAndTags"
+	expiration = "5d"
+	filter = "temp/"
+	tags = {
+		key1 = "value1"
+		key2 = "value2"
+	}
   }
 }
 `, randInt)

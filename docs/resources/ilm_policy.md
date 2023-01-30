@@ -22,7 +22,12 @@ resource "minio_ilm_policy" "bucket-lifecycle-rules" {
 
   rule {
     id         = "expire-7d"
-    expiration = 7
+    expiration = "7d"
+    filter     = "prefix/"
+
+    tags = {
+      "app"  = "myapp"
+    }
   }
 }
 ```
@@ -47,7 +52,8 @@ Required:
 Optional:
 
 - **expiration** (String) The expiration as a duration (5d), date (1970-01-01), or "DeleteMarker"
-- **filter** (String)
+- **filter** (String) Correspond to "prefix" value
+- **tags** (Map of String) List of tags to use in filter
 
 Read-Only:
 

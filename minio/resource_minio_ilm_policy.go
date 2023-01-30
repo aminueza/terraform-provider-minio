@@ -52,6 +52,10 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
+						"tags": {
+							Type:     schema.TypeMap,
+							Optional: true,
+						},
 					},
 				},
 			},
@@ -79,11 +83,28 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	rules := d.Get("rule").([]interface{})
 	for _, ruleI := range rules {
 		rule := ruleI.(map[string]interface{})
+
+		var filter lifecycle.Filter
+
+		tags := map[string]string{}
+		for k, v := range rule["tags"].(map[string]interface{}) {
+			tags[k] = v.(string)
+		}
+
+		if len(tags) > 0 {
+			filter.And.Prefix = rule["filter"].(string)
+			for k, v := range tags {
+				filter.And.Tags = append(filter.And.Tags, lifecycle.Tag{Key: k, Value: v})
+			}
+		} else {
+			filter.Prefix = rule["filter"].(string)
+		}
+
 		r := lifecycle.Rule{
 			ID:         rule["id"].(string),
 			Expiration: parseILMExpiration(rule["expiration"].(string)),
 			Status:     "Enabled",
-			RuleFilter: lifecycle.Filter{Prefix: rule["filter"].(string)},
+			RuleFilter: filter,
 		}
 		config.Rules = append(config.Rules, r)
 	}
@@ -123,11 +144,23 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 
+		var prefix string
+		tags := map[string]string{}
+		if len(r.RuleFilter.And.Tags) > 0 {
+			prefix = r.RuleFilter.And.Prefix
+			for _, tag := range r.RuleFilter.And.Tags {
+				tags[tag.Key] = tag.Value
+			}
+		} else {
+			prefix = r.RuleFilter.Prefix
+		}
+
 		rule := map[string]interface{}{
 			"id":         r.ID,
 			"expiration": expiration,
 			"status":     r.Status,
-			"filter":     r.RuleFilter.Prefix,
+			"filter":     prefix,
+			"tags":       tags,
 		}
 		rules = append(rules, rule)
 	}

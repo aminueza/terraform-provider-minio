@@ -21,8 +21,6 @@ jobs:
         uses: actions/checkout@v3
         with:
             fetch-depth: 1
-      
+
       - name: Markdown Link Validation
-        uses: nolte/github-action/markdown/validate@v0.1.0
-        with:
-          args: "--frail" # task fails if warnings exists.
+        uses: gaurav-nelson/github-action-markdown-link-check@v1

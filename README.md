@@ -113,7 +113,7 @@ For testing locally, run the docker compose to spin up a minio server:
 docker-compose up
 ```
 
-Access http://localhost:8000 on your browser, apply your terraform templates and watch them going live.
+Access localhost:8000 on your browser, apply your terraform templates and watch them going live.
 
 ## Usage
 

@@ -54,8 +54,8 @@ You can provide your configuration via the environment variables representing yo
 
 ```
 export MINIO_ENDPOINT="http://myendpoint"
-export MINIO_ROOT_USER="244tefewg"
-export MINIO_ROOT_PASSWORD="xgwgwqqwv"
+export MINIO_USER="244tefewg"
+export MINIO_PASSWORD="xgwgwqqwv"
 ```
 
 When using this method, you may omit the

@@ -10,9 +10,6 @@
     <a href="https://golang.org/doc/devel/release.html">
       <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
     </a>
-    <a href="https://gitpod.io/#https://github.com/aminueza/terraform-provider-minio">
-      <img alt="Gitpod Ready-to-Code" src="https://img.shields.io/badge/Gitpod-Ready--to--Code-blue?logo=gitpod">
-    </a>
     <a href="https://github.com/aminueza/terraform-provider-minio/actions?query=workflow%3A%22Terraform+Provider+CI%22">
       <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=master">
     </a>
@@ -46,7 +43,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 
 ## Supported Versions
 
-- Terraform v1.3
+- Terraform v1.4
 - Go v1.19
 
 It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
@@ -113,15 +110,15 @@ For testing locally, run the docker compose to spin up a minio server:
 docker-compose up
 ```
 
-Access localhost:8000 on your browser, apply your terraform templates and watch them going live.
+Access <http://localhost:8000> on your browser, apply your terraform templates and watch them going live.
 
 ## Usage
 
-See our [Examples](./examples/) folder.
+See our [examples](./examples/) folder.
 
 ## Roadmap
 
-See the [open issues](https://github.com/aminueza/terraform-provider-minio/issues) for a list of proposed features (and known issues). See [CONTRIBUTING](./CONTRIBUTING.md) for more information.
+See the [open issues](https://github.com/aminueza/terraform-provider-minio/issues) for a list of proposed features (and known issues). See [CONTRIBUTING](./.github/CONTRIBUTING.md) for more information.
 
 ## License
 

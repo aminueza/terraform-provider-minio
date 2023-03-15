@@ -27,7 +27,7 @@ jobs:
         with:
           path: minio/...
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
       - uses: dominikh/staticcheck-action@v1.3.0

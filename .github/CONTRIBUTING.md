@@ -1,9 +1,4 @@
-# Contribution Code
-| for guideline := range guidelines {
-    Do Contribution
-}
-
-## Welcome
+# Contributing to this Provider
 
 Thank you so much for considering to contribute!
 Contributions are what make the open source community such an amazing place to be learn, inspire, and create. Any contributions you make are **greatly appreciated** <span style="color: #e25555;">&#9829;</span>.

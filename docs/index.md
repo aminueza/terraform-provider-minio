@@ -35,7 +35,7 @@ authentication, in this order, and explained below:
 
 ### Static API Key
 
-Static credentials can be provided by adding the `minio-server`, `minio_user` and `minio_password` variables in-line in the
+Static credentials can be provided by adding the `minio_server`, `minio_user` and `minio_password` variables in-line in the
 Minio provider block:
 
 Usage:

@@ -44,6 +44,7 @@ jobs:
         uses: arduino/setup-task@v1
         with:
           version: "3.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Run install task
         run: task install
       - name: Run test task

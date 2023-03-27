@@ -58,9 +58,10 @@ func minioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData,
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
 	var groupName = d.Get("group_name").(string)
+	var isLDAPGroup = LDAPGroupDistinguishedNamePattern.MatchString(groupName)
 
 	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
-	if errGroup != nil {
+	if errGroup != nil && !isLDAPGroup {
 		return NewResourceError("failed to load group infos", groupName, errGroup)
 	}
 

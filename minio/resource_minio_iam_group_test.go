@@ -40,6 +40,8 @@ func TestValidateMinioIamGroupName(t *testing.T) {
 		"test name",
 		"/slash-at-the-beginning",
 		"slash-at-the-end/",
+		"DC=gr u,DC=it",
+		"OU=Microsoft Exchange Security Groups",
 	}
 
 	for _, minioName := range minioInvalidNames {

@@ -26,6 +26,8 @@ func TestValidateMinioIamUserName(t *testing.T) {
 		"test.123,user",
 		"testuser@minio",
 		"test+user@minio.io",
+		"CN=Backup Operators,CN=Builtin,DC=gr-u,DC=it",
+		"CN=View-Only Organization Management,OU=Microsoft Exchange Security Groups,DC=gr-u,DC=it",
 	}
 
 	for _, minioName := range minioValidNames {
@@ -44,6 +46,8 @@ func TestValidateMinioIamUserName(t *testing.T) {
 		"test name",
 		"/slash-at-the-beginning",
 		"slash-at-the-end/",
+		"OU=Microsoft Exchange Security Groups,DC=gr-u,DC=it",
+		"OU=Microsoft Exchange Security Groups",
 	}
 
 	for _, minioName := range minioInvalidNames {

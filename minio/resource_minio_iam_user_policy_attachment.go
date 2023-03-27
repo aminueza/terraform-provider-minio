@@ -55,9 +55,10 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	var userName = d.Get("user_name").(string)
+	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
 
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
-	if errUser != nil {
+	if errUser != nil && !isLDAPUser {
 		return NewResourceError("failed to load user Infos", userName, errUser)
 	}
 

@@ -13,6 +13,11 @@ import (
 	"github.com/minio/madmin-go"
 )
 
+var (
+	LDAPUserDistinguishedNamePattern = regexp.MustCompile(`^(?:(CN=([^,]*)),)+(?:((?:(?:CN|OU)=[^,]+,?)+),)+((?:DC=[^,]+,?)+)$`)
+	StaticUserNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
+)
+
 func resourceMinioIAMUser() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateUser,
@@ -184,9 +189,9 @@ func minioDeleteUser(ctx context.Context, d *schema.ResourceData, meta interface
 
 func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
-	if !regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`).MatchString(value) {
+	if !StaticUserNamePattern.MatchString(value) && !LDAPUserDistinguishedNamePattern.MatchString(value) {
 		errors = append(errors, fmt.Errorf(
-			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed in %q: %q",
+			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed or a valid LDAP Distinguished Name (DN) in %q: %q",
 			k, value))
 	}
 	return

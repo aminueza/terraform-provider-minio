@@ -18,8 +18,8 @@ resource "minio_iam_user" "test_user" {
 }
 
 resource "minio_iam_policy" "test_policy" {
-  name = "state-terraform-s3"
-  policy= <<EOF
+  name   = "state-terraform-s3"
+  policy = <<EOF
 {
   "Version":"2012-10-17",
   "Statement": [
@@ -36,20 +36,27 @@ EOF
 }
 
 resource "minio_iam_user_policy_attachment" "developer" {
-  user_name      = "${minio_iam_user.test_user.id}"
-  policy_name = "${minio_iam_policy.test_policy.id}"
+  user_name   = minio_iam_user.test_user.id
+  policy_name = minio_iam_policy.test_policy.id
 }
 
 output "minio_name" {
-  value = "${minio_iam_user_policy_attachment.developer.id}"
+  value = minio_iam_user_policy_attachment.developer.id
 }
 
 output "minio_users" {
-  value = "${minio_iam_user_policy_attachment.developer.user_name}"
+  value = minio_iam_user_policy_attachment.developer.user_name
 }
 
 output "minio_group" {
-  value = "${minio_iam_user_policy_attachment.developer.policy_name}"
+  value = minio_iam_user_policy_attachment.developer.policy_name
+}
+
+# Example using an LDAP User instead of a static MinIO group
+
+resource "minio_iam_user_policy_attachment" "developer" {
+  user_name   = "CN=My User,OU=Unit,DC=example,DC=com"
+  policy_name = minio_iam_policy.test_policy.id
 }
 ```
 
@@ -58,11 +65,11 @@ output "minio_group" {
 
 ### Required
 
-- **policy_name** (String)
-- **user_name** (String)
+- `policy_name` (String)
+- `user_name` (String)
 
-### Optional
+### Read-Only
 
-- **id** (String) The ID of this resource.
+- `id` (String) The ID of this resource.
 
 

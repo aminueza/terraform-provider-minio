@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
@@ -60,9 +60,9 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 	if len(iamPolicyConfig.MinioIAMName) > 0 {
 		name = iamPolicyConfig.MinioIAMName
 	} else if len(iamPolicyConfig.MinioIAMNamePrefix) > 0 {
-		name = resource.PrefixedUniqueId(iamPolicyConfig.MinioIAMNamePrefix)
+		name = id.PrefixedUniqueId(iamPolicyConfig.MinioIAMNamePrefix)
 	} else {
-		name = resource.UniqueId()
+		name = id.UniqueId()
 	}
 
 	log.Printf("[DEBUG] Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy)

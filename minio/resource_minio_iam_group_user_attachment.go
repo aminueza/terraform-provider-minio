@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go"
 )
@@ -53,7 +53,7 @@ func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("[FATAL] Error updating user %s to group %s: %s", iamGroupMembershipConfig.MinioIAMUser, iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser)))
 
 	return minioReadGroupUserAttachment(ctx, d, meta)
 }
@@ -112,6 +112,6 @@ func minioImportGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 	if err != nil {
 		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s/%s", groupName, userName)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s/%s", groupName, userName)))
 	return []*schema.ResourceData{d}, nil
 }

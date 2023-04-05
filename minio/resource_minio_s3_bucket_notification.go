@@ -7,7 +7,7 @@ import (
 
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7/pkg/notification"
 )
@@ -189,7 +189,7 @@ func getNotificationQueueConfigs(d *schema.ResourceData) []notification.Config {
 		if val, ok := c["id"].(string); ok && val != "" {
 			config.ID = val
 		} else {
-			config.ID = resource.PrefixedUniqueId("tf-s3-queue-")
+			config.ID = id.PrefixedUniqueId("tf-s3-queue-")
 		}
 
 		events := d.Get(fmt.Sprintf("queue.%d.events", i)).(*schema.Set).List()

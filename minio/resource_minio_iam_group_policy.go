@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -60,9 +60,9 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	if policyName := iAMGroupPolicyConfig.MinioIAMName; policyName != "" {
 		name = policyName
 	} else if policyName := iAMGroupPolicyConfig.MinioIAMNamePrefix; policyName != "" {
-		name = resource.PrefixedUniqueId(policyName)
+		name = id.PrefixedUniqueId(policyName)
 	} else {
-		name = resource.UniqueId()
+		name = id.UniqueId()
 	}
 
 	log.Printf("[DEBUG] Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy)

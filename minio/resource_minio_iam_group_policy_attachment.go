@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -49,7 +49,7 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("unable to attach group policy", groupName+" "+policyName, err)
 	}
 
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
 
 	return minioReadGroupPolicyAttachment(ctx, d, meta)
 }
@@ -107,6 +107,6 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	if err != nil {
 		return nil, errors.New(NewResourceErrorStr("unable to import group policy", groupName, err))
 	}
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
 	return []*schema.ResourceData{d}, nil
 }

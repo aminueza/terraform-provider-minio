@@ -11,11 +11,11 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/minio/minio-go/v7"
 
 	"github.com/minio/madmin-go"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
@@ -47,7 +47,7 @@ func resourceMinioBucket() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"bucket"},
-				ValidateFunc:  validation.StringLenBetween(0, 63-resource.UniqueIDSuffixLength),
+				ValidateFunc:  validation.StringLenBetween(0, 63-id.UniqueIDSuffixLength),
 			},
 			"force_destroy": {
 				Type:     schema.TypeBool,
@@ -86,9 +86,9 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	if name := bucketConfig.MinioBucket; name != "" {
 		bucket = name
 	} else if prefix := bucketConfig.MinioBucketPrefix; prefix != "" {
-		bucket = resource.PrefixedUniqueId(prefix)
+		bucket = id.PrefixedUniqueId(prefix)
 	} else {
-		bucket = resource.UniqueId()
+		bucket = id.UniqueId()
 	}
 
 	if bucketConfig.MinioRegion == "" {

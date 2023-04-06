@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -47,7 +47,7 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 		return NewResourceError("unable to Set User policy", userName+" "+policyName, err)
 	}
 
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
 
 	return minioReadUserPolicyAttachment(ctx, d, meta)
 }
@@ -103,6 +103,6 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	if err != nil {
 		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
-	d.SetId(resource.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
+	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
 	return []*schema.ResourceData{d}, nil
 }

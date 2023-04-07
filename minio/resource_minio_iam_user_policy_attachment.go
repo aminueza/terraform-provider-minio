@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go"
 )
 
 func resourceMinioIAMUserPolicyAttachment() *schema.Resource {
@@ -57,9 +58,17 @@ func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, 
 	var userName = d.Get("user_name").(string)
 	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
 
+	log.Printf("[DEBUG] UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser)
+
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
-	if errUser != nil && !isLDAPUser {
-		return NewResourceError("failed to load user Infos", userName, errUser)
+	if errUser != nil {
+		errUserResponse, errUserIsResponse := errUser.(madmin.ErrorResponse)
+
+		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
+
+		if !isLDAPUser || !errUserIsResponse || !strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+			return NewResourceError("failed to load user Infos", userName, errUser)
+		}
 	}
 
 	if userInfo.PolicyName == "" {

@@ -13,6 +13,11 @@ import (
 	"github.com/minio/madmin-go"
 )
 
+var (
+	LDAPGroupDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:(?:CN|OU)=[^,]+,?)+),)+((?:DC=[^,]+,?)+)$`)
+	StaticGroupNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
+)
+
 func resourceMinioIAMGroup() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateGroup,
@@ -214,9 +219,9 @@ func deleteMinioGroup(ctx context.Context, iamGroupConfig *S3MinioIAMGroupConfig
 
 func validateMinioIamGroupName(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
-	if !regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`).MatchString(value) {
+	if !StaticGroupNamePattern.MatchString(value) && !LDAPGroupDistinguishedNamePattern.MatchString(value) {
 		errors = append(errors, fmt.Errorf(
-			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed in %q: %q",
+			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed or a valid LDAP Distinguished Name (DN) in %q: %q",
 			k, value))
 	}
 	return

@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go"
 )
 
 func resourceMinioIAMUserPolicyAttachment() *schema.Resource {
@@ -55,10 +56,19 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	var userName = d.Get("user_name").(string)
+	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
+
+	log.Printf("[DEBUG] UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser)
 
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
 	if errUser != nil {
-		return NewResourceError("failed to load user Infos", userName, errUser)
+		errUserResponse, errUserIsResponse := errUser.(madmin.ErrorResponse)
+
+		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
+
+		if !isLDAPUser || !errUserIsResponse || !strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+			return NewResourceError("failed to load user Infos", userName, errUser)
+		}
 	}
 
 	if userInfo.PolicyName == "" {

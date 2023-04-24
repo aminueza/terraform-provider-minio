@@ -9,14 +9,15 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	m := meta.(*S3MinioClient)
 
 	return &S3MinioBucket{
-		MinioClient:       m.S3Client,
-		MinioAdmin:        m.S3Admin,
-		MinioRegion:       m.S3Region,
-		MinioAccess:       m.S3UserAccess,
-		MinioBucket:       d.Get("bucket").(string),
-		MinioBucketPrefix: d.Get("bucket_prefix").(string),
-		MinioACL:          d.Get("acl").(string),
-		MinioForceDestroy: d.Get("force_destroy").(bool),
+		MinioClient:          m.S3Client,
+		MinioAdmin:           m.S3Admin,
+		MinioRegion:          m.S3Region,
+		MinioAccess:          m.S3UserAccess,
+		MinioBucket:          d.Get("bucket").(string),
+		MinioBucketPrefix:    d.Get("bucket_prefix").(string),
+		MinioACL:             d.Get("acl").(string),
+		MinioForceDestroy:    d.Get("force_destroy").(bool),
+		ObjectLockingEnabled: d.Get("object_locking").(bool),
 	}
 }
 

@@ -72,6 +72,12 @@ func resourceMinioBucket() *schema.Resource {
 				Type:     schema.TypeInt,
 				Optional: true,
 			},
+			"object_locking": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+				ForceNew: true,
+			},
 		},
 	}
 }
@@ -109,8 +115,10 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	err := bucketConfig.MinioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{
-		Region: region,
+		Region:        region,
+		ObjectLocking: bucketConfig.ObjectLockingEnabled,
 	})
+
 	if err != nil {
 		log.Printf("%s", NewResourceErrorStr("unable to create bucket", bucket, err))
 		return NewResourceError("unable to create bucket", bucket, err)

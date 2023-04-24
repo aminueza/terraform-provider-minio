@@ -33,14 +33,15 @@ type S3MinioClient struct {
 
 // S3MinioBucket defines minio config
 type S3MinioBucket struct {
-	MinioClient       *minio.Client
-	MinioAdmin        *madmin.AdminClient
-	MinioRegion       string
-	MinioBucket       string
-	MinioBucketPrefix string
-	MinioACL          string
-	MinioAccess       string
-	MinioForceDestroy bool
+	MinioClient          *minio.Client
+	MinioAdmin           *madmin.AdminClient
+	MinioRegion          string
+	MinioBucket          string
+	MinioBucketPrefix    string
+	MinioACL             string
+	MinioAccess          string
+	MinioForceDestroy    bool
+	ObjectLockingEnabled bool
 }
 
 // S3MinioBucketPolicy defines bucket policy config

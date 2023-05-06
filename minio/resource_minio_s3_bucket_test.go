@@ -36,6 +36,8 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 						resourceName, "bucket_domain_name", testAccBucketDomainName(rInt)),
 					resource.TestCheckResourceAttr(
 						resourceName, "acl", testAccBucketACL(acl)),
+					resource.TestCheckResourceAttr(
+						resourceName, "object_locking", "false"),
 				),
 			},
 			{

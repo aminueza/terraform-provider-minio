@@ -62,7 +62,7 @@ func TestAccMinioS3Bucket_objectLocking(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioS3BucketConfigObjectEnabled(rInt),
+				Config: testAccMinioS3BucketConfigObjectLockingEnabled(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
 					resource.TestCheckResourceAttr(
@@ -438,7 +438,7 @@ resource "minio_s3_bucket" "bucket" {
 `, randInt)
 }
 
-func testAccMinioS3BucketConfigObjectEnabled(randInt string) string {
+func testAccMinioS3BucketConfigObjectLockingEnabled(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"

@@ -51,6 +51,43 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 	})
 }
 
+func TestAccMinioS3Bucket_objectLocking(t *testing.T) {
+	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	acl := "public-read"
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigObjectEnabled(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(
+						resourceName, "bucket", testAccBucketName(rInt)),
+					resource.TestCheckResourceAttr(
+						resourceName, "arn", testAccBucketArn(rInt)),
+					resource.TestCheckResourceAttr(
+						resourceName, "bucket_domain_name", testAccBucketDomainName(rInt)),
+					resource.TestCheckResourceAttr(
+						resourceName, "acl", testAccBucketACL(acl)),
+					resource.TestCheckResourceAttr(
+						resourceName, "object_locking", "true"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy"},
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_Bucket_EmptyString(t *testing.T) {
 	resourceName := "minio_s3_bucket.test"
 
@@ -397,6 +434,16 @@ func testAccMinioS3BucketConfig(randInt string) string {
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
   acl    = "public-read"
+}
+`, randInt)
+}
+
+func testAccMinioS3BucketConfigObjectEnabled(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public-read"
+  object_locking = true
 }
 `, randInt)
 }

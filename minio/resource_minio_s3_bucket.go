@@ -161,7 +161,6 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
-	_ = d.Set("object_locking", bucketConfig.ObjectLockingEnabled)
 
 	return nil
 }

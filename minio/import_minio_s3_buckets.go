@@ -20,10 +20,23 @@ func resourceMinioS3BucketImportState(
 	bucketConfig := BucketConfig(d, meta)
 
 	conn := meta.(*S3MinioClient).S3Client
+
+	bucketObjectLocking, _, _, _, err := conn.GetObjectLockConfig(ctx, d.Id())
+	if err != nil {
+		_ = d.Set("object_locking", false)
+	}
+
+	if bucketObjectLocking == "Enabled" {
+		_ = d.Set("object_locking", true)
+	} else {
+		_ = d.Set("object_locking", false)
+	}
+
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
 		return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
 	}
+
 	if pol == "" {
 		_ = d.Set("acl", "private")
 		return []*schema.ResourceData{d}, nil

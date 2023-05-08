@@ -22,15 +22,8 @@ func resourceMinioS3BucketImportState(
 	conn := meta.(*S3MinioClient).S3Client
 
 	bucketObjectLocking, _, _, _, err := conn.GetObjectLockConfig(ctx, d.Id())
-	if err != nil {
-		_ = d.Set("object_locking", false)
-	}
-
-	if bucketObjectLocking == "Enabled" {
-		_ = d.Set("object_locking", true)
-	} else {
-		_ = d.Set("object_locking", false)
-	}
+	object_locking := err == nil && bucketObjectLocking == "Enabled"
+	_ = d.Set("object_locking", object_locking)
 
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {

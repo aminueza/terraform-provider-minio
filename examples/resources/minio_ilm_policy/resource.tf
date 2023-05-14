@@ -7,6 +7,6 @@ resource "minio_ilm_policy" "bucket-lifecycle-rules" {
 
   rule {
     id         = "expire-7d"
-    expiration = 7
+    expiration = "7d"
   }
 }

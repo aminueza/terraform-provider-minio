@@ -37,7 +37,7 @@ output "minio_url" {
 - **bucket_prefix** (String)
 - **force_destroy** (Boolean)
 - **id** (String) The ID of this resource.
-- **quota** (Number) The limit of the amount of data in the bucket (bytes).
+- **quota** (Number) The limit of the amount of data in the bucket (Mbytes).
 - **object_locking** (Boolean) - Whether object locking should be enabled for the bucket.
 
 ### Read-Only

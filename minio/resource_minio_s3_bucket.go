@@ -69,7 +69,7 @@ func resourceMinioBucket() *schema.Resource {
 				Computed: true,
 			},
 			"quota": {
-				Type:     schema.TypeInt,
+				Type:     schema.TypeFloat,
 				Optional: true,
 			},
 			"object_locking": {
@@ -185,7 +185,9 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		log.Printf("[DEBUG] Updating bucket, quota changed. Bucket: [%s], Region: [%s]",
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
-		bucketQuota := madmin.BucketQuota{Quota: uint64(d.Get("quota").(int)), Type: madmin.HardQuota}
+		quotaInMB := d.Get("quota").(float64)
+		quotaInBytes := uint64(quotaInMB * 1024 * 1024)
+		bucketQuota := madmin.BucketQuota{Quota: quotaInBytes, Type: madmin.HardQuota}
 
 		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {
 			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))

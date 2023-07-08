@@ -196,6 +196,7 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 }
 
 func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+
 	var minioGroupStatus madmin.GroupStatus
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
@@ -211,7 +212,7 @@ func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, minioGroupStatus)
 
 	if err != nil {
-		return fmt.Errorf("error disabling IAM Group %s: %s", d.Id(), err)
+		return fmt.Errorf("error when enable/disable IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil

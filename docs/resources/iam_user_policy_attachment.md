@@ -71,5 +71,3 @@ resource "minio_iam_user_policy_attachment" "developer" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-
-

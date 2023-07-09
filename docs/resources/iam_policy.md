@@ -45,12 +45,13 @@ output "minio_policy" {
 
 ### Required
 
-- **policy** (String)
+- `policy` (String)
 
 ### Optional
 
-- **id** (String) The ID of this resource.
-- **name** (String)
-- **name_prefix** (String)
+- `name` (String)
+- `name_prefix` (String)
 
+### Read-Only
 
+- `id` (String) The ID of this resource.

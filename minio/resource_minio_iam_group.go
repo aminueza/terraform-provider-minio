@@ -137,11 +137,8 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
-	if output.Status == string(madmin.GroupDisabled) {
-		d.Set("disable_group", true)
-	} else {
-		d.Set("disable_group", false)
-
+	if err := d.Set("disable_group", output.Status == string(madmin.GroupDisabled)); err != nil {
+		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil
@@ -212,7 +209,7 @@ func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, minioGroupStatus)
 
 	if err != nil {
-		return fmt.Errorf("error when enable/disable IAM Group %s: %s", d.Id(), err)
+		return fmt.Errorf("error while enabling or disabling IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil

@@ -69,6 +69,11 @@ func minioCreateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("creating group failed", d.Id(), err)
 	}
 
+	err = minioStatusGroup(ctx, d, meta)
+	if err != nil {
+		return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
+	}
+
 	d.SetId(aws.StringValue(&iamGroupConfig.MinioIAMName))
 
 	return minioReadGroup(ctx, d, meta)
@@ -97,11 +102,9 @@ func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		d.SetId(nn.(string))
 	}
 
-	if iamGroupConfig.MinioDisableGroup {
-		err := minioDisableGroup(ctx, d, meta)
-		if err != nil {
-			return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
-		}
+	err := minioStatusGroup(ctx, d, meta)
+	if err != nil {
+		return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
 	}
 
 	if iamGroupConfig.MinioForceDestroy {
@@ -131,6 +134,10 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 	log.Printf("[WARN] (%v)", output)
 
 	if err := d.Set("group_name", string(output.Name)); err != nil {
+		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
+	}
+
+	if err := d.Set("disable_group", output.Status == string(madmin.GroupDisabled)); err != nil {
 		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
@@ -185,16 +192,24 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 	return nil
 }
 
-func minioDisableGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) error {
+
+	var minioGroupStatus madmin.GroupStatus
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
 	log.Println("[DEBUG] Disabling IAM Group request:", iamGroupConfig.MinioIAMName)
 
-	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, madmin.GroupDisabled)
+	if iamGroupConfig.MinioDisableGroup {
+		minioGroupStatus = madmin.GroupDisabled
+	} else {
+		minioGroupStatus = madmin.GroupEnabled
+	}
+
+	err := iamGroupConfig.MinioAdmin.SetGroupStatus(ctx, iamGroupConfig.MinioIAMName, minioGroupStatus)
 
 	if err != nil {
-		return fmt.Errorf("error disabling IAM Group %s: %s", d.Id(), err)
+		return fmt.Errorf("error while enabling or disabling IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil

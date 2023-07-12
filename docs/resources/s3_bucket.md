@@ -32,17 +32,15 @@ output "minio_url" {
 
 ### Optional
 
-- **acl** (String)
-- **bucket** (String)
-- **bucket_prefix** (String)
-- **force_destroy** (Boolean)
-- **id** (String) The ID of this resource.
-- **quota** (Number) The limit of the amount of data in the bucket (bytes).
-- **object_locking** (Boolean) - Whether object locking should be enabled for the bucket.
+- `acl` (String)
+- `bucket` (String)
+- `bucket_prefix` (String)
+- `force_destroy` (Boolean)
+- `object_locking` (Boolean)
+- `quota` (Number)
 
 ### Read-Only
 
-- **arn** (String)
-- **bucket_domain_name** (String)
-
-
+- `arn` (String)
+- `bucket_domain_name` (String)
+- `id` (String) The ID of this resource.

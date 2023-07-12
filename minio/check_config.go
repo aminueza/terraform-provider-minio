@@ -57,6 +57,19 @@ func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3Minio
 	}
 }
 
+// BucketServerSideEncryptionConfig creates config for managing minio bucket server side encryption
+func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketServerSideEncryption {
+	m := meta.(*S3MinioClient)
+
+	encryptionConfig := getBucketServerSideEncryptionConfig(d)
+
+	return &S3MinioBucketServerSideEncryption{
+		MinioClient:   m.S3Client,
+		MinioBucket:   d.Get("bucket").(string),
+		Configuration: encryptionConfig,
+	}
+}
+
 // NewConfig creates a new config for minio
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	user := d.Get("minio_user").(string)
@@ -168,5 +181,15 @@ func IAMGroupPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMG
 		MinioIAMNamePrefix: d.Get("name_prefix").(string),
 		MinioIAMPolicy:     d.Get("policy").(string),
 		MinioIAMGroup:      d.Get("group").(string),
+	}
+}
+
+// KMSKeyConfig creates new service account config
+func KMSKeyConfig(d *schema.ResourceData, meta interface{}) *S3MinioKMSKeyConfig {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioKMSKeyConfig{
+		MinioAdmin:    m.S3Admin,
+		MinioKMSKeyID: d.Get("key_id").(string),
 	}
 }

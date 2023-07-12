@@ -27,7 +27,7 @@ resource "minio_s3_object" "txt_file" {
 }
 
 output "minio_id" {
-  value = "${minio_s3_object.txt_file.id}"
+  value = minio_s3_object.txt_file.id
 }
 ```
 
@@ -36,17 +36,18 @@ output "minio_id" {
 
 ### Required
 
-- **bucket_name** (String)
-- **object_name** (String)
+- `bucket_name` (String)
+- `object_name` (String)
 
 ### Optional
 
-- **content** (String)
-- **content_base64** (String)
-- **content_type** (String)
-- **etag** (String)
-- **id** (String) The ID of this resource.
-- **source** (String)
-- **version_id** (String)
+- `content` (String)
+- `content_base64` (String)
+- `content_type` (String)
+- `etag` (String)
+- `source` (String)
+- `version_id` (String)
 
+### Read-Only
 
+- `id` (String) The ID of this resource.

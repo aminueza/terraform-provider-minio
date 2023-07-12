@@ -17,12 +17,10 @@ description: |-
 
 ### Required
 
-- **group** (String) Group name to add users
-- **name** (String) Name of group membership
-- **users** (Set of String) Add user or list of users such as a group membership
+- `group` (String) Group name to add users
+- `name` (String) Name of group membership
+- `users` (Set of String) Add user or list of users such as a group membership
 
-### Optional
+### Read-Only
 
-- **id** (String) The ID of this resource.
-
-
+- `id` (String) The ID of this resource.

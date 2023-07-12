@@ -6,6 +6,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/policy"
 	"github.com/minio/minio-go/v7/pkg/set"
+	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
 // S3MinioConfig defines variable for minio
@@ -72,6 +73,13 @@ type S3MinioBucketNotification struct {
 	Configuration *notification.Configuration
 }
 
+// S3MinioBucketServerSideEncryption defines bucket encryption
+type S3MinioBucketServerSideEncryption struct {
+	MinioClient   *minio.Client
+	MinioBucket   string
+	Configuration *sse.Configuration
+}
+
 // S3MinioServiceAccountConfig defines service account config
 type S3MinioServiceAccountConfig struct {
 	MinioAdmin        *madmin.AdminClient
@@ -133,6 +141,12 @@ type S3MinioIAMGroupPolicyConfig struct {
 	MinioIAMNamePrefix string
 	MinioIAMPolicy     string
 	MinioIAMGroup      string
+}
+
+// S3MinioKMSKeyConfig defines service account config
+type S3MinioKMSKeyConfig struct {
+	MinioAdmin    *madmin.AdminClient
+	MinioKMSKeyID string
 }
 
 // Princ defines policy princ

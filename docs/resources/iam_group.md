@@ -27,16 +27,14 @@ output "minio_user_group" {
 
 ### Required
 
-- **name** (String)
+- `name` (String)
 
 ### Optional
 
-- **disable_group** (Boolean) Disable group
-- **force_destroy** (Boolean) Delete group even if it has non-Terraform-managed members
-- **id** (String) The ID of this resource.
+- `disable_group` (Boolean) Disable group
+- `force_destroy` (Boolean) Delete group even if it has non-Terraform-managed members
 
 ### Read-Only
 
-- **group_name** (String)
-
-
+- `group_name` (String)
+- `id` (String) The ID of this resource.

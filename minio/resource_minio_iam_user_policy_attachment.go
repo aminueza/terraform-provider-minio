@@ -43,9 +43,17 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	var userName = d.Get("user_name").(string)
 	var policyName = d.Get("policy_name").(string)
 	minioAdmin := meta.(*S3MinioClient).S3Admin
-	err := minioAdmin.SetPolicy(ctx, policyName, userName, false)
+
+	policies, err := minioReadUserPolicies(ctx, minioAdmin, userName)
 	if err != nil {
-		return NewResourceError("unable to Set User policy", userName+" "+policyName, err)
+		return err
+	}
+	if !Contains(policies, policyName) {
+		policies = append(policies, policyName)
+		err := minioAdmin.SetPolicy(ctx, strings.Join(policies, ","), userName, false)
+		if err != nil {
+			return NewResourceError("unable to Set User policy", userName+" "+policyName, err)
+		}
 	}
 
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
@@ -56,28 +64,20 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	var userName = d.Get("user_name").(string)
-	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
+	var policyName = d.Get("policy_name").(string)
 
-	log.Printf("[DEBUG] UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser)
-
-	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
+	policies, errUser := minioReadUserPolicies(ctx, minioAdmin, userName)
 	if errUser != nil {
-		errUserResponse, errUserIsResponse := errUser.(madmin.ErrorResponse)
-
-		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
-
-		if !isLDAPUser || !errUserIsResponse || !strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
-			return NewResourceError("failed to load user Infos", userName, errUser)
-		}
+		return errUser
 	}
 
-	if userInfo.PolicyName == "" {
+	if !Contains(policies, policyName) {
 		log.Printf("[WARN] No such policy by name (%s) found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	if err := d.Set("policy_name", string(userInfo.PolicyName)); err != nil {
+	if err := d.Set("policy_name", policyName); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -86,9 +86,21 @@ func minioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, 
 
 func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
-	var userName = d.Get("user_name").(string)
 
-	errIam := minioAdmin.SetPolicy(ctx, "", userName, false)
+	var userName = d.Get("user_name").(string)
+	var policyName = d.Get("policy_name").(string)
+
+	policies, err := minioReadUserPolicies(ctx, minioAdmin, userName)
+	if err != nil {
+		return err
+	}
+
+	newPolicies, found := Filter(policies, policyName)
+	if !found {
+		return nil
+	}
+
+	errIam := minioAdmin.SetPolicy(ctx, strings.Join(newPolicies, ","), userName, false)
 	if errIam != nil {
 		return NewResourceError("unable to delete user policy", userName, errIam)
 	}
@@ -115,4 +127,22 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	}
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
 	return []*schema.ResourceData{d}, nil
+}
+
+func minioReadUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, userName string) ([]string, diag.Diagnostics) {
+	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
+
+	log.Printf("[DEBUG] UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser)
+
+	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
+	if errUser != nil {
+		errUserResponse, errUserIsResponse := errUser.(madmin.ErrorResponse)
+
+		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
+
+		if !isLDAPUser || !errUserIsResponse || !strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+			return nil, NewResourceError("failed to load user Infos", userName, errUser)
+		}
+	}
+	return strings.Split(userInfo.PolicyName, ","), nil
 }

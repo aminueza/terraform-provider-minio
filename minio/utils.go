@@ -62,6 +62,16 @@ func Contains(slice []string, item string) bool {
 	return ok
 }
 
+func Filter(slice []string, item string) ([]string, bool) {
+	var out []string
+	for _, s := range slice {
+		if s != item {
+			out = append(out, s)
+		}
+	}
+	return out, len(out) != len(slice)
+}
+
 // HashcodeString hashes a string to a unique hashcode.
 //
 // crc32 returns a `uint32`, but for our use we need

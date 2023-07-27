@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go"
 )
 
 func resourceMinioIAMGroupPolicyAttachment() *schema.Resource {
@@ -43,10 +44,17 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	var groupName = d.Get("group_name").(string)
 	var policyName = d.Get("policy_name").(string)
 
-	log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
-	err := minioAdmin.SetPolicy(ctx, policyName, groupName, true)
+	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
-		return NewResourceError("unable to attach group policy", groupName+" "+policyName, err)
+		return err
+	}
+	if !Contains(policies, policyName) {
+		log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
+		policies = append(policies, policyName)
+		err := minioAdmin.SetPolicy(ctx, strings.Join(policies, ","), groupName, true)
+		if err != nil {
+			return NewResourceError("unable to attach group policy", groupName+" "+policyName, err)
+		}
 	}
 
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
@@ -58,19 +66,19 @@ func minioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData,
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
 	var groupName = d.Get("group_name").(string)
+	var policyName = d.Get("policy_name").(string)
 
-	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
-	if errGroup != nil {
-		return NewResourceError("failed to load group infos", groupName, errGroup)
+	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
+	if err != nil {
+		return err
 	}
-
-	if groupInfo.Policy == "" {
+	if !Contains(policies, policyName) {
 		log.Printf("[WARN] No such policy by name (%s) found, removing from state", d.Id())
 		d.SetId("")
 		return nil
 	}
 
-	if err := d.Set("policy_name", string(groupInfo.Policy)); err != nil {
+	if err := d.Set("policy_name", policyName); err != nil {
 		return NewResourceError("failed to load group infos", groupName, err)
 	}
 
@@ -81,8 +89,19 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
 	var groupName = d.Get("group_name").(string)
+	var policyName = d.Get("policy_name").(string)
 
-	errIam := minioAdmin.SetPolicy(ctx, "", groupName, true)
+	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
+	if err != nil {
+		return err
+	}
+
+	newPolicies, found := Filter(policies, policyName)
+	if !found {
+		return nil
+	}
+
+	errIam := minioAdmin.SetPolicy(ctx, strings.Join(newPolicies, ","), groupName, true)
 	if errIam != nil {
 		return NewResourceError("unable to delete user policy", groupName, errIam)
 	}
@@ -109,4 +128,12 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	}
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
 	return []*schema.ResourceData{d}, nil
+}
+
+func minioReadGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, groupName string) ([]string, diag.Diagnostics) {
+	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
+	if errGroup != nil {
+		return nil, NewResourceError("failed to load group infos", groupName, errGroup)
+	}
+	return strings.Split(groupInfo.Policy, ","), nil
 }

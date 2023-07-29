@@ -13,6 +13,8 @@ import (
 	"github.com/minio/madmin-go"
 )
 
+var groupPolicyAttachmentLock = NewMutexKV()
+
 func resourceMinioIAMGroupPolicyAttachment() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateGroupPolicyAttachment,
@@ -44,6 +46,9 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	var groupName = d.Get("group_name").(string)
 	var policyName = d.Get("policy_name").(string)
 
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
+
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
 		return err
@@ -59,15 +64,20 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
 
-	return minioReadGroupPolicyAttachment(ctx, d, meta)
+	return doMinioReadGroupPolicyAttachment(ctx, d, meta, groupName, policyName)
 }
 
 func minioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	minioAdmin := meta.(*S3MinioClient).S3Admin
-
 	var groupName = d.Get("group_name").(string)
 	var policyName = d.Get("policy_name").(string)
 
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
+
+	return doMinioReadGroupPolicyAttachment(ctx, d, meta, groupName, policyName)
+}
+func doMinioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}, groupName, policyName string) diag.Diagnostics {
+	minioAdmin := meta.(*S3MinioClient).S3Admin
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
 		return err
@@ -90,6 +100,9 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	var groupName = d.Get("group_name").(string)
 	var policyName = d.Get("policy_name").(string)
+
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
 
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
@@ -134,6 +147,9 @@ func minioReadGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminClient,
 	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
 	if errGroup != nil {
 		return nil, NewResourceError("failed to load group infos", groupName, errGroup)
+	}
+	if groupInfo.Policy == "" {
+		return nil, nil
 	}
 	return strings.Split(groupInfo.Policy, ","), nil
 }

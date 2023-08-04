@@ -137,9 +137,9 @@ func validateIAMNamePolicy(v interface{}, k string) (ws []string, errors []error
 			"%q cannot be longer than 96 characters, name is limited to 128", k))
 	}
 
-	if !regexp.MustCompile(`^[\w+=,.@-]*$`).MatchString(value) {
+	if !regexp.MustCompile(`^[\w+=,.@-:]*$`).MatchString(value) {
 		errors = append(errors, fmt.Errorf(
-			"%q must match [\\w+=,.@-]", k))
+			"%q must match [\\w+=,.@-:]", k))
 	}
 	return
 }

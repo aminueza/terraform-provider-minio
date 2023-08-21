@@ -2,10 +2,12 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go"
@@ -87,6 +89,41 @@ func TestServiceAccount_RotateAccessKey(t *testing.T) {
 		},
 	})
 }
+func TestServiceAccount_Policy(t *testing.T) {
+	var serviceAccount madmin.InfoServiceAccountResp
+	var oldAccessKey string
+
+	targetUser := "minio"
+	resourceName := "minio_iam_service_account.test4"
+	policy1 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+	policy2 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioServiceAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioServiceAccountConfigPolicy(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExfiltrateAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioServiceAccountCanLogIn(resourceName),
+					testAccCheckMinioServiceAccountPolicy(resourceName, policy1),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountConfigUpdatePolicy(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountRotatesAccessKey(resourceName, &oldAccessKey),
+					testAccCheckMinioServiceAccountCanLogIn(resourceName),
+					testAccCheckMinioServiceAccountPolicy(resourceName, policy2),
+				),
+			},
+		},
+	})
+}
 
 func testAccMinioServiceAccountConfig(rName string) string {
 	return fmt.Sprintf(`
@@ -115,6 +152,23 @@ func testAccMinioServiceAccountConfigUpdateSecret(rName string) string {
 resource "minio_iam_service_account" "test3" {
   update_secret = true
   target_user   = %q
+}
+`, rName)
+}
+func testAccMinioServiceAccountConfigPolicy(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test4" {
+  target_user   = %q
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:ListBucket\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+`, rName)
+}
+func testAccMinioServiceAccountConfigUpdatePolicy(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test4" {
+  target_user   = %q
+  update_secret = true
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 }
 `, rName)
 }
@@ -233,6 +287,30 @@ func testAccCheckMinioServiceAccountRotatesAccessKey(n string, oldAccessKey *str
 
 		if rs.Primary.Attributes["secret_key"] == *oldAccessKey {
 			return fmt.Errorf("secret has not been rotated")
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioServiceAccountPolicy(n string, expectedPolicy string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+
+		v, ok := rs.Primary.Attributes["policy"]
+		if !ok {
+			return fmt.Errorf("%s: Attribute 'policy' not found", n)
+		}
+
+		var actual, expected interface{}
+		_ = json.Unmarshal([]byte(expectedPolicy), &expected)
+		_ = json.Unmarshal([]byte(v), &actual)
+		diff := cmp.Diff(actual, expected)
+		if diff != "" {
+			return fmt.Errorf("%s: mismatch (-want +got):\n%s", n, diff)
 		}
 
 		return nil

@@ -45,7 +45,7 @@ output "minio_password" {
 ### Optional
 
 - `disable_user` (Boolean) Disable service account
-- `policy` (String) policy of service account 
+- `policy` (String) policy of service account
 - `update_secret` (Boolean) rotate secret key
 
 ### Read-Only

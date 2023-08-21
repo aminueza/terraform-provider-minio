@@ -57,6 +57,7 @@ func resourceMinioServiceAccount() *schema.Resource {
 				Optional:         true,
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
+				Description:      "policy of service account",
 			},
 		},
 	}

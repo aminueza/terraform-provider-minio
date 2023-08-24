@@ -7,7 +7,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/awspolicyequivalence v1.6.0
 	github.com/hashicorp/go-cty v1.4.1-0.20200723130312-85980079f637
-	github.com/hashicorp/terraform-plugin-sdk/v2 v2.27.0
+	github.com/hashicorp/terraform-plugin-sdk/v2 v2.28.0
 	github.com/minio/madmin-go v1.7.5
 	github.com/minio/minio-go/v7 v7.0.62
 	gotest.tools/v3 v3.5.0
@@ -35,8 +35,8 @@ require (
 	github.com/hashicorp/hcl/v2 v2.17.0 // indirect
 	github.com/hashicorp/logutils v1.0.0 // indirect
 	github.com/hashicorp/terraform-exec v0.18.1 // indirect
-	github.com/hashicorp/terraform-json v0.17.0 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.16.0 // indirect
+	github.com/hashicorp/terraform-json v0.17.1 // indirect
+	github.com/hashicorp/terraform-plugin-go v0.18.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.2.1 // indirect
 	github.com/hashicorp/terraform-svchost v0.1.1 // indirect
@@ -81,7 +81,7 @@ require (
 	golang.org/x/text v0.12.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
-	google.golang.org/grpc v1.56.0 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/grpc v1.56.1 // indirect
+	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 )

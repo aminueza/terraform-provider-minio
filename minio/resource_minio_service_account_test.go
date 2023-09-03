@@ -95,7 +95,7 @@ func TestServiceAccount_Policy(t *testing.T) {
 
 	targetUser := "minio"
 	resourceName := "minio_iam_service_account.test4"
-	policy1 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:ListBucket\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+	policy1 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:ListAllMyBuckets\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 	policy2 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -159,7 +159,7 @@ func testAccMinioServiceAccountConfigPolicy(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_service_account" "test4" {
   target_user   = %q
-  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:ListBucket\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:ListAllMyBuckets\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 }
 `, rName)
 }

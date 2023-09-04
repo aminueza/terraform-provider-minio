@@ -13,7 +13,7 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run fmt
         uses: aminueza/go-github-action/fmt@master
       - name: Run sec

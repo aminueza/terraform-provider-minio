@@ -52,6 +52,13 @@ func resourceMinioServiceAccount() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"policy": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				ValidateFunc:     validateIAMPolicyJSON,
+				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
+				Description:      "policy of service account",
+			},
 		},
 	}
 }
@@ -62,9 +69,10 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	var err error
 	targetUser := serviceAccountConfig.MinioTargetUser
+	policy := serviceAccountConfig.MinioSAPolicy
 
 	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{
-		Policy:     nil,
+		Policy:     []byte(policy),
 		TargetUser: targetUser,
 	})
 	if err != nil {
@@ -90,6 +98,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
+	policy := serviceAccountConfig.MinioSAPolicy
 
 	wantedStatus := "on"
 	var err error
@@ -105,13 +114,14 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	if serviceAccountServerInfo.AccountStatus != wantedStatus {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountConfig.MinioAccessKey, madmin.UpdateServiceAccountReq{
 			NewStatus: wantedStatus,
+			NewPolicy: []byte(policy),
 		})
 		if err != nil {
 			return NewResourceError("error to disable service account", d.Id(), err)
 		}
 	}
 
-	wantedSecret := serviceAccountConfig.MinioAccessKey
+	wantedSecret := serviceAccountConfig.MinioSecretKey
 	if serviceAccountConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
 			return NewResourceError("error creating user", d.Id(), err)
@@ -122,14 +132,25 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	if d.HasChange("secret_key") || serviceAccountConfig.MinioSecretKey != wantedSecret {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
-			NewPolicy:    nil,
 			NewSecretKey: wantedSecret,
+			NewPolicy:    []byte(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
 		}
 
 		_ = d.Set("secret_key", wantedSecret)
+	}
+
+	if d.HasChange("policy") {
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
+			NewPolicy: []byte(policy),
+		})
+		if err != nil {
+			return NewResourceError("error updating service account policy %s: %s", d.Id(), err)
+		}
+
+		_ = d.Set("policy", policy)
 	}
 
 	return minioReadServiceAccount(ctx, d, meta)
@@ -153,6 +174,8 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	if err := d.Set("status", output.AccountStatus); err != nil {
 		return NewResourceError("reading service account failed", d.Id(), err)
 	}
+
+	_ = d.Set("policy", output.Policy)
 
 	return nil
 }

@@ -86,6 +86,7 @@ type S3MinioServiceAccountConfig struct {
 	MinioTargetUser   string
 	MinioAccessKey    string
 	MinioSecretKey    string
+	MinioSAPolicy     string
 	MinioDisableUser  bool
 	MinioForceDestroy bool
 	MinioUpdateKey    bool

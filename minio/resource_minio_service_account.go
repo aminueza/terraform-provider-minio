@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioServiceAccount() *schema.Resource {
@@ -195,19 +195,24 @@ func minioDeleteServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	return nil
 }
 
-func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3MinioServiceAccountConfig) error {
+func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3MinioServiceAccountConfig) (err error) {
 	log.Println("[DEBUG] Deleting service account request:", serviceAccountConfig.MinioAccessKey)
-	err := serviceAccountConfig.MinioAdmin.DeleteServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
-	if err != nil {
-		serviceAccountList, err := serviceAccountConfig.MinioAdmin.ListServiceAccounts(ctx, serviceAccountConfig.MinioTargetUser)
-		if err != nil {
-			return err
-		}
-		if Contains(serviceAccountList.Accounts, serviceAccountConfig.MinioAccessKey) {
-			return fmt.Errorf("service account %s not deleted", serviceAccountConfig.MinioAccessKey)
-		}
-
-		return nil
+	err = serviceAccountConfig.MinioAdmin.DeleteServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
+	if err == nil {
+		return
 	}
-	return nil
+
+	serviceAccountList, err := serviceAccountConfig.MinioAdmin.ListServiceAccounts(ctx, serviceAccountConfig.MinioTargetUser)
+	if err != nil {
+		return
+	}
+
+	for _, account := range serviceAccountList.Accounts {
+		if account.AccessKey == serviceAccountConfig.MinioAccessKey {
+			err = fmt.Errorf("service account %s not deleted", serviceAccountConfig.MinioAccessKey)
+			return
+		}
+	}
+
+	return
 }

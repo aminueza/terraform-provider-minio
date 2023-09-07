@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 )
 
 func TestValidateMinioIamUserName(t *testing.T) {

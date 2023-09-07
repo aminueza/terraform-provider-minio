@@ -10,7 +10,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 )
 
 func TestServiceAccount_basic(t *testing.T) {

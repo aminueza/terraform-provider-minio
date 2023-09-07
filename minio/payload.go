@@ -1,7 +1,7 @@
 package minio
 
 import (
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/policy"

@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/madmin-go"
+	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioIAMGroupUserAttachment() *schema.Resource {

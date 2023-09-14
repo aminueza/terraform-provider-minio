@@ -1,6 +1,6 @@
 module github.com/aminueza/terraform-provider-minio
 
-go 1.19
+go 1.20
 
 require (
 	github.com/aws/aws-sdk-go v1.45.6

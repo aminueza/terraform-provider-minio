@@ -72,7 +72,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	policy := serviceAccountConfig.MinioSAPolicy
 
 	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{
-		Policy:     []byte(policy),
+		Policy:     processServiceAccountPolicy(policy),
 		TargetUser: targetUser,
 	})
 	if err != nil {
@@ -114,7 +114,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	if serviceAccountServerInfo.AccountStatus != wantedStatus {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountConfig.MinioAccessKey, madmin.UpdateServiceAccountReq{
 			NewStatus: wantedStatus,
-			NewPolicy: []byte(policy),
+			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error to disable service account", d.Id(), err)
@@ -133,7 +133,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	if d.HasChange("secret_key") || serviceAccountConfig.MinioSecretKey != wantedSecret {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewSecretKey: wantedSecret,
-			NewPolicy:    []byte(policy),
+			NewPolicy:    processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
@@ -144,7 +144,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	if d.HasChange("policy") {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
-			NewPolicy: []byte(policy),
+			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account policy %s: %s", d.Id(), err)
@@ -215,4 +215,12 @@ func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3Mini
 	}
 
 	return
+}
+
+func processServiceAccountPolicy(policy string) []byte {
+	if len(policy) == 0 {
+		emptyPolicy := "{\n\"Version\": \"\",\n\"Statement\": null\n}"
+		return []byte(emptyPolicy)
+	}
+	return []byte(policy)
 }

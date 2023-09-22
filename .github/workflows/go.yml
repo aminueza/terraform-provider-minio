@@ -32,13 +32,13 @@ jobs:
           go-version-file: "go.mod"
       - uses: dominikh/staticcheck-action@v1.3.0
         with:
-          version: "2022.1.1"
+          version: "2023.1.6"
           install-go: false
       - name: Build the docker-compose stack
         run: docker-compose up -d minio
       - uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.4.2
+          terraform_version: 1.4.7
           terraform_wrapper: false
       - name: Install Task
         uses: arduino/setup-task@v1

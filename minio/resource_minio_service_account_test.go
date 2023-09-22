@@ -98,6 +98,9 @@ func TestServiceAccount_Policy(t *testing.T) {
 	policy1 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:ListAllMyBuckets\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 	policy2 := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:*\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 
+	targetUser2 := "test"
+	resourceName2 := "minio_iam_service_account.test_service_account"
+
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
@@ -119,6 +122,12 @@ func TestServiceAccount_Policy(t *testing.T) {
 					testAccCheckMinioServiceAccountRotatesAccessKey(resourceName, &oldAccessKey),
 					testAccCheckMinioServiceAccountCanLogIn(resourceName),
 					testAccCheckMinioServiceAccountPolicy(resourceName, policy2),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountWithUserPolicy(targetUser2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName2, &serviceAccount),
 				),
 			},
 		},
@@ -169,6 +178,41 @@ resource "minio_iam_service_account" "test4" {
   target_user   = %q
   update_secret = true
   policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Action\":[\"s3:*\"],\"Effect\":\"Allow\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+`, rName)
+}
+func testAccMinioServiceAccountWithUserPolicy(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test_user" {
+  secret = "secret1234"
+  name   = %q
+}
+
+resource "minio_iam_policy" "test_policy" {
+  name   = "state-terraform-s3"
+  policy = <<EOF
+{
+	"Version":"2012-10-17",
+	"Statement": [
+		{
+			"Sid":"ListAllBucket",
+			"Effect": "Allow",
+			"Action": ["s3:PutObject"],
+			"Principal":"*",
+			"Resource": "arn:aws:s3:::test_bucket/*"
+		}
+	]
+}
+EOF
+}
+
+resource "minio_iam_user_policy_attachment" "test_policy_attachment" {
+  user_name   = minio_iam_user.test_user.id
+  policy_name = minio_iam_policy.test_policy.id
+}
+
+resource "minio_iam_service_account" "test_service_account" {
+  target_user   = minio_iam_user.test_user.id
 }
 `, rName)
 }

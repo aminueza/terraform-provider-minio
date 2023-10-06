@@ -88,6 +88,30 @@ func TestAccS3BucketVersioning_update(t *testing.T) {
 	})
 }
 
+func TestAccS3BucketVersioning_forceDestroy(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-version-force-destroy")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketVersioningObjectConfig(name, "Enabled"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasVersioning(
+						"minio_s3_bucket_versioning.bucket",
+						S3MinioBucketVersioningConfiguration{
+							Status: "Enabled",
+						},
+					),
+				),
+			},
+		},
+	})
+}
+
 func testAccBucketVersioningConfig(bucketName string, status string, prefixes []string, excludeFolders bool) string {
 	prefixSlice := []string{}
 	for _, v := range prefixes {
@@ -109,6 +133,22 @@ resource "minio_s3_bucket_versioning" "bucket" {
   }
 }
 `, bucketName, status, strings.Join(prefixSlice, ", "), excludeFolders)
+}
+
+func testAccBucketVersioningObjectConfig(bucketName string, status string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  force_destroy = true
+}
+
+resource "minio_s3_bucket_versioning" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  versioning_configuration {
+    status = "%s"
+  }
+}
+`, bucketName, status)
 }
 
 func testAccCheckBucketHasVersioning(n string, config S3MinioBucketVersioningConfiguration) resource.TestCheckFunc {

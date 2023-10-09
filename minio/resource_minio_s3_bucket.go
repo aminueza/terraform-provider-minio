@@ -220,7 +220,8 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 					// List all objects from a bucket-name with a matching prefix.
 					for object := range bucketConfig.MinioClient.ListObjects(ctx, d.Id(), minio.ListObjectsOptions{
-						Recursive: true,
+						Recursive:    true,
+						WithVersions: true,
 					}) {
 						if object.Err != nil {
 							log.Fatalln(object.Err)

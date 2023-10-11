@@ -44,6 +44,11 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Optional:         true,
 							ValidateDiagFunc: validateILMExpiration,
 						},
+						"noncurrentversionexpiration": {
+							Type:             schema.TypeString,
+							Optional:         true,
+							ValidateDiagFunc: validateILMNoncurrentVersionExpiration,
+						},
 						"status": {
 							Type:     schema.TypeString,
 							Computed: true,
@@ -69,6 +74,17 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 
 	if (lifecycle.Expiration{}) == exp {
 		return diag.Errorf("expiration must be a duration (5d), date (1970-01-01), or \"DeleteMarker\"")
+	}
+
+	return
+}
+
+func validateILMNoncurrentVersionExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) {
+	value := v.(string)
+	exp := parseILMNoncurrentVersionExpiration(value)
+
+	if (lifecycle.NoncurrentVersionExpiration{}) == exp {
+		return diag.Errorf("noncurrentversionexpiration must be a duration (5d)")
 	}
 
 	return
@@ -103,6 +119,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		r := lifecycle.Rule{
 			ID:         rule["id"].(string),
 			Expiration: parseILMExpiration(rule["expiration"].(string)),
+			NoncurrentVersionExpiration: parseILMNoncurrentVersionExpiration(rule["noncurrentversionexpiration"].(string)),
 			Status:     "Enabled",
 			RuleFilter: filter,
 		}
@@ -144,6 +161,11 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 
+		var noncurrentversionexpiration string
+		if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
+			noncurrentversionexpiration = fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays)
+		}
+
 		var prefix string
 		tags := map[string]string{}
 		if len(r.RuleFilter.And.Tags) > 0 {
@@ -158,6 +180,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		rule := map[string]interface{}{
 			"id":         r.ID,
 			"expiration": expiration,
+			"noncurrentversionexpiration": noncurrentversionexpiration,
 			"status":     r.Status,
 			"filter":     prefix,
 			"tags":       tags,
@@ -207,4 +230,13 @@ func parseILMExpiration(s string) lifecycle.Expiration {
 	}
 
 	return lifecycle.Expiration{}
+}
+
+func parseILMNoncurrentVersionExpiration(s string) lifecycle.NoncurrentVersionExpiration {
+	var days int
+	if _, err := fmt.Sscanf(s, "%dd", &days); err == nil {
+		return lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(days)}
+	}
+
+	return lifecycle.NoncurrentVersionExpiration{}
 }

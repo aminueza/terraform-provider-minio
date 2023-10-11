@@ -90,6 +90,27 @@ func TestAccILMPolicy_filterTags(t *testing.T) {
 	})
 }
 
+func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-rule4-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.rule4"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyExpireNoncurrentVersion(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioLifecycleConfigurationValid(config *lifecycle.Configuration) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if config.Empty() || len(config.Rules) == 0 {
@@ -204,6 +225,23 @@ resource "minio_ilm_policy" "rule3" {
 		key1 = "value1"
 		key2 = "value2"
 	}
+  }
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyExpireNoncurrentVersion(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket4" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+resource "minio_ilm_policy" "rule4" {
+  bucket = "${minio_s3_bucket.bucket4.id}"
+  rule {
+	id = "expireNoncurrentVersion"
+	expiration = "5d"
+	noncurrentversionexpiration = "5d"
   }
 }
 `, randInt)

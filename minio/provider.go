@@ -9,6 +9,14 @@ import (
 
 // Provider creates a new provider
 func Provider() *schema.Provider {
+	return newProvider()
+}
+
+func newProvider(envvarPrefixed ...string) *schema.Provider {
+	envVarPrefix := ""
+	if len(envvarPrefixed) != 0 {
+		envVarPrefix = envvarPrefixed[0]
+	}
 	return &schema.Provider{
 		Schema: map[string]*schema.Schema{
 			"minio_server": {
@@ -16,7 +24,7 @@ func Provider() *schema.Provider {
 				Required:    true,
 				Description: "Minio Host and Port",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_ENDPOINT",
+					envVarPrefix + "MINIO_ENDPOINT",
 				}, nil),
 			},
 			"minio_region": {
@@ -30,7 +38,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio Access Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_ACCESS_KEY",
+					envVarPrefix + "MINIO_ACCESS_KEY",
 				}, nil),
 				Deprecated: "use minio_user instead",
 			},
@@ -39,7 +47,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio Secret Key",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_SECRET_KEY",
+					envVarPrefix + "MINIO_SECRET_KEY",
 				}, nil),
 				Deprecated: "use minio_password instead",
 			},
@@ -48,7 +56,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio User",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_USER",
+					envVarPrefix + "MINIO_USER",
 				}, nil),
 				ConflictsWith: []string{"minio_access_key"},
 			},
@@ -57,7 +65,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio Password",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_PASSWORD",
+					envVarPrefix + "MINIO_PASSWORD",
 				}, nil),
 				ConflictsWith: []string{"minio_secret_key"},
 			},
@@ -66,7 +74,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio Session Token",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_SESSION_TOKEN",
+					envVarPrefix + "MINIO_SESSION_TOKEN",
 				}, ""),
 			},
 			"minio_api_version": {
@@ -80,7 +88,7 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Minio SSL enabled (default: false)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_ENABLE_HTTPS",
+					envVarPrefix + "MINIO_ENABLE_HTTPS",
 				}, nil),
 			},
 			"minio_insecure": {
@@ -88,28 +96,28 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				Description: "Disable SSL certificate verification (default: false)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_INSECURE",
+					envVarPrefix + "MINIO_INSECURE",
 				}, nil),
 			},
 			"minio_cacert_file": {
 				Type:     schema.TypeString,
 				Optional: true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_CACERT_FILE",
+					envVarPrefix + "MINIO_CACERT_FILE",
 				}, nil),
 			},
 			"minio_cert_file": {
 				Type:     schema.TypeString,
 				Optional: true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_CERT_FILE",
+					envVarPrefix + "MINIO_CERT_FILE",
 				}, nil),
 			},
 			"minio_key_file": {
 				Type:     schema.TypeString,
 				Optional: true,
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
-					"MINIO_KEY_FILE",
+					envVarPrefix + "MINIO_KEY_FILE",
 				}, nil),
 			},
 		},
@@ -122,6 +130,7 @@ func Provider() *schema.Provider {
 			"minio_s3_bucket":                        resourceMinioBucket(),
 			"minio_s3_bucket_policy":                 resourceMinioBucketPolicy(),
 			"minio_s3_bucket_versioning":             resourceMinioBucketVersioning(),
+			"minio_s3_bucket_replication":            resourceMinioBucketReplication(),
 			"minio_s3_bucket_notification":           resourceMinioBucketNotification(),
 			"minio_s3_bucket_server_side_encryption": resourceMinioBucketServerSideEncryption(),
 			"minio_s3_object":                        resourceMinioObject(),

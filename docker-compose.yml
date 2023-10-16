@@ -1,7 +1,7 @@
 version: "3"
 services:
   minio:
-    image: minio/minio:RELEASE.2023-03-13T19-46-17Z
+    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -12,12 +12,66 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
+  secondminio: #  This is used to test bucket replication
+    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio321
+      MINIO_CI_CD: "1"
+      MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
+    command: server --console-address :9001 /data{0...3}
+  thirdminio: #  This is used to test bucket replication
+    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    ports:
+      - "9004:9000"
+      - "9005:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio456
+      MINIO_CI_CD: "1"
+      MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
+    command: server --console-address :9001 /data{0...3}
+  fourthminio: #  This is used to test bucket replication
+    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    ports:
+      - "9006:9000"
+      - "9007:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio654
+      MINIO_CI_CD: "1"
+      MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
+      MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
+    command: server --console-address :9001 /data{0...3}
   adminio-ui:
     image: rzrbld/adminio-ui:v1.93-210123
     environment:
       API_BASE_URL: "http://localhost:8080"
-      ADMINIO_MULTI_BACKEND: "false"
-      ADMINIO_BACKENDS: '[{"name":"myminio","url":"http://localhost:8080"},{"name":"localhost","url":"http://localhost:8081"},{"name":"error","url":"http://localhost:8082"}]'
+      ADMINIO_MULTI_BACKEND: "true"
+      ADMINIO_BACKENDS: |-
+        [
+          {
+            "name": "minio",
+            "url": "http://localhost:8080"
+          },
+          {
+            "name": "secondminio",
+            "url": "http://localhost:8081"
+          },
+          {
+            "name": "thirdminio",
+            "url": "http://localhost:8082"
+          },
+          {
+            "name": "fourthminio",
+            "url": "http://localhost:8083"
+          }
+        ]
       NGX_ROOT_PATH: "/"
     ports:
       - "8000:80"
@@ -34,3 +88,42 @@ services:
       - adminio-ui
     ports:
       - "8080:8080"
+  secondadminio-api:
+    image: rzrbld/adminio-api:v1.84-210123
+    environment:
+      MINIO_ACCESS: minio
+      MINIO_SECRET: minio321
+      MINIO_HOST_PORT: secondminio:9000
+      MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
+      ADMINIO_HOST_PORT: :8080
+    depends_on:
+      - secondminio
+      - adminio-ui
+    ports:
+      - "8081:8080"
+  thirdadminio-api:
+    image: rzrbld/adminio-api:v1.84-210123
+    environment:
+      MINIO_ACCESS: minio
+      MINIO_SECRET: minio456
+      MINIO_HOST_PORT: thirdminio:9000
+      MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
+      ADMINIO_HOST_PORT: :8082
+    depends_on:
+      - thirdminio
+      - adminio-ui
+    ports:
+      - "8082:8080"
+  fourthadminio-api:
+    image: rzrbld/adminio-api:v1.84-210123
+    environment:
+      MINIO_ACCESS: minio
+      MINIO_SECRET: minio654
+      MINIO_HOST_PORT: fourthminio:9000
+      MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
+      ADMINIO_HOST_PORT: :8083
+    depends_on:
+      - fourthminio
+      - adminio-ui
+    ports:
+      - "8083:8080"

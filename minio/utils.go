@@ -6,7 +6,9 @@ import (
 	"errors"
 	"hash/crc32"
 	"log"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -134,4 +136,15 @@ func NewMutexKV() *MutexKV {
 	return &MutexKV{
 		store: make(map[string]*sync.Mutex),
 	}
+}
+
+func shortDur(d time.Duration) string {
+	s := d.String()
+	if strings.HasSuffix(s, "m0s") {
+		s = s[:len(s)-2]
+	}
+	if strings.HasSuffix(s, "h0m") {
+		s = s[:len(s)-2]
+	}
+	return s
 }

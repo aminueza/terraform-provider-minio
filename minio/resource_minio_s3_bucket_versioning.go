@@ -72,7 +72,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 	)
 
 	if err != nil {
-		return NewResourceError("error putting bucket versioning configuration: %v", d.Id(), err)
+		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, err)
 	}
 
 	d.SetId(bucketVersioningConfig.MinioBucket)
@@ -87,7 +87,7 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	versioningConfig, err := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
 	if err != nil {
-		return NewResourceError("failed to load bucket versioning", d.Id(), err)
+		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, err)
 	}
 
 	config := make(map[string]interface{})
@@ -126,7 +126,7 @@ func minioDeleteBucketVersioning(ctx context.Context, d *schema.ResourceData, me
 
 	err := bucketVersioningConfig.MinioClient.SuspendVersioning(ctx, bucketVersioningConfig.MinioBucket)
 	if err != nil {
-		return NewResourceError("error suspending bucket versioning: %s", bucketVersioningConfig.MinioBucket, err)
+		return NewResourceError("error suspending bucket versioning", bucketVersioningConfig.MinioBucket, err)
 	}
 
 	return nil

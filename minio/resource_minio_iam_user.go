@@ -178,7 +178,7 @@ func minioDeleteUser(ctx context.Context, d *schema.ResourceData, meta interface
 
 	err := deleteMinioIamUser(ctx, iamUserConfig)
 	if err != nil {
-		return NewResourceError("error deleting IAM User %s: %s", d.Id(), err)
+		return NewResourceError("error deleting IAM User", d.Id(), err)
 	}
 
 	// Actively set resource as deleted as the update path might force a deletion via MinioForceDestroy

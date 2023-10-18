@@ -101,9 +101,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 		var filter lifecycle.Filter
 
-        var noncurrentVersionExpirationDays lifecycle.NoncurrentVersionExpiration
-
-        noncurrentVersionExpirationDays = lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(rule["noncurrent_version_expiration_days"].(int))}
+        noncurrentVersionExpirationDays := lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(rule["noncurrent_version_expiration_days"].(int))}
 
 		tags := map[string]string{}
 		for k, v := range rule["tags"].(map[string]interface{}) {

@@ -45,7 +45,7 @@ func resourceMinioILMPolicy() *schema.Resource {
 							ValidateDiagFunc: validateILMExpiration,
 						},
 						"noncurrent_version_expiration_days": {
-							Type:             schema.TypeString,
+							Type:             schema.TypeInt,
 							Optional:         true,
 							ValidateDiagFunc: validateILMNoncurrentVersionExpiration,
 						},
@@ -80,11 +80,10 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 }
 
 func validateILMNoncurrentVersionExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) {
-	value := v.(string)
-	exp := parseILMNoncurrentVersionExpiration(value)
+	value := v.(int)
 
-	if (lifecycle.NoncurrentVersionExpiration{}) == exp {
-		return diag.Errorf("noncurrent_version_expiration_days must be a duration (5d)")
+	if value < 1 {
+		return diag.Errorf("noncurrent_version_expiration_days must be strictly positive")
 	}
 
 	return
@@ -101,6 +100,10 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		rule := ruleI.(map[string]interface{})
 
 		var filter lifecycle.Filter
+
+        var noncurrentVersionExpirationDays lifecycle.NoncurrentVersionExpiration
+
+        noncurrentVersionExpirationDays = lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(rule["noncurrent_version_expiration_days"].(int))}
 
 		tags := map[string]string{}
 		for k, v := range rule["tags"].(map[string]interface{}) {
@@ -119,7 +122,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		r := lifecycle.Rule{
 			ID:                          rule["id"].(string),
 			Expiration:                  parseILMExpiration(rule["expiration"].(string)),
-			NoncurrentVersionExpiration: parseILMNoncurrentVersionExpiration(rule["noncurrent_version_expiration_days"].(string)),
+			NoncurrentVersionExpiration: noncurrentVersionExpirationDays,
 			Status:                      "Enabled",
 			RuleFilter:                  filter,
 		}
@@ -161,9 +164,9 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 
-		var noncurrentVersionExpirationDays string
+		var noncurrentVersionExpirationDays int
 		if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
-			noncurrentVersionExpirationDays = fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays)
+			noncurrentVersionExpirationDays = int(r.NoncurrentVersionExpiration.NoncurrentDays)
 		}
 
 		var prefix string

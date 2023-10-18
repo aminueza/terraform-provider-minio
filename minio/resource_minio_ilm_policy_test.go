@@ -241,7 +241,7 @@ resource "minio_ilm_policy" "rule4" {
   rule {
 	id = "expireNoncurrentVersion"
 	expiration = "5d"
-	noncurrentversionexpiration = "5d"
+	noncurrent_version_expiration_days = "5d"
   }
 }
 `, randInt)

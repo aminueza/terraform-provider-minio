@@ -44,7 +44,7 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Optional:         true,
 							ValidateDiagFunc: validateILMExpiration,
 						},
-						"noncurrentversionexpiration": {
+						"noncurrent_version_expiration_days": {
 							Type:             schema.TypeString,
 							Optional:         true,
 							ValidateDiagFunc: validateILMNoncurrentVersionExpiration,
@@ -84,7 +84,7 @@ func validateILMNoncurrentVersionExpiration(v interface{}, p cty.Path) (errors d
 	exp := parseILMNoncurrentVersionExpiration(value)
 
 	if (lifecycle.NoncurrentVersionExpiration{}) == exp {
-		return diag.Errorf("noncurrentversionexpiration must be a duration (5d)")
+		return diag.Errorf("noncurrent_version_expiration_days must be a duration (5d)")
 	}
 
 	return
@@ -119,7 +119,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		r := lifecycle.Rule{
 			ID:                          rule["id"].(string),
 			Expiration:                  parseILMExpiration(rule["expiration"].(string)),
-			NoncurrentVersionExpiration: parseILMNoncurrentVersionExpiration(rule["noncurrentversionexpiration"].(string)),
+			NoncurrentVersionExpiration: parseILMNoncurrentVersionExpiration(rule["noncurrent_version_expiration_days"].(string)),
 			Status:                      "Enabled",
 			RuleFilter:                  filter,
 		}
@@ -161,9 +161,9 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 
-		var noncurrentversionexpiration string
+		var noncurrentVersionExpirationDays string
 		if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
-			noncurrentversionexpiration = fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays)
+			noncurrentVersionExpirationDays = fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays)
 		}
 
 		var prefix string
@@ -180,7 +180,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		rule := map[string]interface{}{
 			"id":                          r.ID,
 			"expiration":                  expiration,
-			"noncurrentversionexpiration": noncurrentversionexpiration,
+			"noncurrent_version_expiration_days": noncurrentVersionExpirationDays,
 			"status":                      r.Status,
 			"filter":                      prefix,
 			"tags":                        tags,

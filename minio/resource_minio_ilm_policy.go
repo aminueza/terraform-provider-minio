@@ -232,12 +232,3 @@ func parseILMExpiration(s string) lifecycle.Expiration {
 
 	return lifecycle.Expiration{}
 }
-
-func parseILMNoncurrentVersionExpiration(s string) lifecycle.NoncurrentVersionExpiration {
-	var days int
-	if _, err := fmt.Sscanf(s, "%dd", &days); err == nil {
-		return lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(days)}
-	}
-
-	return lifecycle.NoncurrentVersionExpiration{}
-}

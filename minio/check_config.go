@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -43,6 +44,20 @@ func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBu
 		MinioBucket:             d.Get("bucket").(string),
 		VersioningConfiguration: versioningConfig,
 	}
+}
+
+// BucketVersioningConfig creates config for managing minio bucket versioning
+func BucketReplicationConfig(d *schema.ResourceData, meta interface{}) (*S3MinioBucketReplication, diag.Diagnostics) {
+	m := meta.(*S3MinioClient)
+
+	replicationRules, diags := getBucketReplicationConfig(d.Get("rule").([]interface{}))
+
+	return &S3MinioBucketReplication{
+		MinioClient:      m.S3Client,
+		MinioAdmin:       m.S3Admin,
+		MinioBucket:      d.Get("bucket").(string),
+		ReplicationRules: replicationRules,
+	}, diags
 }
 
 // BucketNotificationConfig creates config for managing minio bucket notifications

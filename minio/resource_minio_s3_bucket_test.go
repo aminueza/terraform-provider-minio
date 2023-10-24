@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/minio-go/v7"
 )
 
 func TestAccMinioS3Bucket_basic(t *testing.T) {
@@ -256,7 +257,7 @@ func TestAccMinioS3Bucket_PrivateBucketUnreadable(t *testing.T) {
 	preConfig := testAccMinioS3BucketConfigWithACL(ri, "private")
 	resourceName := "minio_s3_bucket.bucket"
 
-	resource.ParallelTest(t, resource.TestCase{
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
@@ -267,7 +268,7 @@ func TestAccMinioS3Bucket_PrivateBucketUnreadable(t *testing.T) {
 					testAccCheckMinioS3BucketExists(resourceName),
 					resource.TestCheckResourceAttr(
 						resourceName, "acl", "private"),
-					testAccCheckBucketNotReadableAnonymously(resourceName),
+					testAccCheckBucketNotReadableAnonymously(ri),
 				),
 			},
 		},
@@ -308,9 +309,40 @@ func TestMinioS3BucketName(t *testing.T) {
 	}
 }
 
-func testAccCheckMinioS3BucketDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+func testAccCheckMinioS3BucketDestroy(s *terraform.State) (err error) {
 
+	err = providerMinioS3BucketDestroy(testAccProvider.Meta().(*S3MinioClient).S3Client, s)
+	if err != nil {
+		return
+	}
+
+	if testAccSecondProvider.Meta() == nil {
+		return
+	}
+
+	err = providerMinioS3BucketDestroy(testAccSecondProvider.Meta().(*S3MinioClient).S3Client, s)
+	if err != nil {
+		return
+	}
+
+	if testAccThirdProvider.Meta() == nil {
+		return
+	}
+
+	err = providerMinioS3BucketDestroy(testAccThirdProvider.Meta().(*S3MinioClient).S3Client, s)
+	if err != nil {
+		return
+	}
+
+	if testAccFourthProvider.Meta() == nil {
+		return
+	}
+
+	err = providerMinioS3BucketDestroy(testAccFourthProvider.Meta().(*S3MinioClient).S3Client, s)
+	return
+}
+
+func providerMinioS3BucketDestroy(conn *minio.Client, s *terraform.State) error {
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket" {
 			continue
@@ -409,7 +441,7 @@ func testAccBucketArn(randInt string) string {
 }
 
 func testAccBucketDomainName(randInt string) string {
-	return fmt.Sprintf("http://localhost:9000/minio/%s", randInt)
+	return fmt.Sprintf("http://172.17.0.1:9000/minio/%s", randInt)
 }
 
 func testAccBucketACL(acl string) string {
@@ -504,7 +536,7 @@ func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckF
 			return err
 		}
 		if resp.StatusCode != 403 {
-			return fmt.Errorf("should not be able to list buckets")
+			return fmt.Errorf("should not be able to list buckets (Got a %d status)", resp.StatusCode)
 		}
 		return nil
 	}

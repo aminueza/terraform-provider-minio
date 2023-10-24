@@ -30,7 +30,14 @@ func TestServiceAccount_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountAttributes(resourceName, targetUser, status),
+					resource.TestCheckResourceAttr(resourceName, "target_user", targetUser),
 				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"update_secret", "secret_key"},
 			},
 		},
 	})
@@ -129,6 +136,12 @@ func TestServiceAccount_Policy(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioServiceAccountExists(resourceName2, &serviceAccount),
 				),
+			},
+			{
+				ResourceName:            resourceName2,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"update_secret", "secret_key"},
 			},
 		},
 	})

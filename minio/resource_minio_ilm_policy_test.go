@@ -105,6 +105,8 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
 					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(
+						resourceName, "rule.0.noncurrent_version_expiration_days", "5"),
 				),
 			},
 		},

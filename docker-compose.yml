@@ -108,7 +108,7 @@ services:
       MINIO_SECRET: minio456
       MINIO_HOST_PORT: thirdminio:9000
       MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
-      ADMINIO_HOST_PORT: :8082
+      ADMINIO_HOST_PORT: :8080
     depends_on:
       - thirdminio
       - adminio-ui
@@ -121,7 +121,7 @@ services:
       MINIO_SECRET: minio654
       MINIO_HOST_PORT: fourthminio:9000
       MINIO_KMS_MASTER_KEY: terraform-key:da2f4cfa32bed76507dcd44b42872328a8e14f25cd2a1ec0fb85d299a192a447
-      ADMINIO_HOST_PORT: :8083
+      ADMINIO_HOST_PORT: :8080
     depends_on:
       - fourthminio
       - adminio-ui

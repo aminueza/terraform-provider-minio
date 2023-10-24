@@ -1,7 +1,7 @@
 version: "3"
 services:
   minio:
-    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    image: minio/minio:RELEASE.2023-08-31T15-31-16Z
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -13,7 +13,7 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
   secondminio: #  This is used to test bucket replication
-    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    image: minio/minio:RELEASE.2023-08-31T15-31-16Z
     ports:
       - "9002:9000"
       - "9003:9001"
@@ -25,7 +25,7 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
   thirdminio: #  This is used to test bucket replication
-    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    image: minio/minio:RELEASE.2023-08-31T15-31-16Z
     ports:
       - "9004:9000"
       - "9005:9001"
@@ -37,7 +37,7 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
   fourthminio: #  This is used to test bucket replication
-    image: quay.io/minio/minio:RELEASE.2023-08-31T15-31-16Z
+    image: minio/minio:RELEASE.2023-08-31T15-31-16Z
     ports:
       - "9006:9000"
       - "9007:9001"

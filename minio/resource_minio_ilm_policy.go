@@ -44,6 +44,11 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Optional:         true,
 							ValidateDiagFunc: validateILMExpiration,
 						},
+						"noncurrent_version_expiration_days": {
+							Type:             schema.TypeInt,
+							Optional:         true,
+							ValidateDiagFunc: validateILMNoncurrentVersionExpiration,
+						},
 						"status": {
 							Type:     schema.TypeString,
 							Computed: true,
@@ -74,6 +79,16 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 	return
 }
 
+func validateILMNoncurrentVersionExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) {
+	value := v.(int)
+
+	if value < 1 {
+		return diag.Errorf("noncurrent_version_expiration_days must be strictly positive")
+	}
+
+	return
+}
+
 func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
@@ -85,6 +100,8 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		rule := ruleI.(map[string]interface{})
 
 		var filter lifecycle.Filter
+
+		noncurrentVersionExpirationDays := lifecycle.NoncurrentVersionExpiration{NoncurrentDays: lifecycle.ExpirationDays(rule["noncurrent_version_expiration_days"].(int))}
 
 		tags := map[string]string{}
 		for k, v := range rule["tags"].(map[string]interface{}) {
@@ -101,10 +118,11 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 
 		r := lifecycle.Rule{
-			ID:         rule["id"].(string),
-			Expiration: parseILMExpiration(rule["expiration"].(string)),
-			Status:     "Enabled",
-			RuleFilter: filter,
+			ID:                          rule["id"].(string),
+			Expiration:                  parseILMExpiration(rule["expiration"].(string)),
+			NoncurrentVersionExpiration: noncurrentVersionExpirationDays,
+			Status:                      "Enabled",
+			RuleFilter:                  filter,
 		}
 		config.Rules = append(config.Rules, r)
 	}
@@ -144,6 +162,11 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 
+		var noncurrentVersionExpirationDays int
+		if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
+			noncurrentVersionExpirationDays = int(r.NoncurrentVersionExpiration.NoncurrentDays)
+		}
+
 		var prefix string
 		tags := map[string]string{}
 		if len(r.RuleFilter.And.Tags) > 0 {
@@ -156,11 +179,12 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		}
 
 		rule := map[string]interface{}{
-			"id":         r.ID,
-			"expiration": expiration,
-			"status":     r.Status,
-			"filter":     prefix,
-			"tags":       tags,
+			"id":                                 r.ID,
+			"expiration":                         expiration,
+			"noncurrent_version_expiration_days": noncurrentVersionExpirationDays,
+			"status":                             r.Status,
+			"filter":                             prefix,
+			"tags":                               tags,
 		}
 		rules = append(rules, rule)
 	}

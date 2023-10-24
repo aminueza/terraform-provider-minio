@@ -46,6 +46,7 @@ Optional:
 
 - `expiration` (String)
 - `filter` (String)
+- `noncurrent_version_expiration_days` (Int)
 - `tags` (Map of String)
 
 Read-Only:

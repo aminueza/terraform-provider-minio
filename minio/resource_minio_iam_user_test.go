@@ -218,6 +218,43 @@ func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_RecreateMissing(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	status := "enabled"
+	resourceName := "minio_iam_user.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserAttributes(resourceName, name, status),
+				),
+			},
+			{
+				PreConfig: func() {
+					_ = testAccCheckMinioUserDeleteExternally(name)
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: testAccMinioUserConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					testAccCheckMinioUserAttributes(resourceName, name, status),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioUserConfigWithSecretOne(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test5" {
@@ -351,6 +388,17 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 			return fmt.Errorf("user still exists")
 		}
 
+	}
+
+	return nil
+}
+
+func testAccCheckMinioUserDeleteExternally(username string) error {
+	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+
+	// Delete user
+	if err := minioIam.RemoveUser(context.Background(), username); err != nil {
+		return fmt.Errorf("user could not be deleted: %w", err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"regexp"
@@ -146,8 +147,19 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 	iamUserConfig := IAMUserConfig(d, meta)
 
 	output, err := iamUserConfig.MinioAdmin.GetUserInfo(ctx, d.Id())
+
+	errResp := madmin.ErrorResponse{}
+
+	if errors.As(err, &errResp) {
+		if errResp.Code == "XMinioAdminNoSuchUser" {
+			log.Printf("%s", NewResourceErrorStr("unable to find user", d.Id(), err))
+			d.SetId("")
+			return nil
+		}
+	}
+
 	if err != nil {
-		return NewResourceError("error reading IAM User %s: %s", d.Id(), err)
+		return NewResourceError("error reading IAM User", d.Id(), err)
 	}
 
 	log.Printf("[WARN] (%v)", output)

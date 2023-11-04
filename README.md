@@ -11,14 +11,14 @@
       <img alt="GitHub go.mod Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
     </a>
     <a href="https://github.com/aminueza/terraform-provider-minio/actions?query=workflow%3A%22Terraform+Provider+CI%22">
-      <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=master">
+      <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=v1">
     </a>
     <a href="https://github.com/aminueza/terraform-provider-minio/releases">
       <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
     </a>
   </p>
   <p align="center">
-    <a href="https://github.com/aminueza/terraform-provider-minio/tree/master/docs"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/aminueza/terraform-provider-minio/tree/v1/docs"><strong>Explore the docs »</strong></a>
   </p>
 </p>
 

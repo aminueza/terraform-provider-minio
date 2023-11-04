@@ -1,9 +1,9 @@
 name: Terraform Provider CI
 on:
   push:
-    branches: [master]
+    branches: [v1]
   pull_request:
-    branches: [master]
+    branches: [v1]
 jobs:
   checkup:
     name: Checkup

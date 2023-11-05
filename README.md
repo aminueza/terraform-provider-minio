@@ -122,9 +122,7 @@ See the [open issues](https://github.com/terraform-provider-minio/terraform-prov
 
 ## License
 
-Distributed under the AGPL-3.0 License. See [LICENSE](./LICENSE) for more information.
-
-`SPDX-License-Identifier: AGPL-3.0`
+All versions of this provider starting from [v2.0.0](https://github.com/aminueza/terraform-provider-minio/releases/tag/v2.0.0) are distributed under the AGPL-3.0 License. See [LICENSE](./LICENSE) for more information.
 
 ## Acknowledgements
 

@@ -1,4 +1,4 @@
-module github.com/aminueza/terraform-provider-minio
+module github.com/aminueza/terraform-provider-minio/v2
 
 go 1.20
 

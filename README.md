@@ -43,7 +43,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 
 ## Supported Versions
 
-- Terraform v1.4
+- Terraform v1.5
 - Go v1.20
 
 It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
@@ -122,7 +122,7 @@ See the [open issues](https://github.com/aminueza/terraform-provider-minio/issue
 
 ## License
 
-Distributed under the Apache License. See [LICENSE](./LICENSE) for more information.
+All versions of this provider starting from v2.0.0 are distributed under the AGPL-3.0 License. See [LICENSE](./LICENSE) for more information.
 
 ## Acknowledgements
 

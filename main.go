@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 
+	"github.com/aminueza/terraform-provider-minio/minio"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/terraform-provider-minio/terraform-provider-minio/minio"
 )
 
 func main() {

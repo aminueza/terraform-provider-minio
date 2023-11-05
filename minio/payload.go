@@ -1,6 +1,8 @@
 package minio
 
 import (
+	"time"
+
 	"github.com/minio/madmin-go/v3"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
@@ -59,11 +61,74 @@ type S3MinioBucketVersioningConfiguration struct {
 	ExcludeFolders   bool
 }
 
+// S3PathSyle
+type S3PathSyle int8
+
+const (
+	S3PathSyleAuto S3PathSyle = iota
+	S3PathSyleOn
+	S3PathSyleOff
+)
+
+func (p S3PathSyle) String() string {
+	switch p {
+	case S3PathSyleOn:
+		return "on"
+	case S3PathSyleOff:
+		return "off"
+	default:
+		return "auto"
+	}
+}
+
+// S3MinioBucketReplicationConfiguration defines bucket replication rule
+type S3MinioBucketReplicationRule struct {
+	Id       string
+	Arn      string
+	Enabled  bool
+	Priority int
+
+	Prefix string
+	Tags   map[string]string
+
+	DeleteReplication         bool
+	DeleteMarkerReplication   bool
+	ExistingObjectReplication bool
+	MetadataSync              bool
+
+	Target S3MinioBucketReplicationRuleTarget
+}
+
+// S3MinioBucketReplicationRuleTarget defines bucket replication rule target
+type S3MinioBucketReplicationRuleTarget struct {
+	Bucket            string
+	StorageClass      string
+	Host              string
+	Secure            bool
+	Path              string
+	PathStyle         S3PathSyle
+	Syncronous        bool
+	DisableProxy      bool
+	HealthCheckPeriod time.Duration
+	BandwidthLimit    int64
+	Region            string
+	AccessKey         string
+	SecretKey         string
+}
+
 // S3MinioBucketVersioning defines bucket versioning
 type S3MinioBucketVersioning struct {
 	MinioClient             *minio.Client
 	MinioBucket             string
 	VersioningConfiguration *S3MinioBucketVersioningConfiguration
+}
+
+// S3MinioBucketReplication defines bucket replication
+type S3MinioBucketReplication struct {
+	MinioAdmin       *madmin.AdminClient
+	MinioClient      *minio.Client
+	MinioBucket      string
+	ReplicationRules []S3MinioBucketReplicationRule
 }
 
 // S3MinioBucketNotification

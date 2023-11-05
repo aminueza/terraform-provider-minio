@@ -52,10 +52,22 @@ tasks:
     desc: Run the package tests.
     env: 
       TF_ACC: 0
-      MINIO_ENDPOINT: localhost:9000
+      MINIO_ENDPOINT: 172.17.0.1:9000
       MINIO_USER: minio
       MINIO_PASSWORD: minio123
       MINIO_ENABLE_HTTPS: false
+      SECOND_MINIO_ENDPOINT: 172.17.0.1:9002
+      SECOND_MINIO_USER: minio
+      SECOND_MINIO_PASSWORD: minio321
+      SECOND_MINIO_ENABLE_HTTPS: false
+      THIRD_MINIO_ENDPOINT: 172.17.0.1:9004
+      THIRD_MINIO_USER: minio
+      THIRD_MINIO_PASSWORD: minio456
+      THIRD_MINIO_ENABLE_HTTPS: false
+      FOURTH_MINIO_ENDPOINT: 172.17.0.1:9006
+      FOURTH_MINIO_USER: minio
+      FOURTH_MINIO_PASSWORD: minio654
+      FOURTH_MINIO_ENABLE_HTTPS: false
     cmds:
       - go test -v -cover ./minio
     silent: true

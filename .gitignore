@@ -20,3 +20,4 @@ plan.bin
 vendor/*
 .vscode
 .idea
+dev.tfrc

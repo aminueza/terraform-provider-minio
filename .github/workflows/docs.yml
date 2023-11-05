@@ -2,13 +2,12 @@ name: Docs CI
 on:
   push:
     branches:
-      - master
-      - feature/**
+      - main
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
     branches:
-      - master
+      - main
 jobs:
   mdvalidate:
     name: Validate Markdown Files
@@ -20,7 +19,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
         with:
-            fetch-depth: 1
+          fetch-depth: 1
 
       - name: Markdown Link Validation
         uses: gaurav-nelson/github-action-markdown-link-check@v1

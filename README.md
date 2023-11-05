@@ -122,10 +122,9 @@ See the [open issues](https://github.com/terraform-provider-minio/terraform-prov
 
 ## License
 
-This work is dual-licensed under [Apache 2.0](./LICENSE.Apache-2.0) and [AGPL v3](./LICENSE.AGPL-3.0).
-The source contained within this repository is Apache 2.0 licensed, however due to `mdadm` being AGPL 3.0, the combined work is distributed as AGPL 3.0.
+Distributed under the AGPL-3.0 License. See [LICENSE](./LICENSE) for more information.
 
-`SPDX-License-Identifier: Apache-2.0 OR AGPL-3.0`
+`SPDX-License-Identifier: AGPL-3.0`
 
 ## Acknowledgements
 

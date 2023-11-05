@@ -38,7 +38,7 @@ jobs:
         run: docker-compose up -d minio secondminio thirdminio fourthminio
       - uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.4.7
+          terraform_version: 1.5.7
           terraform_wrapper: false
       - name: Install Task
         uses: arduino/setup-task@v1

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -177,7 +178,8 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 
 	_ = d.Set("disable_user", output.AccountStatus == "off")
 
-	if err := d.Set("target_user", output.ParentUser); err != nil {
+	targetUser := parseUserFromParentUser(output.ParentUser)
+	if err := d.Set("target_user", targetUser); err != nil {
 		return NewResourceError("reading service account failed", d.Id(), err)
 	}
 
@@ -229,4 +231,19 @@ func processServiceAccountPolicy(policy string) []byte {
 		return []byte(emptyPolicy)
 	}
 	return []byte(policy)
+}
+
+// Handle LDAP responses in ParentUser struct
+func parseUserFromParentUser(parentUser string) string {
+	user := parentUser
+
+	// Iterate through comma-separated chunks, will be ignored if not LDAP
+	for _, ldapSection := range strings.Split(parentUser, ",") {
+		splitSection := strings.Split(ldapSection, "=")
+		if len(splitSection) == 2 && strings.ToLower(strings.TrimSpace(splitSection[0])) == "cn" {
+			return strings.TrimSpace(splitSection[1])
+		}
+	}
+
+	return user
 }

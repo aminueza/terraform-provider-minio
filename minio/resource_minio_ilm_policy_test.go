@@ -106,6 +106,8 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
 					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
 					resource.TestCheckResourceAttr(
+						resourceName, "rule.0.expiration", ""),
+					resource.TestCheckResourceAttr(
 						resourceName, "rule.0.noncurrent_version_expiration_days", "5"),
 				),
 			},
@@ -242,7 +244,6 @@ resource "minio_ilm_policy" "rule4" {
   bucket = "${minio_s3_bucket.bucket4.id}"
   rule {
 	id = "expireNoncurrentVersion"
-	expiration = "5d"
 	noncurrent_version_expiration_days = 5
   }
 }

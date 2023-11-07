@@ -158,7 +158,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			expiration = "DeleteMarker"
 		} else if r.Expiration.Days != 0 {
 			expiration = fmt.Sprintf("%dd", r.Expiration.Days)
-		} else {
+		} else if !r.Expiration.IsNull() {
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
 

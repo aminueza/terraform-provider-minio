@@ -5,11 +5,16 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7"
-	"io"
+	"github.com/mitchellh/go-homedir"
 )
 
 func resourceMinioObject() *schema.Resource {
@@ -78,7 +83,25 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	var body io.ReadSeeker
 
-	if v, ok := d.GetOk("content"); ok {
+	if v, ok := d.GetOk("source"); ok {
+		source := v.(string)
+		path, err := homedir.Expand(source)
+		if err != nil {
+			return NewResourceError(fmt.Sprintf("expanding homedir in source (%s)", source), d.Id(), err)
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			return NewResourceError(fmt.Sprintf("opening S3 object source (%s)", path), d.Id(), err)
+		}
+
+		body = file
+		defer func() {
+			err := file.Close()
+			if err != nil {
+				log.Printf("[WARN] Error closing S3 object source (%s): %s", path, err)
+			}
+		}()
+	} else if v, ok := d.GetOk("content"); ok {
 		content := v.(string)
 		body = bytes.NewReader([]byte(content))
 	} else if v, ok := d.GetOk("content_base64"); ok {
@@ -88,8 +111,6 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 			return NewResourceError("error decoding content_base64", d.Id(), err)
 		}
 		body = bytes.NewReader(contentRaw)
-	} else if _, ok := d.GetOk("content_base64"); ok {
-		return NewResourceError("putting object failed", d.Id(), errors.New("sorry, unsupported yet"))
 	} else {
 		return NewResourceError("putting object failed", d.Id(), errors.New("one of source / content / content_base64 is not set"))
 	}

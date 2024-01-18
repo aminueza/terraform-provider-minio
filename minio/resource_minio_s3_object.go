@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -89,6 +90,7 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("expanding homedir in source (%s)", source), d.Id(), err)
 		}
+		path = filepath.Clean(path)
 		file, err := os.Open(path)
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("opening S3 object source (%s)", path), d.Id(), err)

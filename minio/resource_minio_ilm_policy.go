@@ -42,6 +42,7 @@ func resourceMinioILMPolicy() *schema.Resource {
 						"expiration": {
 							Type:             schema.TypeString,
 							Optional:         true,
+							Description:      "Value may be duration (5d), date (1970-01-01), or \"DeleteMarker\" to expire delete markers if `noncurrent_version_expiration_days` is used",
 							ValidateDiagFunc: validateILMExpiration,
 						},
 						"noncurrent_version_expiration_days": {

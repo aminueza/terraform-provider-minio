@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v3"
+	"gotest.tools/v3/assert"
 )
 
 func TestServiceAccount_basic(t *testing.T) {
@@ -145,6 +146,12 @@ func TestServiceAccount_Policy(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestParseUserFromParentUser(t *testing.T) {
+	assert.Equal(t, "minio-user", parseUserFromParentUser("minio-user"))
+	assert.Equal(t, "minio-user", parseUserFromParentUser("CN = minio-user, DC=example,DC=org"))
+	assert.Equal(t, "minio-user", parseUserFromParentUser("cn=minio-user, DC=example"))
 }
 
 func testAccMinioServiceAccountConfig(rName string) string {

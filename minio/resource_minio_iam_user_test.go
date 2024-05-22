@@ -27,6 +27,7 @@ func TestValidateMinioIamUserName(t *testing.T) {
 		"testuser@minio",
 		"test+user@minio.io",
 		"CN=Backup Operators,CN=Builtin,DC=gr-u,DC=it",
+		"cn=Backup Operators,cn=Builtin,dc=gr-u,dc=it",
 		"CN=View-Only Organization Management,OU=Microsoft Exchange Security Groups,DC=gr-u,DC=it",
 	}
 

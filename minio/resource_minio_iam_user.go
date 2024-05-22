@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	LDAPUserDistinguishedNamePattern = regexp.MustCompile(`^(?:(CN=([^,]*)),)+(?:((?:(?:CN|OU)=[^,]+,?)+),)+((?:DC=[^,]+,?)+)$`)
+	LDAPUserDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:CN|cn)=([^,]*)),)+(?:((?:(?:CN|cn|OU|ou)=[^,]+,?)+),)+((?:(?:DC|dc)=[^,]+,?)+)$`)
 	StaticUserNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
 )
 

@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	LDAPGroupDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:(?:CN|OU)=[^,]+,?)+),)+((?:DC=[^,]+,?)+)$`)
+	LDAPGroupDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:(?:CN|cn|OU|ou)=[^,]+,?)+),)+((?:(?:DC|dc)=[^,]+,?)+)$`)
 	StaticGroupNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
 )
 

@@ -22,6 +22,8 @@ func TestValidateMinioIamGroupName(t *testing.T) {
 		"test.123,user",
 		"testuser@minio",
 		"test+user@minio.io",
+		"CN=ADMINS,OU=Groups,DC=gr-u,DC=it",
+		"cn=ADMINS,ou=Groups,dc=gr-u,dc=it",
 	}
 
 	for _, minioName := range minioValidNames {

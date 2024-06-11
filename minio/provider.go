@@ -145,6 +145,7 @@ func newProvider(envvarPrefixed ...string) *schema.Provider {
 			"minio_iam_group_user_attachment":        resourceMinioIAMGroupUserAttachment(),
 			"minio_ilm_policy":                       resourceMinioILMPolicy(),
 			"minio_kms_key":                          resourceMinioKMSKey(),
+			"minio_ilm_tier":                         resourceMinioILMTier(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

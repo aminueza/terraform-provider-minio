@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -109,6 +110,62 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 						resourceName, "rule.0.expiration", ""),
 					resource.TestCheckResourceAttr(
 						resourceName, "rule.0.noncurrent_version_expiration_days", "5"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccILMPolicy_transition(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	resourceName := "minio_ilm_policy.rule_transition"
+
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+
+	remoteTierName := acctest.RandomWithPrefix("COLD")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
+					testAccMinioBucketTransitionConfigBucket("my_bucket_in_a", "minio", bucketName) +
+					testAccMinioBucketTransitionConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+					testAccMinioILMPolicyTransitionServiceAccount(username) +
+					testAccMinioRemoteTierConfig(remoteTierName, secondaryMinioEndpoint) +
+					testAccMinioILMPolicyTransitionConfig(),
+
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.my_bucket_in_a"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(
+						resourceName, "rule.0.transition.0.days", "1d"),
+				),
+			},
+			{
+				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
+					testAccMinioBucketTransitionConfigBucket("my_bucket_in_a", "minio", bucketName) +
+					testAccMinioBucketTransitionConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+					testAccMinioILMPolicyTransitionServiceAccount(username) +
+					testAccMinioRemoteTierConfig(remoteTierName, secondaryMinioEndpoint) +
+					testAccMinioILMPolicyTransitionDateConfig(),
+
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.my_bucket_in_a"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(
+						resourceName, "rule.0.transition.0.date", "2024-06-06"),
 				),
 			},
 		},
@@ -248,4 +305,84 @@ resource "minio_ilm_policy" "rule4" {
   }
 }
 `, randInt)
+}
+
+func testAccMinioRemoteTierConfig(remoteTier, endpoint string) string {
+	return fmt.Sprintf(`
+resource "minio_ilm_tier" "remote_tier"{
+	name = "%s"
+	type = "minio"
+	endpoint = "http://%s"
+	bucket = "${minio_s3_bucket.my_bucket_in_b.bucket}"
+	minio_config {
+		access_key = "${minio_iam_service_account.remote_storage.access_key}"
+		secret_key = "${minio_iam_service_account.remote_storage.secret_key}"
+	}
+}
+`, remoteTier, endpoint)
+}
+
+func testAccMinioILMPolicyTransitionConfig() string {
+	return fmt.Sprintf(`
+resource "minio_ilm_policy" "rule_transition" {
+  bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
+  rule {
+	id = "asdf"
+	transition {
+		days = "1d"
+		storage_class = "${minio_ilm_tier.remote_tier.name}"
+	}
+  }
+}
+`)
+}
+
+func testAccMinioILMPolicyTransitionDateConfig() string {
+	return fmt.Sprintf(`
+resource "minio_ilm_policy" "rule_transition" {
+  bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
+  rule {
+	id = "asdf"
+	transition {
+		date = "2024-06-06"
+		storage_class = "${minio_ilm_tier.remote_tier.name}"
+	}
+  }
+}
+`)
+}
+
+func testAccMinioILMPolicyTransitionServiceAccount(username string) (varBlock string) {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "remote_storage" {
+  provider = "secondminio"
+  name = %q
+  force_destroy = true
+} 
+
+resource "minio_iam_user_policy_attachment" "remote_storage" {
+  provider = "secondminio"
+  user_name   = "${minio_iam_user.remote_storage.name}"
+  policy_name = "consoleAdmin"
+}
+
+resource "minio_iam_service_account" "remote_storage" {
+  provider = "secondminio"
+  target_user = "${minio_iam_user.remote_storage.name}"
+
+  depends_on = [
+    minio_iam_user_policy_attachment.remote_storage,
+  ]
+}
+
+`, username)
+
+}
+
+func testAccMinioBucketTransitionConfigBucket(resourceName string, provider string, bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" %q {
+  provider = %s
+  bucket = %q
+}`, resourceName, provider, bucketName)
 }

@@ -42,14 +42,31 @@ resource "minio_ilm_policy" "bucket-lifecycle-rules" {
 <a id="nestedblock--rule"></a>
 ### Nested Schema for `rule`
 
+Required:
+
+- `id` (String)
+
 Optional:
 
-- `expiration` (String)
+- `expiration` (String) Value may be duration (5d), date (1970-01-01), or "DeleteMarker" to expire delete markers if `noncurrent_version_expiration_days` is used
 - `filter` (String)
-- `noncurrent_version_expiration_days` (Int)
+- `noncurrent_version_expiration_days` (Number)
+- `noncurrent_version_transition_days` (Number)
 - `tags` (Map of String)
+- `transition` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--transition))
 
 Read-Only:
 
-- `id` (String) The ID of this resource.
 - `status` (String)
+
+<a id="nestedblock--rule--transition"></a>
+### Nested Schema for `rule.transition`
+
+Required:
+
+- `storage_class` (String)
+
+Optional:
+
+- `date` (String)
+- `days` (String)

@@ -323,7 +323,7 @@ resource "minio_ilm_tier" "remote_tier"{
 }
 
 func testAccMinioILMPolicyTransitionConfig() string {
-	return fmt.Sprintf(`
+	return `
 resource "minio_ilm_policy" "rule_transition" {
   bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
   rule {
@@ -334,11 +334,11 @@ resource "minio_ilm_policy" "rule_transition" {
 	}
   }
 }
-`)
+`
 }
 
 func testAccMinioILMPolicyTransitionDateConfig() string {
-	return fmt.Sprintf(`
+	return `
 resource "minio_ilm_policy" "rule_transition" {
   bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
   rule {
@@ -349,7 +349,7 @@ resource "minio_ilm_policy" "rule_transition" {
 	}
   }
 }
-`)
+`
 }
 
 func testAccMinioILMPolicyTransitionServiceAccount(username string) (varBlock string) {

@@ -42,7 +42,8 @@ description: |-
 Optional:
 
 - `account_key` (String, Sensitive)
-- `container` (String)
+- `account_name` (String)
+- `storage_class` (String)
 
 
 <a id="nestedblock--gcs_config"></a>
@@ -51,6 +52,7 @@ Optional:
 Optional:
 
 - `credentials` (String, Sensitive)
+- `storage_class` (String)
 
 
 <a id="nestedblock--minio_config"></a>

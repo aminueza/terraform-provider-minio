@@ -42,10 +42,11 @@ func resourceMinioILMTier() *schema.Resource {
 				ValidateFunc: validation.StringInSlice([]string{"s3", "minio", "gcs", "azure"}, false),
 			},
 			"endpoint": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
-				Default:  "",
+				Type:      schema.TypeString,
+				Optional:  true,
+				ForceNew:  true,
+				Sensitive: false,
+				Default:   "",
 			},
 			"region": {
 				Type:     schema.TypeString,
@@ -117,10 +118,9 @@ func resourceMinioILMTier() *schema.Resource {
 				MaxItems: 1,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"container": {
+						"account_name": {
 							Type:     schema.TypeString,
 							Optional: true,
-							ForceNew: true,
 						},
 						"account_key": {
 							Type:      schema.TypeString,
@@ -132,6 +132,11 @@ func resourceMinioILMTier() *schema.Resource {
 								}
 								return old == "REDACTED"
 							},
+						},
+						"storage_class": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
 						},
 					},
 				},
@@ -153,6 +158,11 @@ func resourceMinioILMTier() *schema.Resource {
 								return old == "REDACTED"
 							},
 						},
+						"storage_class": {
+							Type:     schema.TypeString,
+							Optional: true,
+							ForceNew: true,
+						},
 					},
 				},
 			},
@@ -168,32 +178,80 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	d.SetId(name)
 	switch d.Get("type").(string) {
 	case madmin.S3.String():
+		s3Config := d.Get("s3_config").([]interface{})[0].(map[string]interface{})
+		var s3Options []madmin.S3Options
+		if d.Get("prefix").(string) != "" {
+			s3Options = append(s3Options, madmin.S3Prefix(d.Get("prefix").(string)))
+		}
+		if d.Get("region").(string) != "" {
+			s3Options = append(s3Options, madmin.S3Region(d.Get("region").(string)))
+		}
+		if _, ok := s3Config["storage_class"]; ok {
+			s3Options = append(s3Options, madmin.S3StorageClass(s3Config["storage_class"].(string)))
+		}
 		tierConf, err = madmin.NewTierS3(
 			name,
-			d.Get("access_key").(string),
-			d.Get("secret_key").(string),
+			s3Config["access_key"].(string),
+			s3Config["secret_key"].(string),
 			d.Get("bucket").(string),
+			s3Options...,
 		)
 	case madmin.MinIO.String():
 		minioConfig := d.Get("minio_config").([]interface{})[0].(map[string]interface{})
+		var minioOptions []madmin.MinIOOptions
+		if d.Get("prefix").(string) != "" {
+			minioOptions = append(minioOptions, madmin.MinIOPrefix(d.Get("prefix").(string)))
+		}
+		if d.Get("region").(string) != "" {
+			minioOptions = append(minioOptions, madmin.MinIORegion(d.Get("region").(string)))
+		}
+
 		tierConf, err = madmin.NewTierMinIO(
 			name,
 			d.Get("endpoint").(string),
 			minioConfig["access_key"].(string),
 			minioConfig["secret_key"].(string),
 			d.Get("bucket").(string),
+			minioOptions...,
 		)
 	case madmin.GCS.String():
+		gcsConfig := d.Get("gcs_config").([]interface{})[0].(map[string]interface{})
+		var gcsOptions []madmin.GCSOptions
+		if d.Get("prefix").(string) != "" {
+			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("prefix").(string)))
+		}
+		if d.Get("region").(string) != "" {
+			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("region").(string)))
+		}
+		if _, ok := gcsConfig["storage_class"]; ok {
+			gcsOptions = append(gcsOptions, madmin.GCSStorageClass(gcsConfig["storage_class"].(string)))
+		}
 		tierConf, err = madmin.NewTierGCS(
 			name,
-			d.Get("credentials").([]byte),
+			[]byte(gcsConfig["credentials"].(string)),
 			d.Get("bucket").(string),
+			gcsOptions...,
 		)
 	case madmin.Azure.String():
+		azureConfig := d.Get("azure_config").([]interface{})[0].(map[string]interface{})
+		var azureOptions []madmin.AzureOptions
+		if d.Get("endpoint").(string) != "" {
+			azureOptions = append(azureOptions, madmin.AzureEndpoint(d.Get("endpoint").(string)))
+		}
+		if d.Get("prefix").(string) != "" {
+			azureOptions = append(azureOptions, madmin.AzurePrefix(d.Get("prefix").(string)))
+		}
+		if d.Get("region").(string) != "" {
+			azureOptions = append(azureOptions, madmin.AzureRegion(d.Get("region").(string)))
+		}
+		if _, ok := azureConfig["storage_class"]; ok {
+			azureOptions = append(azureOptions, madmin.AzureStorageClass(azureConfig["storage_class"].(string)))
+		}
 		tierConf, err = madmin.NewTierAzure(name,
-			d.Get("account_name").(string),
-			d.Get("account_key").(string),
+			azureConfig["account_name"].(string),
+			azureConfig["account_key"].(string),
 			d.Get("bucket").(string),
+			azureOptions...,
 		)
 	}
 	if err != nil {
@@ -220,6 +278,7 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 		return nil
 	}
 	log.Printf("[DEBUG] Tier [%s] exists!", name)
+	d.SetId(tier.Name)
 	if err := d.Set("type", tier.Type.String()); err != nil {
 		return diag.FromErr(err)
 	}
@@ -249,15 +308,17 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 		}
 	case madmin.GCS:
 		gcsConfig := []map[string]string{{
-			"credentials": tier.GCS.Creds,
+			"credentials":   tier.GCS.Creds,
+			"storage_class": tier.GCS.StorageClass,
 		}}
 		if err := d.Set("gcs_config", gcsConfig); err != nil {
 			return diag.FromErr(err)
 		}
 	case madmin.Azure:
 		azureConfig := []map[string]string{{
-			"container":   tier.Azure.AccountName,
-			"account_key": tier.Azure.AccountKey,
+			"account_name":  tier.Azure.AccountName,
+			"account_key":   tier.Azure.AccountKey,
+			"storage_class": tier.Azure.StorageClass,
 		}}
 		if err := d.Set("azure_config", azureConfig); err != nil {
 			return diag.FromErr(err)

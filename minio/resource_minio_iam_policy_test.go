@@ -38,6 +38,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 		},
 	})
 }
+
 func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"
@@ -54,6 +55,39 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 					testAccCheckMinioIAMPolicyDisappears(rName),
 				),
 				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMPolicy_recreate(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_iam_policy.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMPolicyConfigName(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMPolicyExists(resourceName),
+				),
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				PreConfig: func() {
+					_ = testAccCheckMinioIAMPolicyDeleteExternally(rName)
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: testAccMinioIAMPolicyConfigName(rName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMPolicyExists(resourceName),
+				),
 			},
 		},
 	})
@@ -223,4 +257,15 @@ resource "minio_iam_policy" "test" {
   policy = %q
 }
 `, rName, policy)
+}
+
+func testAccCheckMinioIAMPolicyDeleteExternally(rName string) error {
+	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+
+	// Delete user
+	if err := minioIam.RemoveCannedPolicy(context.Background(), rName); err != nil {
+		return fmt.Errorf("policy could not be deleted: %w", err)
+	}
+
+	return nil
 }

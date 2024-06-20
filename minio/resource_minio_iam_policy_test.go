@@ -261,7 +261,6 @@ resource "minio_iam_policy" "test" {
 func testAccCheckMinioIAMPolicyDeleteExternally(rName string) error {
 	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-	// Delete user
 	if err := minioIam.RemoveCannedPolicy(context.Background(), rName); err != nil {
 		return fmt.Errorf("policy could not be deleted: %w", err)
 	}

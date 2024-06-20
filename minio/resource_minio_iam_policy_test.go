@@ -38,7 +38,6 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 		},
 	})
 }
-
 func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_iam_policy.test"

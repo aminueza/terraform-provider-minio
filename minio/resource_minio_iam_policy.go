@@ -2,7 +2,9 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/minio/madmin-go/v3"
 	"log"
 	"regexp"
 	"strings"
@@ -85,6 +87,15 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	output, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, d.Id())
 	if err != nil {
+		errResp := madmin.ErrorResponse{}
+		if errors.As(err, &errResp) {
+			if errResp.Code == "XMinioAdminNoSuchPolicy" {
+				log.Printf("[DEBUG] IAM Policy does not exist: [%s]", d.Id())
+				d.SetId("")
+				return nil
+			}
+			return NewResourceError("unable to read policy", d.Id(), err)
+		}
 		return NewResourceError("unable to read policy", d.Id(), err)
 	}
 

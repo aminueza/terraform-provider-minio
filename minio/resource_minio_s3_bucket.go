@@ -36,6 +36,7 @@ func resourceMinioBucket() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:          schema.TypeString,
+				Description:   "Name of the bucket",
 				Optional:      true,
 				Computed:      true,
 				ForceNew:      true,
@@ -44,21 +45,24 @@ func resourceMinioBucket() *schema.Resource {
 			},
 			"bucket_prefix": {
 				Type:          schema.TypeString,
+				Description:   "Prefix of the bucket",
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"bucket"},
 				ValidateFunc:  validation.StringLenBetween(0, 63-id.UniqueIDSuffixLength),
 			},
 			"force_destroy": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
+				Type:        schema.TypeBool,
+				Description: "Force destroy the bucket (default: false)",
+				Optional:    true,
+				Default:     false,
 			},
 			"acl": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Default:  "private",
-				ForceNew: false,
+				Type:        schema.TypeString,
+				Description: "Bucket's Access Control List (default: private)",
+				Optional:    true,
+				Default:     "private",
+				ForceNew:    false,
 			},
 			"arn": {
 				Type:     schema.TypeString,
@@ -73,10 +77,11 @@ func resourceMinioBucket() *schema.Resource {
 				Optional: true,
 			},
 			"object_locking": {
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-				ForceNew: false,
+				Type:        schema.TypeBool,
+				Description: "Enable object locking for the bucket (default: false)",
+				Optional:    true,
+				Default:     false,
+				ForceNew:    false,
 			},
 		},
 	}

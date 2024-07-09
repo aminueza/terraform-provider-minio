@@ -54,7 +54,7 @@ func newProvider(envvarPrefixed ...string) *schema.Provider {
 			"minio_user": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Minio User",
+				Description: "Minio User (or access key)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					envVarPrefix + "MINIO_USER",
 				}, nil),
@@ -63,7 +63,7 @@ func newProvider(envvarPrefixed ...string) *schema.Provider {
 			"minio_password": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Minio Password",
+				Description: "Minio Password (or secret key)",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					envVarPrefix + "MINIO_PASSWORD",
 				}, nil),

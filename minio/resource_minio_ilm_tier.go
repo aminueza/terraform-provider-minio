@@ -189,6 +189,9 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 		if _, ok := s3Config["storage_class"]; ok {
 			s3Options = append(s3Options, madmin.S3StorageClass(s3Config["storage_class"].(string)))
 		}
+		if d.Get("endpoint").(string) != "" {
+			s3Options = append(s3Options, madmin.S3Endpoint(d.Get("endpoint").(string)))
+		}
 		tierConf, err = madmin.NewTierS3(
 			name,
 			s3Config["access_key"].(string),

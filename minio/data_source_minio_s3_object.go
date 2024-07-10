@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -127,7 +128,12 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error reading object: %w", err))
 	}
-	defer object.Close()
+	defer func() {
+		err := object.Close()
+		if err != nil {
+			log.Printf("[WARN] Error closing S3 object source (%s): %s", objectName, err)
+		}
+	}()
 
 	objectInfo, err := object.Stat()
 	if err != nil {

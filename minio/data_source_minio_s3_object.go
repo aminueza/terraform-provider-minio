@@ -156,21 +156,21 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 		"id":           objectInfo.Owner.ID,
 	}
 
-	d.Set("content_type", objectInfo.ContentType)
-	d.Set("content", string(objectContent))
-	d.Set("etag", objectInfo.ETag)
-	d.Set("expires", objectInfo.Expires)
-	d.Set("expiration_rule_id", objectInfo.ExpirationRuleID)
-	d.Set("is_latest", objectInfo.IsLatest)
-	d.Set("last_modified", objectInfo.LastModified)
-	d.Set("owner", owner)
-	d.Set("size", objectInfo.Size)
-	d.Set("storage_class", objectInfo.StorageClass)
-	d.Set("version_id", objectInfo.VersionID)
-	d.Set("checksum_crc32", objectInfo.ChecksumCRC32)
-	d.Set("checksum_crc32c", objectInfo.ChecksumCRC32C)
-	d.Set("checksum_sha1", objectInfo.ChecksumSHA1)
-	d.Set("checksum_sha256", objectInfo.ChecksumSHA256)
+	_ = d.Set("content_type", objectInfo.ContentType)
+	_ = d.Set("content", string(objectContent))
+	_ = d.Set("etag", objectInfo.ETag)
+	_ = d.Set("expires", objectInfo.Expires)
+	_ = d.Set("expiration_rule_id", objectInfo.ExpirationRuleID)
+	_ = d.Set("is_latest", objectInfo.IsLatest)
+	_ = d.Set("last_modified", objectInfo.LastModified)
+	_ = d.Set("owner", owner)
+	_ = d.Set("size", objectInfo.Size)
+	_ = d.Set("storage_class", objectInfo.StorageClass)
+	_ = d.Set("version_id", objectInfo.VersionID)
+	_ = d.Set("checksum_crc32", objectInfo.ChecksumCRC32)
+	_ = d.Set("checksum_crc32c", objectInfo.ChecksumCRC32C)
+	_ = d.Set("checksum_sha1", objectInfo.ChecksumSHA1)
+	_ = d.Set("checksum_sha256", objectInfo.ChecksumSHA256)
 
 	return diags
 }

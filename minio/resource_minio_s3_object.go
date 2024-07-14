@@ -30,33 +30,39 @@ func resourceMinioObject() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"bucket_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of the bucket",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"object_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of the object",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.NoZeroValues,
 			},
 			"content_type": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "Content type of the object, in the form of a MIME type",
+				Optional:    true,
+				Computed:    true,
 			},
 			"source": {
 				Type:          schema.TypeString,
+				Description:   "Path to the file that will be uploaded. Use only one of content, content_base64, or source",
 				Optional:      true,
 				ConflictsWith: []string{"content", "content_base64"},
 			},
 			"content": {
 				Type:          schema.TypeString,
+				Description:   "Content of the object as a string. Use only one of content, content_base64, or source",
 				Optional:      true,
 				ConflictsWith: []string{"source", "content_base64"},
 			},
 			"content_base64": {
 				Type:          schema.TypeString,
+				Description:   "Base64-encoded content of the object. Use only one of content, content_base64, or source",
 				Optional:      true,
 				ConflictsWith: []string{"source", "content"},
 			},
@@ -71,7 +77,6 @@ func resourceMinioObject() *schema.Resource {
 				Computed: true,
 			},
 		},
-		//CustomizeDiff: customDiff,
 	}
 }
 

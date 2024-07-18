@@ -224,7 +224,7 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("prefix").(string)))
 		}
 		if d.Get("region").(string) != "" {
-			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("region").(string)))
+			gcsOptions = append(gcsOptions, madmin.GCSRegion(d.Get("region").(string)))
 		}
 		if _, ok := gcsConfig["storage_class"]; ok {
 			gcsOptions = append(gcsOptions, madmin.GCSStorageClass(gcsConfig["storage_class"].(string)))

@@ -32,11 +32,11 @@ output "minio_url" {
 
 ### Optional
 
-- `acl` (String)
-- `bucket` (String)
-- `bucket_prefix` (String)
-- `force_destroy` (Boolean)
-- `object_locking` (Boolean)
+- `acl` (String) Bucket's Access Control List (default: private)
+- `bucket` (String) Name of the bucket
+- `bucket_prefix` (String) Prefix of the bucket
+- `force_destroy` (Boolean) Force destroy the bucket (default: false)
+- `object_locking` (Boolean) Enable object locking for the bucket (default: false)
 - `quota` (Number)
 
 ### Read-Only

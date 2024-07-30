@@ -39,7 +39,7 @@ output "secret" {
 
 ### Required
 
-- `name` (String)
+- `name` (String) Name of the user
 
 ### Optional
 

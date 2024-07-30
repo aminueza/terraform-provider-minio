@@ -17,8 +17,8 @@ description: |-
 
 ### Required
 
-- `bucket` (String)
-- `policy` (String)
+- `bucket` (String) Name of the bucket
+- `policy` (String) Policy JSON string
 
 ### Read-Only
 

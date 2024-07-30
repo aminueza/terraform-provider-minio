@@ -45,12 +45,12 @@ output "minio_policy" {
 
 ### Required
 
-- `policy` (String)
+- `policy` (String) Policy JSON string
 
 ### Optional
 
-- `name` (String)
-- `name_prefix` (String)
+- `name` (String) Name of the policy. Conflicts with `name_prefix`.
+- `name_prefix` (String) Prefix to the generated policy name. Do not use with `name`.
 
 ### Read-Only
 

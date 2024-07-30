@@ -17,7 +17,7 @@ description: |-
 
 ### Required
 
-- `bucket` (String)
+- `bucket` (String) Name of the bucket
 - `versioning_configuration` (Block List, Min: 1, Max: 1) (see [below for nested schema](#nestedblock--versioning_configuration))
 
 ### Read-Only

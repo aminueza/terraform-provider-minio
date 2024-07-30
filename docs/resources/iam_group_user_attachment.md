@@ -43,8 +43,8 @@ output "minio_group" {
 
 ### Required
 
-- `group_name` (String)
-- `user_name` (String)
+- `group_name` (String) Name of group to attach user to
+- `user_name` (String) Name of user
 
 ### Read-Only
 

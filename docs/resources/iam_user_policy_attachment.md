@@ -65,8 +65,8 @@ resource "minio_iam_user_policy_attachment" "developer" {
 
 ### Required
 
-- `policy_name` (String)
-- `user_name` (String)
+- `policy_name` (String) Name of policy to attach to user
+- `user_name` (String) Name of user
 
 ### Read-Only
 

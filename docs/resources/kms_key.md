@@ -17,7 +17,7 @@ description: |-
 
 ### Required
 
-- `key_id` (String)
+- `key_id` (String) KMS key ID
 
 ### Read-Only
 

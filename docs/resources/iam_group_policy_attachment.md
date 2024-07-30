@@ -66,8 +66,8 @@ resource "minio_iam_group_policy_attachment" "developer" {
 
 ### Required
 
-- `group_name` (String)
-- `policy_name` (String)
+- `group_name` (String) Name of group to attach policy to
+- `policy_name` (String) Name of policy to attach to group
 
 ### Read-Only
 

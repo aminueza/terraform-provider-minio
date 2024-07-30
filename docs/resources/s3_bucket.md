@@ -37,10 +37,10 @@ output "minio_url" {
 - `bucket_prefix` (String) Prefix of the bucket
 - `force_destroy` (Boolean) Force destroy the bucket (default: false)
 - `object_locking` (Boolean) Enable object locking for the bucket (default: false)
-- `quota` (Number)
+- `quota` (Number) Quota of the bucket
 
 ### Read-Only
 
-- `arn` (String)
-- `bucket_domain_name` (String)
+- `arn` (String) ARN of the bucket
+- `bucket_domain_name` (String) The bucket domain name
 - `id` (String) The ID of this resource.

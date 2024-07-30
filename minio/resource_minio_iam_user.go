@@ -32,27 +32,28 @@ func resourceMinioIAMUser() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:         schema.TypeString,
+				Description:  "Name of the user",
 				Required:     true,
 				ValidateFunc: validateMinioIamUserName,
 				ForceNew:     true,
 			},
 			"force_destroy": {
 				Type:        schema.TypeBool,
+				Description: "Delete user even if it has non-Terraform-managed IAM access keys",
 				Optional:    true,
 				Default:     false,
-				Description: "Delete user even if it has non-Terraform-managed IAM access keys",
 			},
 			"disable_user": {
 				Type:        schema.TypeBool,
+				Description: "Disable user",
 				Optional:    true,
 				Default:     false,
-				Description: "Disable user",
 			},
 			"update_secret": {
 				Type:        schema.TypeBool,
+				Description: "Rotate Minio User Secret Key",
 				Optional:    true,
 				Default:     false,
-				Description: "Rotate Minio User Secret Key",
 			},
 			"status": {
 				Type:     schema.TypeString,

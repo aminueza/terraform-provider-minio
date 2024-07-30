@@ -23,18 +23,21 @@ func resourceMinioBucketServerSideEncryption() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "Name of the bucket on which to setup server side encryption",
+				Required:    true,
+				ForceNew:    true,
 			},
 			"encryption_type": {
 				Type:         schema.TypeString,
+				Description:  "Server side encryption type",
 				Required:     true,
 				ValidateFunc: validation.StringInSlice([]string{"aws:kms"}, false),
 			},
 			"kms_key_id": {
-				Type:     schema.TypeString,
-				Required: true,
+				Type:        schema.TypeString,
+				Description: "KMS key id to use for server side encryption",
+				Required:    true,
 			},
 		},
 	}

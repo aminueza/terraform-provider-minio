@@ -21,9 +21,10 @@ func resourceMinioKMSKey() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"key_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "KMS key ID",
+				Required:    true,
+				ForceNew:    true,
 			},
 		},
 	}

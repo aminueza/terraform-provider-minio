@@ -24,41 +24,44 @@ func resourceMinioServiceAccount() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"target_user": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "User the service account will be created for",
+				Required:    true,
+				ForceNew:    true,
 			},
 			"disable_user": {
 				Type:        schema.TypeBool,
+				Description: "Disable service account",
 				Optional:    true,
 				Default:     false,
-				Description: "Disable service account",
 			},
 			"update_secret": {
 				Type:        schema.TypeBool,
+				Description: "rotate secret key",
 				Optional:    true,
 				Default:     false,
-				Description: "rotate secret key",
 			},
 			"status": {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
 			"secret_key": {
-				Type:      schema.TypeString,
-				Computed:  true,
-				Sensitive: true,
+				Type:        schema.TypeString,
+				Description: "secret key of service account",
+				Computed:    true,
+				Sensitive:   true,
 			},
 			"access_key": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "access key of service account",
+				Computed:    true,
 			},
 			"policy": {
 				Type:             schema.TypeString,
+				Description:      "policy of service account as encoded JSON string",
 				Optional:         true,
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
-				Description:      "policy of service account",
 			},
 		},
 	}

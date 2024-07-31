@@ -24,12 +24,14 @@ func resourceMinioIAMGroupUserAttachment() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"group_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of group to attach user to",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateIAMNamePolicy,
 			},
 			"user_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of user",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateMinioIamUserName,

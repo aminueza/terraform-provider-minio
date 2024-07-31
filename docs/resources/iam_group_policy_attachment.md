@@ -56,7 +56,7 @@ output "minio_group" {
 # Example using an LDAP Group instead of a static MinIO group
 
 resource "minio_iam_group_policy_attachment" "developer" {
-  group_name  = "OU=Unit,DC=example,DC=com"
+  user_name   = "OU=Unit,DC=example,DC=com"
   policy_name = "${minio_iam_policy.test_policy.id}"
 }
 ```
@@ -66,8 +66,8 @@ resource "minio_iam_group_policy_attachment" "developer" {
 
 ### Required
 
-- `group_name` (String)
-- `policy_name` (String)
+- `group_name` (String) Name of group to attach policy to
+- `policy_name` (String) Name of policy to attach to group
 
 ### Read-Only
 

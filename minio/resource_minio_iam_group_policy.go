@@ -24,12 +24,14 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"policy": {
 				Type:             schema.TypeString,
+				Description:      "Policy JSON string",
 				Required:         true,
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
 			},
 			"name": {
 				Type:          schema.TypeString,
+				Description:   "Name of the policy. If omitted, Terraform will assign a random, unique name.",
 				Optional:      true,
 				Computed:      true,
 				ForceNew:      true,
@@ -38,15 +40,17 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 			},
 			"name_prefix": {
 				Type:          schema.TypeString,
+				Description:   "Prefix to the generated policy name. Do not use with `name`.",
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},
 				ValidateFunc:  validateIAMNamePolicy,
 			},
 			"group": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "Name of group the policy belongs to.",
+				Required:    true,
+				ForceNew:    true,
 			},
 		},
 	}

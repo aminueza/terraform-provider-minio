@@ -26,22 +26,22 @@ func resourceMinioIAMGroupMembership() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:        schema.TypeString,
+				Description: "Name of group membership",
 				Required:    true,
 				ForceNew:    true,
-				Description: "Name of group membership",
 			},
 			"users": {
 				Type:        schema.TypeSet,
 				Required:    true,
+				Description: "Add user or list of users such as a group membership",
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Set:         schema.HashString,
-				Description: "Add user or list of users such as a group membership",
 			},
 			"group": {
 				Type:        schema.TypeString,
+				Description: "Group name to add users",
 				Required:    true,
 				ForceNew:    true,
-				Description: "Group name to add users",
 			},
 		},
 	}

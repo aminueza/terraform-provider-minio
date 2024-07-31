@@ -26,12 +26,14 @@ func resourceMinioIAMUserPolicyAttachment() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"policy_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of policy to attach to user",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateIAMNamePolicy,
 			},
 			"user_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of user",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateMinioIamUserName,

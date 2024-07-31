@@ -40,17 +40,17 @@ output "minio_password" {
 
 ### Required
 
-- `target_user` (String)
+- `target_user` (String) User the service account will be created for
 
 ### Optional
 
 - `disable_user` (Boolean) Disable service account
-- `policy` (String) policy of service account
+- `policy` (String) policy of service account as encoded JSON string
 - `update_secret` (Boolean) rotate secret key
 
 ### Read-Only
 
-- `access_key` (String)
+- `access_key` (String) access key of service account
 - `id` (String) The ID of this resource.
-- `secret_key` (String, Sensitive)
+- `secret_key` (String, Sensitive) secret key of service account
 - `status` (String)

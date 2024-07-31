@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/minio/madmin-go/v3"
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/minio/madmin-go/v3"
 
 	"github.com/aws/aws-sdk-go/aws"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
@@ -30,12 +31,14 @@ func resourceMinioIAMPolicy() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"policy": {
 				Type:             schema.TypeString,
+				Description:      "Policy JSON string",
 				Required:         true,
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
 			},
 			"name": {
 				Type:          schema.TypeString,
+				Description:   "Name of the policy. Conflicts with `name_prefix`.",
 				Optional:      true,
 				Computed:      true,
 				ForceNew:      true,
@@ -44,6 +47,7 @@ func resourceMinioIAMPolicy() *schema.Resource {
 			},
 			"name_prefix": {
 				Type:          schema.TypeString,
+				Description:   "Prefix to the generated policy name. Do not use with `name`.",
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},

@@ -22,12 +22,14 @@ func resourceMinioBucketPolicy() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "Name of the bucket",
+				Required:    true,
+				ForceNew:    true,
 			},
 			"policy": {
 				Type:             schema.TypeString,
+				Description:      "Policy JSON string",
 				Required:         true,
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,

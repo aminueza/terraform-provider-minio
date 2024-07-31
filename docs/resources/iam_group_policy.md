@@ -54,13 +54,13 @@ output "minio_group" {
 
 ### Required
 
-- `group` (String)
-- `policy` (String)
+- `group` (String) Name of group the policy belongs to.
+- `policy` (String) Policy JSON string
 
 ### Optional
 
-- `name` (String)
-- `name_prefix` (String)
+- `name` (String) Name of the policy. If omitted, Terraform will assign a random, unique name.
+- `name_prefix` (String) Prefix to the generated policy name. Do not use with `name`.
 
 ### Read-Only
 

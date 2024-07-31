@@ -17,9 +17,9 @@ description: |-
 
 ### Required
 
-- `bucket` (String)
-- `encryption_type` (String)
-- `kms_key_id` (String)
+- `bucket` (String) Name of the bucket on which to setup server side encryption
+- `encryption_type` (String) Server side encryption type
+- `kms_key_id` (String) KMS key id to use for server side encryption
 
 ### Read-Only
 

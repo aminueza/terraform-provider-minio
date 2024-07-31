@@ -27,7 +27,7 @@ output "minio_user_group" {
 
 ### Required
 
-- `name` (String)
+- `name` (String) Name of the group
 
 ### Optional
 
@@ -36,5 +36,5 @@ output "minio_user_group" {
 
 ### Read-Only
 
-- `group_name` (String)
+- `group_name` (String) The name of the group.
 - `id` (String) The ID of this resource.

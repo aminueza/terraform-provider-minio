@@ -65,16 +65,19 @@ func resourceMinioBucket() *schema.Resource {
 				ForceNew:    false,
 			},
 			"arn": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "ARN of the bucket",
+				Computed:    true,
 			},
 			"bucket_domain_name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "The bucket domain name",
+				Computed:    true,
 			},
 			"quota": {
-				Type:     schema.TypeInt,
-				Optional: true,
+				Type:        schema.TypeInt,
+				Description: "Quota of the bucket",
+				Optional:    true,
 			},
 			"object_locking": {
 				Type:        schema.TypeBool,

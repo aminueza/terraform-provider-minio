@@ -67,14 +67,16 @@ func resourceMinioObject() *schema.Resource {
 				ConflictsWith: []string{"source", "content"},
 			},
 			"etag": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "ETag of the object",
+				Optional:    true,
+				Computed:    true,
 			},
 			"version_id": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "Version ID of the object",
+				Optional:    true,
+				Computed:    true,
 			},
 		},
 	}

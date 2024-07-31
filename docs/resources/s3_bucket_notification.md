@@ -39,7 +39,4 @@ Optional:
 
 - `filter_prefix` (String)
 - `filter_suffix` (String)
-
-Read-Only:
-
-- `id` (String) The ID of this resource.
+- `id` (String)

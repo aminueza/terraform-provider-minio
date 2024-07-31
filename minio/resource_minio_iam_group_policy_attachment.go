@@ -26,12 +26,14 @@ func resourceMinioIAMGroupPolicyAttachment() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"policy_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of policy to attach to group",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateIAMNamePolicy,
 			},
 			"group_name": {
 				Type:         schema.TypeString,
+				Description:  "Name of group to attach policy to",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateMinioIamGroupName,

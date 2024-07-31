@@ -31,24 +31,26 @@ func resourceMinioIAMGroup() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"name": {
 				Type:         schema.TypeString,
+				Description:  "Name of the group",
 				Required:     true,
 				ValidateFunc: validateMinioIamGroupName,
 			},
 			"force_destroy": {
 				Type:        schema.TypeBool,
+				Description: "Delete group even if it has non-Terraform-managed members",
 				Optional:    true,
 				Default:     false,
-				Description: "Delete group even if it has non-Terraform-managed members",
 			},
 			"group_name": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Description: "The name of the group.",
+				Computed:    true,
 			},
 			"disable_group": {
 				Type:        schema.TypeBool,
+				Description: "Disable group",
 				Optional:    true,
 				Default:     false,
-				Description: "Disable group",
 			},
 		},
 	}

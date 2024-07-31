@@ -36,17 +36,17 @@ output "minio_id" {
 
 ### Required
 
-- `bucket_name` (String)
-- `object_name` (String)
+- `bucket_name` (String) Name of the bucket
+- `object_name` (String) Name of the object
 
 ### Optional
 
-- `content` (String)
-- `content_base64` (String)
-- `content_type` (String)
-- `etag` (String)
-- `source` (String)
-- `version_id` (String)
+- `content` (String) Content of the object as a string. Use only one of content, content_base64, or source
+- `content_base64` (String) Base64-encoded content of the object. Use only one of content, content_base64, or source
+- `content_type` (String) Content type of the object, in the form of a MIME type
+- `etag` (String) ETag of the object
+- `source` (String) Path to the file that will be uploaded. Use only one of content, content_base64, or source
+- `version_id` (String) Version ID of the object
 
 ### Read-Only
 

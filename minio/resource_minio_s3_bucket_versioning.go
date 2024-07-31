@@ -22,9 +22,10 @@ func resourceMinioBucketVersioning() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Description: "Name of the bucket",
+				Required:    true,
+				ForceNew:    true,
 			},
 			"versioning_configuration": {
 				Type:     schema.TypeList,

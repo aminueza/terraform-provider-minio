@@ -270,7 +270,7 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 
 func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Admin
-	name := d.Get("name").(string)
+	name := d.Id()
 	tier, err := getTier(c, ctx, name)
 	if err != nil {
 		return NewResourceError("reading remote tier failed", name, err)

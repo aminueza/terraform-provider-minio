@@ -107,7 +107,7 @@ variable "minio_password" {
 For testing locally, run the docker compose to spin up a minio server:
 
 ```sh
-docker-compose up
+docker compose up
 ```
 
 Access `http://localhost:8000` on your browser, apply your terraform templates and watch them going live.

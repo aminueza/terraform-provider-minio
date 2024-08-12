@@ -34,8 +34,8 @@ jobs:
         with:
           version: "2023.1.6"
           install-go: false
-      - name: Build the docker-compose stack
-        run: docker-compose up -d minio secondminio thirdminio fourthminio
+      - name: Build the Docker Compose stack
+        run: docker compose up -d minio secondminio thirdminio fourthminio
       - uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.5.7

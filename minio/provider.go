@@ -143,6 +143,7 @@ func newProvider(envvarPrefixed ...string) *schema.Provider {
 			"minio_iam_policy":                       resourceMinioIAMPolicy(),
 			"minio_iam_user_policy_attachment":       resourceMinioIAMUserPolicyAttachment(),
 			"minio_iam_group_policy_attachment":      resourceMinioIAMGroupPolicyAttachment(),
+			"minio_iam_ldap_group_policy_attachment": resourceMinioIAMLDAPGroupPolicyAttachment(),
 			"minio_iam_group_user_attachment":        resourceMinioIAMGroupUserAttachment(),
 			"minio_ilm_policy":                       resourceMinioILMPolicy(),
 			"minio_kms_key":                          resourceMinioKMSKey(),

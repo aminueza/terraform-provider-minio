@@ -16,6 +16,7 @@ var ldapGroupPolicyAttachmentLock = NewMutexKV()
 
 func resourceMinioIAMLDAPGroupPolicyAttachment() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Attaches LDAP group to a policy. Can be used against both built-in and user-defined policies.",
 		CreateContext: minioCreateLDAPGroupPolicyAttachment,
 		ReadContext:   minioReadLDAPGroupPolicyAttachment,
 		DeleteContext: minioDeleteLDAPGroupPolicyAttachment,
@@ -32,7 +33,7 @@ func resourceMinioIAMLDAPGroupPolicyAttachment() *schema.Resource {
 			},
 			"group_dn": {
 				Type:         schema.TypeString,
-				Description:  "The dn of group to attach policy to",
+				Description:  "The distinguished name (dn) of group to attach policy to",
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validateMinioIamGroupName,

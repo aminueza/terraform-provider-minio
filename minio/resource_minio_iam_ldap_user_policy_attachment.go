@@ -16,6 +16,7 @@ var ldapUserPolicyAttachmentLock = NewMutexKV()
 
 func resourceMinioIAMLDAPUserPolicyAttachment() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Attaches LDAP user to a policy. Can be used against both built-in and user-defined policies.",
 		CreateContext: minioCreateLDAPUserPolicyAttachment,
 		ReadContext:   minioReadLDAPUserPolicyAttachment,
 		DeleteContext: minioDeleteLDAPUserPolicyAttachment,

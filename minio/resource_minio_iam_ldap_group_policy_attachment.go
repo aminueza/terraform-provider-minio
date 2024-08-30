@@ -182,7 +182,7 @@ func minioReadLDAPGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminCli
 	}
 
 	if len(policyEntities.GroupMappings) > 1 {
-		return nil, NewResourceError("failed to load user infos", groupDN, errors.New("More than one group returned when getting LDAP policies for single group"))
+		return nil, NewResourceError("failed to load user infos", groupDN, errors.New("more than one group returned when getting LDAP policies for single group"))
 	}
 
 	return policyEntities.GroupMappings[0].Policies, nil

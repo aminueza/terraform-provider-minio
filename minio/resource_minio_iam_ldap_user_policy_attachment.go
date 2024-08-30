@@ -182,7 +182,7 @@ func minioReadLDAPUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClie
 	}
 
 	if len(policyEntities.UserMappings) > 1 {
-		return nil, NewResourceError("failed to load user infos", userDN, errors.New("More than one user returned when getting LDAP policies for single user"))
+		return nil, NewResourceError("failed to load user infos", userDN, errors.New("more than one user returned when getting LDAP policies for single user"))
 	}
 
 	return policyEntities.UserMappings[0].Policies, nil

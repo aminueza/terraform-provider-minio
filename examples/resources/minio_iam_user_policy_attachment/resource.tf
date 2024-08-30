@@ -36,10 +36,3 @@ output "minio_users" {
 output "minio_group" {
   value = minio_iam_user_policy_attachment.developer.policy_name
 }
-
-# Example using an LDAP User instead of a static MinIO group
-
-resource "minio_iam_user_policy_attachment" "developer" {
-  user_name   = "CN=My User,OU=Unit,DC=example,DC=com"
-  policy_name = minio_iam_policy.test_policy.id
-}

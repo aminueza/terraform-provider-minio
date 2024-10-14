@@ -186,8 +186,9 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("reading service account failed", d.Id(), err)
 	}
 
-	_ = d.Set("policy", output.Policy)
-
+	if !output.ImpliedPolicy {
+		_ = d.Set("policy", output.Policy)
+	}
 	return nil
 }
 

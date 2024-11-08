@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -143,27 +144,6 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 	return
 }
 
-func validateILMNoncurrentVersionExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) {
-	value := v.(int)
-
-	if value < 1 {
-		return diag.Errorf("noncurrent_version_expiration_days must be strictly positive")
-	}
-
-	return
-}
-
-func validateILMNoncurrentVersionTransition(v interface{}, p cty.Path) (errors diag.Diagnostics) {
-	value := v.(int)
-
-	if value < 1 {
-		return diag.Errorf("noncurrent_version_transition_days must be strictly positive")
-	}
-
-	return
-}
-
-// New validation functions for the nested fields
 func validateILMDays(v interface{}, p cty.Path) diag.Diagnostics {
 	value := v.(string)
 	var days int
@@ -194,9 +174,19 @@ func validateILMVersions(v interface{}, p cty.Path) diag.Diagnostics {
 
 func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
-	config := lifecycle.NewConfiguration()
-
 	bucket := d.Get("bucket").(string)
+
+	_, err := c.BucketExists(ctx, bucket)
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("bucket validation failed: %v", err))
+	}
+
+	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
+	if err != nil && !isNotFoundError(err) {
+		return diag.FromErr(fmt.Errorf("failed to get existing lifecycle: %v", err))
+	}
+
+	config := lifecycle.NewConfiguration()
 	rules := d.Get("rule").([]interface{})
 
 	for _, ruleI := range rules {
@@ -214,7 +204,12 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if err := c.SetBucketLifecycle(ctx, bucket, config); err != nil {
-		return NewResourceError("creating bucket lifecycle failed", bucket, err)
+		if oldConfig != nil {
+			if rbErr := c.SetBucketLifecycle(ctx, bucket, oldConfig); rbErr != nil {
+				return diag.FromErr(fmt.Errorf("policy update failed and rollback failed: %v, rollback error: %v", err, rbErr))
+			}
+		}
+		return diag.FromErr(fmt.Errorf("failed to set lifecycle: %v", err))
 	}
 
 	d.SetId(bucket)
@@ -225,6 +220,24 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 	id, ok := getStringValue(ruleData, "id")
 	if !ok {
 		return lifecycle.Rule{}, fmt.Errorf("rule id is required")
+	}
+
+	if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
+		t := transition[0].(map[string]interface{})
+		if sc, ok := t["storage_class"].(string); !ok || !isValidStorageClass(sc) {
+			return lifecycle.Rule{}, fmt.Errorf("invalid storage_class: %s", sc)
+		}
+	}
+
+	if nt, exists := ruleData["noncurrent_transition"].([]interface{}); exists && len(nt) > 0 {
+		t := nt[0].(map[string]interface{})
+		days, ok := getStringValue(t, "days")
+		if !ok {
+			return lifecycle.Rule{}, fmt.Errorf("days is required for noncurrent_transition")
+		}
+		if err := validateILMDays(days, nil); err != nil {
+			return lifecycle.Rule{}, fmt.Errorf("invalid days format: %v", err)
+		}
 	}
 
 	var filter lifecycle.Filter
@@ -243,15 +256,29 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 
 	expiration, _ := getStringValue(ruleData, "expiration")
 
+	noncurrentTransition, err := parseILMNoncurrentTransition(ruleData["noncurrent_transition"])
+	if err != nil {
+		return lifecycle.Rule{}, err
+	}
+
 	return lifecycle.Rule{
 		ID:                          id,
 		Expiration:                  parseILMExpiration(expiration),
 		Transition:                  parseILMTransition(ruleData["transition"]),
 		NoncurrentVersionExpiration: parseILMNoncurrentExpiration(ruleData["noncurrent_expiration"]),
-		NoncurrentVersionTransition: parseILMNoncurrentTransition(ruleData["noncurrent_transition"]),
+		NoncurrentVersionTransition: noncurrentTransition,
 		Status:                      "Enabled",
 		RuleFilter:                  filter,
 	}, nil
+}
+
+func isValidStorageClass(sc string) bool {
+	validClasses := map[string]bool{
+		"STANDARD":    true,
+		"STANDARD_IA": true,
+		"GLACIER":     true,
+	}
+	return validClasses[sc]
 }
 
 func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -414,34 +441,36 @@ func parseILMTransition(transition interface{}) lifecycle.Transition {
 	return lifecycle.Transition{}
 }
 
-func parseILMNoncurrentTransition(noncurrentTransition interface{}) lifecycle.NoncurrentVersionTransition {
-	noncurrentTransitions := noncurrentTransition.([]interface{})
-	if len(noncurrentTransitions) == 0 {
-		return lifecycle.NoncurrentVersionTransition{}
+func parseILMNoncurrentTransition(noncurrentTransition interface{}) (lifecycle.NoncurrentVersionTransition, error) {
+	if noncurrentTransition == nil {
+		return lifecycle.NoncurrentVersionTransition{}, nil
 	}
 
-	t := noncurrentTransitions[0].(map[string]interface{})
-	if t == nil {
-		return lifecycle.NoncurrentVersionTransition{}
+	transitions, ok := noncurrentTransition.([]interface{})
+	if !ok || len(transitions) == 0 {
+		return lifecycle.NoncurrentVersionTransition{}, nil
 	}
 
-	days, ok := t["days"].(string)
-	if !ok || days == "" {
-		return lifecycle.NoncurrentVersionTransition{}
+	t, ok := transitions[0].(map[string]interface{})
+	if !ok || t == nil {
+		return lifecycle.NoncurrentVersionTransition{}, fmt.Errorf("invalid noncurrent_transition format")
+	}
+
+	days, ok := getStringValue(t, "days")
+	if !ok {
+		return lifecycle.NoncurrentVersionTransition{}, fmt.Errorf("days is required")
 	}
 
 	var daysInt int
-	if _, err := fmt.Sscanf(days, "%dd", &daysInt); err == nil {
-		storageClass := t["storage_class"].(string)
-		newerVersions, _ := t["newer_versions"].(int) // Optional field
-		return lifecycle.NoncurrentVersionTransition{
-			NoncurrentDays:          lifecycle.ExpirationDays(daysInt),
-			StorageClass:            storageClass,
-			NewerNoncurrentVersions: newerVersions,
-		}
+	if _, err := fmt.Sscanf(days, "%dd", &daysInt); err != nil {
+		return lifecycle.NoncurrentVersionTransition{}, fmt.Errorf("invalid days format: %s", days)
 	}
 
-	return lifecycle.NoncurrentVersionTransition{}
+	return lifecycle.NoncurrentVersionTransition{
+		NoncurrentDays:          lifecycle.ExpirationDays(daysInt),
+		StorageClass:            t["storage_class"].(string),
+		NewerNoncurrentVersions: t["newer_versions"].(int),
+	}, nil
 }
 
 func parseILMNoncurrentExpiration(noncurrentExpiration interface{}) lifecycle.NoncurrentVersionExpiration {
@@ -481,15 +510,6 @@ func getStringValue(m map[string]interface{}, key string) (string, bool) {
 	return "", false
 }
 
-func getIntValue(m map[string]interface{}, key string) (int, bool) {
-	if v, ok := m[key]; ok {
-		if i, ok := v.(int); ok {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
 // Use this helper for tags conversion
 func convertToStringMap(v interface{}) map[string]string {
 	result := make(map[string]string)
@@ -501,4 +521,8 @@ func convertToStringMap(v interface{}) map[string]string {
 		}
 	}
 	return result
+}
+
+func isNotFoundError(err error) bool {
+	return strings.Contains(err.Error(), "The lifecycle configuration does not exist")
 }

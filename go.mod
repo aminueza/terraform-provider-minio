@@ -1,6 +1,6 @@
 module github.com/aminueza/terraform-provider-minio/v2
 
-go 1.22.0
+go 1.23
 
 toolchain go1.23.3
 

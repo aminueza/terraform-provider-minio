@@ -111,10 +111,6 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		wantedStatus = madmin.AccountDisabled
 	}
 
-	if iamUserConfig.MinioForceDestroy {
-		return minioDeleteUser(ctx, d, meta)
-	}
-
 	userServerInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
 	if userServerInfo.Status != wantedStatus {
 		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, iamUserConfig.MinioIAMName, wantedStatus)

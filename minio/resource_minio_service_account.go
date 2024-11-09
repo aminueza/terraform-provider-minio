@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
@@ -63,6 +65,28 @@ func resourceMinioServiceAccount() *schema.Resource {
 				ValidateFunc:     validateIAMPolicyJSON,
 				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
 			},
+			"name": {
+				Type:             schema.TypeString,
+				Description:      "Name of service account (32 bytes max), can't be cleared once set",
+				Optional:         true,
+				DiffSuppressFunc: stringChangedToEmpty,
+				ValidateDiagFunc: validateMaxLength(32),
+			},
+			"description": {
+				Type:             schema.TypeString,
+				Description:      "Description of service account (256 bytes max), can't be cleared once set",
+				Optional:         true,
+				DiffSuppressFunc: stringChangedToEmpty,
+				ValidateDiagFunc: validateMaxLength(256),
+			},
+			"expiration": {
+				Type:             schema.TypeString,
+				Description:      "Expiration of service account. Must be between NOW+15min & NOW+365d",
+				Optional:         true,
+				Default:          "1970-01-01T00:00:00Z",
+				ValidateDiagFunc: validateExpiration,
+				DiffSuppressFunc: suppressTimeDiffs,
+			},
 		},
 	}
 }
@@ -74,10 +98,17 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	var err error
 	targetUser := serviceAccountConfig.MinioTargetUser
 	policy := serviceAccountConfig.MinioSAPolicy
+	expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
+	if err != nil {
+		return NewResourceError("Failed to parse expiration", serviceAccountConfig.MinioExpiration, err)
+	}
 
 	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{
-		Policy:     processServiceAccountPolicy(policy),
-		TargetUser: targetUser,
+		Policy:      processServiceAccountPolicy(policy),
+		TargetUser:  targetUser,
+		Name:        serviceAccountConfig.MinioName,
+		Description: serviceAccountConfig.MinioDescription,
+		Expiration:  &expiration,
 	})
 	if err != nil {
 		return NewResourceError("error creating service account", targetUser, err)
@@ -88,6 +119,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	d.SetId(aws.StringValue(&accessKey))
 	_ = d.Set("access_key", accessKey)
 	_ = d.Set("secret_key", secretKey)
+	d.Set("expiration", serviceAccount.Expiration.Format(time.RFC3339))
 
 	if serviceAccountConfig.MinioDisableUser {
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewStatus: "off"})
@@ -157,6 +189,49 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		_ = d.Set("policy", policy)
 	}
 
+	if d.HasChange("name") {
+		if serviceAccountConfig.MinioName == "" {
+			return NewResourceError("Minio does not support removing service account names", d.Id(), serviceAccountConfig.MinioName)
+		}
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
+			NewName: serviceAccountConfig.MinioName,
+		})
+		if err != nil {
+			return NewResourceError("error updating service account name %s: %s", d.Id(), err)
+		}
+
+		_ = d.Set("name", serviceAccountConfig.MinioName)
+	}
+
+	if d.HasChange("description") {
+		if serviceAccountConfig.MinioDescription == "" {
+			return NewResourceError("Minio does not support removing service account descriptions", d.Id(), serviceAccountConfig.MinioDescription)
+		}
+		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
+			NewDescription: serviceAccountConfig.MinioDescription,
+		})
+		if err != nil {
+			return NewResourceError("error updating service account description %s: %s", d.Id(), err)
+		}
+
+		_ = d.Set("description", serviceAccountConfig.MinioDescription)
+	}
+
+	if d.HasChange("expiration") {
+		expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
+		if err != nil {
+			return NewResourceError("error parsing service account expiration %s: %s", d.Id(), err)
+		}
+		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
+			NewExpiration: &expiration,
+		})
+		if err != nil {
+			return NewResourceError("error updating service account expiration %s: %s", d.Id(), err)
+		}
+
+		_ = d.Set("expiration", serviceAccountConfig.MinioExpiration)
+	}
+
 	return minioReadServiceAccount(ctx, d, meta)
 }
 
@@ -165,6 +240,10 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
 
 	output, err := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, d.Id())
+	if err != nil && err.Error() == "The specified service account is not found (Specified service account does not exist)" {
+		d.SetId("")
+		return nil
+	}
 	if err != nil {
 		return NewResourceError("error reading service account %s: %s", d.Id(), err)
 	}
@@ -189,6 +268,16 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	if !output.ImpliedPolicy {
 		_ = d.Set("policy", output.Policy)
 	}
+
+	d.Set("name", output.Name)
+	d.Set("description", output.Description)
+
+	if output.Expiration == nil {
+		d.Set("expiration", "1970-01-01T00:00:00Z")
+	} else {
+		d.Set("expiration", output.Expiration.Format(time.RFC3339))
+	}
+
 	return nil
 }
 
@@ -250,4 +339,63 @@ func parseUserFromParentUser(parentUser string) string {
 	}
 
 	return user
+}
+
+func stringChangedToEmpty(k, oldValue, newValue string, d *schema.ResourceData) bool {
+	return oldValue != "" && newValue == ""
+}
+
+func suppressTimeDiffs(k, old, new string, d *schema.ResourceData) bool {
+	old_exp, err := time.Parse(time.RFC3339, old)
+	if err != nil {
+		return false
+	}
+	new_exp, err := time.Parse(time.RFC3339, new)
+	if err != nil {
+		return false
+	}
+
+	return old_exp.Compare(new_exp) == 0
+}
+
+func validateExpiration(val any, p cty.Path) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	value := val.(string)
+	expiration, err := time.Parse(time.RFC3339, value)
+	if err != nil {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Error,
+			Summary:  "Invalid expiration",
+			Detail:   fmt.Sprintf("%q cannot be parsed as RFC3339 Timestamp Format", value),
+		})
+	}
+
+	key_duration := time.Until(expiration)
+	if key_duration < 15*time.Minute || key_duration > 365*24*time.Minute {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Error,
+			Summary:  "Invalid expiration",
+			Detail:   "Expiration must between 15 minutes and 365 days in the future",
+		})
+	}
+
+	return diags
+}
+
+func validateMaxLength(maxlen int) schema.SchemaValidateDiagFunc {
+	return func(val any, p cty.Path) diag.Diagnostics {
+		var diags diag.Diagnostics
+
+		value := val.(string)
+		if len(value) > maxlen {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Error,
+				Summary:  "String value too long",
+				Detail:   fmt.Sprintf("Byte length greater than %d", maxlen),
+			})
+		}
+
+		return diags
+	}
 }

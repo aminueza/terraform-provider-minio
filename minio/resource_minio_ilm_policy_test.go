@@ -332,7 +332,7 @@ resource "minio_ilm_policy" "rule_transition" {
 	id = "asdf"
 	transition {
 	  days = "1d"
-	  storage_class = "STANDARD_IA"
+	  storage_class = "${minio_ilm_tier.remote_tier.name}"
 	}
   }
 }
@@ -347,7 +347,7 @@ resource "minio_ilm_policy" "rule_transition" {
 	id = "asdf"
 	transition {
 	  date = "2024-06-06"
-	  storage_class = "STANDARD_IA"
+	  storage_class = "${minio_ilm_tier.remote_tier.name}"
 	}
   }
 }

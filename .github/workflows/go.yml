@@ -30,9 +30,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
-      - uses: dominikh/staticcheck-action@v1.3.0
+      - uses: dominikh/staticcheck-action@v1
         with:
-          version: "2023.1.6"
+          version: "latest"
           install-go: false
       - name: Build the Docker Compose stack
         run: docker compose up -d minio secondminio thirdminio fourthminio
@@ -49,3 +49,4 @@ jobs:
         run: task install
       - name: Run test task
         run: sudo apt install jq -y && sed "s/172.17.0.1/`docker network inspect bridge | jq -r .[].IPAM.Config[].Gateway`/" Taskfile.yml && task test
+        

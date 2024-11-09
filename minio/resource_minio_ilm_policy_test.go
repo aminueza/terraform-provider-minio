@@ -109,7 +109,7 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 					resource.TestCheckResourceAttr(
 						resourceName, "rule.0.expiration", ""),
 					resource.TestCheckResourceAttr(
-						resourceName, "rule.0.noncurrent_version_expiration_days", "5"),
+						resourceName, "rule.0.noncurrent_expiration.0.days", "5d"),
 				),
 			},
 		},

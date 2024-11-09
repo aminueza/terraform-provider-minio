@@ -301,7 +301,9 @@ resource "minio_ilm_policy" "rule4" {
   bucket = "${minio_s3_bucket.bucket4.id}"
   rule {
 	id = "expireNoncurrentVersion"
-	noncurrent_version_expiration_days = 5
+	noncurrent_expiration {
+	  days = "5d"
+	}
   }
 }
 `, randInt)
@@ -329,8 +331,8 @@ resource "minio_ilm_policy" "rule_transition" {
   rule {
 	id = "asdf"
 	transition {
-		days = "1d"
-		storage_class = "${minio_ilm_tier.remote_tier.name}"
+	  days = "1d"
+	  storage_class = "STANDARD_IA"
 	}
   }
 }
@@ -344,8 +346,8 @@ resource "minio_ilm_policy" "rule_transition" {
   rule {
 	id = "asdf"
 	transition {
-		date = "2024-06-06"
-		storage_class = "${minio_ilm_tier.remote_tier.name}"
+	  date = "2024-06-06"
+	  storage_class = "STANDARD_IA"
 	}
   }
 }

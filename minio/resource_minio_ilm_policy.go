@@ -224,8 +224,8 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 
 	if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
 		t := transition[0].(map[string]interface{})
-		if sc, ok := t["storage_class"].(string); !ok || !isValidStorageClass(sc) {
-			return lifecycle.Rule{}, fmt.Errorf("invalid storage_class: %s", sc)
+		if _, ok := t["storage_class"].(string); !ok {
+			return lifecycle.Rule{}, fmt.Errorf("storage_class is required for transition")
 		}
 	}
 
@@ -270,15 +270,6 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		Status:                      "Enabled",
 		RuleFilter:                  filter,
 	}, nil
-}
-
-func isValidStorageClass(sc string) bool {
-	validClasses := map[string]bool{
-		"STANDARD":    true,
-		"STANDARD_IA": true,
-		"GLACIER":     true,
-	}
-	return validClasses[sc]
 }
 
 func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

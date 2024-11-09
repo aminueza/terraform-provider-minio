@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	"github.com/aminueza/terraform-provider-minio/v2/minio"
+	"github.com/aminueza/terraform-provider-minio/v3/minio"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
 )
 

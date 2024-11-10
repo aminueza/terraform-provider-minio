@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -70,14 +71,14 @@ func resourceMinioServiceAccount() *schema.Resource {
 				Description:      "Name of service account (32 bytes max), can't be cleared once set",
 				Optional:         true,
 				DiffSuppressFunc: stringChangedToEmpty,
-				ValidateDiagFunc: validateMaxLength(32),
+				ValidateDiagFunc: validation.ToDiagFunc(validation.StringLenBetween(1, 32)),
 			},
 			"description": {
 				Type:             schema.TypeString,
 				Description:      "Description of service account (256 bytes max), can't be cleared once set",
 				Optional:         true,
 				DiffSuppressFunc: stringChangedToEmpty,
-				ValidateDiagFunc: validateMaxLength(256),
+				ValidateDiagFunc: validation.ToDiagFunc(validation.StringLenBetween(1, 256)),
 			},
 			"expiration": {
 				Type:             schema.TypeString,
@@ -381,21 +382,4 @@ func validateExpiration(val any, p cty.Path) diag.Diagnostics {
 	}
 
 	return diags
-}
-
-func validateMaxLength(maxlen int) schema.SchemaValidateDiagFunc {
-	return func(val any, p cty.Path) diag.Diagnostics {
-		var diags diag.Diagnostics
-
-		value := val.(string)
-		if len(value) > maxlen {
-			diags = append(diags, diag.Diagnostic{
-				Severity: diag.Error,
-				Summary:  "String value too long",
-				Detail:   fmt.Sprintf("Byte length greater than %d", maxlen),
-			})
-		}
-
-		return diags
-	}
 }

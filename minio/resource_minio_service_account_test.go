@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -154,6 +155,67 @@ func TestParseUserFromParentUser(t *testing.T) {
 	assert.Equal(t, "minio-user", parseUserFromParentUser("cn=minio-user, DC=example"))
 }
 
+func TestServiceAccount_NameDesc(t *testing.T) {
+	var serviceAccount madmin.InfoServiceAccountResp
+
+	targetUser := "minio"
+	resourceName := "minio_iam_service_account.test"
+	name := "svc-account"
+	description := "A service account"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioServiceAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioServiceAccountConfig(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountConfigUpdateNameDesc(targetUser, name, description),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountNameDesc(resourceName, name, description),
+				),
+			},
+		},
+	})
+}
+
+func TestServiceAccount_Expiration(t *testing.T) {
+	var serviceAccount madmin.InfoServiceAccountResp
+
+	targetUser := "minio"
+	resourceName := "minio_iam_service_account.test"
+	expiration := time.Now().Add(time.Hour * 1).UTC().Format(time.RFC3339)
+	epoch := time.UnixMicro(0).UTC().Format(time.RFC3339)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioServiceAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioServiceAccountConfig(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExpiration(resourceName, epoch),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountConfigUpdateExpiration(targetUser, expiration),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExpiration(resourceName, expiration),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioServiceAccountConfig(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_service_account" "test" {
@@ -235,6 +297,23 @@ resource "minio_iam_service_account" "test_service_account" {
   target_user   = minio_iam_user.test_user.id
 }
 `, rName)
+}
+
+func testAccMinioServiceAccountConfigUpdateNameDesc(rName string, name string, description string) string {
+	return fmt.Sprintf(`
+	resource "minio_iam_service_account" "test" {
+		  target_user = %q
+      name = %q
+      description = %q
+		}`, rName, name, description)
+}
+
+func testAccMinioServiceAccountConfigUpdateExpiration(rName string, expiration string) string {
+	return fmt.Sprintf(`
+	resource "minio_iam_service_account" "test" {
+		  target_user = %q
+      expiration = %q
+		}`, rName, expiration)
 }
 
 func testAccCheckMinioServiceAccountExists(n string, res *madmin.InfoServiceAccountResp) resource.TestCheckFunc {
@@ -375,6 +454,33 @@ func testAccCheckMinioServiceAccountPolicy(n string, expectedPolicy string) reso
 		diff := cmp.Diff(actual, expected)
 		if diff != "" {
 			return fmt.Errorf("%s: mismatch (-want +got):\n%s", n, diff)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioServiceAccountNameDesc(n string, name string, description string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["name"] != name {
+			return fmt.Errorf("bad name: %s", name)
+		}
+		if rs.Primary.Attributes["description"] != description {
+			return fmt.Errorf("bad description: %s", description)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioServiceAccountExpiration(n string, expiration string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs := s.RootModule().Resources[n]
+
+		if rs.Primary.Attributes["expiration"] != expiration {
+			return fmt.Errorf("bad expiration: %s", expiration)
 		}
 
 		return nil

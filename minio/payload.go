@@ -156,6 +156,9 @@ type S3MinioServiceAccountConfig struct {
 	MinioForceDestroy bool
 	MinioUpdateKey    bool
 	MinioIAMTags      map[string]string
+	MinioDescription  string
+	MinioName         string
+	MinioExpiration   string
 }
 
 // S3MinioIAMUserConfig defines IAM config

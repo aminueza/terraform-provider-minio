@@ -44,7 +44,10 @@ output "minio_password" {
 
 ### Optional
 
+- `description` (String) Description of service account (256 bytes max), can't be cleared once set
 - `disable_user` (Boolean) Disable service account
+- `expiration` (String) Expiration of service account. Must be between NOW+15min & NOW+365d
+- `name` (String) Name of service account (32 bytes max), can't be cleared once set
 - `policy` (String) policy of service account as encoded JSON string
 - `update_secret` (Boolean) rotate secret key
 

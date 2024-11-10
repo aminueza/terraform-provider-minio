@@ -3,6 +3,7 @@ resource "minio_iam_user" "test_user" {
 }
 
 resource "minio_iam_service_account" "test_service_account" {
+  name = "test-svc" # optional
   target_user = "test-user"
   policy = <<-EOF
     {

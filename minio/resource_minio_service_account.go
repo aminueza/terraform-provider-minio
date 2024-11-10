@@ -120,7 +120,6 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	d.SetId(aws.StringValue(&accessKey))
 	_ = d.Set("access_key", accessKey)
 	_ = d.Set("secret_key", secretKey)
-	d.Set("expiration", serviceAccount.Expiration.Format(time.RFC3339))
 
 	if serviceAccountConfig.MinioDisableUser {
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewStatus: "off"})
@@ -200,8 +199,6 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		if err != nil {
 			return NewResourceError("error updating service account name %s: %s", d.Id(), err)
 		}
-
-		_ = d.Set("name", serviceAccountConfig.MinioName)
 	}
 
 	if d.HasChange("description") {
@@ -214,8 +211,6 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		if err != nil {
 			return NewResourceError("error updating service account description %s: %s", d.Id(), err)
 		}
-
-		_ = d.Set("description", serviceAccountConfig.MinioDescription)
 	}
 
 	if d.HasChange("expiration") {
@@ -229,15 +224,12 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		if err != nil {
 			return NewResourceError("error updating service account expiration %s: %s", d.Id(), err)
 		}
-
-		_ = d.Set("expiration", serviceAccountConfig.MinioExpiration)
 	}
 
 	return minioReadServiceAccount(ctx, d, meta)
 }
 
 func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
 	serviceAccountConfig := ServiceAccountConfig(d, meta)
 
 	output, err := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, d.Id())

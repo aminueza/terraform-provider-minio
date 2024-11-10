@@ -262,13 +262,19 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		_ = d.Set("policy", output.Policy)
 	}
 
-	d.Set("name", output.Name)
-	d.Set("description", output.Description)
+	if err := d.Set("name", output.Name); err != nil {
+		return NewResourceError("reading service account failed", d.Id(), err)
+	}
+	if err := d.Set("description", output.Description); err != nil {
+		return NewResourceError("reading service account failed", d.Id(), err)
+	}
 
-	if output.Expiration == nil {
-		d.Set("expiration", "1970-01-01T00:00:00Z")
-	} else {
-		d.Set("expiration", output.Expiration.Format(time.RFC3339))
+	expiration := "1970-01-01T00:00:00Z"
+	if output.Expiration != nil {
+		expiration = output.Expiration.Format(time.RFC3339)
+	}
+	if err := d.Set("expiration", expiration); err != nil {
+		return NewResourceError("reading service account failed", d.Id(), err)
 	}
 
 	return nil

@@ -132,6 +132,7 @@ func newProvider(envvarPrefixed ...string) *schema.Provider {
 			"minio_s3_bucket_policy":                 resourceMinioBucketPolicy(),
 			"minio_s3_bucket_versioning":             resourceMinioBucketVersioning(),
 			"minio_s3_bucket_replication":            resourceMinioBucketReplication(),
+			"minio_s3_bucket_retention":              resourceMinioBucketRetention(),
 			"minio_s3_bucket_notification":           resourceMinioBucketNotification(),
 			"minio_s3_bucket_server_side_encryption": resourceMinioBucketServerSideEncryption(),
 			"minio_s3_object":                        resourceMinioObject(),

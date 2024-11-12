@@ -194,7 +194,8 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("Minio does not support removing service account names", d.Id(), serviceAccountConfig.MinioName)
 		}
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
-			NewName: serviceAccountConfig.MinioName,
+			NewName:   serviceAccountConfig.MinioName,
+			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account name %s: %s", d.Id(), err)
@@ -207,6 +208,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		}
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewDescription: serviceAccountConfig.MinioDescription,
+			NewPolicy:      processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account description %s: %s", d.Id(), err)
@@ -220,6 +222,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		}
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewExpiration: &expiration,
+			NewPolicy:     processServiceAccountPolicy(policy),
 		})
 		if err != nil {
 			return NewResourceError("error updating service account expiration %s: %s", d.Id(), err)

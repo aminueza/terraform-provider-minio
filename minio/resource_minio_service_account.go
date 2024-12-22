@@ -374,7 +374,7 @@ func validateExpiration(val any, p cty.Path) diag.Diagnostics {
 	}
 
 	key_duration := time.Until(expiration)
-	if key_duration < 15*time.Minute || key_duration > 365*24*time.Minute {
+	if key_duration < 15*time.Minute || key_duration > 365*24*60*time.Minute {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Error,
 			Summary:  "Invalid expiration",

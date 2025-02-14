@@ -23,6 +23,7 @@ resource "minio_ilm_policy" "bucket-lifecycle-rules" {
 
   rule {
     id         = "expire-7d"
+    status     = "Enabled"
     expiration = "7d"
   }
 }
@@ -33,7 +34,8 @@ resource "minio_ilm_policy" "comprehensive-rules" {
 
   # Rule with transition and expiration
   rule {
-    id = "documents"
+    id     = "documents"
+    status = "Enabled"
     transition {
       days          = "30d"
       storage_class = "STANDARD_IA"
@@ -47,7 +49,8 @@ resource "minio_ilm_policy" "comprehensive-rules" {
 
   # Rule with noncurrent version management
   rule {
-    id = "versioning"
+    id     = "versioning"
+    status = "Enabled"
     noncurrent_expiration {
       days           = "60d"
       newer_versions = 5
@@ -80,6 +83,7 @@ resource "minio_ilm_policy" "comprehensive-rules" {
 
 #### Optional
 
+- `status` (String) Status of the rule. Can be either "Enabled" or "Disabled". Defaults to "Enabled".
 - `expiration` (String) When objects should expire. Value must be a duration (e.g., "7d"), date (e.g., "2024-12-31"), or "DeleteMarker".
 - `filter` (String) Prefix path filter for the rule.
 - `tags` (Map of String) Key-value pairs of tags to filter objects.

@@ -172,6 +172,45 @@ func TestAccILMPolicy_transition(t *testing.T) {
 	})
 }
 
+func TestAccILMPolicy_ruleStatus(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-rule-status-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.rule_status"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				// Test default status (should be "Enabled")
+				Config: testAccMinioILMPolicyConfigDefaultStatus(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.status", "Enabled"),
+				),
+			},
+			{
+				// Test explicitly setting status to "Disabled"
+				Config: testAccMinioILMPolicyConfigDisabledStatus(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.status", "Disabled"),
+				),
+			},
+			{
+				// Test updating back to "Enabled"
+				Config: testAccMinioILMPolicyConfigEnabledStatus(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.status", "Enabled"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioLifecycleConfigurationValid(config *lifecycle.Configuration) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if config.Empty() || len(config.Rules) == 0 {
@@ -387,4 +426,57 @@ resource "minio_s3_bucket" %q {
   provider = %s
   bucket = %q
 }`, resourceName, provider, bucketName)
+}
+
+func testAccMinioILMPolicyConfigDefaultStatus(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+	bucket = "%s"
+	acl    = "public"
+}
+
+resource "minio_ilm_policy" "rule_status" {
+	bucket = minio_s3_bucket.bucket.bucket
+	rule {
+		id         = "rule-default-status"
+		expiration = "7d"
+	}
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyConfigDisabledStatus(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+	bucket = "%s"
+	acl    = "public"
+}
+
+resource "minio_ilm_policy" "rule_status" {
+	bucket = minio_s3_bucket.bucket.bucket
+	rule {
+		id         = "rule-disabled-status"
+		status     = "Disabled"
+		expiration = "7d"
+	}
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyConfigEnabledStatus(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+	bucket = "%s"
+	acl    = "public"
+}
+
+resource "minio_ilm_policy" "rule_status" {
+	bucket = minio_s3_bucket.bucket.bucket
+	rule {
+		id         = "rule-enabled-status"
+		status     = "Enabled"
+		expiration = "7d"
+	}
+}
+`, randInt)
 }

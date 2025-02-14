@@ -40,6 +40,13 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Type:     schema.TypeString,
 							Required: true,
 						},
+						"status": {
+							Type:         schema.TypeString,
+							Optional:     true,
+							Default:      "Enabled",
+							ValidateFunc: validation.StringInSlice([]string{"Enabled", "Disabled"}, false),
+							Description:  "Status of the rule. Can be either 'Enabled' or 'Disabled'. Defaults to 'Enabled'.",
+						},
 						"expiration": {
 							Type:             schema.TypeString,
 							Optional:         true,
@@ -110,10 +117,6 @@ func resourceMinioILMPolicy() *schema.Resource {
 									},
 								},
 							},
-						},
-						"status": {
-							Type:     schema.TypeString,
-							Computed: true,
 						},
 						"filter": {
 							Type:     schema.TypeString,
@@ -222,6 +225,11 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		return lifecycle.Rule{}, fmt.Errorf("rule id is required")
 	}
 
+	status, ok := getStringValue(ruleData, "status")
+	if !ok {
+		status = "Enabled"
+	}
+
 	if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
 		t := transition[0].(map[string]interface{})
 		if _, ok := t["storage_class"].(string); !ok {
@@ -267,7 +275,7 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		Transition:                  parseILMTransition(ruleData["transition"]),
 		NoncurrentVersionExpiration: parseILMNoncurrentExpiration(ruleData["noncurrent_expiration"]),
 		NoncurrentVersionTransition: noncurrentTransition,
-		Status:                      "Enabled",
+		Status:                      status,
 		RuleFilter:                  filter,
 	}, nil
 }

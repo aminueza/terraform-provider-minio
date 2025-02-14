@@ -7,6 +7,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule1"
+    status = "Enabled"
     # Delete objects after 90 days
     expiration = "90d"
     filter     = "documents/"
@@ -18,6 +19,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule2"
+    status = "Disabled"
     # Move objects to GLACIER after 30 days
     transition {
       days          = "30d"

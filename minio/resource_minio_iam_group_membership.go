@@ -48,7 +48,7 @@ func resourceMinioIAMGroupMembership() *schema.Resource {
 }
 
 func minioCreateGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	iamGroupMembershipConfig := IAMGroupMembersipConfig(d, meta)
+	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
@@ -67,7 +67,7 @@ func minioCreateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 }
 
 func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	iamGroupMembershipConfig := IAMGroupMembersipConfig(d, meta)
+	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
 
 	if d.HasChange("users") {
 		on, nn := d.GetChange("users")
@@ -100,7 +100,7 @@ func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 }
 
 func minioReadGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	iamGroupMembershipConfig := IAMGroupMembersipConfig(d, meta)
+	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
 
 	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 	if err != nil {
@@ -127,7 +127,7 @@ func minioReadGroupMembership(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	iamGroupMembershipConfig := IAMGroupMembersipConfig(d, meta)
+	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,

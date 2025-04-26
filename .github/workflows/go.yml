@@ -21,7 +21,7 @@ jobs:
         with:
           path: minio/...
       - name: Run vet
-        uses: aminueza/go-github-action/vet@master
+        run: go vet ./...
       - name: Run errcheck
         uses: aminueza/go-github-action/errcheck@master
         with:

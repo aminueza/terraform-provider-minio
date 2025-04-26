@@ -199,6 +199,8 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 			log.Printf("[WARN] Negative quota value %d found, setting to 0", quotaVal)
 			quotaVal = 0
 		}
+		// We've already checked that quotaVal is non-negative, so this conversion is safe
+		// #nosec G115 - int to uint64 conversion is safe after checking for negative values
 		bucketQuota := madmin.BucketQuota{Quota: uint64(quotaVal), Type: madmin.HardQuota}
 
 		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {

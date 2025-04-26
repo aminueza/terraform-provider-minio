@@ -206,9 +206,11 @@ func resourceMinioBucketReplication() *schema.Resource {
 												})
 											}
 											// Safely compare with minimum bandwidth threshold (100MB)
-											// BigMByte.Int64() is safe as it's a constant that fits in int64
-											minBandwidth := uint64(100 * humanize.BigMByte.Int64())
-											if val < minBandwidth {
+											// Using a constant directly to avoid integer overflow issues
+											const minBandwidthMB = 100
+											// 100MB in bytes = 100 * 1024 * 1024
+											const minBandwidthBytes uint64 = minBandwidthMB * 1024 * 1024
+											if val < minBandwidthBytes {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,
 													Summary:  "When set, bandwidth_limt must be at least 100MBps",

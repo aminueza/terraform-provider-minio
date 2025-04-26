@@ -151,6 +151,8 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 		log.Printf("[WARN] Negative validity period %d found, setting to 0", validityVal)
 		validityVal = 0
 	}
+	// We've already checked that validityVal is non-negative, so this conversion is safe
+	// #nosec G115 - int to uint conversion is safe after checking for negative values
 	validity := uint(validityVal)
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
@@ -230,6 +232,8 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 			log.Printf("[WARN] Negative validity period %d found, setting to 0", validityVal)
 			validityVal = 0
 		}
+		// We've already checked that validityVal is non-negative, so this conversion is safe
+		// #nosec G115 - int to uint conversion is safe after checking for negative values
 		validity := uint(validityVal)
 
 		err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)

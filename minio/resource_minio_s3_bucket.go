@@ -290,20 +290,6 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	return nil
 }
 
-func minioSetBucketQuota(ctx context.Context, bucketConfig *S3MinioBucket, bucketQuota *madmin.BucketQuota) diag.Diagnostics {
-
-	if !bucketQuota.IsValid() {
-		return NewResourceError("invalid quota", fmt.Sprint(bucketQuota.Quota), errors.New("quota must be larger than 0"))
-	}
-
-	if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, bucketQuota); err != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to set bucket quota", bucketConfig.MinioBucket, err))
-		return NewResourceError("unable to set bucket quota", bucketConfig.MinioBucket, err)
-	}
-
-	return nil
-}
-
 func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
 	policyJSON, err := json.Marshal(policyStruct)
 	if err != nil {

@@ -46,7 +46,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 - Terraform v1.5
 - Go v1.24
 
-It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
+It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.  
 It just means that we can't guarantee backward compatibility.
 
 ## Building and Installing
@@ -67,18 +67,29 @@ task install
 
 ## Examples
 
-Use [examples/main.tf](./examples/user/main.tf) to create some test config, such as:
+Explore the [examples](./examples/) folder for more usage scenarios.
+
+To get started quickly, you can use the configuration from [examples/user/main.tf](./examples/user/main.tf) as shown below:
 
 ```hcl
+terraform {
+  required_providers {
+    minio = {
+      source  = "aminueza/minio"
+      version = ">= 3.0.0"
+    }
+  }
+}
+
 provider "minio" {
-  minio_server   = "localhost:9000"
-  minio_region   = "us-east-1"
-  minio_user     = "minio"
-  minio_password = "minio123"
+  minio_server   = var.minio_server
+  minio_region   = var.minio_region
+  minio_user     = var.minio_user
+  minio_password = var.minio_password
 }
 ```
 
-You may use variables to fill up configurations:
+You may use variables to configure your provider (as in the example):
 
 ```hcl
 variable "minio_region" {
@@ -110,11 +121,21 @@ For testing locally, run the docker compose to spin up a minio server:
 docker compose up
 ```
 
-Access `http://localhost:8000` on your browser, apply your terraform templates and watch them going live.
+## Accessing the MinIO Console
 
-## Usage
+After running `docker compose up`, you can access the MinIO Console (the web UI) for each MinIO instance:
 
-See our [examples](./examples/) folder.
+- Main MinIO: [http://localhost:9001](http://localhost:9001)
+- Second MinIO: [http://localhost:9003](http://localhost:9003)
+- Third MinIO: [http://localhost:9005](http://localhost:9005)
+- Fourth MinIO: [http://localhost:9007](http://localhost:9007)
+
+**Login credentials** are set in your `docker-compose.yml` for each service. For example, for the main MinIO instance:
+
+- Username: `minio`
+- Password: `minio123`
+
+For the other instances, use the corresponding `MINIO_ROOT_PASSWORD` (e.g., `minio321`, `minio456`, `minio654`).
 
 ## Roadmap
 

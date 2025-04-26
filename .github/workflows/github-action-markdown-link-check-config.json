@@ -1,0 +1,16 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost:9001"
+    },
+    {
+      "pattern": "^http://localhost:9003"
+    },
+    {
+      "pattern": "^http://localhost:9005"
+    },
+    {
+      "pattern": "^http://localhost:9007"
+    }
+  ]
+}

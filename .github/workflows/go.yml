@@ -14,26 +14,34 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
-      - name: Run fmt
-        uses: aminueza/go-github-action/fmt@master
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: ./...
-      - name: Run vet
-        run: go vet ./...
-      - name: Run errcheck
-        uses: aminueza/go-github-action/errcheck@master
-        with:
-          path: minio/...
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
-      - uses: dominikh/staticcheck-action@v1.3.1
+      - uses: grandcolline/golang-github-actions@v1.1.0
         with:
-          version: "latest"
-          install-go: false
+          run: imports
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: errcheck
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: lint
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: shadow
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: staticcheck
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: grandcolline/golang-github-actions@v1.1.0
+        with:
+          run: sec
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build the Docker Compose stack
         run: docker compose up -d minio secondminio thirdminio fourthminio
       - uses: hashicorp/setup-terraform@v2

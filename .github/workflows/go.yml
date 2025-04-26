@@ -18,6 +18,18 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
+      - name: Run fmt
+        run: go fmt ./...
+      - name: Run vet
+        run: go vet ./...
+      - uses: dominikh/staticcheck-action@v1.3.1
+        with:
+          version: "latest"
+          install-go: false
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: ./...
       - name: Build the Docker Compose stack
         run: docker compose up -d minio secondminio thirdminio fourthminio
       - uses: hashicorp/setup-terraform@v2
@@ -33,15 +45,3 @@ jobs:
         run: task install
       - name: Run test task
         run: sudo apt install jq -y && sed "s/172.17.0.1/`docker network inspect bridge | jq -r .[].IPAM.Config[].Gateway`/" Taskfile.yml && task test
-      - name: Run fmt
-        run: go fmt ./...
-      - name: Run vet
-        run: go vet ./...
-      - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
-        with:
-          args: ./...
-      - uses: dominikh/staticcheck-action@v1.3.1
-        with:
-          version: "latest"
-          install-go: false

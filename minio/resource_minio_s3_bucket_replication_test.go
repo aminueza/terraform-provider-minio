@@ -77,7 +77,7 @@ resource "minio_s3_bucket_replication" "replication_in_all" {
         host = local.fourth_minio_host
         region = "us-west-2"
         secure = false
-        bandwidth_limt = "1G"
+        bandwidth_limit = "1G"
         access_key = minio_iam_service_account.replication_in_d.access_key
         secret_key = minio_iam_service_account.replication_in_d.secret_key
     }
@@ -174,7 +174,7 @@ resource "minio_s3_bucket_replication" "%s" {
         secure = false
         access_key = minio_iam_service_account.replication_in_%s.access_key
         secret_key = minio_iam_service_account.replication_in_%s.secret_key
-        bandwidth_limt = "1G"
+        bandwidth_limit = "1G"
     }
   }
 
@@ -301,7 +301,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bucket = minio_s3_bucket.my_bucket_in_b.bucket
         host = local.second_minio_host
         secure = false
-        bandwidth_limt = "100M"
+        bandwidth_limit = "100MB"
         access_key = minio_iam_service_account.replication_in_b.access_key
         secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
@@ -331,7 +331,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
             secure = false
             region = "eu-west-1"
             syncronous = true
-            bandwidth_limt = "100M"
+            bandwidth_limit = "100MB"
             access_key = minio_iam_service_account.replication_in_b.access_key
             secret_key = minio_iam_service_account.replication_in_b.secret_key
         }
@@ -360,7 +360,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
             host = local.primary_minio_host
             region = "eu-north-1"
             secure = false
-            bandwidth_limt = "800M"
+            bandwidth_limit = "800MB"
             health_check_period = "2m"
             access_key = minio_iam_service_account.replication_in_a.access_key
             secret_key = minio_iam_service_account.replication_in_a.secret_key
@@ -515,7 +515,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bucket = minio_s3_bucket.my_bucket_in_b.bucket
         host = local.second_minio_host
         secure = false
-        bandwidth_limt = "150M"
+        bandwidth_limit = "150MB"
         health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
         secret_key = minio_iam_service_account.replication_in_b.secret_key
@@ -582,7 +582,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bucket = minio_s3_bucket.my_bucket_in_b.bucket
         host = local.second_minio_host
         secure = false
-        bandwidth_limt = "150M"
+        bandwidth_limit = "150MB"
         health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
         secret_key = minio_iam_service_account.replication_in_b.secret_key

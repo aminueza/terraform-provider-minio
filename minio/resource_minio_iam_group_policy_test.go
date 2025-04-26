@@ -213,10 +213,6 @@ func testAccCheckIAMGroupPolicyExists(
 			return err
 		}
 
-		if err != nil {
-			return err
-		}
-
 		*groupPolicy = name
 
 		return nil

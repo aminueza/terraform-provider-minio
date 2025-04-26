@@ -14,26 +14,22 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
-      - name: Run fmt
-        uses: aminueza/go-github-action/fmt@master
-      - name: Run sec
-        uses: aminueza/go-github-action/sec@master
-        with:
-          path: minio/...
-      - name: Run vet
-        uses: aminueza/go-github-action/vet@master
-      - name: Run errcheck
-        uses: aminueza/go-github-action/errcheck@master
-        with:
-          path: minio/...
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
-      - uses: dominikh/staticcheck-action@v1.3.0
+      - name: Run fmt
+        run: go fmt ./...
+      - name: Run vet
+        run: go vet ./...
+      - uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: "2023.1.6"
+          version: "latest"
           install-go: false
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@master
+        with:
+          args: ./...
       - name: Build the Docker Compose stack
         run: docker compose up -d minio secondminio thirdminio fourthminio
       - uses: hashicorp/setup-terraform@v2

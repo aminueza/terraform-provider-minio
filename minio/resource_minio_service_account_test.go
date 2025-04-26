@@ -362,7 +362,7 @@ func testAccCheckMinioServiceAccountDisabled(n string) resource.TestCheckFunc {
 	}
 }
 
-func testAccCheckMinioServiceAccountAttributes(n string, name string, status string) resource.TestCheckFunc {
+func testAccCheckMinioServiceAccountAttributes(n string, _ string, status string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources[n]
 

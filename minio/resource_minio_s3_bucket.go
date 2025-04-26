@@ -190,14 +190,15 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if d.HasChange("quota") {
-		log.Printf("[DEBUG] Updating bucket, quota changed. Bucket: [%s], Region: [%s]",
-			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+		log.Printf("[DEBUG] Setting bucket quota")
+		quotaInt := d.Get("quota").(int)
+		if quotaInt < 0 {
+			return diag.Errorf("bucket quota must be a non-negative value, got: %d", quotaInt)
+		}
+		bucketQuota := madmin.BucketQuota{Quota: uint64(quotaInt), Type: madmin.HardQuota}
 
-		bucketQuota := madmin.BucketQuota{Quota: uint64(d.Get("quota").(int)), Type: madmin.HardQuota}
-
-		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {
-			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
-			return NewResourceError("[Quota] Unable to update bucket", bucketConfig.MinioBucket, err)
+		if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, &bucketQuota); err != nil {
+			return diag.Errorf("error setting bucket quota %v: %s", bucketConfig.MinioBucket, err)
 		}
 
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
@@ -284,20 +285,6 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 			log.Printf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
-	}
-
-	return nil
-}
-
-func minioSetBucketQuota(ctx context.Context, bucketConfig *S3MinioBucket, bucketQuota *madmin.BucketQuota) diag.Diagnostics {
-
-	if !bucketQuota.IsValid() {
-		return NewResourceError("invalid quota", fmt.Sprint(bucketQuota.Quota), errors.New("quota must be larger than 0"))
-	}
-
-	if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, bucketQuota); err != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to set bucket quota", bucketConfig.MinioBucket, err))
-		return NewResourceError("unable to set bucket quota", bucketConfig.MinioBucket, err)
 	}
 
 	return nil

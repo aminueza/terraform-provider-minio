@@ -44,7 +44,7 @@ Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang
 ## Supported Versions
 
 - Terraform v1.5
-- Go v1.20
+- Go v1.24
 
 It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.
 It just means that we can't guarantee backward compatibility.

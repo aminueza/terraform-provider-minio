@@ -115,7 +115,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
       bucket = minio_s3_bucket.my_bucket_in_b.bucket
       secure = false
       host = var.minio_server_b
-      bandwidth_limt = "100M"
+      bandwidth_limit = "100M"
       access_key = minio_iam_service_account.replication_in_b.access_key
       secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
@@ -165,7 +165,8 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
       bucket = minio_s3_bucket.my_bucket_in_a.bucket
       host = var.minio_server_a
       secure = false
-      bandwidth_limt = "100M"
+      bandwidth_limit = "800M"
+      health_check_period = "2m"
       access_key = minio_iam_service_account.replication_in_a.access_key
       secret_key = minio_iam_service_account.replication_in_a.secret_key
     }

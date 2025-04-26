@@ -30,9 +30,9 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version-file: "go.mod"
-      - uses: dominikh/staticcheck-action@v1.3.0
+      - uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: "2023.1.6"
+          version: "latest"
           install-go: false
       - name: Build the Docker Compose stack
         run: docker compose up -d minio secondminio thirdminio fourthminio

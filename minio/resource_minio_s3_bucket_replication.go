@@ -204,13 +204,9 @@ func resourceMinioBucketReplication() *schema.Resource {
 													Severity: diag.Error,
 													Summary:  "bandwidth_limt must be a positive value. It may use suffixes (k, m, g, ..) ",
 												})
+												return
 											}
-											// Safely compare with minimum bandwidth threshold (100MB)
-											// Using a constant directly to avoid integer overflow issues
-											const minBandwidthMB = 100
-											// 100MB in bytes = 100 * 1024 * 1024
-											const minBandwidthBytes uint64 = minBandwidthMB * 1024 * 1024
-											if val < minBandwidthBytes {
+											if val < uint64(100*humanize.BigMByte.Int64()) {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,
 													Summary:  "When set, bandwidth_limt must be at least 100MBps",
@@ -412,12 +408,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		target["syncronous"] = remoteTarget.ReplicationSync
 		target["disable_proxy"] = remoteTarget.DisableProxy
 		target["health_check_period"] = shortDur(remoteTarget.HealthCheckDuration)
-		// Safely handle negative values when converting to uint64
-		if remoteTarget.BandwidthLimit < 0 {
-			target["bandwidth_limt"] = "0B"
-		} else {
-			target["bandwidth_limt"] = humanize.Bytes(uint64(remoteTarget.BandwidthLimit))
-		}
+		target["bandwidth_limt"] = humanize.Bytes(uint64(remoteTarget.BandwidthLimit))
 		target["region"] = remoteTarget.Region
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
@@ -753,13 +744,7 @@ func getBucketReplicationConfig(v []interface{}) (result []S3MinioBucketReplicat
 				log.Printf("[WARN] invalid bandwidth value %q: %v", result[i].Target.BandwidthLimit, err)
 				errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limt is invalid. Make sure to use k, m, g as preffix only", i)...)
 			} else {
-				// Check if the value exceeds the maximum value for int64 to prevent overflow
-				if bandwidth > uint64(9223372036854775807) { // max int64 value
-					log.Printf("[WARN] bandwidth value %d exceeds maximum int64 value, capping to max int64", bandwidth)
-					result[i].Target.BandwidthLimit = 9223372036854775807 // max int64 value
-				} else {
-					result[i].Target.BandwidthLimit = int64(bandwidth)
-				}
+				result[i].Target.BandwidthLimit = int64(bandwidth)
 			}
 		}
 

@@ -79,6 +79,7 @@ func validateRetentionUnit(v interface{}, p cty.Path) diag.Diagnostics {
 	}
 	return nil
 }
+
 func validateValidityPeriod(v interface{}, p cty.Path) diag.Diagnostics {
 	value := v.(int)
 	if value < 1 {
@@ -144,7 +145,11 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	mode := minio.RetentionMode(d.Get("mode").(string))
 	unit := minio.ValidityUnit(d.Get("unit").(string))
-	validity := uint(d.Get("validity_period").(int))
+	validityInt := d.Get("validity_period").(int)
+	if validityInt < 0 {
+		return diag.Errorf("validity_period must be a non-negative value, got: %d", validityInt)
+	}
+	validity := uint(validityInt)
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 	if err != nil {
@@ -205,6 +210,7 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 
 	return nil
 }
+
 func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Id()
@@ -217,7 +223,11 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	if d.HasChanges("mode", "unit", "validity_period") {
 		mode := minio.RetentionMode(d.Get("mode").(string))
 		unit := minio.ValidityUnit(d.Get("unit").(string))
-		validity := uint(d.Get("validity_period").(int))
+		validityInt := d.Get("validity_period").(int)
+		if validityInt < 0 {
+			return diag.Errorf("validity_period must be a non-negative value, got: %d", validityInt)
+		}
+		validity := uint(validityInt)
 
 		err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 		if err != nil {

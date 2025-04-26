@@ -193,7 +193,13 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		log.Printf("[DEBUG] Updating bucket, quota changed. Bucket: [%s], Region: [%s]",
 			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
 
-		bucketQuota := madmin.BucketQuota{Quota: uint64(d.Get("quota").(int)), Type: madmin.HardQuota}
+		// Ensure quota value is non-negative before converting to uint64
+		quotaVal := d.Get("quota").(int)
+		if quotaVal < 0 {
+			log.Printf("[WARN] Negative quota value %d found, setting to 0", quotaVal)
+			quotaVal = 0
+		}
+		bucketQuota := madmin.BucketQuota{Quota: uint64(quotaVal), Type: madmin.HardQuota}
 
 		if err := minioSetBucketQuota(ctx, bucketConfig, &bucketQuota); err != nil {
 			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))

@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -144,7 +145,13 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	mode := minio.RetentionMode(d.Get("mode").(string))
 	unit := minio.ValidityUnit(d.Get("unit").(string))
-	validity := uint(d.Get("validity_period").(int))
+	// Ensure validity period is non-negative before converting to uint
+	validityVal := d.Get("validity_period").(int)
+	if validityVal < 0 {
+		log.Printf("[WARN] Negative validity period %d found, setting to 0", validityVal)
+		validityVal = 0
+	}
+	validity := uint(validityVal)
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 	if err != nil {
@@ -217,7 +224,13 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	if d.HasChanges("mode", "unit", "validity_period") {
 		mode := minio.RetentionMode(d.Get("mode").(string))
 		unit := minio.ValidityUnit(d.Get("unit").(string))
-		validity := uint(d.Get("validity_period").(int))
+		// Ensure validity period is non-negative before converting to uint
+		validityVal := d.Get("validity_period").(int)
+		if validityVal < 0 {
+			log.Printf("[WARN] Negative validity period %d found, setting to 0", validityVal)
+			validityVal = 0
+		}
+		validity := uint(validityVal)
 
 		err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 		if err != nil {

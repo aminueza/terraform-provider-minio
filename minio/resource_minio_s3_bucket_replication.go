@@ -206,7 +206,8 @@ func resourceMinioBucketReplication() *schema.Resource {
 												})
 												return
 											}
-											const minBandwidthLimit = uint64(100 * 104857600) // 100 * humanize.BigMByte (100 * 104,857,600)
+											// 100 MB (SI) = 100 * 1,000,000 = 100,000,000 bytes
+											const minBandwidthLimit = uint64(100000000)
 											if bandwidth < minBandwidthLimit {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,

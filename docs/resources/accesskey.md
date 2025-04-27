@@ -1,24 +1,50 @@
 # minio_accesskey Resource
 
-Manages a MinIO access key for a user via the MinIO `mc` CLI.
+Manages a MinIO access key for a user using the MinIO Admin Go SDK.
 
 ## Example Usage
 
 ```hcl
+# Create a user first
+resource "minio_iam_user" "example_user" {
+  name = "example-user"
+}
+
+# Create an access key with default settings (auto-generated keys, enabled)
 resource "minio_accesskey" "example" {
-  user       = "myuser"
-  access_key = "AKIAEXAMPLEKEY"
-  secret_key = "mySuperSecretKey"
-  status     = "enabled" # or "disabled"
+  user = minio_iam_user.example_user.name
+}
+
+# Create an access key with custom credentials
+resource "minio_accesskey" "custom_key" {
+  user       = minio_iam_user.example_user.name
+  access_key = "MINIO_ACCESS_KEY"  # Must be 8-20 characters
+  secret_key = "mySuperSecretKey"  # Must be 8-40 characters
+  status     = "enabled"
+}
+
+# Create a disabled access key
+resource "minio_accesskey" "disabled_key" {
+  user   = minio_iam_user.example_user.name
+  status = "disabled"
 }
 ```
 
 ## Argument Reference
 
 - `user` (Required) - The MinIO user for whom the access key is managed.
-- `access_key` (Optional) - The access key value. If omitted, MinIO generates one.
-- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one.
+- `access_key` (Optional) - The access key value. If omitted, MinIO generates one. Must be 8-20 characters when specified.
+- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be 8-40 characters when specified.
 - `status` (Optional) - The status of the access key (`enabled` or `disabled`). Defaults to `enabled`.
+
+## Timeouts
+
+`minio_accesskey` provides the following configuration options for timeouts:
+
+- `create` - (Default 5 minutes) How long to wait for an access key to be created.
+- `read` - (Default 2 minutes) How long to wait for an access key to be read.
+- `update` - (Default 5 minutes) How long to wait for an access key to be updated.
+- `delete` - (Default 5 minutes) How long to wait for an access key to be deleted.
 
 ## Attributes Reference
 
@@ -27,17 +53,10 @@ resource "minio_accesskey" "example" {
 - `secret_key` - The secret key.
 - `status` - The status of the access key.
 
-## Requirements
+## Import
 
-- The `mc` CLI must be installed and available in your `$PATH`.
-- The `myminio` alias must be configured in `mc` to point to your MinIO server.
-
-Example alias setup:
+Access keys can be imported using the access key ID. Note that the secret key value cannot be imported and will remain empty in the state.
 
 ```sh
-mc alias set myminio http://localhost:9000 minioadmin minioadmin
+terraform import minio_accesskey.example MINIO_ACCESS_KEY
 ```
-
-## Caveats
-- This resource shells out to the `mc` CLI, so the provider host must have access to the CLI and proper permissions.
-- Output parsing is best-effort; if MinIO changes CLI output format, parsing may break.

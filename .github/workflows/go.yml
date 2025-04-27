@@ -30,18 +30,5 @@ jobs:
         uses: securego/gosec@master
         with:
           args: ./...
-      - name: Build the Docker Compose stack
-        run: docker compose up -d minio secondminio thirdminio fourthminio
-      - uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7
-          terraform_wrapper: false
-      - name: Install Task
-        uses: arduino/setup-task@v1
-        with:
-          version: "3.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run install task
-        run: task install
-      - name: Run test task
-        run: sudo apt install jq -y && sed "s/172.17.0.1/`docker network inspect bridge | jq -r .[].IPAM.Config[].Gateway`/" Taskfile.yml && task test
+      - name: Run tests
+        run: docker compose run --rm test

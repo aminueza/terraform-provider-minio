@@ -2,11 +2,7 @@ package minio
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -383,7 +379,6 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 			continue
 		}
 
-		// Try to get user
 		_, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err == nil {
 			return fmt.Errorf("user still exists")
@@ -397,7 +392,6 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 func testAccCheckMinioUserDeleteExternally(username string) error {
 	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-	// Delete user
 	if err := minioIam.RemoveUser(context.Background(), username); err != nil {
 		return fmt.Errorf("user could not be deleted: %w", err)
 	}
@@ -414,18 +408,25 @@ func testAccCheckMinioUserExfiltrateAccessKey(n string, accessKey *string) resou
 		return nil
 	}
 }
+
 func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources[n]
 
-		// Check if we can log in
-		cfg := &S3MinioConfig{
-			S3HostPort:   os.Getenv("MINIO_ENDPOINT"),
-			S3UserAccess: rs.Primary.Attributes["name"],
-			S3UserSecret: rs.Primary.Attributes["secret"],
-			S3SSL:        map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
+		conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+
+		userName := rs.Primary.Attributes["name"]
+
+		userInfo, err := conn.GetUserInfo(context.Background(), userName)
+		if err != nil {
+			return fmt.Errorf("error getting user %s info: %s", userName, err)
 		}
-		return minioUIwebrpcLogin(cfg)
+
+		if userInfo.Status != madmin.AccountEnabled {
+			return fmt.Errorf("user exists but is not enabled: %s", userName)
+		}
+
+		return nil
 	}
 }
 
@@ -439,37 +440,4 @@ func testAccCheckMinioUserRotatesAccessKey(n string, oldAccessKey *string) resou
 
 		return nil
 	}
-}
-
-// minioUIwebrpcLogin checks if a login is possible to minio.
-//
-// It does this via webrpc because the User might lack any rights, even listing
-// buckets might be forbidden.  This is highly undesirable and should be replaced
-// as soon as possible.
-func minioUIwebrpcLogin(cfg *S3MinioConfig) error {
-	loginData := map[string]interface{}{
-		"accessKey": cfg.S3UserAccess,
-		"secretKey": cfg.S3UserSecret,
-	}
-	requestData, _ := json.Marshal(loginData)
-
-	client := &http.Client{}
-	req, err := http.NewRequest("POST", "http://localhost:9001/api/v1/login", strings.NewReader(string(requestData)))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("User-Agent", "Mozilla/5.0") // Server verifies Browser usage
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		return nil
-	}
-	return fmt.Errorf("login failure: user:%s %s", cfg.S3UserAccess, resp.Status)
 }

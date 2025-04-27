@@ -1,6 +1,9 @@
+# Define MinIO image version to use across all services
+x-minio-image: &minio_image minio/minio:RELEASE.2025-04-22T22-12-26Z
+
 services:
   minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z-cpuv1
+    image: *minio_image
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -11,8 +14,14 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
   secondminio: #  This is used to test bucket replication
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z-cpuv1
+    image: *minio_image
     ports:
       - "9002:9000"
       - "9003:9001"
@@ -23,8 +32,14 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
   thirdminio: #  This is used to test bucket replication
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z-cpuv1
+    image: *minio_image
     ports:
       - "9004:9000"
       - "9005:9001"
@@ -35,8 +50,14 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
   fourthminio: #  This is used to test bucket replication
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z-cpuv1
+    image: *minio_image
     ports:
       - "9006:9000"
       - "9007:9001"
@@ -47,3 +68,60 @@ services:
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
     command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+  test:
+    image: golang:1.24
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+    working_dir: /app
+    command: bash -c "\
+      apt-get update && \
+      apt-get install -y unzip && \
+      wget -O terraform.zip https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip && \
+      unzip terraform.zip && \
+      mv terraform /usr/local/bin/ && \
+      rm terraform.zip && \
+      go mod download && \
+      go mod verify && \
+      echo 'Running tests...' && \
+      go test -v ./minio ${TEST_PATTERN:+-run $TEST_PATTERN}"
+    environment:
+      TF_ACC: "1"
+      TEST_PATTERN: "${TEST_PATTERN:-}"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_USER: "minio"
+      MINIO_PASSWORD: "minio123"
+      MINIO_ENABLE_HTTPS: "false"
+      SECOND_MINIO_ENDPOINT: "secondminio:9000"
+      SECOND_MINIO_USER: "minio"
+      SECOND_MINIO_PASSWORD: "minio321"
+      SECOND_MINIO_ENABLE_HTTPS: "false"
+      THIRD_MINIO_ENDPOINT: "thirdminio:9000"
+      THIRD_MINIO_USER: "minio"
+      THIRD_MINIO_PASSWORD: "minio456"
+      THIRD_MINIO_ENABLE_HTTPS: "false"
+      FOURTH_MINIO_ENDPOINT: "fourthminio:9000"
+      FOURTH_MINIO_USER: "minio"
+      FOURTH_MINIO_PASSWORD: "minio654"
+      FOURTH_MINIO_ENABLE_HTTPS: "false"
+    depends_on:
+      minio:
+        condition: service_healthy
+      secondminio:
+        condition: service_healthy
+      thirdminio:
+        condition: service_healthy
+      fourthminio:
+        condition: service_healthy
+    profiles:
+      - test
+
+volumes:
+  go-modules:
+    # Persistent volume for Go modules to speed up subsequent test runs

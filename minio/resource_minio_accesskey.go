@@ -110,9 +110,6 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 		status = "disabled"
 	}
 	_ = d.Set("status", status)
-
-	// Set access_key to the ID for importing
-	// Secret key can't be retrieved from the API, so it remains unset during import
 	_ = d.Set("access_key", accessKeyID)
 
 	return nil

@@ -30,12 +30,5 @@ jobs:
         uses: securego/gosec@master
         with:
           args: ./...
-      - name: Install Task
-        uses: arduino/setup-task@v1
-        with:
-          version: "3.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Run install task
-        run: task install
       - name: Run tests
         run: docker compose run --rm test

@@ -1,8 +1,11 @@
 package minio
 
 import (
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -64,7 +67,7 @@ var kEnvVarNeeded = []string{
 }
 
 func testAccPreCheck(t *testing.T) {
-	valid := true
+	var valid bool = true
 
 	if v, _ := os.LookupEnv("TF_ACC"); v == "" {
 		valid = false
@@ -80,4 +83,62 @@ func testAccPreCheck(t *testing.T) {
 	if !valid {
 		t.Fatal("you must to set env variables for integration tests!")
 	}
+	
+	// Check that all MinIO instances are healthy before running tests
+	checkMinioHealth()
+}
+
+// checkMinioHealth verifies that all MinIO instances are up and running
+func checkMinioHealth() {
+	minioEndpoints := []string{
+		os.Getenv("MINIO_ENDPOINT"),
+		os.Getenv("SECOND_MINIO_ENDPOINT"),
+		os.Getenv("THIRD_MINIO_ENDPOINT"),
+		os.Getenv("FOURTH_MINIO_ENDPOINT"),
+	}
+
+	fmt.Println("Checking MinIO instances health...")
+	for i, endpoint := range minioEndpoints {
+		if endpoint == "" {
+			continue
+		}
+
+		var healthy bool
+		var lastErr error
+		for retries := 0; retries < 10; retries++ {
+			// Try a simple HTTP request to the health endpoint
+			healthURL := fmt.Sprintf("http://%s/minio/health/live", endpoint)
+			fmt.Printf("Checking health of MinIO instance %d at %s (attempt %d/10)\n", i+1, endpoint, retries+1)
+			
+			resp, err := http.Get(healthURL)
+			if err != nil {
+				lastErr = err
+				fmt.Printf("Error connecting to %s: %v\n", healthURL, err)
+				time.Sleep(3 * time.Second)
+				continue
+			}
+			
+			if resp.StatusCode == http.StatusOK {
+				resp.Body.Close()
+				healthy = true
+				break
+			}
+			
+			lastErr = fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+			fmt.Printf("Unexpected status code from %s: %d\n", healthURL, resp.StatusCode)
+			resp.Body.Close()
+			time.Sleep(3 * time.Second)
+		}
+		
+		if !healthy {
+			fmt.Printf("WARNING: MinIO instance %d at %s may not be fully healthy: %v\n", i+1, endpoint, lastErr)
+			// Don't fail the test, just warn
+		} else {
+			fmt.Printf("MinIO instance %d at %s is healthy and ready\n", i+1, endpoint)
+		}
+	}
+
+	// Add an additional delay to ensure everything is fully initialized
+	fmt.Println("Waiting an additional 5 seconds before proceeding...")
+	time.Sleep(5 * time.Second)
 }

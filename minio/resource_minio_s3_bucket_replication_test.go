@@ -309,8 +309,15 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
-    minio_s3_bucket_versioning.my_bucket_in_b
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    minio_iam_user_policy_attachment.replication_in_b,
+    minio_iam_service_account.replication_in_b
   ]
+
+  # This is critical for proper cleanup
+  lifecycle {
+    create_before_destroy = true
+  }
 }`
 
 const kTwoWaySimpleResource = `
@@ -339,8 +346,13 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
     
     depends_on = [
         minio_s3_bucket_versioning.my_bucket_in_a,
-        minio_s3_bucket_versioning.my_bucket_in_b
+        minio_s3_bucket_versioning.my_bucket_in_b,
+        minio_iam_user_policy_attachment.replication_in_b
     ]
+    
+    lifecycle {
+        create_before_destroy = true
+    }
 }
 
 resource "minio_s3_bucket_replication" "replication_in_a" {
@@ -369,8 +381,14 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
     depends_on = [
       minio_s3_bucket_versioning.my_bucket_in_a,
-      minio_s3_bucket_versioning.my_bucket_in_b
+      minio_s3_bucket_versioning.my_bucket_in_b,
+      minio_iam_user_policy_attachment.replication_in_a,
+      minio_iam_service_account.replication_in_a
     ]
+    
+    lifecycle {
+      create_before_destroy = true
+    }
 }`
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
@@ -413,7 +431,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "",
 									Syncronous:        false,
@@ -481,7 +499,7 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "",
 									Syncronous:        false,
@@ -546,7 +564,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "",
 									Syncronous:        false,
@@ -613,7 +631,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "",
 									Syncronous:        false,
@@ -653,7 +671,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "",
 									Syncronous:        false,
@@ -726,7 +744,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "eu-west-1",
 									Syncronous:        false,
@@ -751,7 +769,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            thirdBucketName,
 									StorageClass:      "",
-									Host:              thirdMinioEndpoint,
+									Host:              "thirdminio:9000",
 									Path:              "/",
 									Region:            "ap-south-1",
 									Syncronous:        false,
@@ -778,7 +796,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            fourthBucketName,
 									StorageClass:      "",
-									Host:              fourthMinioEndpoint,
+									Host:              "fourthminio:9000",
 									Path:              "/",
 									Region:            "us-west-2",
 									Syncronous:        false,
@@ -847,7 +865,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Region:            "eu-west-1",
 									Syncronous:        true,
 									Secure:            false,
@@ -876,7 +894,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            bucketName,
 									StorageClass:      "",
-									Host:              primaryMinioEndpoint,
+									Host:              "minio:9000",
 									Region:            "eu-north-1",
 									Syncronous:        false,
 									Secure:            false,
@@ -956,7 +974,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "eu-west-1",
 									Syncronous:        false,
@@ -981,7 +999,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            thirdBucketName,
 									StorageClass:      "",
-									Host:              thirdMinioEndpoint,
+									Host:              "thirdminio:9000",
 									Path:              "/",
 									Region:            "ap-south-1",
 									Syncronous:        false,
@@ -1008,7 +1026,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            fourthBucketName,
 									StorageClass:      "",
-									Host:              fourthMinioEndpoint,
+									Host:              "fourthminio:9000",
 									Path:              "/",
 									Region:            "us-west-2",
 									Syncronous:        false,
@@ -1038,7 +1056,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            thirdBucketName,
 									StorageClass:      "",
-									Host:              thirdMinioEndpoint,
+									Host:              "thirdminio:9000",
 									Path:              "/",
 									Region:            "ap-south-1",
 									Syncronous:        false,
@@ -1063,7 +1081,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            fourthBucketName,
 									StorageClass:      "",
-									Host:              fourthMinioEndpoint,
+									Host:              "fourthminio:9000",
 									Path:              "/",
 									Region:            "us-west-2",
 									Syncronous:        false,
@@ -1090,7 +1108,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            bucketName,
 									StorageClass:      "",
-									Host:              primaryMinioEndpoint,
+									Host:              "minio:9000",
 									Path:              "/",
 									Region:            "eu-central-1",
 									Syncronous:        false,
@@ -1120,7 +1138,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            fourthBucketName,
 									StorageClass:      "",
-									Host:              fourthMinioEndpoint,
+									Host:              "fourthminio:9000",
 									Path:              "/",
 									Region:            "us-west-2",
 									Syncronous:        false,
@@ -1145,7 +1163,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            bucketName,
 									StorageClass:      "",
-									Host:              primaryMinioEndpoint,
+									Host:              "minio:9000",
 									Path:              "/",
 									Region:            "eu-central-1",
 									Syncronous:        false,
@@ -1172,7 +1190,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "eu-west-1",
 									Syncronous:        false,
@@ -1202,7 +1220,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            bucketName,
 									StorageClass:      "",
-									Host:              primaryMinioEndpoint,
+									Host:              "minio:9000",
 									Path:              "/",
 									Region:            "eu-central-1",
 									Syncronous:        false,
@@ -1227,7 +1245,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            secondBucketName,
 									StorageClass:      "",
-									Host:              secondaryMinioEndpoint,
+									Host:              "secondminio:9000",
 									Path:              "/",
 									Region:            "eu-west-1",
 									Syncronous:        false,
@@ -1254,7 +1272,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 								Target: S3MinioBucketReplicationRuleTarget{
 									Bucket:            thirdBucketName,
 									StorageClass:      "",
-									Host:              thirdMinioEndpoint,
+									Host:              "thirdminio:9000",
 									Path:              "/",
 									Region:            "ap-south-1",
 									Syncronous:        false,
@@ -1347,9 +1365,15 @@ var kMinioHostLetter = []string{
 }
 
 func testAccBucketReplicationConfigLocals(minioHost ...string) string {
+	// For tests, we need to use the Docker service names for internal communication
+	// but keep the localhost:port format for external access
+	serviceNames := []string{"minio:9000", "secondminio:9000", "thirdminio:9000", "fourthminio:9000"}
+
 	var varBlock string
-	for i, val := range minioHost {
-		varBlock = varBlock + fmt.Sprintf("	%s_minio_host = %q\n", kMinioHostIdentifier[i], val)
+	for i := range minioHost {
+		if i < len(serviceNames) {
+			varBlock = varBlock + fmt.Sprintf("	%s_minio_host = %q\n", kMinioHostIdentifier[i], serviceNames[i])
+		}
 	}
 	return fmt.Sprintf(`
 locals {
@@ -1392,8 +1416,12 @@ func testAccBucketReplicationConfigServiceAccount(username string, count int) (v
 		varBlock = varBlock + fmt.Sprintf(`
 resource "minio_iam_policy" "replication_in_%s" {
   provider = %s
-  name   = "ReplicationToMyBucketPolicy"
+  name   = "ReplicationPolicy-%s"
   policy = data.minio_iam_policy_document.replication_policy.json
+  
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "minio_iam_user" "replication_in_%s" {
@@ -1406,6 +1434,16 @@ resource "minio_iam_user_policy_attachment" "replication_in_%s" {
   provider = %s
   user_name   = minio_iam_user.replication_in_%s.name
   policy_name = minio_iam_policy.replication_in_%s.id
+  
+  depends_on = [
+    minio_iam_policy.replication_in_%s,
+    minio_iam_user.replication_in_%s
+  ]
+  
+  # Set prevent_destroy to false to ensure this resource can be destroyed
+  lifecycle {
+    create_before_destroy = false
+  }
 }
 
 resource "minio_iam_service_account" "replication_in_%s" {
@@ -1416,9 +1454,14 @@ resource "minio_iam_service_account" "replication_in_%s" {
     minio_iam_user_policy_attachment.replication_in_%s,
     minio_iam_policy.replication_in_%s,
   ]
+  
+  # This ensures the service account is destroyed before the policy
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-`, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, indentifier, letter, letter, letter)
+`, letter, indentifier, letter, letter, indentifier, username, letter, indentifier, letter, letter, letter, letter, letter, indentifier, letter, letter, letter)
 	}
 	return varBlock
 }

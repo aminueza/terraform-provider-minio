@@ -44,4 +44,4 @@ jobs:
       - name: Run install task
         run: task install
       - name: Run test task
-        run: sudo apt install jq -y && sed "s/172.17.0.1/`docker network inspect bridge | jq -r .[].IPAM.Config[].Gateway`/" Taskfile.yml && task test
+        run: sudo apt install jq -y && sed "s/localhost/`docker network inspect bridge | jq -r .[].IPAM.Config[].Gateway`/" Taskfile.yml && task test

@@ -41,9 +41,28 @@ func TestAccS3BucketPolicy_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      "minio_s3_bucket_policy.bucket",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_s3_bucket_policy.bucket",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
+				Check: resource.ComposeTestCheckFunc(
+					func(s *terraform.State) error {
+						rs, ok := s.RootModule().Resources["minio_s3_bucket_policy.bucket"]
+						if !ok {
+							return fmt.Errorf("Not found: %s", "minio_s3_bucket_policy.bucket")
+						}
+
+						importedPolicy := rs.Primary.Attributes["policy"]
+						equivalent, err := awspolicy.PoliciesAreEquivalent(expectedPolicyText, importedPolicy)
+						if err != nil {
+							return fmt.Errorf("Error comparing policies: %s", err)
+						}
+						if !equivalent {
+							return fmt.Errorf("Imported policy is not equivalent to expected policy")
+						}
+						return nil
+					},
+				),
 			},
 		},
 	})
@@ -106,9 +125,28 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
 			},
 
 			{
-				ResourceName:      "minio_s3_bucket_policy.bucket",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_s3_bucket_policy.bucket",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
+				Check: resource.ComposeTestCheckFunc(
+					func(s *terraform.State) error {
+						rs, ok := s.RootModule().Resources["minio_s3_bucket_policy.bucket"]
+						if !ok {
+							return fmt.Errorf("Not found: %s", "minio_s3_bucket_policy.bucket")
+						}
+
+						importedPolicy := rs.Primary.Attributes["policy"]
+						equivalent, err := awspolicy.PoliciesAreEquivalent(expectedPolicyText2, importedPolicy)
+						if err != nil {
+							return fmt.Errorf("Error comparing policies: %s", err)
+						}
+						if !equivalent {
+							return fmt.Errorf("Imported policy is not equivalent to expected policy")
+						}
+						return nil
+					},
+				),
 			},
 		},
 	})

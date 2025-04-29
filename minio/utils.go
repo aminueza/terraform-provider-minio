@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
 
 const (
@@ -147,4 +149,46 @@ func shortDur(d time.Duration) string {
 		s = s[:len(s)-2]
 	}
 	return s
+}
+
+// NormalizeAndCompareJSONPolicies compares two policy JSON strings and returns the appropriate one to use.
+// It chooses the old policy if the policies are equivalent, otherwise returns the new one.
+// It also normalizes the chosen policy to ensure consistent formatting.
+// This function is used to prevent unnecessary updates when policies are semantically equivalent.
+func NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy string) (string, error) {
+	// Handle empty policies
+	if strings.TrimSpace(newPolicy) == "" {
+		return "", nil
+	}
+
+	if strings.TrimSpace(newPolicy) == "{}" {
+		return "{}", nil
+	}
+
+	if strings.TrimSpace(oldPolicy) == "" || strings.TrimSpace(oldPolicy) == "{}" {
+		// If old policy is empty, use the new one but normalize it first
+		normalizedPolicy, err := structure.NormalizeJsonString(newPolicy)
+		if err != nil {
+			return "", err
+		}
+		return normalizedPolicy, nil
+	}
+
+	// Check if policies are equivalent
+	equivalent, err := awspolicy.PoliciesAreEquivalent(oldPolicy, newPolicy)
+	if err != nil {
+		return "", err
+	}
+
+	if equivalent {
+		// If policies are equivalent, prefer the existing one for state consistency
+		return oldPolicy, nil
+	}
+
+	// Policies are different, use the new one but normalize it
+	normalizedPolicy, err := structure.NormalizeJsonString(newPolicy)
+	if err != nil {
+		return "", err
+	}
+	return normalizedPolicy, nil
 }

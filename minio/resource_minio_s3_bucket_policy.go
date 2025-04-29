@@ -3,9 +3,7 @@ package minio
 import (
 	"context"
 	"log"
-	"strings"
 
-	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
@@ -70,14 +68,14 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 		return NewResourceError("failed to load bucket policy", d.Id(), err)
 	}
 
-	policy, err := secondJSONUnlessEquivalent(d.Get("policy").(string), actualPolicyText)
-	if err != nil {
-		return NewResourceError("error while setting policy", policy, err)
+	existingPolicy := ""
+	if v, ok := d.GetOk("policy"); ok {
+		existingPolicy = v.(string)
 	}
 
-	policy, err = structure.NormalizeJsonString(policy)
+	policy, err := NormalizeAndCompareJSONPolicies(existingPolicy, actualPolicyText)
 	if err != nil {
-		return NewResourceError("policy is invalid JSON", policy, err)
+		return NewResourceError("error while comparing policies", d.Id(), err)
 	}
 
 	if err := d.Set("policy", policy); err != nil {
@@ -103,33 +101,4 @@ func minioDeleteBucketPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	return nil
-}
-
-// Based on SecondJSONUnlessEquivalent from SecondJSONUnlessEquivalent
-func secondJSONUnlessEquivalent(old, new string) (string, error) {
-	// valid empty JSON is "{}" not "" so handle special case to avoid
-	// Error unmarshaling policy: unexpected end of JSON input
-	if strings.TrimSpace(new) == "" {
-		return "", nil
-	}
-
-	if strings.TrimSpace(new) == "{}" {
-		return "{}", nil
-	}
-
-	if strings.TrimSpace(old) == "" || strings.TrimSpace(old) == "{}" {
-		return new, nil
-	}
-
-	equivalent, err := awspolicy.PoliciesAreEquivalent(old, new)
-
-	if err != nil {
-		return "", err
-	}
-
-	if equivalent {
-		return old, nil
-	}
-
-	return new, nil
 }

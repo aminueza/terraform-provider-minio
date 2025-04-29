@@ -107,7 +107,18 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 		return diag.FromErr(err)
 	}
 
-	if err := d.Set("policy", strings.TrimSpace(string(output))); err != nil {
+	actualPolicyText := strings.TrimSpace(string(output))
+	existingPolicy := ""
+	if v, ok := d.GetOk("policy"); ok {
+		existingPolicy = v.(string)
+	}
+
+	policy, err := NormalizeAndCompareJSONPolicies(existingPolicy, actualPolicyText)
+	if err != nil {
+		return NewResourceError("error while comparing policies", d.Id(), err)
+	}
+
+	if err := d.Set("policy", policy); err != nil {
 		return diag.FromErr(err)
 	}
 

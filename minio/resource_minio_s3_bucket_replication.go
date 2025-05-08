@@ -175,7 +175,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 										},
 										ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[0-9]+\s?[s|m|h]$`), "must be a valid golang duration"),
 									},
-									"bandwidth_limit": {
+									"bandwidth_limt": {
 										Type:        schema.TypeString,
 										Description: "Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB",
 										Optional:    true,
@@ -189,7 +189,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 											if !ok {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,
-													Summary:  "expected type of bandwidth_limit to be string",
+													Summary:  "expected type of bandwidth_limt to be string",
 												})
 												return
 											}
@@ -202,7 +202,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 											if err != nil {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,
-													Summary:  fmt.Sprintf("bandwidth_limit must be a positive value. It may use suffixes (k, m, g, ..) '%s'", v),
+													Summary:  fmt.Sprintf("bandwidth_limt must be a positive value. It may use suffixes (k, m, g, ..) '%s'", v),
 												})
 												return
 											}
@@ -211,7 +211,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 											if bandwidth < minBandwidthLimit {
 												diags = append(diags, diag.Diagnostic{
 													Severity: diag.Error,
-													Summary:  fmt.Sprintf("When set, bandwidth_limit must be at least 100MBps '%s'", v),
+													Summary:  fmt.Sprintf("When set, bandwidth_limt must be at least 100MBps '%s'", v),
 												})
 
 											}
@@ -419,7 +419,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-		target["bandwidth_limit"] = humanize.Bytes(bwUint64) // Corrected key name and added safe conversion
+		target["bandwidth_limt"] = humanize.Bytes(bwUint64) // Corrected key name and added safe conversion
 		target["region"] = remoteTarget.Region
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
@@ -749,11 +749,11 @@ func getBucketReplicationConfig(v []interface{}) (result []S3MinioBucketReplicat
 		var bandwidthStr string
 		var bandwidth uint64
 		var err error
-		if bandwidthStr, ok = target["bandwidth_limit"].(string); ok {
+		if bandwidthStr, ok = target["bandwidth_limt"].(string); ok {
 			bandwidth, err = humanize.ParseBytes(bandwidthStr)
 			if err != nil {
 				log.Printf("[WARN] invalid bandwidth value %q: %v", result[i].Target.BandwidthLimit, err)
-				errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as preffix only", i)...)
+				errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limt is invalid. Make sure to use k, m, g as preffix only", i)...)
 			} else {
 				var bwLimit int64
 				if bandwidth > uint64(math.MaxInt64) {

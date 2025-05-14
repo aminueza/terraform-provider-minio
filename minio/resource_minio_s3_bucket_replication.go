@@ -746,33 +746,22 @@ func getBucketReplicationConfig(v []interface{}) (result []S3MinioBucketReplicat
 		result[i].Target.DisableProxy, ok = target["disable_proxy"].(bool)
 		result[i].Target.DisableProxy = result[i].Target.DisableProxy && ok
 
-		var bandwidthStr string
 		var bandwidth uint64
 		var err error
-		var legacyLimitValue string
-		var limitValue string
-
-		if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
-			bandwidthStr = legacyLimitValue
-		} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
-			bandwidthStr = limitValue
+		bandwidth, ok, parseDiags := ParseBandwidthLimit(target)
+		if len(parseDiags) > 0 {
+			errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as prefix only", i)...)
 		}
 
-		if bandwidthStr != "" {
-			bandwidth, err = humanize.ParseBytes(bandwidthStr)
-			if err != nil {
-				log.Printf("[WARN] invalid bandwidth value %q: %v", result[i].Target.BandwidthLimit, err)
-				errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as preffix only", i)...)
+		if ok {
+			var bwLimit int64
+			if bandwidth > uint64(math.MaxInt64) {
+				log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64))
+				bwLimit = math.MaxInt64 // Clamp to max int64 if overflow would occur
 			} else {
-				var bwLimit int64
-				if bandwidth > uint64(math.MaxInt64) {
-					log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64))
-					bwLimit = math.MaxInt64 // Clamp to max int64 if overflow would occur
-				} else {
-					bwLimit = int64(bandwidth)
-				}
-				result[i].Target.BandwidthLimit = bwLimit // Safe conversion
+				bwLimit = int64(bandwidth)
 			}
+			result[i].Target.BandwidthLimit = bwLimit // Safe conversion
 		}
 
 		var healthcheckDuration string

@@ -918,24 +918,9 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limt": "200M",
 			}
 
-			var ok bool
-			var bandwidthStr string
-			var legacyLimitValue string
-			var limitValue string
-
-			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
-				bandwidthStr = legacyLimitValue
-			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
-				bandwidthStr = limitValue
-			}
-
-			if bandwidthStr == "" {
-				t.Fatalf("Expected bandwidth string to be set, but got empty string")
-			}
-
-			bandwidth, err := humanize.ParseBytes(bandwidthStr)
-			if err != nil {
-				t.Fatalf("Error parsing bandwidth: %v", err)
+			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			if !ok {
+				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
 
 			expectedBandwidth := uint64(200000000) // 200M
@@ -950,24 +935,9 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limit": "300M",
 			}
 
-			var ok bool
-			var bandwidthStr string
-			var legacyLimitValue string
-			var limitValue string
-
-			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
-				bandwidthStr = legacyLimitValue
-			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
-				bandwidthStr = limitValue
-			}
-
-			if bandwidthStr == "" {
-				t.Fatalf("Expected bandwidth string to be set, but got empty string")
-			}
-
-			bandwidth, err := humanize.ParseBytes(bandwidthStr)
-			if err != nil {
-				t.Fatalf("Error parsing bandwidth: %v", err)
+			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			if !ok {
+				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
 
 			expectedBandwidth := uint64(300000000) // 300M
@@ -983,24 +953,9 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limit": "300M",
 			}
 
-			var ok bool
-			var bandwidthStr string
-			var legacyLimitValue string
-			var limitValue string
-
-			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
-				bandwidthStr = legacyLimitValue
-			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
-				bandwidthStr = limitValue
-			}
-
-			if bandwidthStr == "" {
-				t.Fatalf("Expected bandwidth string to be set, but got empty string")
-			}
-
-			bandwidth, err := humanize.ParseBytes(bandwidthStr)
-			if err != nil {
-				t.Fatalf("Error parsing bandwidth: %v", err)
+			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			if !ok {
+				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
 
 			expectedBandwidth := uint64(200000000) // 200M (from bandwidth_limt)

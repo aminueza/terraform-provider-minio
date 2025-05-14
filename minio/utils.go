@@ -6,12 +6,15 @@ import (
 	"errors"
 	"hash/crc32"
 	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/dustin/go-humanize"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
@@ -191,4 +194,40 @@ func NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy string) (string, error
 		return "", err
 	}
 	return normalizedPolicy, nil
+}
+
+// ParseBandwidthLimit extracts and parses the bandwidth limit from a target map.
+// It handles both the legacy attribute "bandwidth_limt" and the new attribute "bandwidth_limit".
+// Returns the parsed bandwidth value, a boolean indicating success, and any diagnostic errors.
+func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics) {
+	var ok bool
+	var bandwidthStr string
+	var legacyLimitValue string
+	var limitValue string
+	var errs diag.Diagnostics
+
+	// Check for legacy attribute first (with typo)
+	if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
+		bandwidthStr = legacyLimitValue
+	} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
+		bandwidthStr = limitValue
+	}
+
+	if bandwidthStr == "" {
+		return 0, false, nil
+	}
+
+	bandwidth, err := humanize.ParseBytes(bandwidthStr)
+	if err != nil {
+		log.Printf("[WARN] invalid bandwidth value %q: %v", bandwidthStr, err)
+		errs = append(errs, diag.Errorf("bandwidth_limit is invalid. Make sure to use k, m, g as prefix only")...)
+		return 0, false, errs
+	}
+
+	// Check if bandwidth exceeds maximum int64 value
+	if bandwidth > uint64(math.MaxInt64) {
+		log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d)", bandwidth, math.MaxInt64)
+	}
+
+	return bandwidth, true, nil
 }

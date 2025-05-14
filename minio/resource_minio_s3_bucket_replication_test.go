@@ -910,6 +910,107 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 		},
 	})
 }
+func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
+	t.Run("TestBandwidthAttributeMigration", func(t *testing.T) {
+		// Test with old attribute (bandwidth_limt)
+		{
+			target := map[string]interface{}{
+				"bandwidth_limt": "200M",
+			}
+
+			var ok bool
+			var bandwidthStr string
+			var legacyLimitValue string
+			var limitValue string
+
+			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
+				bandwidthStr = legacyLimitValue
+			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
+				bandwidthStr = limitValue
+			}
+
+			if bandwidthStr == "" {
+				t.Fatalf("Expected bandwidth string to be set, but got empty string")
+			}
+
+			bandwidth, err := humanize.ParseBytes(bandwidthStr)
+			if err != nil {
+				t.Fatalf("Error parsing bandwidth: %v", err)
+			}
+
+			expectedBandwidth := uint64(200000000) // 200M
+			if bandwidth != expectedBandwidth {
+				t.Errorf("Expected bandwidth to be %d, got %d", expectedBandwidth, bandwidth)
+			}
+		}
+
+		// Test with new attribute (bandwidth_limit)
+		{
+			target := map[string]interface{}{
+				"bandwidth_limit": "300M",
+			}
+
+			var ok bool
+			var bandwidthStr string
+			var legacyLimitValue string
+			var limitValue string
+
+			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
+				bandwidthStr = legacyLimitValue
+			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
+				bandwidthStr = limitValue
+			}
+
+			if bandwidthStr == "" {
+				t.Fatalf("Expected bandwidth string to be set, but got empty string")
+			}
+
+			bandwidth, err := humanize.ParseBytes(bandwidthStr)
+			if err != nil {
+				t.Fatalf("Error parsing bandwidth: %v", err)
+			}
+
+			expectedBandwidth := uint64(300000000) // 300M
+			if bandwidth != expectedBandwidth {
+				t.Errorf("Expected bandwidth to be %d, got %d", expectedBandwidth, bandwidth)
+			}
+		}
+
+		// Test with both attributes (should prioritize the old attribute)
+		{
+			target := map[string]interface{}{
+				"bandwidth_limt":  "200M", // Should take precedence
+				"bandwidth_limit": "300M",
+			}
+
+			var ok bool
+			var bandwidthStr string
+			var legacyLimitValue string
+			var limitValue string
+
+			if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
+				bandwidthStr = legacyLimitValue
+			} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
+				bandwidthStr = limitValue
+			}
+
+			if bandwidthStr == "" {
+				t.Fatalf("Expected bandwidth string to be set, but got empty string")
+			}
+
+			bandwidth, err := humanize.ParseBytes(bandwidthStr)
+			if err != nil {
+				t.Fatalf("Error parsing bandwidth: %v", err)
+			}
+
+			expectedBandwidth := uint64(200000000) // 200M (from bandwidth_limt)
+			if bandwidth != expectedBandwidth {
+				t.Errorf("Expected bandwidth to be %d, got %d", expectedBandwidth, bandwidth)
+			}
+		}
+	})
+}
+
 func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")

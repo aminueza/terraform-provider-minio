@@ -226,7 +226,7 @@ func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics)
 
 	// Check if bandwidth exceeds maximum int64 value
 	if bandwidth > uint64(math.MaxInt64) {
-		log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d)", bandwidth, math.MaxInt64)
+		log.Printf("[WARN] Configured bandwidth limit (%s) exceeds maximum supported value (%s)", humanize.Bytes(bandwidth), humanize.Bytes(uint64(math.MaxInt64)))
 	}
 
 	return bandwidth, true, nil

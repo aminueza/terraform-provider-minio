@@ -419,7 +419,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-		target["bandwidth_limit"] = humanize.Bytes(bwUint64) // Corrected key name and added safe conversion
+		target["bandwidth_limit"] = humanize.Bytes(bwUint64)
 		target["region"] = remoteTarget.Region
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 

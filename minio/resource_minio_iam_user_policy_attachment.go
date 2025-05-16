@@ -158,8 +158,12 @@ func minioReadUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, 
 
 		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
 
-		if !isLDAPUser || !errUserIsResponse || !strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
-			return nil, NewResourceError("failed to load user Infos", userName, errUser)
+		if strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+			return nil, nil
+		} else {
+			if !isLDAPUser || !errUserIsResponse {
+				return nil, NewResourceError("failed to load user Infos", userName, errUser)
+			}
 		}
 	}
 	if userInfo.PolicyName == "" {

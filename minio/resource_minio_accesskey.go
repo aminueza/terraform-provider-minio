@@ -86,6 +86,11 @@ func resourceMinioAccessKey() *schema.Resource {
 					return
 				},
 			},
+			"policy": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Policy to attach to the access key (policy name or JSON document).",
+			},
 		},
 	}
 }
@@ -96,6 +101,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	accessKey := d.Get("access_key").(string)
 	secretKey := d.Get("secret_key").(string)
 	status := d.Get("status").(string)
+	policy := d.Get("policy").(string)
 
 	log.Printf("[INFO] Creating accesskey for user %s", user)
 
@@ -133,6 +139,16 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	})
 	if err != nil {
 		return diag.FromErr(err)
+	}
+
+	// Attach policy if provided
+	if policy != "" {
+		err := client.S3Admin.UpdateServiceAccount(ctx, creds.AccessKey, madmin.UpdateServiceAccountReq{
+			NewPolicy: []byte(policy),
+		})
+		if err != nil {
+			return diag.FromErr(fmt.Errorf("failed to attach policy to accesskey: %w", err))
+		}
 	}
 
 	if status == "disabled" {
@@ -186,6 +202,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
+	_ = d.Set("policy", info.Policy)
 
 	return nil
 }
@@ -194,6 +211,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	client := meta.(*S3MinioClient)
 	accessKeyID := d.Id()
 	status := d.Get("status").(string)
+	policy := d.Get("policy").(string)
 
 	log.Printf("[INFO] Updating accesskey %s with status %s", accessKeyID, status)
 
@@ -204,7 +222,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
-		err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus})
+		err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus, NewPolicy: []byte(policy)})
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
 				return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s status: %w", accessKeyID, err))

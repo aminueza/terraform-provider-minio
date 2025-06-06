@@ -28,6 +28,15 @@ resource "minio_accesskey" "disabled_key" {
   user   = minio_iam_user.example_user.name
   status = "disabled"
 }
+
+# Create an access key and attach a policy directly (policy name or JSON)
+resource "minio_accesskey" "with_policy" {
+  user   = minio_iam_user.example_user.name
+  access_key = "EXAMPLEKEY1"
+  secret_key = "mySuperSecretKey"
+  status     = "enabled"
+  policy     = file("path/to/policy.json") # or use a policy name or jsonencode block
+}
 ```
 
 ## Argument Reference
@@ -36,6 +45,7 @@ resource "minio_accesskey" "disabled_key" {
 - `access_key` (Optional) - The access key value. If omitted, MinIO generates one. Must be 8-20 characters when specified.
 - `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be 8-40 characters when specified.
 - `status` (Optional) - The status of the access key (`enabled` or `disabled`). Defaults to `enabled`.
+- `policy` (Optional) - The policy to attach to the access key. Can be a policy name, a JSON document, or the contents of a file (e.g., `file("path/to/policy.json")`).
 
 ## Timeouts
 

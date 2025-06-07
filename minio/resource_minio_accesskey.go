@@ -202,7 +202,13 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
-	_ = d.Set("policy", info.Policy)
+
+	policy := strings.TrimSpace(info.Policy)
+	if policy != "" && policy != "null" && policy != "{}" && policy != `{"Statement":null,"Version":""}` {
+		_ = d.Set("policy", policy)
+	} else {
+		_ = d.Set("policy", nil)
+	}
 
 	return nil
 }

@@ -1,11 +1,14 @@
 package minio
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioAccessKey_basic(t *testing.T) {
@@ -121,4 +124,59 @@ resource "minio_accesskey" "test" {
   secret_key = %q
 }
 `, rName, accessKey, secretKey)
+}
+
+func TestAccMinioAccessKey_withPolicy(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_policy"
+	policyJSON := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::osm/*"]}]}`
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithPolicy(rName, policyJSON),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					testCheckResourceAttrJSON(resourceName, "policy", policyJSON),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithPolicy(rName, policy string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test_user" {
+  name = %q
+}
+
+resource "minio_accesskey" "test_policy" {
+  user = minio_iam_user.test_user.name
+  policy = %q
+}
+`, rName, policy)
+}
+
+// Helper for JSON equality
+func testCheckResourceAttrJSON(resourceName, attrName, expectedJSON string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("Not found: %s", resourceName)
+		}
+		got := rs.Primary.Attributes[attrName]
+		var expected, actual interface{}
+		if err := json.Unmarshal([]byte(expectedJSON), &expected); err != nil {
+			return fmt.Errorf("Failed to unmarshal expected JSON: %s", err)
+		}
+		if err := json.Unmarshal([]byte(got), &actual); err != nil {
+			return fmt.Errorf("Failed to unmarshal actual JSON: %s", err)
+		}
+		if !reflect.DeepEqual(expected, actual) {
+			return fmt.Errorf("Attribute %q expected %s, got %s", attrName, expectedJSON, got)
+		}
+		return nil
+	}
 }

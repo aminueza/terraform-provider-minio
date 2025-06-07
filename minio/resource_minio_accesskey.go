@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -204,8 +205,42 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("access_key", accessKeyID)
 
 	policy := strings.TrimSpace(info.Policy)
-	if policy != "" && policy != "null" && policy != "{}" && policy != `{"Statement":null,"Version":""}` {
-		_ = d.Set("policy", policy)
+	isEmptyPolicy := false
+	if policy == "" || policy == "null" || policy == "{}" {
+		isEmptyPolicy = true
+	} else {
+		var policyObj map[string]interface{}
+		err := json.Unmarshal([]byte(policy), &policyObj)
+		if err == nil {
+			// Check for empty or null Statement and empty Version
+			statement, hasStatement := policyObj["Statement"]
+			version, hasVersion := policyObj["Version"]
+			if hasStatement && hasVersion {
+				statementIsEmpty := statement == nil || (fmt.Sprintf("%v", statement) == "<nil>" || fmt.Sprintf("%v", statement) == "null")
+				versionIsEmpty := version == nil || version == ""
+				if statementIsEmpty && versionIsEmpty {
+					isEmptyPolicy = true
+				}
+			}
+		}
+	}
+
+	if !isEmptyPolicy {
+		// Normalize policy JSON to minified format for state
+		var normalized string
+		var tmp interface{}
+		err := json.Unmarshal([]byte(policy), &tmp)
+		if err == nil {
+			minified, err := json.Marshal(tmp)
+			if err == nil {
+				normalized = string(minified)
+			} else {
+				normalized = policy
+			}
+		} else {
+			normalized = policy
+		}
+		_ = d.Set("policy", normalized)
 	} else {
 		_ = d.Set("policy", nil)
 	}

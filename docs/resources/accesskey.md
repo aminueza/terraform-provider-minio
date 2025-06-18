@@ -19,7 +19,7 @@ resource "minio_accesskey" "example" {
 resource "minio_accesskey" "custom_key" {
   user       = minio_iam_user.example_user.name
   access_key = "MINIO_ACCESS_KEY"  # Must be 8-20 characters
-  secret_key = "mySuperSecretKey"  # Must be 8-40 characters
+  secret_key = "mySuperSecretKey"  # Must be at least 8 characters
   status     = "enabled"
 }
 
@@ -34,7 +34,7 @@ resource "minio_accesskey" "disabled_key" {
 
 - `user` (Required) - The MinIO user for whom the access key is managed.
 - `access_key` (Optional) - The access key value. If omitted, MinIO generates one. Must be 8-20 characters when specified.
-- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be 8-40 characters when specified.
+- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be at least 8 characters when specified.
 - `status` (Optional) - The status of the access key (`enabled` or `disabled`). Defaults to `enabled`.
 
 ## Timeouts

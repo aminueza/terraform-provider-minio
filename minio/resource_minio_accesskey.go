@@ -62,12 +62,12 @@ func resourceMinioAccessKey() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Sensitive:   true,
-				Description: "The secret key. If provided, must be between 8 and 40 characters.",
+				Description: "The secret key. If provided, must be at least 8 characters.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
 					if v != "" {
-						if len(v) < 8 || len(v) > 40 {
-							errs = append(errs, fmt.Errorf("%q must be between 8 and 40 characters when specified", key))
+						if len(v) < 8 {
+							errs = append(errs, fmt.Errorf("%q must be at least 8 characters when specified", key))
 						}
 					}
 					return

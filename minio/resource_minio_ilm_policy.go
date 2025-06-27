@@ -523,5 +523,5 @@ func convertToStringMap(v interface{}) map[string]string {
 }
 
 func isNotFoundError(err error) bool {
-	return strings.Contains(err.Error(), "The lifecycle configuration does not exist")
+	return strings.Contains(err.Error(), "The lifecycle configuration does not exist") || strings.Contains(err.Error(), "NoSuchLifecycleConfiguration")
 }

@@ -27,6 +27,24 @@ resource "minio_accesskey" "test_key" {
   # secret_key = "custom_secret_key"
 }
 
+resource "minio_accesskey" "test_key_with_policy" {
+  user   = minio_iam_user.test_user.name
+  status = "enabled"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:ListBucket",
+          "s3:GetObject",
+        ]
+        Effect   = "Allow"
+        Resource = ["arn:aws:s3:::*"]
+      }
+    ]
+  }) # Attach policy (use file() or jsonencode())
+}
+
 # If you want to attach a policy to the user
 resource "minio_iam_policy" "test_policy" {
   name = "test-policy"
@@ -57,5 +75,14 @@ output "access_key" {
 
 output "secret_key" {
   value     = minio_accesskey.test_key.secret_key
+  sensitive = true
+}
+
+output "access_key_with_policy" {
+  value = minio_accesskey.test_key_with_policy.access_key
+}
+
+output "secret_key_with_policy" {
+  value     = minio_accesskey.test_key_with_policy.secret_key
   sensitive = true
 }

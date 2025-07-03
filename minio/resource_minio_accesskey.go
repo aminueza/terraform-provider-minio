@@ -226,21 +226,16 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	if !isEmptyPolicy {
-		// Normalize policy JSON to minified format for state
-		var normalized string
-		var tmp interface{}
-		err := json.Unmarshal([]byte(policy), &tmp)
-		if err == nil {
-			minified, err := json.Marshal(tmp)
-			if err == nil {
-				normalized = string(minified)
-			} else {
-				normalized = policy
-			}
-		} else {
-			normalized = policy
+		oldPolicy := ""
+		if v, ok := d.GetOk("policy"); ok {
+			oldPolicy = v.(string)
 		}
-		_ = d.Set("policy", normalized)
+		normalized, err := NormalizeAndCompareJSONPolicies(oldPolicy, policy)
+		if err != nil {
+			_ = d.Set("policy", policy) // fallback to raw
+		} else {
+			_ = d.Set("policy", normalized)
+		}
 	} else {
 		_ = d.Set("policy", nil)
 	}

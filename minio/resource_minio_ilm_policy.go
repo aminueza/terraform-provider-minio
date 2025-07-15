@@ -153,8 +153,8 @@ func validateILMDays(v interface{}, p cty.Path) diag.Diagnostics {
 	if _, err := fmt.Sscanf(value, "%dd", &days); err != nil {
 		return diag.Errorf("days must be in format '(number)d', got: %s", value)
 	}
-	if days < 1 {
-		return diag.Errorf("days must be greater than 0, got: %d", days)
+	if days < 0 {
+		return diag.Errorf("days must be greater than or equal to 0, got: %d", days)
 	}
 	return nil
 }

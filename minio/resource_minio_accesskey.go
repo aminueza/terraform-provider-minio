@@ -245,52 +245,81 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	status := d.Get("status").(string)
 	policy := d.Get("policy").(string)
 
-	log.Printf("[INFO] Updating accesskey %s with status %s", accessKeyID, status)
+	hasStatusChange := d.HasChange("status")
+	hasPolicyChange := d.HasChange("policy")
 
-	newStatus := "on"
-	if status == "disabled" {
-		newStatus = "off"
-	}
+	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v)", accessKeyID, hasStatusChange, hasPolicyChange)
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
-	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
-		err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus, NewPolicy: []byte(policy)})
+
+	if hasStatusChange {
+		newStatus := "on"
+		if status == "disabled" {
+			newStatus = "off"
+		}
+
+		log.Printf("[DEBUG] Updating accesskey %s status to %s", accessKeyID, newStatus)
+
+		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus})
+			if err != nil {
+				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+					return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s status: %w", accessKeyID, err))
+				}
+
+				return retry.NonRetryableError(fmt.Errorf("failed to update accesskey status: %w", err))
+			}
+			return nil
+		})
+
 		if err != nil {
-			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
-				return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s status: %w", accessKeyID, err))
+			log.Printf("[ERROR] Failed to update accesskey %s status after retries: %s", accessKeyID, err)
+			return diag.FromErr(err)
+		}
+
+		err = retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
+			info, err := client.S3Admin.InfoServiceAccount(ctx, accessKeyID)
+			if err != nil {
+				return retry.RetryableError(fmt.Errorf("error verifying accesskey %s status update: %w", accessKeyID, err))
 			}
 
-			return retry.NonRetryableError(fmt.Errorf("failed to update accesskey status: %w", err))
-		}
-		return nil
-	})
+			actualStatus := "enabled"
+			if info.AccountStatus == "off" {
+				actualStatus = "disabled"
+			}
 
-	if err != nil {
-		log.Printf("[ERROR] Failed to update accesskey %s status after retries: %s", accessKeyID, err)
-		return diag.FromErr(err)
+			if actualStatus != status {
+				return retry.RetryableError(fmt.Errorf("accesskey %s status not yet updated (current: %s, expected: %s)",
+					accessKeyID, actualStatus, status))
+			}
+
+			return nil
+		})
+
+		if err != nil {
+			return diag.FromErr(err)
+		}
 	}
 
-	err = retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
-		info, err := client.S3Admin.InfoServiceAccount(ctx, accessKeyID)
+	if hasPolicyChange {
+		log.Printf("[DEBUG] Updating accesskey %s policy", accessKeyID)
+
+		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewPolicy: []byte(policy)})
+			if err != nil {
+				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+					return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s policy: %w", accessKeyID, err))
+				}
+
+				return retry.NonRetryableError(fmt.Errorf("failed to update accesskey policy: %w", err))
+			}
+			return nil
+		})
+
 		if err != nil {
-			return retry.RetryableError(fmt.Errorf("error verifying accesskey %s status update: %w", accessKeyID, err))
+			log.Printf("[ERROR] Failed to update accesskey %s policy after retries: %s", accessKeyID, err)
+			return diag.FromErr(err)
 		}
-
-		actualStatus := "enabled"
-		if info.AccountStatus == "off" {
-			actualStatus = "disabled"
-		}
-
-		if actualStatus != status {
-			return retry.RetryableError(fmt.Errorf("accesskey %s status not yet updated (current: %s, expected: %s)",
-				accessKeyID, actualStatus, status))
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return diag.FromErr(err)
 	}
 
 	return minioReadAccessKey(ctx, d, meta)

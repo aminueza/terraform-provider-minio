@@ -34,6 +34,7 @@ func resourceMinioAccessKey() *schema.Resource {
 			"user": {
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: "The user for whom the access key is managed.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
@@ -105,11 +106,6 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	policy := d.Get("policy").(string)
 
 	log.Printf("[INFO] Creating accesskey for user %s", user)
-
-	_, err := client.S3Admin.GetUserInfo(ctx, user)
-	if err != nil {
-		return diag.Errorf("failed to create accesskey: user %s does not exist or cannot be accessed: %s", user, err)
-	}
 
 	req := madmin.AddServiceAccountReq{
 		SecretKey:  secretKey,

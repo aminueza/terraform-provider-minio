@@ -200,39 +200,45 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
 
-	policy := strings.TrimSpace(info.Policy)
-	isEmptyPolicy := false
-	if policy == "" || policy == "null" || policy == "{}" {
-		isEmptyPolicy = true
-	} else {
-		var policyObj map[string]interface{}
-		err := json.Unmarshal([]byte(policy), &policyObj)
-		if err == nil {
-			// Check for empty or null Statement and empty Version
-			statement, hasStatement := policyObj["Statement"]
-			version, hasVersion := policyObj["Version"]
-			if hasStatement && hasVersion {
-				statementIsEmpty := statement == nil || (fmt.Sprintf("%v", statement) == "<nil>" || fmt.Sprintf("%v", statement) == "null")
-				versionIsEmpty := version == nil || version == ""
-				if statementIsEmpty && versionIsEmpty {
-					isEmptyPolicy = true
+	// Only set policy in state if it's not implied
+	if !info.ImpliedPolicy {
+		policy := strings.TrimSpace(info.Policy)
+		isEmptyPolicy := false
+		if policy == "" || policy == "null" || policy == "{}" {
+			isEmptyPolicy = true
+		} else {
+			var policyObj map[string]interface{}
+			err := json.Unmarshal([]byte(policy), &policyObj)
+			if err == nil {
+				// Check for empty or null Statement and empty Version
+				statement, hasStatement := policyObj["Statement"]
+				version, hasVersion := policyObj["Version"]
+				if hasStatement && hasVersion {
+					statementIsEmpty := statement == nil || (fmt.Sprintf("%v", statement) == "<nil>" || fmt.Sprintf("%v", statement) == "null")
+					versionIsEmpty := version == nil || version == ""
+					if statementIsEmpty && versionIsEmpty {
+						isEmptyPolicy = true
+					}
 				}
 			}
 		}
-	}
 
-	if !isEmptyPolicy {
-		oldPolicy := ""
-		if v, ok := d.GetOk("policy"); ok {
-			oldPolicy = v.(string)
-		}
-		normalized, err := NormalizeAndCompareJSONPolicies(oldPolicy, policy)
-		if err != nil {
-			_ = d.Set("policy", policy) // fallback to raw
+		if !isEmptyPolicy {
+			oldPolicy := ""
+			if v, ok := d.GetOk("policy"); ok {
+				oldPolicy = v.(string)
+			}
+			normalized, err := NormalizeAndCompareJSONPolicies(oldPolicy, policy)
+			if err != nil {
+				_ = d.Set("policy", policy) // fallback to raw
+			} else {
+				_ = d.Set("policy", normalized)
+			}
 		} else {
-			_ = d.Set("policy", normalized)
+			_ = d.Set("policy", nil)
 		}
 	} else {
+		// If policy is implied, don't set it in state to avoid perpetual diff
 		_ = d.Set("policy", nil)
 	}
 

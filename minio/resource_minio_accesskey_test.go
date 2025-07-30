@@ -180,3 +180,63 @@ func testCheckResourceAttrJSON(resourceName, attrName, expectedJSON string) reso
 		return nil
 	}
 }
+
+func TestAccMinioAccessKey_ImpliedPolicy(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_implied"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithImpliedPolicy(rName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "status", "enabled"),
+					// The policy should be empty since it's implied and should be ignored
+					resource.TestCheckResourceAttr(resourceName, "policy", ""),
+				),
+			},
+			{
+				// Ensure no changes on subsequent apply to prevent perpetual diffs
+				Config:   testAccMinioAccessKeyConfigWithImpliedPolicy(rName),
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithImpliedPolicy(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test_user" {
+  name = %q
+}
+
+resource "minio_iam_policy" "test_policy" {
+  name = "%s-policy"
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": ["arn:aws:s3:::test-bucket/*"]
+    }
+  ]
+}
+EOF
+}
+
+resource "minio_iam_user_policy_attachment" "test_policy_attachment" {
+  user_name   = minio_iam_user.test_user.id
+  policy_name = minio_iam_policy.test_policy.id
+}
+
+resource "minio_accesskey" "test_implied" {
+  user = minio_iam_user.test_user.name
+  depends_on = [minio_iam_user_policy_attachment.test_policy_attachment]
+}
+`, rName, rName)
+}

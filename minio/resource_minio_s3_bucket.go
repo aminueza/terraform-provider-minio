@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
@@ -144,6 +145,18 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
+	// Wait a moment and verify the bucket exists before proceeding
+	// This helps with MinIO implementations that have eventual consistency
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify bucket was actually created
+	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
+	if err != nil {
+		log.Printf("[WARNING] Error verifying bucket creation: %s", err)
+	} else if !found {
+		log.Printf("[WARNING] Bucket [%s] not immediately visible after creation, proceeding anyway", bucket)
+	}
+
 	return minioUpdateBucket(ctx, d, meta)
 }
 
@@ -152,9 +165,34 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion)
 
-	found, err := bucketConfig.MinioClient.BucketExists(ctx, d.Id())
+	// Retry logic to handle eventual consistency issues with some MinIO implementations
+	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
+	var found bool
+	var err error
+	maxRetries := 3
+	retryDelay := 1 * time.Second
+
+	for i := 0; i < maxRetries; i++ {
+		found, err = bucketConfig.MinioClient.BucketExists(ctx, d.Id())
+		if err != nil {
+			log.Printf("[ERROR] Error checking if bucket exists: %s", err)
+			return NewResourceError("error checking bucket existence", d.Id(), err)
+		}
+
+		if found {
+			break
+		}
+
+		// If not found and not the last retry, wait and try again
+		if i < maxRetries-1 {
+			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, maxRetries, retryDelay)
+			time.Sleep(retryDelay)
+			retryDelay *= 2 // Exponential backoff
+		}
+	}
+
 	if !found {
-		log.Printf("%s", NewResourceErrorStr("unable to find bucket", d.Id(), err))
+		log.Printf("[INFO] Bucket [%s] not found after %d attempts, removing from state", d.Id(), maxRetries)
 		d.SetId("")
 		return nil
 	}

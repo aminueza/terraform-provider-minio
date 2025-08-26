@@ -180,7 +180,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
 	// Use truncated exponential backoff with jitter as in AWS SDKs:
 	// seconds_to_sleep_i = min(b*r^i, MAX_BACKOFF)
-	// where b ~ U[0,1], r=backoffBase, MAX_BACKOFF=maxBackoff
+	// where b = random number between 0 and 1; r = 2; MAX_BACKOFF = 20 seconds for most SDKs
 	var found bool
 	var err error
 	retryConfig := getRetryConfig()

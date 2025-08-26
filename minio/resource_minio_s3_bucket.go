@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
 	"net/url"
 	"regexp"
 	"strings"
@@ -21,6 +23,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
+
+type RetryConfig struct {
+	MaxRetries  int
+	MaxBackoff  time.Duration
+	BackoffBase float64
+}
+
+func getRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxRetries:  3,
+		MaxBackoff:  20 * time.Second,
+		BackoffBase: 2.0,
+	}
+}
 
 func resourceMinioBucket() *schema.Resource {
 	return &schema.Resource{
@@ -92,7 +108,6 @@ func resourceMinioBucket() *schema.Resource {
 }
 
 func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
 	var bucket string
 	var region string
 
@@ -145,7 +160,6 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
-	// Verify bucket was actually created
 	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
 	if err != nil {
 		log.Printf("[WARNING] Error verifying bucket creation: %s", err)
@@ -163,12 +177,19 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	// Retry logic to handle eventual consistency issues with some MinIO implementations
 	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
+	// Use truncated exponential backoff with jitter as in AWS SDKs:
+	// seconds_to_sleep_i = min(b*r^i, MAX_BACKOFF)
+	// where b ~ U[0,1], r=backoffBase, MAX_BACKOFF=maxBackoff
 	var found bool
 	var err error
-	maxRetries := 3
-	retryDelay := 1 * time.Second
+	retryConfig := getRetryConfig()
+	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	for i := 0; i < maxRetries; i++ {
+	for i := 0; i < retryConfig.MaxRetries; i++ {
+		if ctx.Err() != nil {
+			return NewResourceError("context cancelled during bucket existence check", d.Id(), ctx.Err())
+		}
+
 		found, err = bucketConfig.MinioClient.BucketExists(ctx, d.Id())
 		if err != nil {
 			log.Printf("[ERROR] Error checking if bucket exists: %s", err)
@@ -179,16 +200,20 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 			break
 		}
 
-		// If not found and not the last retry, wait and try again
-		if i < maxRetries-1 {
-			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, maxRetries, retryDelay)
-			time.Sleep(retryDelay)
-			retryDelay *= 2 // Exponential backoff
+		if i < retryConfig.MaxRetries-1 {
+			jitter := rnd.Float64()
+			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
+			sleep := time.Duration(backoffSeconds * float64(time.Second))
+			if sleep > retryConfig.MaxBackoff {
+				sleep = retryConfig.MaxBackoff
+			}
+			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep)
+			time.Sleep(sleep)
 		}
 	}
 
 	if !found {
-		log.Printf("[INFO] Bucket [%s] not found after %d attempts, removing from state", d.Id(), maxRetries)
+		log.Printf("[INFO] Bucket [%s] not found after %d attempts, removing from state", d.Id(), retryConfig.MaxRetries)
 		d.SetId("")
 		return nil
 	}

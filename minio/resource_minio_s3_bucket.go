@@ -2,12 +2,13 @@ package minio
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
+	"math/big"
 	"net/url"
 	"regexp"
 	"strings"
@@ -183,7 +184,6 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	var found bool
 	var err error
 	retryConfig := getRetryConfig()
-	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	for i := 0; i < retryConfig.MaxRetries; i++ {
 		if ctx.Err() != nil {
@@ -201,7 +201,12 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		}
 
 		if i < retryConfig.MaxRetries-1 {
-			jitter := rnd.Float64()
+			jitterBig, err := rand.Int(rand.Reader, big.NewInt(1000000))
+			if err != nil {
+				log.Printf("[WARNING] Failed to generate secure random jitter: %s", err)
+				jitterBig = big.NewInt(500000)
+			}
+			jitter := float64(jitterBig.Int64()) / 1000000.0
 			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
 			sleep := time.Duration(backoffSeconds * float64(time.Second))
 			if sleep > retryConfig.MaxBackoff {

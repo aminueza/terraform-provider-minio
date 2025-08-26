@@ -145,10 +145,6 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
-	// Wait a moment and verify the bucket exists before proceeding
-	// This helps with MinIO implementations that have eventual consistency
-	time.Sleep(500 * time.Millisecond)
-
 	// Verify bucket was actually created
 	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
 	if err != nil {

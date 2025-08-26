@@ -2,13 +2,17 @@ package minio
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
@@ -20,6 +24,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
+
+type RetryConfig struct {
+	MaxRetries  int
+	MaxBackoff  time.Duration
+	BackoffBase float64
+}
+
+func getRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxRetries:  3,
+		MaxBackoff:  20 * time.Second,
+		BackoffBase: 2.0,
+	}
+}
 
 func resourceMinioBucket() *schema.Resource {
 	return &schema.Resource{
@@ -91,7 +109,6 @@ func resourceMinioBucket() *schema.Resource {
 }
 
 func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
 	var bucket string
 	var region string
 
@@ -144,6 +161,13 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
+	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
+	if err != nil {
+		log.Printf("[WARNING] Error verifying bucket creation: %s", err)
+	} else if !found {
+		log.Printf("[WARNING] Bucket [%s] not immediately visible after creation, proceeding anyway", bucket)
+	}
+
 	return minioUpdateBucket(ctx, d, meta)
 }
 
@@ -152,9 +176,48 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion)
 
-	found, err := bucketConfig.MinioClient.BucketExists(ctx, d.Id())
+	// Retry logic to handle eventual consistency issues with some MinIO implementations
+	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
+	// Use truncated exponential backoff with jitter as in AWS SDKs:
+	// seconds_to_sleep_i = min(b*r^i, MAX_BACKOFF)
+	// where b = random number between 0 and 1; r = 2; MAX_BACKOFF = 20 seconds for most SDKs
+	var found bool
+	var err error
+	retryConfig := getRetryConfig()
+
+	for i := 0; i < retryConfig.MaxRetries; i++ {
+		if ctx.Err() != nil {
+			return NewResourceError("context cancelled during bucket existence check", d.Id(), ctx.Err())
+		}
+
+		found, err = bucketConfig.MinioClient.BucketExists(ctx, d.Id())
+		if err != nil {
+			log.Printf("[ERROR] Error checking if bucket exists: %s", err)
+			return NewResourceError("error checking bucket existence", d.Id(), err)
+		}
+
+		if found {
+			break
+		}
+
+		if i < retryConfig.MaxRetries-1 {
+			var jitter float64
+			var randomBytes [8]byte
+			if _, err := rand.Read(randomBytes[:]); err != nil {
+				log.Printf("[WARNING] Failed to generate random jitter: %s", err)
+				jitter = 0.5
+			} else {
+				jitter = float64(binary.BigEndian.Uint64(randomBytes[:])) / float64(math.MaxUint64)
+			}
+			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
+			sleep := min(time.Duration(backoffSeconds*float64(time.Second)), retryConfig.MaxBackoff)
+			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep)
+			time.Sleep(sleep)
+		}
+	}
+
 	if !found {
-		log.Printf("%s", NewResourceErrorStr("unable to find bucket", d.Id(), err))
+		log.Printf("[INFO] Bucket [%s] not found after %d attempts, removing from state", d.Id(), retryConfig.MaxRetries)
 		d.SetId("")
 		return nil
 	}

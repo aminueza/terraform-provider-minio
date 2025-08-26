@@ -3,12 +3,12 @@ package minio
 import (
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"math"
-	"math/big"
 	"net/url"
 	"regexp"
 	"strings"
@@ -201,17 +201,16 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		}
 
 		if i < retryConfig.MaxRetries-1 {
-			jitterBig, err := rand.Int(rand.Reader, big.NewInt(1000000))
-			if err != nil {
-				log.Printf("[WARNING] Failed to generate secure random jitter: %s", err)
-				jitterBig = big.NewInt(500000)
+			var jitter float64
+			var randomBytes [8]byte
+			if _, err := rand.Read(randomBytes[:]); err != nil {
+				log.Printf("[WARNING] Failed to generate random jitter: %s", err)
+				jitter = 0.5
+			} else {
+				jitter = float64(binary.BigEndian.Uint64(randomBytes[:])) / float64(math.MaxUint64)
 			}
-			jitter := float64(jitterBig.Int64()) / 1000000.0
 			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
-			sleep := time.Duration(backoffSeconds * float64(time.Second))
-			if sleep > retryConfig.MaxBackoff {
-				sleep = retryConfig.MaxBackoff
-			}
+			sleep := min(time.Duration(backoffSeconds*float64(time.Second)), retryConfig.MaxBackoff)
 			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep)
 			time.Sleep(sleep)
 		}

@@ -189,3 +189,43 @@ func testAccCheckBucketHasVersioning(n string, config S3MinioBucketVersioningCon
 		return nil
 	}
 }
+
+func TestAccS3BucketVersioning_disappears(t *testing.T) {
+    name := acctest.RandomWithPrefix("tf-acc-test")
+
+    resource.ParallelTest(t, resource.TestCase{
+        PreCheck:          func() { testAccPreCheck(t) },
+        ProviderFactories: testAccProviders,
+        CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+        Steps: []resource.TestStep{
+            {
+                Config: testAccBucketVersioningObjectConfig(name, "Enabled"),
+                Check: resource.ComposeTestCheckFunc(
+                    testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+                    testAccCheckBucketHasVersioning(
+                        "minio_s3_bucket_versioning.bucket",
+                        S3MinioBucketVersioningConfiguration{
+                            Status: "Enabled",
+                        },
+                    ),
+                ),
+            },
+            {
+                PreConfig: func() {
+                    _ = testAccCheckMinioS3BucketDeleteExternally(name)
+                },
+                RefreshState:       true,
+                ExpectNonEmptyPlan: true,
+            },
+        },
+    })
+}
+
+func testAccCheckMinioS3BucketDeleteExternally(bucket string) error {
+    minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+    if err := minioC.RemoveBucket(context.Background(), bucket); err != nil {
+        return fmt.Errorf("bucket could not be deleted: %w", err)
+    }
+    return nil
+}
+

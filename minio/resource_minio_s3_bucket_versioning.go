@@ -86,6 +86,15 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	log.Printf("[DEBUG] S3 bucket versioning, read for bucket: %s", d.Id())
 
+	exists, err := bucketVersioningConfig.MinioClient.BucketExists(ctx, d.Id())
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
+	}
+	if !exists {
+		d.SetId("")
+		return nil
+	}
+
 	versioningConfig, err := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
 	if err != nil {
 		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, err)

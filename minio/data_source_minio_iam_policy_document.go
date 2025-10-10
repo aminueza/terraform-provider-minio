@@ -59,6 +59,10 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 							Type:     schema.TypeString,
 							Optional: true,
 						},
+						"not_principal": {
+							Type:     schema.TypeString,
+							Optional: true,
+						},
 						"condition": {
 							Type:     schema.TypeSet,
 							Optional: true,
@@ -156,8 +160,23 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 				}
 			}
 
-			if principal := cfgStmt["principal"].(string); principal != "" {
-				stmt.Principal = principal
+			principalString := cfgStmt["principal"].(string)
+			notPrincipalString := ""
+
+			if v, ok := cfgStmt["not_principal"]; ok && v != nil {
+				notPrincipalString = v.(string)
+			}
+
+			if principalString != "" && notPrincipalString != "" {
+				return fmt.Errorf("cannot set both principal and not_principal in the same statement")
+			}
+
+			if principalString != "" {
+				stmt.Principal = principalString
+			}
+
+			if notPrincipalString != "" {
+				stmt.NotPrincipal = notPrincipalString
 			}
 
 			if conditions := cfgStmt["condition"].(*schema.Set).List(); len(conditions) > 0 {

@@ -54,10 +54,8 @@ func dataSourceIAMUsers() *schema.Resource {
 }
 
 func dataSourceIAMUsersRead(d *schema.ResourceData, meta interface{}) error {
-	admin, err := adminFromMeta(meta)
-	if err != nil {
-		return err
-	}
+	m := meta.(*S3MinioClient)
+	admin := m.S3Admin
 
 	usersMap, err := admin.ListUsers(context.Background())
 	if err != nil {

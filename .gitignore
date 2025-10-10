@@ -21,3 +21,6 @@ vendor/*
 .vscode
 .idea
 dev.tfrc
+
+# Test binaries
+*.test

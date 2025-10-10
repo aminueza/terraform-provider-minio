@@ -56,9 +56,8 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 						"actions":   stringSet,
 						"resources": stringSet,
 						"principal": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							ValidateFunc: validation.StringInSlice([]string{"*"}, false),
+							Type:     schema.TypeString,
+							Optional: true,
 						},
 						"condition": {
 							Type:     schema.TypeSet,

@@ -175,6 +175,23 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Mul
 	})
 }
 
+func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_SpecificARN(t *testing.T) {
+	dataSourceName := "data.minio_iam_policy_document.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalSpecificARN,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalSpecificARN),
+				),
+			},
+		},
+	})
+}
+
 var testAccMinioIAMPolicyDocumentConfig = `
 data "minio_iam_policy_document" "test" {
     policy_id = "policy_id"
@@ -658,6 +675,34 @@ var testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalIdentifiersMultip
       "Action": "*",
       "Resource": "*",
       "Principal": "*"
+    }
+  ]
+}`
+
+var testAccMinioIAMPolicyDocumentConfigStatementPrincipalSpecificARN = `
+data "minio_iam_policy_document" "test" {
+  statement {
+    actions   = ["s3:*"]
+    resources = ["arn:aws:s3:::test-bucket", "arn:aws:s3:::test-bucket/*"]
+    sid       = "SpecificPrincipalARN"
+    effect    = "Allow"
+    principal = "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
+  }
+}
+`
+
+var testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalSpecificARN = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SpecificPrincipalARN",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::test-bucket/*",
+        "arn:aws:s3:::test-bucket"
+      ],
+      "Principal": "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
     }
   ]
 }`

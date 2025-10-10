@@ -2,7 +2,7 @@
   <a href="https://github.com/aminueza/terraform-provider-minio">
     <img src="https://i.imgur.com/yijdDec.png" alt="minio-provider-terraform" width="200">
   </a>
-  <h3 align="center" style="font-weight: bold">Terraform Provider for MinIO</h3>
+  <h3 align="center" style="font-weight: bold"><a href="https://developer.hashicorp.com/terraform">Terraform Provider</a> for <a href="https://min.io">MinIO</a></h3>
   <p align="center">
     <a href="https://github.com/aminueza/terraform-provider-minio/graphs/contributors">
       <img alt="Contributors" src="https://img.shields.io/github/contributors/aminueza/terraform-provider-minio">
@@ -21,33 +21,6 @@
     <a href="https://github.com/aminueza/terraform-provider-minio/tree/main/docs"><strong>Explore the docs »</strong></a>
   </p>
 </p>
-
-## Table of Contents
-
-- [Table of Contents](#table-of-contents)
-- [About this project](#about-this-project)
-- [Supported Versions](#supported-versions)
-- [Building and Installing](#building-and-installing)
-- [Examples](#examples)
-- [Testing](#testing)
-- [Usage](#usage)
-- [Roadmap](#roadmap)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
-
-## About this project
-
-A [Terraform](https://www.terraform.io) provider to manage [MinIO Cloud Storage](https://min.io).
-
-Made with <span style="color: #e25555;">&#9829;</span> using [Go](https://golang.org/).
-
-## Supported Versions
-
-- Terraform v1.5
-- Go v1.24
-
-It doesn't mean that this provider won't run on previous versions of Terraform or Go, though.  
-It just means that we can't guarantee backward compatibility.
 
 ## Building and Installing
 
@@ -144,9 +117,3 @@ See the [open issues](https://github.com/aminueza/terraform-provider-minio/issue
 ## License
 
 All versions of this provider starting from v2.0.0 are distributed under the AGPL-3.0 License. See [LICENSE](./LICENSE) for more information.
-
-## Acknowledgements
-
-- [HashiCorp Terraform](https://www.hashicorp.com/products/terraform)
-- [MinIO](https://min.io)
-- [Best Readme](https://github.com/othneildrew/Best-README-Template)

@@ -218,7 +218,15 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 			minioOptions...,
 		)
 	case madmin.GCS.String():
-		gcsConfig := d.Get("gcs_config").([]interface{})[0].(map[string]interface{})
+		gcsConfigListRaw, ok := d.GetOk("gcs_config")
+		if !ok {
+			return NewResourceError("gcs_config is required when type is gcs", name, "missing gcs_config")
+		}
+		gcsConfigList := gcsConfigListRaw.([]interface{})
+		if len(gcsConfigList) == 0 {
+			return NewResourceError("gcs_config is required when type is gcs", name, "empty gcs_config")
+		}
+		gcsConfig := gcsConfigList[0].(map[string]interface{})
 		var gcsOptions []madmin.GCSOptions
 		if d.Get("prefix").(string) != "" {
 			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("prefix").(string)))
@@ -229,9 +237,10 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 		if _, ok := gcsConfig["storage_class"]; ok {
 			gcsOptions = append(gcsOptions, madmin.GCSStorageClass(gcsConfig["storage_class"].(string)))
 		}
+		gcsCredentialsStr, _ := gcsConfig["credentials"].(string)
 		tierConf, err = madmin.NewTierGCS(
 			name,
-			[]byte(gcsConfig["credentials"].(string)),
+			[]byte(gcsCredentialsStr),
 			d.Get("bucket").(string),
 			gcsOptions...,
 		)
@@ -360,8 +369,16 @@ func minioUpdateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 		credentials.AccessKey = minioConfig["access_key"].(string)
 		credentials.SecretKey = minioConfig["secret_key"].(string)
 	case madmin.GCS.String():
-		gcsConfig := d.Get("gcs_config").([]interface{})[0].(map[string]interface{})
-		credentials.CredsJSON = gcsConfig["credentials"].([]byte)
+		gcsConfigListRaw, ok := d.GetOk("gcs_config")
+		if !ok {
+			return NewResourceError("gcs_config is required when type is gcs", name, "missing gcs_config")
+		}
+		gcsConfigList := gcsConfigListRaw.([]interface{})
+		if len(gcsConfigList) == 0 {
+			return NewResourceError("gcs_config is required when type is gcs", name, "empty gcs_config")
+		}
+		gcsConfig := gcsConfigList[0].(map[string]interface{})
+		credentials.CredsJSON = []byte(gcsConfig["credentials"].(string))
 	case madmin.Azure.String():
 		azureConfig := d.Get("azure_config").([]interface{})[0].(map[string]interface{})
 		credentials.SecretKey = azureConfig["account_key"].(string)

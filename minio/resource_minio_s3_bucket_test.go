@@ -52,6 +52,72 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 	})
 }
 
+func TestAccMinioS3Bucket_CredentialErrorDoesNotRemoveFromState(t *testing.T) {
+    rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+    resourceName := "minio_s3_bucket.bucket"
+
+    endpoint := os.Getenv("MINIO_ENDPOINT")
+    user := os.Getenv("MINIO_USER")
+    pass := os.Getenv("MINIO_PASSWORD")
+    ssl := os.Getenv("MINIO_ENABLE_HTTPS")
+    if endpoint == "" || user == "" || pass == "" {
+        t.Skip("MINIO_* env vars not set for acceptance test")
+    }
+    if ssl == "" {
+        ssl = "false"
+    }
+
+    validConfig := fmt.Sprintf(`
+provider "minio" {
+  minio_server   = "%s"
+  minio_user     = "%s"
+  minio_password = "%s"
+  minio_ssl      = %s
+}
+
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "private"
+}
+`, endpoint, user, pass, ssl, rInt)
+
+    invalidConfig := fmt.Sprintf(`
+provider "minio" {
+  minio_server   = "%s"
+  minio_user     = "%s"
+  minio_password = "wrong-password"
+  minio_ssl      = %s
+}
+
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "private"
+}
+`, endpoint, user, ssl, rInt)
+
+    resource.ParallelTest(t, resource.TestCase{
+        PreCheck:          func() { testAccPreCheck(t) },
+        ProviderFactories: testAccProviders,
+        CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+        Steps: []resource.TestStep{
+            {
+                Config: validConfig,
+                Check: resource.ComposeTestCheckFunc(
+                    testAccCheckMinioS3BucketExists(resourceName),
+                ),
+            },
+            {
+                Config:      invalidConfig,
+                ExpectError: regexp.MustCompile(`(?i)(access.?denied|invalid.?access|signature|403)`),
+            },
+            {
+                Config:   validConfig,
+                PlanOnly: true,
+            },
+        },
+    })
+}
+
 func TestAccMinioS3Bucket_objectLocking(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	acl := "public-read"

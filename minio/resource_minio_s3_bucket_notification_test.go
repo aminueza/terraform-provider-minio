@@ -128,3 +128,34 @@ func testAccCheckBucketHasNotification(n string, config notification.Configurati
 func notificationConfigsEqual(a notification.Config, b notification.Config) bool {
 	return a.ID == b.ID && notification.EqualEventTypeList(a.Events, b.Events) && notification.EqualFilterRuleList(a.Filter.S3Key.FilterRules, b.Filter.S3Key.FilterRules)
 }
+
+func TestAccMinioS3BucketNotification_disappearsBucket(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-notification-test")
+	config := notification.Configuration{}
+	arn, _ := notification.NewArnFromString("arn:minio:sqs::primary:webhook")
+	qc := notification.NewConfig(arn)
+	qc.ID = "notification-queue"
+	qc.AddEvents(notification.ObjectCreatedAll, notification.ObjectRemovedDelete)
+	qc.AddFilterPrefix("tf-acc-test/")
+	qc.AddFilterSuffix(".png")
+	config.AddQueue(qc)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketNotificationConfig_queue(name, ".png"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasNotification(
+						"minio_s3_bucket_notification.notification",
+						config,
+					),
+					testAccCheckMinioS3DestroyBucket("minio_s3_bucket.bucket"),
+				),
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}

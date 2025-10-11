@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -90,6 +91,11 @@ func minioReadBucketNotification(ctx context.Context, d *schema.ResourceData, me
 
 	notificationConfig, err := bucketNotificationConfig.MinioClient.GetBucketNotification(ctx, d.Id())
 	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
+			log.Printf("[WARN] Bucket %s no longer exists, removing notification resource from state", d.Id())
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("failed to load bucket notification configuration", d.Id(), err)
 	}
 
@@ -114,6 +120,10 @@ func minioDeleteBucketNotification(ctx context.Context, d *schema.ResourceData, 
 	)
 
 	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
+			log.Printf("[WARN] Bucket %s no longer exists, considering notification deletion successful", bucketNotificationConfig.MinioBucket)
+			return nil
+		}
 		return NewResourceError("error removing bucket notifications: %s", bucketNotificationConfig.MinioBucket, err)
 	}
 

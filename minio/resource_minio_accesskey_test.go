@@ -25,7 +25,7 @@ func TestAccMinioAccessKey_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "user", rName),
 					resource.TestCheckResourceAttr(resourceName, "status", "enabled"),
 					resource.TestCheckResourceAttrSet(resourceName, "access_key"),
-					resource.TestCheckResourceAttrSet(resourceName, "secret_key"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 				),
 			},
 			{
@@ -105,7 +105,7 @@ func TestAccMinioAccessKey_customKeys(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "user", rName),
 					resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
-					resource.TestCheckResourceAttr(resourceName, "secret_key", customSecretKey),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 				),
 			},
 		},

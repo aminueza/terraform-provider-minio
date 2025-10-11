@@ -37,13 +37,19 @@ resource "minio_accesskey" "with_policy" {
   status     = "enabled"
   policy     = file("path/to/policy.json") # or use a policy name or jsonencode block
 }
+
+# Output the secret key (only available during resource creation)
+output "access_key_secret" {
+  value     = minio_accesskey.example.secret_key
+  sensitive = true
+}
 ```
 
 ## Argument Reference
 
 - `user` (Required) - The MinIO user for whom the access key is managed.
 - `access_key` (Optional) - The access key value. If omitted, MinIO generates one. Must be 8-20 characters when specified.
-- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be at least 8 characters when specified.
+- `secret_key` (Optional) - The secret key value. If omitted, MinIO generates one. Must be at least 8 characters when specified. **Note:** This is a write-only field. The secret key is only available during resource creation and will not be stored in state after the initial apply. Use an output to capture it.
 - `status` (Optional) - The status of the access key (`enabled` or `disabled`). Defaults to `enabled`.
 - `policy` (Optional) - The policy to attach to the access key. Can be a policy name, a JSON document, or the contents of a file (e.g., `file("path/to/policy.json")`).
 
@@ -60,13 +66,17 @@ resource "minio_accesskey" "with_policy" {
 
 - `id` - The access key ID.
 - `access_key` - The access key.
-- `secret_key` - The secret key.
+- `secret_key` - The secret key. **Write-only:** Only available immediately after creation. Not persisted in state or retrievable after the initial apply. Capture this value using an output if needed.
 - `status` - The status of the access key.
 
 ## Import
 
-Access keys can be imported using the access key ID. Note that the secret key value cannot be imported and will remain empty in the state.
+Access keys can be imported using the access key ID. The secret key cannot be imported or retrieved after creation, as MinIO does not provide an API to read service account secrets.
 
 ```sh
 terraform import minio_accesskey.example MINIO_ACCESS_KEY
 ```
+
+## Security Note
+
+The `secret_key` is intentionally designed as write-only to avoid persisting sensitive credentials in Terraform state files. It is only available during the initial `terraform apply` that creates the resource. If you need to store the secret for application use, capture it via an output and securely store it in a secrets management system (e.g., HashiCorp Vault, AWS Secrets Manager).

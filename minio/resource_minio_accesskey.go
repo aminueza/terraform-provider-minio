@@ -2,6 +2,8 @@ package minio
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -65,6 +67,26 @@ func resourceMinioAccessKey() *schema.Resource {
 				Computed:    true,
 				Sensitive:   true,
 				Description: "The secret key. If provided, must be at least 8 characters.",
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					// Suppress diffs when the provided secret matches the stored hash (or legacy plaintext in state).
+					// This avoids perpetual diffs while keeping the plaintext secret out of state.
+					// If user isn't providing a secret, no diff should be recorded.
+					if strings.TrimSpace(new) == "" && strings.TrimSpace(old) == "" {
+						return true
+					}
+					storedHash := ""
+					if v, ok := d.GetOk("secret_key_hash"); ok {
+						storedHash = v.(string)
+					}
+					// Back-compat: if we don't have a hash yet but old plaintext exists in state, use it to compute a temp hash
+					if storedHash == "" && strings.TrimSpace(old) != "" {
+						storedHash = computeSecretHash(old)
+					}
+					if storedHash == "" || strings.TrimSpace(new) == "" {
+						return false
+					}
+					return computeSecretHash(new) == storedHash
+				},
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
 					if v != "" {
@@ -74,6 +96,12 @@ func resourceMinioAccessKey() *schema.Resource {
 					}
 					return
 				},
+			},
+			"secret_key_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Sensitive:   true,
+				Description: "Hash of the secret key, stored for change detection without persisting plaintext.",
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -122,7 +150,15 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId(aws.StringValue(&creds.AccessKey))
 	_ = d.Set("access_key", creds.AccessKey)
-	_ = d.Set("secret_key", creds.SecretKey)
+
+	// Store only a hash of the secret in state for change detection (no plaintext persistence).
+	usedSecret := secretKey
+	if usedSecret == "" {
+		usedSecret = creds.SecretKey
+	}
+	if strings.TrimSpace(usedSecret) != "" {
+		_ = d.Set("secret_key_hash", computeSecretHash(usedSecret))
+	}
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -200,6 +236,19 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
 
+	// Migration: if we previously stored plaintext secret in state, compute its hash and then clear it.
+	if v, ok := d.GetOk("secret_key_hash"); !ok || v.(string) == "" {
+		if legacyPlain, ok2 := d.GetOk("secret_key"); ok2 {
+			legacy := strings.TrimSpace(legacyPlain.(string))
+			if legacy != "" {
+				_ = d.Set("secret_key_hash", computeSecretHash(legacy))
+			}
+		}
+	}
+
+	// Clear secret_key from state - it's write-only and only available during creation
+	_ = d.Set("secret_key", "")
+
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {
 		policy := strings.TrimSpace(info.Policy)
@@ -253,6 +302,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	hasStatusChange := d.HasChange("status")
 	hasPolicyChange := d.HasChange("policy")
+	hasSecretChange := d.HasChange("secret_key")
 
 	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v)", accessKeyID, hasStatusChange, hasPolicyChange)
 
@@ -328,6 +378,28 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
+	if hasSecretChange {
+		newSecret := strings.TrimSpace(d.Get("secret_key").(string))
+		if newSecret != "" {
+			log.Printf("[DEBUG] Rotating secret for accesskey %s", accessKeyID)
+			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+				err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewSecretKey: newSecret})
+				if err != nil {
+					if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+						return retry.RetryableError(fmt.Errorf("transient error rotating accesskey %s secret: %w", accessKeyID, err))
+					}
+					return retry.NonRetryableError(fmt.Errorf("failed to rotate accesskey secret: %w", err))
+				}
+				return nil
+			})
+			if err != nil {
+				log.Printf("[ERROR] Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err)
+				return diag.FromErr(err)
+			}
+			_ = d.Set("secret_key_hash", computeSecretHash(newSecret))
+		}
+	}
+
 	return minioReadAccessKey(ctx, d, meta)
 }
 
@@ -389,4 +461,9 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId("")
 	return nil
+}
+
+func computeSecretHash(secret string) string {
+    sum := sha256.Sum256([]byte(secret))
+    return hex.EncodeToString(sum[:])
 }

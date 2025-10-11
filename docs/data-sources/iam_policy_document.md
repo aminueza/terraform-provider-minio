@@ -83,6 +83,7 @@ Optional:
 - `actions` (Set of String)
 - `condition` (Block Set) (see [below for nested schema](#nestedblock--statement--condition))
 - `effect` (String)
+- `not_principal` (String)
 - `principal` (String)
 - `resources` (Set of String)
 - `sid` (String)

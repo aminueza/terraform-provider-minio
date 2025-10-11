@@ -27,6 +27,36 @@ func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 	})
 }
 
+func TestAccMinioDataSourceIAMPolicyDocument_Statement_NotPrincipal_SpecificARN(t *testing.T) {
+    dataSourceName := "data.minio_iam_policy_document.test"
+
+    resource.ParallelTest(t, resource.TestCase{
+        PreCheck:          func() { testAccPreCheck(t) },
+        ProviderFactories: testAccProviders,
+        Steps: []resource.TestStep{
+            {
+                Config: testAccMinioIAMPolicyDocumentConfigStatementNotPrincipalSpecificARN,
+                Check: resource.ComposeTestCheckFunc(
+                    resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementNotPrincipalSpecificARN),
+                ),
+            },
+        },
+    })
+}
+
+func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_AndNotPrincipal_Conflict(t *testing.T) {
+    resource.ParallelTest(t, resource.TestCase{
+        PreCheck:          func() { testAccPreCheck(t) },
+        ProviderFactories: testAccProviders,
+        Steps: []resource.TestStep{
+            {
+                Config:      testAccMinioIAMPolicyDocumentConfigStatementPrincipalAndNotPrincipalConflict,
+                ExpectError: regexp.MustCompile(`cannot set both principal and not_principal`),
+            },
+        },
+    })
+}
+
 func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -169,6 +199,23 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Mul
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalIdentifiersMultiplePrincipals,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalIdentifiersMultiplePrincipals),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_SpecificARN(t *testing.T) {
+	dataSourceName := "data.minio_iam_policy_document.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalSpecificARN,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalSpecificARN),
 				),
 			},
 		},
@@ -661,3 +708,71 @@ var testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalIdentifiersMultip
     }
   ]
 }`
+
+var testAccMinioIAMPolicyDocumentConfigStatementPrincipalSpecificARN = `
+data "minio_iam_policy_document" "test" {
+  statement {
+    actions   = ["s3:*"]
+    resources = ["arn:aws:s3:::test-bucket", "arn:aws:s3:::test-bucket/*"]
+    sid       = "SpecificPrincipalARN"
+    effect    = "Allow"
+    principal = "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
+  }
+}
+`
+
+var testAccMinioIAMPolicyDocumentExpectedJSONStatementPrincipalSpecificARN = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SpecificPrincipalARN",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::test-bucket/*",
+        "arn:aws:s3:::test-bucket"
+      ],
+      "Principal": "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
+    }
+  ]
+}`
+
+var testAccMinioIAMPolicyDocumentConfigStatementNotPrincipalSpecificARN = `
+data "minio_iam_policy_document" "test" {
+  statement {
+    actions   = ["s3:*"]
+    resources = ["arn:aws:s3:::test-bucket", "arn:aws:s3:::test-bucket/*"]
+    sid       = "SpecificNotPrincipalARN"
+    effect    = "Deny"
+    not_principal = "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
+  }
+}
+`
+
+var testAccMinioIAMPolicyDocumentExpectedJSONStatementNotPrincipalSpecificARN = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SpecificNotPrincipalARN",
+      "Effect": "Deny",
+      "Action": "s3:*",
+      "Resource": [
+        "arn:aws:s3:::test-bucket/*",
+        "arn:aws:s3:::test-bucket"
+      ],
+      "NotPrincipal": "arn:aws:iam:::user/p10439088:SLCDTCG0PS1QPQJKQ99F"
+    }
+  ]
+}`
+
+var testAccMinioIAMPolicyDocumentConfigStatementPrincipalAndNotPrincipalConflict = `
+data "minio_iam_policy_document" "test" {
+  statement {
+    actions   = ["*"]
+    resources = ["*"]
+    sid       = "PrincipalAndNotPrincipalConflict"
+    principal = "*"
+    not_principal = "arn:aws:iam:::user/someuser"
+  }
+}
+`

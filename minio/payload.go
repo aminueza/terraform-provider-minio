@@ -245,6 +245,7 @@ type IAMPolicyStatement struct {
 	Actions    interface{} `json:"Action,omitempty"`
 	Resources  interface{} `json:"Resource,omitempty"`
 	Principal  string      `json:"Principal,omitempty"`
+	NotPrincipal string    `json:"NotPrincipal,omitempty"`
 	Conditions interface{} `json:"Condition,omitempty"`
 }
 

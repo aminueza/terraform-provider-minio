@@ -12,3 +12,4 @@ data "minio_iam_user" "alice" {
 output "alice_status" {
   value = data.minio_iam_user.alice.status
 }
+```

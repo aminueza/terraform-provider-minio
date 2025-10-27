@@ -64,6 +64,9 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		S3Region:     config.S3Region,
 		S3Client:     minioClient,
 		S3Admin:      minioAdmin,
+		ConsistencyMaxRetries:        config.ConsistencyMaxRetries,
+		ConsistencyMaxBackoffSeconds: config.ConsistencyMaxBackoffSeconds,
+		ConsistencyBackoffBase:       config.ConsistencyBackoffBase,
 	}, nil
 }
 

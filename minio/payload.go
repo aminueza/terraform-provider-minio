@@ -24,6 +24,9 @@ type S3MinioConfig struct {
 	S3SSLCertFile   string
 	S3SSLKeyFile    string
 	S3SSLSkipVerify bool
+	ConsistencyMaxRetries        int
+	ConsistencyMaxBackoffSeconds int
+	ConsistencyBackoffBase       float64
 }
 
 // S3MinioClient defines default minio
@@ -32,6 +35,9 @@ type S3MinioClient struct {
 	S3Region     string
 	S3Client     *minio.Client
 	S3Admin      *madmin.AdminClient
+	ConsistencyMaxRetries        int
+	ConsistencyMaxBackoffSeconds int
+	ConsistencyBackoffBase       float64
 }
 
 // S3MinioBucket defines minio config
@@ -45,6 +51,9 @@ type S3MinioBucket struct {
 	MinioAccess          string
 	MinioForceDestroy    bool
 	ObjectLockingEnabled bool
+	ConsistencyMaxRetries        int
+	ConsistencyMaxBackoffSeconds int
+	ConsistencyBackoffBase       float64
 }
 
 // S3MinioBucketPolicy defines bucket policy config

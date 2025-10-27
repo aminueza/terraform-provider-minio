@@ -137,6 +137,30 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_KEY_FILE",
 				}, nil),
 			},
+            "minio_consistency_max_retries": {
+                Type:        schema.TypeInt,
+                Optional:    true,
+                Description: "Maximum retries for bucket existence checks to handle eventual consistency",
+                DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+                    prefix + "MINIO_CONSISTENCY_MAX_RETRIES",
+                }, 3),
+            },
+            "minio_consistency_max_backoff_seconds": {
+                Type:        schema.TypeInt,
+                Optional:    true,
+                Description: "Maximum backoff per attempt in seconds for bucket existence checks",
+                DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+                    prefix + "MINIO_CONSISTENCY_MAX_BACKOFF_SECONDS",
+                }, 20),
+            },
+            "minio_consistency_backoff_base": {
+                Type:        schema.TypeFloat,
+                Optional:    true,
+                Description: "Exponential backoff base for bucket existence checks",
+                DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+                    prefix + "MINIO_CONSISTENCY_BACKOFF_BASE",
+                }, 2.0),
+            },
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

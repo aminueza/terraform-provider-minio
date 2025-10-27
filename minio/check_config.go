@@ -40,6 +40,9 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 		MinioACL:             getOptionalField(d, "acl", "private").(string),
 		MinioForceDestroy:    getOptionalField(d, "force_destroy", false).(bool),
 		ObjectLockingEnabled: getOptionalField(d, "object_locking", false).(bool),
+		ConsistencyMaxRetries:        m.ConsistencyMaxRetries,
+		ConsistencyMaxBackoffSeconds: m.ConsistencyMaxBackoffSeconds,
+		ConsistencyBackoffBase:       m.ConsistencyBackoffBase,
 	}
 }
 
@@ -141,6 +144,9 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3SSLCertFile:   getOptionalField(d, "minio_cert_file", "").(string),
 		S3SSLKeyFile:    getOptionalField(d, "minio_key_file", "").(string),
 		S3SSLSkipVerify: getOptionalField(d, "minio_insecure", false).(bool),
+		ConsistencyMaxRetries:        getOptionalField(d, "minio_consistency_max_retries", 3).(int),
+		ConsistencyMaxBackoffSeconds: getOptionalField(d, "minio_consistency_max_backoff_seconds", 20).(int),
+		ConsistencyBackoffBase:       getOptionalField(d, "minio_consistency_backoff_base", 2.0).(float64),
 	}
 }
 

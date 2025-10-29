@@ -2,8 +2,6 @@ package minio
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -25,6 +23,28 @@ func resourceMinioAccessKey() *schema.Resource {
 		DeleteContext: minioDeleteAccessKey,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			secret := strings.TrimSpace(d.Get("secret_key").(string))
+			versionRaw, hasVersion := d.GetOk("secret_key_version")
+			version := ""
+			if hasVersion {
+				version = strings.TrimSpace(versionRaw.(string))
+			}
+
+			// Enforce that when secret_key is set, secret_key_version must be provided
+			if secret != "" && (!hasVersion || version == "") {
+				return fmt.Errorf("secret_key_version must be provided when secret_key is set")
+			}
+
+			// Enforce that when secret_key_version changes, secret_key must be provided
+			if d.HasChange("secret_key_version") {
+				if secret == "" {
+					return fmt.Errorf("secret_key must be provided when secret_key_version changes")
+				}
+			}
+
+			return nil
 		},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(5 * time.Minute),
@@ -64,28 +84,19 @@ func resourceMinioAccessKey() *schema.Resource {
 			"secret_key": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Sensitive:   true,
-				Description: "The secret key. If provided, must be at least 8 characters.",
+				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					// Suppress diffs when the provided secret matches the stored hash (or legacy plaintext in state).
-					// This avoids perpetual diffs while keeping the plaintext secret out of state.
-					// If user isn't providing a secret, no diff should be recorded.
-					if strings.TrimSpace(new) == "" && strings.TrimSpace(old) == "" {
-						return true
-					}
-					storedHash := ""
-					if v, ok := d.GetOk("secret_key_hash"); ok {
-						storedHash = v.(string)
-					}
-					// Back-compat: if we don't have a hash yet but old plaintext exists in state, use it to compute a temp hash
-					if storedHash == "" && strings.TrimSpace(old) != "" {
-						storedHash = computeSecretHash(old)
-					}
-					if storedHash == "" || strings.TrimSpace(new) == "" {
+					// On creation, do not suppress so validation and planning behave normally
+					if d.Id() == "" {
 						return false
 					}
-					return computeSecretHash(new) == storedHash
+					// If secret_key_version changes, do NOT suppress so the new secret is available to Update/CustomizeDiff
+					if d.HasChange("secret_key_version") {
+						return false
+					}
+					// For existing resources with no version change, suppress diffs to keep plans clean
+					return true
 				},
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
@@ -97,11 +108,10 @@ func resourceMinioAccessKey() *schema.Resource {
 					return
 				},
 			},
-			"secret_key_hash": {
+			"secret_key_version": {
 				Type:        schema.TypeString,
-				Computed:    true,
-				Sensitive:   true,
-				Description: "Hash of the secret key, stored for change detection without persisting plaintext.",
+				Optional:    true,
+				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -150,15 +160,6 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId(aws.StringValue(&creds.AccessKey))
 	_ = d.Set("access_key", creds.AccessKey)
-
-	// Store only a hash of the secret in state for change detection (no plaintext persistence).
-	usedSecret := secretKey
-	if usedSecret == "" {
-		usedSecret = creds.SecretKey
-	}
-	if strings.TrimSpace(usedSecret) != "" {
-		_ = d.Set("secret_key_hash", computeSecretHash(usedSecret))
-	}
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -236,17 +237,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
 
-	// Migration: if we previously stored plaintext secret in state, compute its hash and then clear it.
-	if v, ok := d.GetOk("secret_key_hash"); !ok || v.(string) == "" {
-		if legacyPlain, ok2 := d.GetOk("secret_key"); ok2 {
-			legacy := strings.TrimSpace(legacyPlain.(string))
-			if legacy != "" {
-				_ = d.Set("secret_key_hash", computeSecretHash(legacy))
-			}
-		}
-	}
-
-	// Clear secret_key from state - it's write-only and only available during creation
+	// Clear secret_key from state - it's write-only
 	_ = d.Set("secret_key", "")
 
 	// Only set policy in state if it's not implied
@@ -302,9 +293,9 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	hasStatusChange := d.HasChange("status")
 	hasPolicyChange := d.HasChange("policy")
-	hasSecretChange := d.HasChange("secret_key")
+	hasSecretChange := d.HasChange("secret_key_version")
 
-	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v)", accessKeyID, hasStatusChange, hasPolicyChange)
+	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange)
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 
@@ -396,7 +387,10 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 				log.Printf("[ERROR] Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err)
 				return diag.FromErr(err)
 			}
-			_ = d.Set("secret_key_hash", computeSecretHash(newSecret))
+			// Clear secret_key from state after rotation
+			_ = d.Set("secret_key", "")
+		} else {
+			return diag.Errorf("secret_key must be provided when secret_key_version changes")
 		}
 	}
 
@@ -461,9 +455,4 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId("")
 	return nil
-}
-
-func computeSecretHash(secret string) string {
-    sum := sha256.Sum256([]byte(secret))
-    return hex.EncodeToString(sum[:])
 }

@@ -82,9 +82,8 @@ func resourceMinioServiceAccount() *schema.Resource {
 			},
 			"expiration": {
 				Type:             schema.TypeString,
-				Description:      "Expiration of service account. Must be between NOW+15min & NOW+365d",
+				Description:      "Expiration of service account in RFC3339 format. Must be between NOW+15min & NOW+365d. If not set, the service account will not expire.",
 				Optional:         true,
-				Default:          "1970-01-01T00:00:00Z",
 				ValidateDiagFunc: validateExpiration,
 				DiffSuppressFunc: suppressTimeDiffs,
 			},
@@ -99,9 +98,14 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	var err error
 	targetUser := serviceAccountConfig.MinioTargetUser
 	policy := serviceAccountConfig.MinioSAPolicy
-	expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
-	if err != nil {
-		return NewResourceError("Failed to parse expiration", serviceAccountConfig.MinioExpiration, err)
+
+	var expirationPtr *time.Time
+	if serviceAccountConfig.MinioExpiration != "" {
+		expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
+		if err != nil {
+			return NewResourceError("Failed to parse expiration", serviceAccountConfig.MinioExpiration, err)
+		}
+		expirationPtr = &expiration
 	}
 
 	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{
@@ -109,7 +113,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		TargetUser:  targetUser,
 		Name:        serviceAccountConfig.MinioName,
 		Description: serviceAccountConfig.MinioDescription,
-		Expiration:  &expiration,
+		Expiration:  expirationPtr,
 	})
 	if err != nil {
 		return NewResourceError("error creating service account", targetUser, err)
@@ -216,12 +220,16 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	if d.HasChange("expiration") {
-		expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
-		if err != nil {
-			return NewResourceError("error parsing service account expiration %s: %s", d.Id(), err)
+		var expirationPtr *time.Time
+		if serviceAccountConfig.MinioExpiration != "" {
+			expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
+			if err != nil {
+				return NewResourceError("error parsing service account expiration %s: %s", d.Id(), err)
+			}
+			expirationPtr = &expiration
 		}
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
-			NewExpiration: &expiration,
+			NewExpiration: expirationPtr,
 			NewPolicy:     processServiceAccountPolicy(policy),
 		})
 		if err != nil {
@@ -272,7 +280,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("reading service account failed", d.Id(), err)
 	}
 
-	expiration := "1970-01-01T00:00:00Z"
+	var expiration string
 	if output.Expiration != nil {
 		expiration = output.Expiration.Format(time.RFC3339)
 	}
@@ -348,6 +356,12 @@ func stringChangedToEmpty(k, oldValue, newValue string, d *schema.ResourceData) 
 }
 
 func suppressTimeDiffs(k, old, new string, d *schema.ResourceData) bool {
+	if old == "" && new == "" {
+		return true
+	}
+	if old == "" || new == "" {
+		return false
+	}
 	old_exp, err := time.Parse(time.RFC3339, old)
 	if err != nil {
 		return false
@@ -356,14 +370,15 @@ func suppressTimeDiffs(k, old, new string, d *schema.ResourceData) bool {
 	if err != nil {
 		return false
 	}
-
-	return old_exp.Compare(new_exp) == 0
+	return old_exp.Equal(new_exp)
 }
 
 func validateExpiration(val any, p cty.Path) diag.Diagnostics {
 	var diags diag.Diagnostics
-
 	value := val.(string)
+	if value == "" {
+		return diags
+	}
 	expiration, err := time.Parse(time.RFC3339, value)
 	if err != nil {
 		diags = append(diags, diag.Diagnostic{
@@ -371,8 +386,8 @@ func validateExpiration(val any, p cty.Path) diag.Diagnostics {
 			Summary:  "Invalid expiration",
 			Detail:   fmt.Sprintf("%q cannot be parsed as RFC3339 Timestamp Format", value),
 		})
+		return diags
 	}
-
 	key_duration := time.Until(expiration)
 	if key_duration < 15*time.Minute || key_duration > 365*24*60*time.Minute {
 		diags = append(diags, diag.Diagnostic{
@@ -381,6 +396,5 @@ func validateExpiration(val any, p cty.Path) diag.Diagnostics {
 			Detail:   "Expiration must between 15 minutes and 365 days in the future",
 		})
 	}
-
 	return diags
 }

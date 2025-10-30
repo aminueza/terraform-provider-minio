@@ -191,7 +191,6 @@ func TestServiceAccount_Expiration(t *testing.T) {
 	targetUser := "minio"
 	resourceName := "minio_iam_service_account.test"
 	expiration := time.Now().Add(time.Hour * 1).UTC().Format(time.RFC3339)
-	epoch := time.UnixMicro(0).UTC().Format(time.RFC3339)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -202,7 +201,7 @@ func TestServiceAccount_Expiration(t *testing.T) {
 				Config: testAccMinioServiceAccountConfig(targetUser),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioServiceAccountExists(resourceName, &serviceAccount),
-					testAccCheckMinioServiceAccountExpiration(resourceName, epoch),
+					testAccCheckMinioServiceAccountExpiration(resourceName, ""),
 				),
 			},
 			{

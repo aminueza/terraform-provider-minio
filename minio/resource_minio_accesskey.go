@@ -24,6 +24,28 @@ func resourceMinioAccessKey() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			secret := strings.TrimSpace(d.Get("secret_key").(string))
+			versionRaw, hasVersion := d.GetOk("secret_key_version")
+			version := ""
+			if hasVersion {
+				version = strings.TrimSpace(versionRaw.(string))
+			}
+
+			// Enforce that when secret_key is set, secret_key_version must be provided
+			if secret != "" && (!hasVersion || version == "") {
+				return fmt.Errorf("secret_key_version must be provided when secret_key is set")
+			}
+
+			// Enforce that when secret_key_version changes, secret_key must be provided
+			if d.HasChange("secret_key_version") {
+				if secret == "" {
+					return fmt.Errorf("secret_key must be provided when secret_key_version changes")
+				}
+			}
+
+			return nil
+		},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(5 * time.Minute),
 			Read:   schema.DefaultTimeout(2 * time.Minute),
@@ -62,9 +84,20 @@ func resourceMinioAccessKey() *schema.Resource {
 			"secret_key": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Computed:    true,
 				Sensitive:   true,
-				Description: "The secret key. If provided, must be at least 8 characters.",
+				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					// On creation, do not suppress so validation and planning behave normally
+					if d.Id() == "" {
+						return false
+					}
+					// If secret_key_version changes, do NOT suppress so the new secret is available to Update/CustomizeDiff
+					if d.HasChange("secret_key_version") {
+						return false
+					}
+					// For existing resources with no version change, suppress diffs to keep plans clean
+					return true
+				},
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
 					if v != "" {
@@ -74,6 +107,11 @@ func resourceMinioAccessKey() *schema.Resource {
 					}
 					return
 				},
+			},
+			"secret_key_version": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -122,7 +160,6 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	d.SetId(aws.StringValue(&creds.AccessKey))
 	_ = d.Set("access_key", creds.AccessKey)
-	_ = d.Set("secret_key", creds.SecretKey)
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -200,6 +237,9 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
 
+	// Clear secret_key from state - it's write-only
+	_ = d.Set("secret_key", "")
+
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {
 		policy := strings.TrimSpace(info.Policy)
@@ -253,8 +293,9 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	hasStatusChange := d.HasChange("status")
 	hasPolicyChange := d.HasChange("policy")
+	hasSecretChange := d.HasChange("secret_key_version")
 
-	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v)", accessKeyID, hasStatusChange, hasPolicyChange)
+	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange)
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 
@@ -325,6 +366,31 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		if err != nil {
 			log.Printf("[ERROR] Failed to update accesskey %s policy after retries: %s", accessKeyID, err)
 			return diag.FromErr(err)
+		}
+	}
+
+	if hasSecretChange {
+		newSecret := strings.TrimSpace(d.Get("secret_key").(string))
+		if newSecret != "" {
+			log.Printf("[DEBUG] Rotating secret for accesskey %s", accessKeyID)
+			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+				err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewSecretKey: newSecret})
+				if err != nil {
+					if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+						return retry.RetryableError(fmt.Errorf("transient error rotating accesskey %s secret: %w", accessKeyID, err))
+					}
+					return retry.NonRetryableError(fmt.Errorf("failed to rotate accesskey secret: %w", err))
+				}
+				return nil
+			})
+			if err != nil {
+				log.Printf("[ERROR] Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err)
+				return diag.FromErr(err)
+			}
+			// Clear secret_key from state after rotation
+			_ = d.Set("secret_key", "")
+		} else {
+			return diag.Errorf("secret_key must be provided when secret_key_version changes")
 		}
 	}
 

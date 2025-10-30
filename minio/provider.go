@@ -179,6 +179,9 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 
 			// AccessKey Operations
 			"minio_accesskey": resourceMinioAccessKey(),
+
+			// Server Configuration
+			"minio_config": resourceMinioConfig(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

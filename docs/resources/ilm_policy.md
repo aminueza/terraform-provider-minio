@@ -28,6 +28,19 @@ resource "minio_ilm_policy" "bucket-lifecycle-rules" {
   }
 }
 
+# Rule with abort incomplete multipart upload
+resource "minio_ilm_policy" "abort-mpu" {
+  bucket = minio_s3_bucket.bucket.bucket
+
+  rule {
+    id = "abort-mpu"
+    expiration = "30d"
+    abort_incomplete_multipart_upload {
+      days_after_initiation = "7d"
+    }
+  }
+}
+
 # Complex lifecycle policy with multiple rules
 resource "minio_ilm_policy" "comprehensive-rules" {
   bucket = minio_s3_bucket.bucket.bucket
@@ -90,6 +103,7 @@ resource "minio_ilm_policy" "comprehensive-rules" {
 - `transition` (Block List, Max: 1) Configuration block for transitioning objects to a different storage class (see below).
 - `noncurrent_transition` (Block List, Max: 1) Configuration for transitioning noncurrent object versions (see below).
 - `noncurrent_expiration` (Block List, Max: 1) Configuration for expiring noncurrent object versions (see below).
+- `abort_incomplete_multipart_upload` (Block List, Max: 1) Configuration for aborting incomplete multipart uploads (see below).
 
 #### Read-Only
 
@@ -126,6 +140,14 @@ resource "minio_ilm_policy" "comprehensive-rules" {
 #### Optional
 
 - `newer_versions` (Number) Number of newer versions to retain before expiration. Must be non-negative.
+
+### Nested Schema for `rule.abort_incomplete_multipart_upload`
+
+#### Required
+
+- `days_after_initiation` (String) Number of days after which incomplete multipart uploads should be aborted, in format "Nd".
+
+> **Note:** Due to current MinIO server limitations, `abort_incomplete_multipart_upload` must be combined with at least one other lifecycle action (such as `expiration`, `transition`, etc.). Abort-only rules are preserved in Terraform state but not sent to the MinIO server.
 
 ## Import
 

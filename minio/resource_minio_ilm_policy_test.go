@@ -211,6 +211,29 @@ func TestAccILMPolicy_ruleStatus(t *testing.T) {
 	})
 }
 
+func TestAccILMPolicy_abortIncompleteMultipartUpload(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-abort-mpu-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.abort_mpu"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigAbortIncompleteMultipartUpload(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.abort_incomplete_multipart_upload.0.days_after_initiation", "7d"),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioLifecycleConfigurationValid(config *lifecycle.Configuration) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if config.Empty() || len(config.Rules) == 0 {
@@ -477,6 +500,27 @@ resource "minio_ilm_policy" "rule_status" {
 		status     = "Enabled"
 		expiration = "7d"
 	}
+}
+`, randInt)
+}
+
+func testAccMinioILMPolicyConfigAbortIncompleteMultipartUpload(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+    bucket = "%s"
+    acl    = "public"
+}
+
+resource "minio_ilm_policy" "abort_mpu" {
+    bucket = minio_s3_bucket.bucket.bucket
+    rule {
+        id = "abort-mpu-rule"
+        # Include a supported action so that MinIO accepts the lifecycle configuration
+        expiration = "30d"
+        abort_incomplete_multipart_upload {
+            days_after_initiation = "7d"
+        }
+    }
 }
 `, randInt)
 }

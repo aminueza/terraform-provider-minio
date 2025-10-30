@@ -118,6 +118,21 @@ func resourceMinioILMPolicy() *schema.Resource {
 								},
 							},
 						},
+						"abort_incomplete_multipart_upload": {
+							Type:     schema.TypeList,
+							MaxItems: 1,
+							Optional: true,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"days_after_initiation": {
+										Type:             schema.TypeString,
+										Required:         true,
+										ValidateDiagFunc: validateILMDays,
+										Description:      "Number of days after which incomplete multipart uploads should be aborted, in format 'Nd'.",
+									},
+								},
+							},
+						},
 						"filter": {
 							Type:     schema.TypeString,
 							Optional: true,
@@ -196,6 +211,40 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		rule, ok := ruleI.(map[string]interface{})
 		if !ok {
 			return diag.Errorf("invalid rule format")
+		}
+
+		id, ok := getStringValue(rule, "id")
+		if !ok {
+			return diag.Errorf("rule id is required")
+		}
+
+		hasAbort := false
+		if abortI, ok := rule["abort_incomplete_multipart_upload"]; ok {
+			if abortList, ok := abortI.([]interface{}); ok && len(abortList) > 0 {
+				if first, ok := abortList[0].(map[string]interface{}); ok && first != nil {
+					if days, ok := first["days_after_initiation"].(string); ok && days != "" {
+						hasAbort = true
+					}
+				}
+			}
+		}
+		hasSupportedAction := false
+		if exp, _ := getStringValue(rule, "expiration"); exp != "" {
+			hasSupportedAction = true
+		}
+		if t, ok := rule["transition"].([]interface{}); ok && len(t) > 0 {
+			hasSupportedAction = true
+		}
+		if nce, ok := rule["noncurrent_expiration"].([]interface{}); ok && len(nce) > 0 {
+			hasSupportedAction = true
+		}
+		if nct, ok := rule["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
+			hasSupportedAction = true
+		}
+
+		if hasAbort && !hasSupportedAction {
+			log.Printf("[WARN] Skipping abort-only rule %q: MinIO server doesn't persist AbortIncompleteMultipartUpload-only rules. The configuration is preserved in Terraform state.", id)
+			continue
 		}
 
 		lifecycleRule, err := createLifecycleRule(rule)
@@ -296,6 +345,35 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		return NewResourceError("setting bucket failed", d.Id(), err)
 	}
 
+	// Capture existing state to preserve user-specified fields that MinIO doesn't support yet,
+	// such as abort_incomplete_multipart_upload. This avoids perpetual diffs.
+	stateAbortByID := map[string][]map[string]interface{}{}
+	if v, ok := d.GetOk("rule"); ok {
+		if oldRules, ok := v.([]interface{}); ok {
+			for _, ri := range oldRules {
+				rm, ok := ri.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				rid, _ := getStringValue(rm, "id")
+				if rid == "" {
+					continue
+				}
+				if abortI, ok := rm["abort_incomplete_multipart_upload"]; ok {
+					if abortList, ok := abortI.([]interface{}); ok && len(abortList) > 0 {
+						if first, ok := abortList[0].(map[string]interface{}); ok && first != nil {
+							if days, ok := first["days_after_initiation"].(string); ok && days != "" {
+								stateAbortByID[rid] = []map[string]interface{}{
+									{"days_after_initiation": days},
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	for _, r := range config.Rules {
 		var expiration string
 
@@ -336,6 +414,15 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			})
 		}
 
+		abortIncompleteMultipartUpload := make([]map[string]interface{}, 0)
+		if !r.AbortIncompleteMultipartUpload.IsDaysNull() {
+			abortIncompleteMultipartUpload = append(abortIncompleteMultipartUpload, map[string]interface{}{
+				"days_after_initiation": fmt.Sprintf("%dd", r.AbortIncompleteMultipartUpload.DaysAfterInitiation),
+			})
+		} else if preserved, ok := stateAbortByID[r.ID]; ok && len(preserved) > 0 {
+			abortIncompleteMultipartUpload = preserved
+		}
+
 		var prefix string
 		tags := map[string]string{}
 		if len(r.RuleFilter.And.Tags) > 0 {
@@ -348,14 +435,15 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 		}
 
 		rule := map[string]interface{}{
-			"id":                    r.ID,
-			"expiration":            expiration,
-			"transition":            transitions,
-			"noncurrent_expiration": noncurrentExpiration,
-			"noncurrent_transition": noncurrentTransition,
-			"status":                r.Status,
-			"filter":                prefix,
-			"tags":                  tags,
+			"id":                                r.ID,
+			"expiration":                        expiration,
+			"transition":                        transitions,
+			"noncurrent_expiration":             noncurrentExpiration,
+			"noncurrent_transition":             noncurrentTransition,
+			"abort_incomplete_multipart_upload": abortIncompleteMultipartUpload,
+			"status":                            r.Status,
+			"filter":                            prefix,
+			"tags":                              tags,
 		}
 
 		rules = append(rules, rule)

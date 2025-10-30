@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -197,6 +198,13 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		}
 
 		if found {
+			break
+		}
+
+		if checkFound, diagErr := diagnoseMissingBucket(ctx, bucketConfig, d.Id()); diagErr != nil {
+			return diagErr
+		} else if checkFound {
+			found = true
 			break
 		}
 
@@ -391,4 +399,38 @@ func validateS3BucketName(value string) error {
 	}
 
 	return nil
+}
+
+func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, bucket string) (bool, diag.Diagnostics) {
+	location, err := bucketConfig.MinioClient.GetBucketLocation(ctx, bucket)
+	if err == nil {
+		log.Printf("[DEBUG] Bucket [%s] location %q confirmed after existence check failure", bucket, location)
+		return true, nil
+	}
+
+	errResp := minio.ToErrorResponse(err)
+
+	if isCredentialError(errResp) {
+		log.Printf("%s", NewResourceErrorStr("access denied while verifying bucket", bucket, err))
+		return false, NewResourceError("access denied while verifying bucket", bucket, err)
+	}
+
+	if errResp.Code == "NoSuchBucket" || errResp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	return false, NewResourceError("error verifying bucket existence", bucket, err)
+}
+
+func isCredentialError(errResp minio.ErrorResponse) bool {
+	if errResp.StatusCode == http.StatusForbidden {
+		return true
+	}
+
+	switch errResp.Code {
+	case "AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch", "InvalidSecurity", "ExpiredToken", "InvalidToken", "RequestTimeTooSkewed":
+		return true
+	default:
+		return false
+	}
 }

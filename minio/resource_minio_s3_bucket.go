@@ -33,7 +33,7 @@ type RetryConfig struct {
 
 func getRetryConfig() RetryConfig {
 	return RetryConfig{
-		MaxRetries:  3,
+		MaxRetries:  6,
 		MaxBackoff:  20 * time.Second,
 		BackoffBase: 2.0,
 	}

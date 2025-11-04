@@ -11,7 +11,24 @@ description: |-
 
 ## Example Usage
 
-{{ tffile "examples/resources/minio_s3_bucket_retention/resource.tf" }}
+```terraform
+resource "minio_s3_bucket" "test_bucket" {
+  bucket         = "test-retention-bucket"
+  force_destroy  = true
+  object_locking = true
+}
+
+resource "minio_s3_bucket_retention" "test_retention" {
+  bucket          = minio_s3_bucket.test_bucket.bucket
+  mode            = "GOVERNANCE"
+  unit            = "YEARS"
+  validity_period = 1
+}
+```
+
+## Interaction with Lifecycle Rules
+
+If a bucket has lifecycle rules configured, the retention settings take precedence. Objects cannot be deleted by lifecycle rules until their retention period expires.
 
 {{ .SchemaMarkdown | trimspace }}
 

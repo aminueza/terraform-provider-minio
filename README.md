@@ -88,6 +88,18 @@ For testing locally, run the docker compose to spin up a minio server:
 docker compose up
 ```
 
+To run the acceptance tests:
+
+```sh
+docker compose run --rm test
+```
+
+Run a specific test by name pattern:
+
+```sh
+TEST_PATTERN=TestAccAWSUser_SettingAccessKey docker compose run --rm test
+```
+
 ## Accessing the MinIO Console
 
 After running `docker compose up`, you can access the MinIO Console (the web UI) for each MinIO instance:

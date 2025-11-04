@@ -131,6 +131,18 @@ func resourceMinioAccessKey() *schema.Resource {
 				Optional:    true,
 				Description: "Policy to attach to the access key (policy name or JSON document).",
 			},
+			"description": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Description for the access key (max 256 characters).",
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if len(v) > 256 {
+						errs = append(errs, fmt.Errorf("%q must be at most 256 characters", key))
+					}
+					return
+				},
+			},
 		},
 	}
 }
@@ -142,13 +154,15 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	secretKey := d.Get("secret_key").(string)
 	status := d.Get("status").(string)
 	policy := d.Get("policy").(string)
+	description := d.Get("description").(string)
 
 	log.Printf("[INFO] Creating accesskey for user %s", user)
 
 	req := madmin.AddServiceAccountReq{
-		SecretKey:  secretKey,
-		AccessKey:  accessKey,
-		TargetUser: user,
+		SecretKey:   secretKey,
+		AccessKey:   accessKey,
+		TargetUser:  user,
+		Description: description,
 	}
 
 	creds, err := client.S3Admin.AddServiceAccount(ctx, req)
@@ -236,6 +250,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 	_ = d.Set("status", status)
 	_ = d.Set("access_key", accessKeyID)
+	_ = d.Set("description", info.Description)
 
 	// Clear secret_key from state - it's write-only
 	_ = d.Set("secret_key", "")
@@ -290,12 +305,14 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	accessKeyID := d.Id()
 	status := d.Get("status").(string)
 	policy := d.Get("policy").(string)
+	description := d.Get("description").(string)
 
 	hasStatusChange := d.HasChange("status")
 	hasPolicyChange := d.HasChange("policy")
 	hasSecretChange := d.HasChange("secret_key_version")
+	hasDescriptionChange := d.HasChange("description")
 
-	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange)
+	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v, description change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange, hasDescriptionChange)
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 
@@ -391,6 +408,27 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			_ = d.Set("secret_key", "")
 		} else {
 			return diag.Errorf("secret_key must be provided when secret_key_version changes")
+		}
+	}
+
+	if hasDescriptionChange {
+		log.Printf("[DEBUG] Updating accesskey %s description", accessKeyID)
+
+		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewDescription: description})
+			if err != nil {
+				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+					return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s description: %w", accessKeyID, err))
+				}
+
+				return retry.NonRetryableError(fmt.Errorf("failed to update accesskey description: %w", err))
+			}
+			return nil
+		})
+
+		if err != nil {
+			log.Printf("[ERROR] Failed to update accesskey %s description after retries: %s", accessKeyID, err)
+			return diag.FromErr(err)
 		}
 	}
 

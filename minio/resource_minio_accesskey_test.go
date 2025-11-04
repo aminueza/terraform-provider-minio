@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -40,53 +41,53 @@ func TestAccMinioAccessKey_basic(t *testing.T) {
 }
 
 func TestAccMinioAccessKey_validation_requiresVersionWithSecret(t *testing.T) {
-    rName := acctest.RandomWithPrefix("tf-acc-test")
-    customAccessKey := acctest.RandString(20)
-    secret := acctest.RandString(40)
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	customAccessKey := acctest.RandString(20)
+	secret := acctest.RandString(40)
 
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        Steps: []resource.TestStep{
-            {
-                Config:      testAccMinioAccessKeyConfigSecretOnly(rName, customAccessKey, secret),
-                PlanOnly:    true,
-                ExpectError: regexp.MustCompile("secret_key_version must be provided when secret_key is set"),
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioAccessKeyConfigSecretOnly(rName, customAccessKey, secret),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("secret_key_version must be provided when secret_key is set"),
+			},
+		},
+	})
 }
 
 func TestAccMinioAccessKey_validation_requiresSecretOnVersionChange(t *testing.T) {
-    rName := acctest.RandomWithPrefix("tf-acc-test")
-    resourceName := "minio_accesskey.test"
-    customAccessKey := acctest.RandString(20)
-    secretV1 := acctest.RandString(40)
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test"
+	customAccessKey := acctest.RandString(20)
+	secretV1 := acctest.RandString(40)
 
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        Steps: []resource.TestStep{
-            {
-                Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV1, "v1"),
-                Check: resource.ComposeTestCheckFunc(
-                    resource.TestCheckResourceAttr(resourceName, "user", rName),
-                    resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
-                    resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
-                    resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v1"),
-                ),
-            },
-            {
-                Config:      testAccMinioAccessKeyConfigVersionOnly(rName, customAccessKey, "v2"),
-                PlanOnly:    true,
-                ExpectError: regexp.MustCompile("secret_key must be provided when secret_key_version changes"),
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV1, "v1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v1"),
+				),
+			},
+			{
+				Config:      testAccMinioAccessKeyConfigVersionOnly(rName, customAccessKey, "v2"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("secret_key must be provided when secret_key_version changes"),
+			},
+		},
+	})
 }
 
 func testAccMinioAccessKeyConfigSecretOnly(rName, accessKey, secretKey string) string {
-    return fmt.Sprintf(`
+	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {
   name = %q
 }
@@ -100,7 +101,7 @@ resource "minio_accesskey" "test" {
 }
 
 func testAccMinioAccessKeyConfigVersionOnly(rName, accessKey, version string) string {
-    return fmt.Sprintf(`
+	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {
   name = %q
 }
@@ -363,4 +364,82 @@ resource "minio_accesskey" "test" {
   secret_key_version = %q
 }
 `, rName, accessKey, secretKey, version)
+}
+
+func TestAccMinioAccessKey_withDescription(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_desc"
+	desc := "initial description"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithDescription(rName, desc),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "description", desc),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioAccessKey_updateDescription(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_desc"
+	desc1 := "first description"
+	desc2 := "second description"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithDescription(rName, desc1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "description", desc1),
+				),
+			},
+			{
+				Config: testAccMinioAccessKeyConfigWithDescription(rName, desc2),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "description", desc2),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioAccessKey_descriptionValidation(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	longDesc := strings.Repeat("a", 257)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioAccessKeyConfigWithDescription(rName, longDesc),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("must be at most 256 characters"),
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithDescription(rName, description string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test" {
+  name = %q
+}
+
+resource "minio_accesskey" "test_desc" {
+  user        = minio_iam_user.test.name
+  description = %q
+}
+`, rName, description)
 }

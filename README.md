@@ -13,8 +13,8 @@
     <a href="https://github.com/aminueza/terraform-provider-minio/actions?query=workflow%3A%22Terraform+Provider+CI%22">
       <img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=main">
     </a>
-    <a href="https://github.com/aminueza/terraform-provider-minio/releases">
-      <img alt="GitHub release (latest by date including pre-releases)" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio?include_prereleases">
+    <a href="https://github.com/aminueza/terraform-provider-minio/releases/latest">
+      <img alt="Latest release on GitHub" src="https://img.shields.io/github/v/release/aminueza/terraform-provider-minio">
     </a>
   </p>
   <p align="center">
@@ -24,15 +24,9 @@
 
 ## Building and Installing
 
-Prebuilt versions of this provider are available on the [releases page](https://github.com/aminueza/terraform-provider-minio/releases/latest).
+Prebuilt versions of this provider are available on the [Releases page](https://github.com/aminueza/terraform-provider-minio/releases).
 
-But if you need to build it yourself, just download this repository, [install](https://taskfile.dev/#/installation) [Task](https://taskfile.dev/):
-
-```sh
-go install github.com/go-task/task/v3/cmd/task@latest
-```
-
-And run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):
+But if you need to build it yourself, just download this repository, [install Task](https://taskfile.dev/docs/installation), then run the following command to build and install the plugin in the correct folder (resolved automatically based on the current Operating System):
 
 ```sh
 task install

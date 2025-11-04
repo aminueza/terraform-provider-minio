@@ -255,6 +255,11 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		config.Rules = append(config.Rules, lifecycleRule)
 	}
 
+	if len(config.Rules) == 0 {
+		d.SetId(bucket)
+		return minioReadILMPolicy(ctx, d, meta)
+	}
+
 	if err := c.SetBucketLifecycle(ctx, bucket, config); err != nil {
 		if oldConfig != nil {
 			if rbErr := c.SetBucketLifecycle(ctx, bucket, oldConfig); rbErr != nil {
@@ -269,73 +274,107 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error) {
-	id, ok := getStringValue(ruleData, "id")
-	if !ok {
-		return lifecycle.Rule{}, fmt.Errorf("rule id is required")
-	}
+    id, ok := getStringValue(ruleData, "id")
+    if !ok {
+        return lifecycle.Rule{}, fmt.Errorf("rule id is required")
+    }
 
-	status, ok := getStringValue(ruleData, "status")
-	if !ok {
-		status = "Enabled"
-	}
+    status, ok := getStringValue(ruleData, "status")
+    if !ok {
+        status = "Enabled"
+    }
 
-	if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
-		t := transition[0].(map[string]interface{})
-		if _, ok := t["storage_class"].(string); !ok {
-			return lifecycle.Rule{}, fmt.Errorf("storage_class is required for transition")
-		}
-	}
+    if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
+        t := transition[0].(map[string]interface{})
+        if _, ok := t["storage_class"].(string); !ok {
+            return lifecycle.Rule{}, fmt.Errorf("storage_class is required for transition")
+        }
+    }
 
-	if nt, exists := ruleData["noncurrent_transition"].([]interface{}); exists && len(nt) > 0 {
-		t := nt[0].(map[string]interface{})
-		days, ok := getStringValue(t, "days")
-		if !ok {
-			return lifecycle.Rule{}, fmt.Errorf("days is required for noncurrent_transition")
-		}
-		if err := validateILMDays(days, nil); err != nil {
-			return lifecycle.Rule{}, fmt.Errorf("invalid days format: %v", err)
-		}
-	}
+    if nt, exists := ruleData["noncurrent_transition"].([]interface{}); exists && len(nt) > 0 {
+        t := nt[0].(map[string]interface{})
+        days, ok := getStringValue(t, "days")
+        if !ok {
+            return lifecycle.Rule{}, fmt.Errorf("days is required for noncurrent_transition")
+        }
+        if err := validateILMDays(days, nil); err != nil {
+            return lifecycle.Rule{}, fmt.Errorf("invalid days format: %v", err)
+        }
+    }
 
-	var filter lifecycle.Filter
-	tags := convertToStringMap(ruleData["tags"])
+    var filter lifecycle.Filter
+    tags := convertToStringMap(ruleData["tags"])
 
-	if len(tags) > 0 {
-		prefix, _ := getStringValue(ruleData, "filter")
-		filter.And.Prefix = prefix
-		for k, v := range tags {
-			filter.And.Tags = append(filter.And.Tags, lifecycle.Tag{Key: k, Value: v})
-		}
-	} else {
-		prefix, _ := getStringValue(ruleData, "filter")
-		filter.Prefix = prefix
-	}
+    if len(tags) > 0 {
+        prefix, _ := getStringValue(ruleData, "filter")
+        filter.And.Prefix = prefix
+        for k, v := range tags {
+            filter.And.Tags = append(filter.And.Tags, lifecycle.Tag{Key: k, Value: v})
+        }
+    } else {
+        prefix, _ := getStringValue(ruleData, "filter")
+        filter.Prefix = prefix
+    }
 
-	expiration, _ := getStringValue(ruleData, "expiration")
+    expiration, _ := getStringValue(ruleData, "expiration")
 
-	noncurrentTransition, err := parseILMNoncurrentTransition(ruleData["noncurrent_transition"])
-	if err != nil {
-		return lifecycle.Rule{}, err
-	}
+    noncurrentTransition, err := parseILMNoncurrentTransition(ruleData["noncurrent_transition"])
+    if err != nil {
+        return lifecycle.Rule{}, err
+    }
 
-	return lifecycle.Rule{
-		ID:                          id,
-		Expiration:                  parseILMExpiration(expiration),
-		Transition:                  parseILMTransition(ruleData["transition"]),
-		NoncurrentVersionExpiration: parseILMNoncurrentExpiration(ruleData["noncurrent_expiration"]),
-		NoncurrentVersionTransition: noncurrentTransition,
-		Status:                      status,
-		RuleFilter:                  filter,
-	}, nil
+    return lifecycle.Rule{
+        ID:                          id,
+        Expiration:                  parseILMExpiration(expiration),
+        Transition:                  parseILMTransition(ruleData["transition"]),
+        NoncurrentVersionExpiration: parseILMNoncurrentExpiration(ruleData["noncurrent_expiration"]),
+        NoncurrentVersionTransition: noncurrentTransition,
+        Status:                      status,
+        RuleFilter:                  filter,
+    }, nil
 }
 
 func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*S3MinioClient).S3Client
 
 	rules := make([]map[string]interface{}, 0)
+
+	existingRulesRaw, _ := d.Get("rule").([]interface{})
+	rulesFromState := make([]map[string]interface{}, 0, len(existingRulesRaw))
+	hasAnySupportedAction := false
+	for _, ri := range existingRulesRaw {
+		if rm, ok := ri.(map[string]interface{}); ok {
+			rulesFromState = append(rulesFromState, rm)
+			if exp, _ := getStringValue(rm, "expiration"); exp != "" {
+				hasAnySupportedAction = true
+				continue
+			}
+			if t, ok := rm["transition"].([]interface{}); ok && len(t) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+			if nce, ok := rm["noncurrent_expiration"].([]interface{}); ok && len(nce) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+			if nct, ok := rm["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+		}
+	}
+
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
-		// TODO: distinguish between error and 404 not found
+		if isNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
+			if err = d.Set("bucket", d.Id()); err != nil {
+				return NewResourceError("setting bucket failed", d.Id(), err)
+			}
+			if err = d.Set("rule", rulesFromState); err != nil {
+				return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
+			}
+			return nil
+		}
 		log.Println(NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
 		d.SetId("")
 		return nil

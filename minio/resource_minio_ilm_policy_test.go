@@ -35,6 +35,45 @@ func TestAccILMPolicy_basic(t *testing.T) {
 	})
 }
 
+func testAccMinioILMPolicyConfigAbortOnly(randInt string) string {
+    return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+    bucket = "%s"
+    acl    = "public"
+}
+
+resource "minio_ilm_policy" "abort_only" {
+    bucket = minio_s3_bucket.bucket.bucket
+    rule {
+        id = "abort-only-rule"
+        abort_incomplete_multipart_upload {
+            days_after_initiation = "7d"
+        }
+    }
+}
+`, randInt)
+}
+
+func TestAccILMPolicy_abortOnlyNoExpiration(t *testing.T) {
+    name := fmt.Sprintf("test-ilm-abort-only-%d", acctest.RandInt())
+    resourceName := "minio_ilm_policy.abort_only"
+
+    resource.ParallelTest(t, resource.TestCase{
+        PreCheck:          func() { testAccPreCheck(t) },
+        ProviderFactories: testAccProviders,
+        CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+        Steps: []resource.TestStep{
+            {
+                Config: testAccMinioILMPolicyConfigAbortOnly(name),
+                Check: resource.ComposeTestCheckFunc(
+                    testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+                    resource.TestCheckResourceAttr(resourceName, "rule.0.abort_incomplete_multipart_upload.0.days_after_initiation", "7d"),
+                ),
+            },
+        },
+    })
+}
+
 func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-rule2-%d", acctest.RandInt())

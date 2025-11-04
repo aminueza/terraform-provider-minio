@@ -277,6 +277,66 @@ func TestAccMinioS3Bucket_UpdateAcl(t *testing.T) {
 	})
 }
 
+func TestAccMinioS3Bucket_UpdateAclToPrivate(t *testing.T) {
+	ri := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	preConfig := testAccMinioS3BucketConfigWithACL(ri, "public-read")
+	postConfig := testAccMinioS3BucketConfigWithACL(ri, "private")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: preConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+				),
+			},
+			{
+				Config: postConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+					testAccCheckBucketNotReadableAnonymously(ri),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent(t *testing.T) {
+	ri := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	config := testAccMinioS3BucketConfigWithACL(ri, "private")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+					testAccCheckBucketNotReadableAnonymously(ri),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+					testAccCheckBucketNotReadableAnonymously(ri),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"

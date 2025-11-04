@@ -335,9 +335,14 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 }
 
 func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
+	if bucketConfig.MinioACL == "private" {
+		if err := removeBucketPolicy(ctx, bucketConfig); err != nil {
+			return err
+		}
+		return nil
+	}
 
 	defaultPolicies := map[string]string{
-		"private":           "",
 		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
 		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
@@ -356,6 +361,30 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 			log.Printf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
+	}
+
+	return nil
+}
+
+func removeBucketPolicy(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
+	if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, ""); err != nil {
+		errResp := minio.ToErrorResponse(err)
+
+		if errResp.Code == "NoSuchBucketPolicy" || errResp.StatusCode == http.StatusNotFound {
+			return nil
+		}
+
+		if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
+			log.Printf("[INFO] Backend does not support removing bucket policies, skipping removal for bucket %q: %v", bucketConfig.MinioBucket, err)
+			return nil
+		}
+
+		if errResp.Code == "MethodNotAllowed" || errResp.StatusCode == http.StatusMethodNotAllowed {
+			log.Printf("[INFO] Backend rejected policy removal request for bucket %q (method not allowed); assuming private policy", bucketConfig.MinioBucket)
+			return nil
+		}
+
+		return NewResourceError("unable to remove bucket policy", bucketConfig.MinioBucket, err)
 	}
 
 	return nil

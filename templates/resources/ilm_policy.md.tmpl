@@ -11,7 +11,82 @@ description: |-
 
 ## Example Usage
 
-{{ tffile "examples/resources/minio_ilm_policy/resource.tf" }}
+```terraform
+resource "minio_s3_bucket" "bucket" {
+  bucket = "bucket"
+}
+
+resource "minio_ilm_policy" "test_policy" {
+  bucket = minio_s3_bucket.bucket.bucket
+
+  rule {
+    id     = "rule1"
+    status = "Enabled"
+    expiration = "90d"
+    filter     = "documents/"
+    tags = {
+      environment = "test"
+      type        = "document"
+    }
+  }
+
+  rule {
+    id     = "rule2"
+    status = "Disabled"
+    transition {
+      days          = "30d"
+      storage_class = "GLACIER"
+    }
+    filter = "backups/"
+  }
+
+  rule {
+    id = "rule3"
+    transition {
+      date          = "2025-12-31"  # Example: transition on a specific date
+      storage_class = "STANDARD_IA"
+    }
+    filter = "archives/"
+  }
+
+  rule {
+    id = "rule4"
+    noncurrent_transition {
+      days           = "45d"
+      storage_class  = "GLACIER"
+      newer_versions = 3
+    }
+    filter = "versioned-data/"
+  }
+
+  rule {
+    id = "rule5"
+    noncurrent_expiration {
+      days           = "365d"
+      newer_versions = 5
+    }
+    filter = "old-versions/"
+  }
+
+  rule {
+    id = "rule6"
+    transition {
+      days          = "60d"
+      storage_class = "STANDARD_IA"
+    }
+    expiration = "180d"
+    filter     = "logs/"
+    tags = {
+      retention = "short-term"
+      type      = "logs"
+    }
+  }
+}
+```
+
+## Limitations
+
+Abort-only lifecycle rules are not persisted by the MinIO server. If you configure a rule with only `abort_incomplete_multipart_upload`, the provider preserves that rule in Terraform state to avoid perpetual diffs, but it is not sent to the server. Combine it with at least one other action (e.g., `expiration` or `transition`) to persist on the server.
 
 {{ .SchemaMarkdown | trimspace }}
 

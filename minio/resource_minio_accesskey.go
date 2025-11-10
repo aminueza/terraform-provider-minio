@@ -25,7 +25,12 @@ func resourceMinioAccessKey() *schema.Resource {
 			StateContext: schema.ImportStatePassthroughContext,
 		},
 		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
-			secret := strings.TrimSpace(d.Get("secret_key").(string))
+			secretRaw := d.Get("secret_key")
+			secret := ""
+			if secretRaw != nil {
+				secret = strings.TrimSpace(secretRaw.(string))
+			}
+
 			versionRaw, hasVersion := d.GetOk("secret_key_version")
 			version := ""
 			if hasVersion {
@@ -37,9 +42,15 @@ func resourceMinioAccessKey() *schema.Resource {
 				return fmt.Errorf("secret_key_version must be provided when secret_key is set")
 			}
 
-			// Enforce that when secret_key_version changes, secret_key must be provided
+			// When secret_key_version changes, validate secret_key availability
 			if d.HasChange("secret_key_version") {
-				if secret == "" {
+				// Check if secret_key is present in the configuration
+				rawConfig := d.GetRawConfig()
+				secretKeyAttr := rawConfig.GetAttr("secret_key")
+
+				// Only error if secret_key is completely missing from config
+				// This allows computed values from other resources (e.g., random_password)
+				if secret == "" && secretKeyAttr.IsNull() {
 					return fmt.Errorf("secret_key must be provided when secret_key_version changes")
 				}
 			}

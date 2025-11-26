@@ -81,6 +81,58 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 	})
 }
 
+func TestAccMinioIAMGroupPolicy_policyContentUpdate(t *testing.T) {
+	var groupPolicy string
+	rInt := acctest.RandInt()
+	resourceName := "minio_iam_group_policy.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccIAMGroupPolicyConfigWithAction(rInt, "s3:ListBucket"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists(
+						"minio_iam_group.test",
+						resourceName,
+						&groupPolicy,
+					),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("test_policy_%d", rInt)),
+					testCheckResourceAttrContains(resourceName, "policy", "s3:ListBucket"),
+				),
+			},
+			{
+				Config: testAccIAMGroupPolicyConfigWithAction(rInt, "s3:GetObject"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists(
+						"minio_iam_group.test",
+						resourceName,
+						&groupPolicy,
+					),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("test_policy_%d", rInt)),
+					testCheckResourceAttrContains(resourceName, "policy", "s3:GetObject"),
+				),
+			},
+			{
+				Config: testAccIAMGroupPolicyConfigWithMultipleActions(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists(
+						"minio_iam_group.test",
+						resourceName,
+						&groupPolicy,
+					),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("test_policy_%d", rInt)),
+					testCheckResourceAttrContains(resourceName, "policy", "s3:GetObject"),
+					testCheckResourceAttrContains(resourceName, "policy", "s3:PutObject"),
+					testCheckResourceAttrContains(resourceName, "policy", "s3:DeleteObject"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 	var groupPolicy2 string
 	namePrefix := "tf-acc-test-"
@@ -326,4 +378,52 @@ resource "minio_iam_group_policy" "bar" {
   policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
 }
 `, rInt, rInt, rInt)
+}
+
+func testAccIAMGroupPolicyConfigWithAction(rInt int, action string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_group" "test" {
+  name = "test_group_%d"
+}
+
+resource "minio_iam_group_policy" "test" {
+  name  = "test_policy_%d"
+  group = minio_iam_group.test.group_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = "%s"
+        Resource = ["arn:aws:s3:::*"]
+      }
+    ]
+  })
+}
+`, rInt, rInt, action)
+}
+
+func testAccIAMGroupPolicyConfigWithMultipleActions(rInt int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_group" "test" {
+  name = "test_group_%d"
+}
+
+resource "minio_iam_group_policy" "test" {
+  name  = "test_policy_%d"
+  group = minio_iam_group.test.group_name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+        Resource = ["arn:aws:s3:::*"]
+      }
+    ]
+  })
+}
+`, rInt, rInt)
 }

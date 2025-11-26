@@ -117,42 +117,20 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
-	var on interface{}
-	var nn interface{}
-	var name string
-
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
 
-	groupName, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
+	_, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
 		return NewResourceError("[FATAL] Updating group policies failed", d.Id(), err)
 	}
 
-	if d.HasChange(policyName) {
-		on, nn = d.GetChange(policyName)
-	} else if d.HasChange(iAMGroupPolicyConfig.MinioIAMPolicy) {
-		on, nn = d.GetChange(iAMGroupPolicyConfig.MinioIAMPolicy)
-	}
+	if d.HasChange("policy") {
+		log.Printf("[DEBUG] Updating IAM Group Policy %s content", policyName)
 
-	if on == nil && nn == nil {
-		return minioReadGroupPolicy(ctx, d, meta)
-	}
-
-	if len(on.(string)) > 0 && len(nn.(string)) > 0 {
-		log.Println("[DEBUG] Update IAM Group Policy:", policyName)
-		err := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, on.(string))
+		err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, policyName, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {
-			return NewResourceError("unable to update group policy", name, err)
+			return NewResourceError("unable to update group policy", policyName, err)
 		}
-
-		err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, nn.(string), []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
-		if err != nil {
-			return NewResourceError("unable to update group policy", name, err)
-		}
-
-		d.SetId(fmt.Sprintf("%s:%s", groupName, policyName))
-
 	}
 
 	return minioReadGroupPolicy(ctx, d, meta)

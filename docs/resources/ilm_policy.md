@@ -84,6 +84,52 @@ resource "minio_ilm_policy" "test_policy" {
 }
 ```
 
+## Important: One Resource Per Bucket
+
+Each bucket must have exactly **one** `minio_ilm_policy` resource. All lifecycle rules for a bucket must be defined within a single resource. Creating multiple `minio_ilm_policy` resources for the same bucket will cause them to overwrite each other, leading to unexpected behavior.
+
+**Incorrect** (rules will overwrite each other):
+
+```terraform
+resource "minio_ilm_policy" "daily_cleanup" {
+  bucket = "my-bucket"
+  rule {
+    id         = "daily_cleanup"
+    expiration = "14d"
+    filter     = "daily/"
+  }
+}
+
+resource "minio_ilm_policy" "weekly_cleanup" {
+  bucket = "my-bucket"  # Same bucket - this will overwrite the above!
+  rule {
+    id         = "weekly_cleanup"
+    expiration = "80d"
+    filter     = "weekly/"
+  }
+}
+```
+
+**Correct** (all rules in one resource):
+
+```terraform
+resource "minio_ilm_policy" "my_bucket_lifecycle" {
+  bucket = "my-bucket"
+
+  rule {
+    id         = "daily_cleanup"
+    expiration = "14d"
+    filter     = "daily/"
+  }
+
+  rule {
+    id         = "weekly_cleanup"
+    expiration = "80d"
+    filter     = "weekly/"
+  }
+}
+```
+
 ## Limitations
 
 Abort-only lifecycle rules are not persisted by the MinIO server. If you configure a rule with only `abort_incomplete_multipart_upload`, the provider preserves that rule in Terraform state to avoid perpetual diffs, but it is not sent to the server. Combine it with at least one other action (e.g., `expiration` or `transition`) to persist on the server.

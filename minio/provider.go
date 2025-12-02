@@ -8,15 +8,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// Provider creates and returns a new Terraform provider for MinIO.
-// It initializes all the necessary resources, data sources, and configuration
-// options for interacting with a MinIO server.
 func Provider() *schema.Provider {
 	return newProvider()
 }
 
-// newProvider creates a new MinIO provider with the given environment variable prefix.
-// If no prefix is provided, it uses default environment variable names.
 func newProvider(envVarPrefix ...string) *schema.Provider {
 	prefix := ""
 	if len(envVarPrefix) > 0 {
@@ -142,8 +137,8 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 		DataSourcesMap: map[string]*schema.Resource{
 			"minio_iam_policy_document": dataSourceMinioIAMPolicyDocument(),
 			"minio_s3_object":           dataSourceMinioS3Object(),
-			"minio_iam_user":  dataSourceIAMUser(),
-			"minio_iam_users": dataSourceIAMUsers(),
+			"minio_iam_user":            dataSourceIAMUser(),
+			"minio_iam_users":           dataSourceIAMUsers(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -167,6 +162,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_user_policy_attachment":  resourceMinioIAMUserPolicyAttachment(),
 			"minio_iam_group_policy_attachment": resourceMinioIAMGroupPolicyAttachment(),
 			"minio_iam_group_user_attachment":   resourceMinioIAMGroupUserAttachment(),
+			"minio_iam_user_group_membership":   resourceMinioIAMUserGroupMembership(),
 
 			// LDAP Operations
 			"minio_iam_ldap_group_policy_attachment": resourceMinioIAMLDAPGroupPolicyAttachment(),

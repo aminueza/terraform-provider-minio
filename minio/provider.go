@@ -137,13 +137,21 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_KEY_FILE",
 				}, nil),
 			},
+			"minio_debug": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Enable debug logging for API requests",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					prefix + "MINIO_DEBUG",
+				}, false),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
 			"minio_iam_policy_document": dataSourceMinioIAMPolicyDocument(),
 			"minio_s3_object":           dataSourceMinioS3Object(),
-			"minio_iam_user":  dataSourceIAMUser(),
-			"minio_iam_users": dataSourceIAMUsers(),
+			"minio_iam_user":            dataSourceIAMUser(),
+			"minio_iam_users":           dataSourceIAMUsers(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{

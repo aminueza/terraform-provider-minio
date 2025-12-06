@@ -67,6 +67,35 @@ resource "minio_s3_bucket" "state_terraform_s3" {
 
 ## Argument Reference
 
+## Troubleshooting
+
+### Common Errors
+
+#### "invalid character 'P' looking for beginning of value"
+
+This typically means the provider received an HTML page instead of JSON. Causes:
+- Wrong endpoint URL (pointing to the console instead of API)
+- Proxy or load balancer returning an error page
+- MinIO server not running
+
+**Solution:** Verify `minio_server` points to the S3 API endpoint.
+
+#### "Access Denied"
+
+Authentication failed. Causes:
+- Incorrect access key or secret key
+- Insufficient permissions
+- Policy restrictions
+
+**Solution:** Check credentials and IAM policies.
+
+#### "connection refused"
+
+Unable to reach MinIO server.
+
+**Solution:** Ensure server is running and reachable.
+
+
 The following arguments are supported in the `provider` block:
 
 * `minio_server` - (Required) MinIO server endpoint in the format `host:port`. Can be sourced from `MINIO_ENDPOINT`.
@@ -94,3 +123,5 @@ The following arguments are supported in the `provider` block:
 * `minio_cert_file` - (Optional) Path to client certificate file. Can be sourced from `MINIO_CERT_FILE`.
 
 * `minio_key_file` - (Optional, Sensitive) Path to client private key file. Can be sourced from `MINIO_KEY_FILE`.
+
+* `minio_debug` - (Optional) Enable debug logging for API requests (default: `false`). Can be sourced from `MINIO_DEBUG`.

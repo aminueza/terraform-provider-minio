@@ -72,7 +72,7 @@ func resourceMinioBucket() *schema.Resource {
 			},
 			"force_destroy": {
 				Type:        schema.TypeBool,
-				Description: "Force destroy the bucket (default: false)",
+				Description: "A boolean that indicates all objects (including locked objects) should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable.",
 				Optional:    true,
 				Default:     false,
 			},
@@ -280,58 +280,68 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 }
 
 func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var err error
-
 	bucketConfig := BucketConfig(d, meta)
-	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", d.Id(), bucketConfig.MinioRegion)
-	if err = bucketConfig.MinioClient.RemoveBucket(ctx, d.Id()); err != nil {
-		if strings.Contains(err.Error(), "empty") {
-			if bucketConfig.MinioForceDestroy {
-				objectsCh := make(chan minio.ObjectInfo)
+	bucketName := d.Id()
 
-				// Send object names that are needed to be removed to objectsCh
-				go func() {
-					defer close(objectsCh)
+	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", bucketName, bucketConfig.MinioRegion)
 
-					ctx, cancel := context.WithCancel(ctx)
-
-					// Indicate to our routine to exit cleanly upon return.
-					defer cancel()
-
-					// List all objects from a bucket-name with a matching prefix.
-					for object := range bucketConfig.MinioClient.ListObjects(ctx, d.Id(), minio.ListObjectsOptions{
-						Recursive:    true,
-						WithVersions: true,
-					}) {
-						if object.Err != nil {
-							log.Fatalln(object.Err)
-						}
-						objectsCh <- object
-					}
-				}()
-
-				errorCh := bucketConfig.MinioClient.RemoveObjects(ctx, d.Id(), objectsCh, minio.RemoveObjectsOptions{})
-
-				if len(errorCh) > 0 {
-					return NewResourceError("unable to remove bucket", d.Id(), errors.New("could not delete objects"))
-				}
-
-				return minioDeleteBucket(ctx, d, meta)
-			}
-
-		}
-
-		log.Printf("%s", NewResourceErrorStr("unable to remove bucket", d.Id(), err))
-
-		return NewResourceError("unable to remove bucket", d.Id(), err)
+	hasObjects, diagErr := bucketHasObjects(ctx, bucketConfig.MinioClient, bucketName)
+	if diagErr != nil {
+		return diagErr
 	}
 
-	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", d.Id(), bucketConfig.MinioRegion)
+	if hasObjects {
+		if !bucketConfig.MinioForceDestroy {
+			return diag.Errorf(
+				"bucket %q is not empty. Set force_destroy = true to delete all objects and the bucket, "+
+					"or manually empty the bucket first", bucketName)
+		}
+
+		log.Printf("[DEBUG] Force destroying bucket %s - deleting all objects", bucketName)
+
+		objectsCh := make(chan minio.ObjectInfo)
+		var listErr error
+
+		go func() {
+			defer close(objectsCh)
+
+			for object := range bucketConfig.MinioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+				Recursive:    true,
+				WithVersions: true,
+			}) {
+				if object.Err != nil {
+					listErr = object.Err
+					log.Printf("[ERROR] Error listing objects for deletion: %s", object.Err)
+					return
+				}
+				objectsCh <- object
+			}
+		}()
+
+		errorCh := bucketConfig.MinioClient.RemoveObjects(ctx, bucketName, objectsCh, minio.RemoveObjectsOptions{})
+
+		for removeErr := range errorCh {
+			log.Printf("[ERROR] Error deleting object %s: %s", removeErr.ObjectName, removeErr.Err)
+			return NewResourceError("error deleting object during force destroy", removeErr.ObjectName, removeErr.Err)
+		}
+
+		if listErr != nil {
+			return NewResourceError("error listing objects for deletion", bucketName, listErr)
+		}
+
+		log.Printf("[DEBUG] All objects deleted from bucket %s", bucketName)
+	}
+
+	if err := bucketConfig.MinioClient.RemoveBucket(ctx, bucketName); err != nil {
+		log.Printf("%s", NewResourceErrorStr("unable to remove bucket", bucketName, err))
+		return NewResourceError("unable to remove bucket", bucketName, err)
+	}
+
+	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", bucketName, bucketConfig.MinioRegion)
 
 	_ = d.Set("bucket_domain_name", "")
 
 	return nil
-
 }
 
 func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
@@ -462,4 +472,22 @@ func isCredentialError(errResp minio.ErrorResponse) bool {
 	default:
 		return false
 	}
+}
+
+// bucketHasObjects checks if a bucket contains at least one object.
+// Returns (true, nil) if objects exist, (false, nil) if empty, or (false, error) on failure.
+func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName string) (bool, diag.Diagnostics) {
+	objectsCh := client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Recursive: true,
+		MaxKeys:   1,
+	})
+
+	obj, ok := <-objectsCh
+	if !ok {
+		return false, nil
+	}
+	if obj.Err != nil {
+		return false, NewResourceError("error listing bucket objects", bucketName, obj.Err)
+	}
+	return true, nil
 }

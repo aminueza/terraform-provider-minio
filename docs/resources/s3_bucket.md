@@ -12,17 +12,26 @@ description: |-
 ## Example Usage
 
 ```terraform
+# Bucket protected from accidental deletion (default behavior)
 resource "minio_s3_bucket" "state_terraform_s3" {
   bucket = "state-terraform-s3"
   acl    = "public"
+  # force_destroy defaults to false - bucket deletion will fail if not empty
+}
+
+# Bucket that can be destroyed even with objects inside
+resource "minio_s3_bucket" "temporary_data" {
+  bucket        = "temporary-data"
+  acl           = "private"
+  force_destroy = true
 }
 
 output "minio_id" {
-  value = "${minio_s3_bucket.state_terraform_s3.id}"
+  value = minio_s3_bucket.state_terraform_s3.id
 }
 
 output "minio_url" {
-  value = "${minio_s3_bucket.state_terraform_s3.bucket_domain_name}"
+  value = minio_s3_bucket.state_terraform_s3.bucket_domain_name
 }
 ```
 
@@ -34,7 +43,7 @@ output "minio_url" {
 - `acl` (String) Bucket's Access Control List (default: private)
 - `bucket` (String) Name of the bucket
 - `bucket_prefix` (String) Prefix of the bucket
-- `force_destroy` (Boolean) Force destroy the bucket (default: false)
+- `force_destroy` (Boolean) A boolean that indicates all objects (including locked objects) should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable.
 - `object_locking` (Boolean) Enable object locking for the bucket (default: false)
 - `quota` (Number) Quota of the bucket
 

@@ -53,21 +53,21 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 }
 
 func TestAccMinioS3Bucket_CredentialErrorDoesNotRemoveFromState(t *testing.T) {
-    rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
-    resourceName := "minio_s3_bucket.bucket"
+	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	resourceName := "minio_s3_bucket.bucket"
 
-    endpoint := os.Getenv("MINIO_ENDPOINT")
-    user := os.Getenv("MINIO_USER")
-    pass := os.Getenv("MINIO_PASSWORD")
-    ssl := os.Getenv("MINIO_ENABLE_HTTPS")
-    if endpoint == "" || user == "" || pass == "" {
-        t.Skip("MINIO_* env vars not set for acceptance test")
-    }
-    if ssl == "" {
-        ssl = "false"
-    }
+	endpoint := os.Getenv("MINIO_ENDPOINT")
+	user := os.Getenv("MINIO_USER")
+	pass := os.Getenv("MINIO_PASSWORD")
+	ssl := os.Getenv("MINIO_ENABLE_HTTPS")
+	if endpoint == "" || user == "" || pass == "" {
+		t.Skip("MINIO_* env vars not set for acceptance test")
+	}
+	if ssl == "" {
+		ssl = "false"
+	}
 
-    validConfig := fmt.Sprintf(`
+	validConfig := fmt.Sprintf(`
 provider "minio" {
   minio_server   = "%s"
   minio_user     = "%s"
@@ -81,7 +81,7 @@ resource "minio_s3_bucket" "bucket" {
 }
 `, endpoint, user, pass, ssl, rInt)
 
-    invalidConfig := fmt.Sprintf(`
+	invalidConfig := fmt.Sprintf(`
 provider "minio" {
   minio_server   = "%s"
   minio_user     = "%s"
@@ -95,27 +95,27 @@ resource "minio_s3_bucket" "bucket" {
 }
 `, endpoint, user, ssl, rInt)
 
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        CheckDestroy:      testAccCheckMinioS3BucketDestroy,
-        Steps: []resource.TestStep{
-            {
-                Config: validConfig,
-                Check: resource.ComposeTestCheckFunc(
-                    testAccCheckMinioS3BucketExists(resourceName),
-                ),
-            },
-            {
-                Config:      invalidConfig,
-                ExpectError: regexp.MustCompile(`(?i)(access.?denied|invalid.?access|signature|403)`),
-            },
-            {
-                Config:   validConfig,
-                PlanOnly: true,
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: validConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+				),
+			},
+			{
+				Config:      invalidConfig,
+				ExpectError: regexp.MustCompile(`(?i)(access.?denied|invalid.?access|signature|403)`),
+			},
+			{
+				Config:   validConfig,
+				PlanOnly: true,
+			},
+		},
+	})
 }
 
 func TestAccMinioS3Bucket_objectLocking(t *testing.T) {
@@ -372,7 +372,81 @@ func TestAccMinioS3Bucket_forceDestroy(t *testing.T) {
 				Config: testAccMinioS3BucketConfigForceDestroy(bucketName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "force_destroy", "true"),
+					testAccCheckMinioS3BucketAddObjects(resourceName, "test-object-1", "test-object-2"),
 				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_forceDestroyEmpty(t *testing.T) {
+	resourceName := "minio_s3_bucket.bucket"
+	rInt := acctest.RandInt()
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", rInt)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigForceDestroy(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "force_destroy", "true"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_forceDestroyWithManyObjects(t *testing.T) {
+	resourceName := "minio_s3_bucket.bucket"
+	rInt := acctest.RandInt()
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", rInt)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigForceDestroy(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					testAccCheckMinioS3BucketAddManyObjects(resourceName, 50),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_forceDestroyFalseWithObjects(t *testing.T) {
+	resourceName := "minio_s3_bucket.bucket"
+	rInt := acctest.RandInt()
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", rInt)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigNoForceDestroy(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "force_destroy", "false"),
+					testAccCheckMinioS3BucketAddObjects(resourceName, "test-object-1"),
+				),
+			},
+			{
+				Config:      testAccMinioS3BucketConfigNoForceDestroy(bucketName),
+				Destroy:     true,
+				ExpectError: regexp.MustCompile(`bucket .* is not empty`),
+			},
+			{
+				// Clean up: switch to force_destroy=true so the bucket can be deleted
+				Config: testAccMinioS3BucketConfigForceDestroy(bucketName),
 			},
 		},
 	})
@@ -634,6 +708,16 @@ resource "minio_s3_bucket" "bucket" {
 `, bucketName)
 }
 
+func testAccMinioS3BucketConfigNoForceDestroy(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl = "private"
+  force_destroy = false
+}
+`, bucketName)
+}
+
 const testAccMinioS3BucketConfigBucketEmptyString = `
 resource "minio_s3_bucket" "test" {
   acl = "private"
@@ -664,6 +748,63 @@ func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckF
 		if resp.StatusCode != 403 {
 			return fmt.Errorf("should not be able to list buckets (Got a %d status)", resp.StatusCode)
 		}
+		return nil
+	}
+}
+
+func testAccCheckMinioS3BucketAddObjects(resourceName string, objects ...string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		bucketName := rs.Primary.ID
+
+		for _, obj := range objects {
+			_, err := client.PutObject(
+				context.Background(),
+				bucketName,
+				obj,
+				strings.NewReader("test content"),
+				int64(len("test content")),
+				minio.PutObjectOptions{},
+			)
+			if err != nil {
+				return fmt.Errorf("error adding object %s: %s", obj, err)
+			}
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioS3BucketAddManyObjects(resourceName string, count int) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+
+		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		bucketName := rs.Primary.ID
+
+		for i := 0; i < count; i++ {
+			objName := fmt.Sprintf("test-object-%d", i)
+			_, err := client.PutObject(
+				context.Background(),
+				bucketName,
+				objName,
+				strings.NewReader("test content"),
+				int64(len("test content")),
+				minio.PutObjectOptions{},
+			)
+			if err != nil {
+				return fmt.Errorf("error adding object %s: %s", objName, err)
+			}
+		}
+
 		return nil
 	}
 }

@@ -9,6 +9,10 @@ description: |-
 
 {{ .Description | trimspace }}
 
+Attaches an IAM policy to an LDAP user. This allows the LDAP user to inherit the permissions defined in the policy.
+
+**NOTE:** MinIO must be configured with LDAP authentication before using this resource. See the [MinIO LDAP documentation](https://min.io/docs/minio/linux/operations/external-iam/configure-ad-ldap-external-identity-management.html).
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_iam_ldap_user_policy_attachment/resource.tf" }}
@@ -17,9 +21,8 @@ description: |-
 
 ## Import
 
-Import is supported using the following syntax:
+LDAP user policy attachments can be imported using the user DN and policy name separated by a slash:
 
 ```shell
-# IAM LDAP user policy attachments can be imported using the format: user-name/policy-name
-terraform import minio_iam_ldap_user_policy_attachment.example user-name/policy-name
+terraform import minio_iam_ldap_user_policy_attachment.example "cn=john,ou=users,dc=example,dc=com/policy-name"
 ```

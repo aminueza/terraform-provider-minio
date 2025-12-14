@@ -65,7 +65,7 @@ resource "minio_s3_bucket" "state_terraform_s3" {
 }
 ```
 
-## Argument Reference
+## Provider Arguments
 
 The following arguments are supported in the `provider` block:
 
@@ -94,3 +94,32 @@ The following arguments are supported in the `provider` block:
 * `minio_cert_file` - (Optional) Path to client certificate file. Can be sourced from `MINIO_CERT_FILE`.
 
 * `minio_key_file` - (Optional, Sensitive) Path to client private key file. Can be sourced from `MINIO_KEY_FILE`.
+
+* `minio_debug` - (Optional) Enable debug logging for API requests (default: `false`). Can be sourced from `MINIO_DEBUG`.
+
+## LDAP Integration
+
+This provider supports attaching IAM policies to LDAP users and groups. Before using LDAP resources, ensure your MinIO server is configured with LDAP authentication.
+
+### Prerequisites
+
+1. MinIO server with LDAP configured
+2. LDAP Distinguished Names (DNs) for users and groups
+
+### Example
+
+```terraform
+# Attach a policy to an LDAP group
+resource "minio_iam_ldap_group_policy_attachment" "example" {
+  group_dn    = "cn=developers,ou=groups,dc=example,dc=com"
+  policy_name = "readwrite"
+}
+
+# Attach a policy to an LDAP user
+resource "minio_iam_ldap_user_policy_attachment" "example" {
+  user_dn     = "cn=john,ou=users,dc=example,dc=com"
+  policy_name = "admin"
+}
+```
+
+For a complete example, see the [examples/ldap](../examples/ldap) directory.

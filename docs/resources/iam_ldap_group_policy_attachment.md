@@ -9,6 +9,10 @@ description: |-
 
 Attaches LDAP group to a policy. Can be used against both built-in and user-defined policies.
 
+Attaches an IAM policy to an LDAP group. This allows LDAP group members to inherit the permissions defined in the policy.
+
+**NOTE:** MinIO must be configured with LDAP authentication before using this resource. See the [MinIO LDAP documentation](https://min.io/docs/minio/linux/operations/external-iam/configure-ad-ldap-external-identity-management.html).
+
 ## Example Usage
 
 ```terraform
@@ -56,9 +60,8 @@ resource "minio_iam_ldap_group_policy_attachment" "admins" {
 
 ## Import
 
-Import is supported using the following syntax:
+LDAP group policy attachments can be imported using the group DN and policy name separated by a slash:
 
 ```shell
-# IAM LDAP group policy attachments can be imported using the format: group-name/policy-name
-terraform import minio_iam_ldap_group_policy_attachment.example group-name/policy-name
+terraform import minio_iam_ldap_group_policy_attachment.example "cn=developers,ou=groups,dc=example,dc=com/policy-name"
 ```

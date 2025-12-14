@@ -78,6 +78,18 @@ func resourceMinioObject() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 			},
+			"acl": {
+				Type:        schema.TypeString,
+				Description: "The canned ACL to apply to the object. Valid values: private, public-read, public-read-write, authenticated-read",
+				Optional:    true,
+				Default:     "private",
+				ValidateFunc: validation.StringInSlice([]string{
+					"private",
+					"public-read",
+					"public-read-write",
+					"authenticated-read",
+				}, false),
+			},
 		},
 	}
 }
@@ -127,6 +139,14 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 	options := minio.PutObjectOptions{}
 	if v, ok := d.GetOk("content_type"); ok {
 		options.ContentType = v.(string)
+	}
+
+	// Set ACL via x-amz-acl header
+	if acl := d.Get("acl").(string); acl != "" && acl != "private" {
+		if options.UserMetadata == nil {
+			options.UserMetadata = make(map[string]string)
+		}
+		options.UserMetadata["x-amz-acl"] = acl
 	}
 
 	_, err := m.S3Client.PutObject(

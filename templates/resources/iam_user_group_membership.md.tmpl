@@ -1,0 +1,48 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+Attaches a single MinIO IAM user to one or more IAM groups. This resource ensures the user is a member of **exactly** the groups specified—any groups not listed will be removed.
+
+
+## Example Usage
+
+```hcl
+resource "minio_iam_user" "user" {
+  name = "example-user"
+}
+
+resource "minio_iam_group" "developers" {
+  name = "developers"
+}
+
+resource "minio_iam_group" "admins" {
+  name = "admins"
+}
+
+resource "minio_iam_user_group_membership" "example" {
+  user = minio_iam_user.user.name
+
+  groups = [
+    minio_iam_group.developers.name,
+    minio_iam_group.admins.name,
+  ]
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+IAM user group membership can be imported using the user name:
+
+```shell
+terraform import minio_iam_user_group_membership.example example-user
+```

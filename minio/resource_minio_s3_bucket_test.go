@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -803,6 +804,103 @@ func testAccCheckMinioS3BucketAddManyObjects(resourceName string, count int) res
 			if err != nil {
 				return fmt.Errorf("error adding object %s: %s", objName, err)
 			}
+		}
+
+		return nil
+	}
+}
+
+func TestAccMinioS3Bucket_tags(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_bucket.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithTags(rInt, map[string]string{
+					"Environment": "test",
+					"Project":     "terraform",
+				}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.Environment", "test"),
+					resource.TestCheckResourceAttr(resourceName, "tags.Project", "terraform"),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketConfigWithTags(rInt, map[string]string{
+					"Environment": "production",
+					"Team":        "platform",
+				}),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.Environment", "production"),
+					resource.TestCheckResourceAttr(resourceName, "tags.Team", "platform"),
+					resource.TestCheckNoResourceAttr(resourceName, "tags.Project"),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					testAccCheckMinioS3BucketTagsRemoved(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigBasic(rInt int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+	bucket = "test-bucket-%d"
+}
+`, rInt)
+}
+
+func testAccMinioS3BucketConfigWithTags(rInt int, tags map[string]string) string {
+	tagsStr := ""
+	for k, v := range tags {
+		tagsStr += fmt.Sprintf("    %s = \"%s\"\n", k, v)
+	}
+
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+	bucket = "test-bucket-%d"
+
+	tags = {
+%s  }
+}
+`, rInt, tagsStr)
+}
+
+func testAccCheckMinioS3BucketTagsRemoved(n string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("no ID is set")
+		}
+
+		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		tags, err := minioC.GetBucketTagging(context.Background(), rs.Primary.ID)
+		if err != nil {
+			var minioErr minio.ErrorResponse
+			if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
+				return nil
+			}
+			return fmt.Errorf("error reading bucket tags: %s", err)
+		}
+
+		if tags != nil && tags.Count() > 0 {
+			return fmt.Errorf("expected bucket to have no tags, but got %d tags", tags.Count())
 		}
 
 		return nil

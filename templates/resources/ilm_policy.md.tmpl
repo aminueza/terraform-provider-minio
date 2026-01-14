@@ -81,6 +81,15 @@ resource "minio_ilm_policy" "test_policy" {
       type      = "logs"
     }
   }
+
+  rule {
+    id = "rule7"
+    expired_object_delete_marker = true
+    noncurrent_expiration {
+      days = "30d"
+    }
+    filter = "versioned/"
+  }
 }
 ```
 

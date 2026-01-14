@@ -81,6 +81,15 @@ resource "minio_ilm_policy" "test_policy" {
       type      = "logs"
     }
   }
+
+  rule {
+    id = "rule7"
+    expired_object_delete_marker = true
+    noncurrent_expiration {
+      days = "30d"
+    }
+    filter = "versioned/"
+  }
 }
 ```
 
@@ -156,7 +165,8 @@ Required:
 Optional:
 
 - `abort_incomplete_multipart_upload` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--abort_incomplete_multipart_upload))
-- `expiration` (String) Value may be duration (5d), date (1970-01-01), or "DeleteMarker" to expire delete markers if `noncurrent_version_expiration_days` is used
+- `expiration` (String) Value may be duration (5d) or date (1970-01-01) to expire objects
+- `expired_object_delete_marker` (Boolean) Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).
 - `filter` (String)
 - `noncurrent_expiration` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--noncurrent_expiration))
 - `noncurrent_transition` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--noncurrent_transition))

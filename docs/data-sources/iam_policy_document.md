@@ -53,9 +53,33 @@ data "minio_iam_policy_document" "example" {
   }
 }
 
+# Example using not_resources to allow access to all buckets except secrets
+data "minio_iam_policy_document" "allow_all_except_secrets" {
+  statement {
+    sid    = "AllowAllExceptSecrets"
+    effect = "Allow"
+    
+    actions = ["s3:*"]
+    
+    not_resources = [
+      "arn:aws:s3:::secrets-bucket",
+      "arn:aws:s3:::secrets-bucket/*",
+      "arn:aws:s3:::confidential-bucket",
+      "arn:aws:s3:::confidential-bucket/*",
+    ]
+    
+    principal = "*"
+  }
+}
+
 resource "minio_iam_policy" "test_policy" {
   name      = "state-terraform-s3"
   policy    = data.minio_iam_policy_document.example.json
+}
+
+resource "minio_iam_policy" "allow_all_except_secrets_policy" {
+  name      = "allow-all-except-secrets"
+  policy    = data.minio_iam_policy_document.allow_all_except_secrets.json
 }
 ```
 
@@ -84,6 +108,7 @@ Optional:
 - `condition` (Block Set) (see [below for nested schema](#nestedblock--statement--condition))
 - `effect` (String)
 - `not_principal` (String)
+- `not_resources` (Set of String)
 - `principal` (String)
 - `resources` (Set of String)
 - `sid` (String)

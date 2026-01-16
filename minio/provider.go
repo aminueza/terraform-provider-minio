@@ -34,7 +34,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 				Default:     "us-east-1",
 				Description: "MinIO server region (default: us-east-1)",
 			},
-			// Authentication credentials
 			"minio_user": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -82,7 +81,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_SESSION_TOKEN",
 				}, ""),
 			},
-			// API and Security configuration
 			"minio_api_version": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -106,7 +104,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_INSECURE",
 				}, false),
 			},
-			// SSL/TLS Certificate configuration
 			"minio_cacert_file": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -185,7 +182,8 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_accesskey": resourceMinioAccessKey(),
 
 			// Server Configuration
-			"minio_config": resourceMinioConfig(),
+			"minio_config":           resourceMinioConfig(),
+			"minio_site_replication": resourceMinioSiteReplication(),
 		},
 
 		ConfigureContextFunc: providerConfigure,
@@ -194,7 +192,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 	return p
 }
 
-// validateAPIVersion ensures that the API version is either "v2" or "v4"
 func validateAPIVersion(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)
 	if value != "v2" && value != "v4" {
@@ -203,7 +200,6 @@ func validateAPIVersion(v interface{}, k string) (ws []string, errors []error) {
 	return
 }
 
-// providerConfigure configures the MinIO client using the provided configuration
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	minioConfig := NewConfig(d)
 	client, err := minioConfig.NewClient()

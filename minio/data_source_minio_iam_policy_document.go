@@ -53,8 +53,9 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 							Default:      "Allow",
 							ValidateFunc: validation.StringInSlice([]string{"Allow", "Deny"}, false),
 						},
-						"actions":   stringSet,
-						"resources": stringSet,
+						"actions":       stringSet,
+						"resources":     stringSet,
+						"not_resources": stringSet,
 						"principal": {
 							Type:     schema.TypeString,
 							Optional: true,
@@ -109,14 +110,12 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface{}) error {
 	mergedDoc := &IAMPolicyDoc{}
 
-	// populate mergedDoc directly with any source_json
 	if sourceJSON, hasSourceJSON := d.GetOk("source_json"); hasSourceJSON {
 		if err := json.Unmarshal([]byte(sourceJSON.(string)), mergedDoc); err != nil {
 			return err
 		}
 	}
 
-	// process the current document
 	doc := &IAMPolicyDoc{
 		Version: d.Get("version").(string),
 	}
@@ -160,6 +159,45 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 				}
 			}
 
+			if notResources := cfgStmt["not_resources"].(*schema.Set).List(); len(notResources) > 0 {
+				var err error
+				stmt.NotResources, err = dataSourceMinioIAMPolicyDocumentReplaceVarsInList(
+					minioDecodePolicyStringList(notResources), doc.Version,
+				)
+				if err != nil {
+					return fmt.Errorf("error reading not_resources: %s", err)
+				}
+			}
+
+			resourcesSet := stmt.Resources != nil
+			notResourcesSet := stmt.NotResources != nil
+
+			if resourcesSet {
+				switch v := stmt.Resources.(type) {
+				case string:
+					resourcesSet = v != ""
+				case []string:
+					resourcesSet = len(v) > 0
+				default:
+					resourcesSet = false
+				}
+			}
+
+			if notResourcesSet {
+				switch v := stmt.NotResources.(type) {
+				case string:
+					notResourcesSet = v != ""
+				case []string:
+					notResourcesSet = len(v) > 0
+				default:
+					notResourcesSet = false
+				}
+			}
+
+			if resourcesSet && notResourcesSet {
+				return fmt.Errorf("cannot set both resources and not_resources in the same statement")
+			}
+
 			principalString := cfgStmt["principal"].(string)
 			notPrincipalString := ""
 
@@ -194,10 +232,8 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 
 	}
 
-	// merge our current document into mergedDoc
 	mergedDoc.merge(doc)
 
-	// merge in override_json
 	if overrideJSON, hasOverrideJSON := d.GetOk("override_json"); hasOverrideJSON {
 		overrideDoc := &IAMPolicyDoc{}
 		if err := json.Unmarshal([]byte(overrideJSON.(string)), overrideDoc); err != nil {
@@ -209,7 +245,6 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 
 	jsonDoc, err := json.MarshalIndent(mergedDoc, "", "  ")
 	if err != nil {
-		// should never happen if the above code is correct
 		return err
 	}
 	jsonString := string(jsonDoc)

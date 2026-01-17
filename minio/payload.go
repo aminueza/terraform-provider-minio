@@ -240,13 +240,14 @@ type IAMPolicyDoc struct {
 
 // IAMPolicyStatement returns IAM policy statement
 type IAMPolicyStatement struct {
-	Sid        string
-	Effect     string      `json:",omitempty"`
-	Actions    interface{} `json:"Action,omitempty"`
-	Resources  interface{} `json:"Resource,omitempty"`
-	Principal  string      `json:"Principal,omitempty"`
-	NotPrincipal string    `json:"NotPrincipal,omitempty"`
-	Conditions interface{} `json:"Condition,omitempty"`
+	Sid          string
+	Effect       string      `json:",omitempty"`
+	Actions      interface{} `json:"Action,omitempty"`
+	Resources    interface{} `json:"Resource,omitempty"`
+	NotResources interface{} `json:"NotResource,omitempty"`
+	Principal    string      `json:"Principal,omitempty"`
+	NotPrincipal string      `json:"NotPrincipal,omitempty"`
+	Conditions   interface{} `json:"Condition,omitempty"`
 }
 
 // IAMPolicyStatementCondition returns IAM policy condition

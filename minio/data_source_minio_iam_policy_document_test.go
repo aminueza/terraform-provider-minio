@@ -28,33 +28,70 @@ func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 }
 
 func TestAccMinioDataSourceIAMPolicyDocument_Statement_NotPrincipal_SpecificARN(t *testing.T) {
-    dataSourceName := "data.minio_iam_policy_document.test"
+	dataSourceName := "data.minio_iam_policy_document.test"
 
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        Steps: []resource.TestStep{
-            {
-                Config: testAccMinioIAMPolicyDocumentConfigStatementNotPrincipalSpecificARN,
-                Check: resource.ComposeTestCheckFunc(
-                    resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementNotPrincipalSpecificARN),
-                ),
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMPolicyDocumentConfigStatementNotPrincipalSpecificARN,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(dataSourceName, "json", testAccMinioIAMPolicyDocumentExpectedJSONStatementNotPrincipalSpecificARN),
+				),
+			},
+		},
+	})
 }
 
 func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_AndNotPrincipal_Conflict(t *testing.T) {
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        Steps: []resource.TestStep{
-            {
-                Config:      testAccMinioIAMPolicyDocumentConfigStatementPrincipalAndNotPrincipalConflict,
-                ExpectError: regexp.MustCompile(`cannot set both principal and not_principal`),
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioIAMPolicyDocumentConfigStatementPrincipalAndNotPrincipalConflict,
+				ExpectError: regexp.MustCompile(`cannot set both principal and not_principal`),
+			},
+		},
+	})
+}
+
+func TestAccDataSourceMinioIAMPolicyDocument_notResources(t *testing.T) {
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccDataSourceMinioIAMPolicyDocumentNotResourcesConfig,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("data.minio_iam_policy_document.test", "json",
+						testAccDataSourceMinioIAMPolicyDocumentNotResourcesExpectedJSON),
+				),
+			},
+		},
+	})
+}
+
+func TestAccDataSourceMinioIAMPolicyDocument_resourcesAndNotResourcesConflict(t *testing.T) {
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+data "minio_iam_policy_document" "test" {
+  statement {
+    actions       = ["s3:*"]
+    resources     = ["arn:aws:s3:::bucket1"]
+    not_resources = ["arn:aws:s3:::bucket2"]
+  }
+}
+`,
+				ExpectError: regexp.MustCompile("cannot set both resources and not_resources"),
+			},
+		},
+	})
 }
 
 func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
@@ -461,6 +498,40 @@ var testAccMinioIAMPolicyDocumentSourceBlankExpectedJSON = `{
       "Effect": "Allow",
       "Action": "*",
       "Resource": "*"
+    }
+  ]
+}`
+
+var testAccDataSourceMinioIAMPolicyDocumentNotResourcesConfig = `
+data "minio_iam_policy_document" "test" {
+  statement {
+    sid    = "AllowAllExceptSecrets"
+    effect = "Allow"
+
+    actions = ["s3:*"]
+
+    not_resources = [
+      "arn:aws:s3:::secrets-bucket",
+      "arn:aws:s3:::secrets-bucket/*",
+    ]
+
+    principal = "*"
+  }
+}
+`
+
+var testAccDataSourceMinioIAMPolicyDocumentNotResourcesExpectedJSON = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowAllExceptSecrets",
+      "Effect": "Allow",
+      "Action": "s3:*",
+      "NotResource": [
+        "arn:aws:s3:::secrets-bucket/*",
+        "arn:aws:s3:::secrets-bucket"
+      ],
+      "Principal": "*"
     }
   ]
 }`

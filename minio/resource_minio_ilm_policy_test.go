@@ -36,7 +36,7 @@ func TestAccILMPolicy_basic(t *testing.T) {
 }
 
 func testAccMinioILMPolicyConfigAbortOnly(randInt string) string {
-    return fmt.Sprintf(`
+	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
     bucket = "%s"
     acl    = "public"
@@ -55,23 +55,23 @@ resource "minio_ilm_policy" "abort_only" {
 }
 
 func TestAccILMPolicy_abortOnlyNoExpiration(t *testing.T) {
-    name := fmt.Sprintf("test-ilm-abort-only-%d", acctest.RandInt())
-    resourceName := "minio_ilm_policy.abort_only"
+	name := fmt.Sprintf("test-ilm-abort-only-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.abort_only"
 
-    resource.ParallelTest(t, resource.TestCase{
-        PreCheck:          func() { testAccPreCheck(t) },
-        ProviderFactories: testAccProviders,
-        CheckDestroy:      testAccCheckMinioS3BucketDestroy,
-        Steps: []resource.TestStep{
-            {
-                Config: testAccMinioILMPolicyConfigAbortOnly(name),
-                Check: resource.ComposeTestCheckFunc(
-                    testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
-                    resource.TestCheckResourceAttr(resourceName, "rule.0.abort_incomplete_multipart_upload.0.days_after_initiation", "7d"),
-                ),
-            },
-        },
-    })
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigAbortOnly(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.abort_incomplete_multipart_upload.0.days_after_initiation", "7d"),
+				),
+			},
+		},
+	})
 }
 
 func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
@@ -560,6 +560,49 @@ resource "minio_ilm_policy" "abort_mpu" {
             days_after_initiation = "7d"
         }
     }
+}
+`, randInt)
+}
+
+func TestAccILMPolicy_expiredObjectDeleteMarker(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-expired-dm-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.expired_dm"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigExpiredObjectDeleteMarker(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.expired_object_delete_marker", "true"),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.noncurrent_expiration.0.days", "30d"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioILMPolicyConfigExpiredObjectDeleteMarker(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+resource "minio_ilm_policy" "expired_dm" {
+  bucket = "${minio_s3_bucket.bucket.id}"
+  rule {
+	id = "expire-dm"
+	expired_object_delete_marker = true
+	noncurrent_expiration {
+	  days = "30d"
+	}
+  }
 }
 `, randInt)
 }

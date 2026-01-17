@@ -17,13 +17,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
-	"github.com/minio/minio-go/v7"
-
-	"github.com/minio/madmin-go/v3"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/minio/madmin-go/v3"
+	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
+	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
 type RetryConfig struct {
@@ -105,6 +104,12 @@ func resourceMinioBucket() *schema.Resource {
 				Default:     false,
 				ForceNew:    false,
 			},
+			"tags": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "A map of tags to assign to the bucket",
+			},
 		},
 	}
 }
@@ -161,6 +166,19 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
+
+	if v, ok := d.GetOk("tags"); ok {
+		tagsMap := v.(map[string]interface{})
+		bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
+		if err != nil {
+			return NewResourceError("error creating bucket tags", bucket, err)
+		}
+
+		err = bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
+		if err != nil {
+			return NewResourceError("error setting bucket tags", bucket, err)
+		}
+	}
 
 	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
 	if err != nil {
@@ -241,6 +259,18 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	bucketTags, err := bucketConfig.MinioClient.GetBucketTagging(ctx, d.Id())
+	if err != nil {
+		var minioErr minio.ErrorResponse
+		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
+			_ = d.Set("tags", map[string]string{})
+		} else {
+			return NewResourceError("error reading bucket tags", d.Id(), err)
+		}
+	} else {
+		_ = d.Set("tags", bucketTags.ToMap())
+	}
+
 	return nil
 }
 
@@ -258,6 +288,26 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
 		_ = d.Set("acl", bucketConfig.MinioACL)
+	}
+
+	if d.HasChange("tags") {
+		if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
+			tagsMap := v.(map[string]interface{})
+			bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
+			if err != nil {
+				return NewResourceError("error creating bucket tags", d.Id(), err)
+			}
+
+			err = bucketConfig.MinioClient.SetBucketTagging(ctx, d.Id(), bucketTags)
+			if err != nil {
+				return NewResourceError("error updating bucket tags", d.Id(), err)
+			}
+		} else {
+			err := bucketConfig.MinioClient.RemoveBucketTagging(ctx, d.Id())
+			if err != nil {
+				return NewResourceError("error removing bucket tags", d.Id(), err)
+			}
+		}
 	}
 
 	if d.HasChange("quota") {

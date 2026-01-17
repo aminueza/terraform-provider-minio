@@ -13,7 +13,23 @@ description: |-
 
 {{ tffile "examples/resources/minio_s3_bucket/resource.tf" }}
 
+```terraform
+resource "minio_s3_bucket" "data_lake" {
+  bucket = "my-data-lake"
+
+  tags = {
+    Environment = "production"
+    Team        = "data-engineering"
+    CostCenter  = "12345"
+  }
+}
+```
+
 {{ .SchemaMarkdown | trimspace }}
+
+## Argument Reference
+
+- `tags` - (Optional) A map of tags to assign to the bucket. Tags are key-value pairs that help you organize and categorize your buckets.
 
 ## Import
 

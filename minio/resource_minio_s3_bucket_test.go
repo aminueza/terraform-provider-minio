@@ -641,7 +641,7 @@ func testAccBucketArn(randInt string) string {
 }
 
 func testAccBucketDomainName(randInt string) string {
-	return fmt.Sprintf("http://minio:9000/minio/%s", testAccBucketName(randInt))
+	return fmt.Sprintf("http://minio:9000/%s", testAccBucketName(randInt))
 }
 
 func testAccBucketACL(acl string) string {

@@ -414,7 +414,7 @@ func bucketArn(bucket string) string {
 }
 
 func bucketDomainName(bucket string, bucketConfig *url.URL) string {
-	return fmt.Sprintf("%s/minio/%s", bucketConfig, bucket)
+	return fmt.Sprintf("%s/%s", bucketConfig, bucket)
 }
 
 func validateS3BucketName(value string) error {

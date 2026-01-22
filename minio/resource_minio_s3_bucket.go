@@ -25,6 +25,20 @@ import (
 	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
+func IsS3TaggingNotImplemented(err error) bool {
+	var minioErr minio.ErrorResponse
+
+	if errors.As(err, &minioErr) {
+		return minioErr.Code == "NotImplemented"
+	}
+
+	if resp, ok := err.(*minio.ErrorResponse); ok {
+		return resp.Code == "NotImplemented"
+	}
+
+	return false
+}
+
 type RetryConfig struct {
 	MaxRetries  int
 	MaxBackoff  time.Duration
@@ -176,7 +190,9 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 		err = bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
 		if err != nil {
-			return NewResourceError("error setting bucket tags", bucket, err)
+			if !IsS3TaggingNotImplemented(err) {
+				return NewResourceError("error setting bucket tags", bucket, err)
+			}
 		}
 	}
 
@@ -264,6 +280,8 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			_ = d.Set("tags", map[string]string{})
+		} else if IsS3TaggingNotImplemented(err) {
+			return nil
 		} else {
 			return NewResourceError("error reading bucket tags", d.Id(), err)
 		}
@@ -300,12 +318,16 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 			err = bucketConfig.MinioClient.SetBucketTagging(ctx, d.Id(), bucketTags)
 			if err != nil {
-				return NewResourceError("error updating bucket tags", d.Id(), err)
+				if !IsS3TaggingNotImplemented(err) {
+					return NewResourceError("error updating bucket tags", d.Id(), err)
+				}
 			}
 		} else {
 			err := bucketConfig.MinioClient.RemoveBucketTagging(ctx, d.Id())
 			if err != nil {
-				return NewResourceError("error removing bucket tags", d.Id(), err)
+				if !IsS3TaggingNotImplemented(err) {
+					return NewResourceError("error removing bucket tags", d.Id(), err)
+				}
 			}
 		}
 	}

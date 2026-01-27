@@ -143,6 +143,19 @@ resource "minio_ilm_policy" "my_bucket_lifecycle" {
 
 Abort-only lifecycle rules are not persisted by the MinIO server. If you configure a rule with only `abort_incomplete_multipart_upload`, the provider preserves that rule in Terraform state to avoid perpetual diffs, but it is not sent to the server. Combine it with at least one other action (e.g., `expiration` or `transition`) to persist on the server.
 
+## Mutually Exclusive Attributes
+
+The following attributes within a `rule` block are **mutually exclusive** per MinIO/S3 lifecycle behavior:
+
+| Attribute | Conflicts With |
+|-----------|----------------|
+| `expiration` (days/date) | `expired_object_delete_marker` |
+| `expired_object_delete_marker` | `expiration` (days/date) |
+| `expired_object_delete_marker` | `tags` |
+| `expiration = "DeleteMarker"` | `tags` |
+
+**Note:** `expiration = "DeleteMarker"` is equivalent to `expired_object_delete_marker = true`.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import

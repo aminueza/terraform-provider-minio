@@ -20,6 +20,24 @@ func resourceMinioILMPolicy() *schema.Resource {
 		ReadContext:   minioReadILMPolicy,
 		DeleteContext: minioDeleteILMPolicy,
 		UpdateContext: minioUpdateILMPolicy,
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			rulesRaw, ok := d.Get("rule").([]interface{})
+			if !ok {
+				return fmt.Errorf("invalid rule format")
+			}
+
+			for _, ruleI := range rulesRaw {
+				ruleData, ok := ruleI.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("invalid rule format")
+				}
+				if err := validateILMRuleConflicts(ruleData); err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -168,6 +186,48 @@ func validateILMExpiration(v interface{}, p cty.Path) (errors diag.Diagnostics) 
 	return
 }
 
+func validateILMRuleConflicts(ruleData map[string]interface{}) error {
+	expiration, _ := getStringValue(ruleData, "expiration")
+	expiredObjectDeleteMarker := false
+	if v, ok := ruleData["expired_object_delete_marker"]; ok {
+		if b, ok := v.(bool); ok {
+			expiredObjectDeleteMarker = b
+		}
+	}
+
+	tags := map[string]string{}
+	if v, ok := ruleData["tags"]; ok {
+		tags = convertToStringMap(v)
+	}
+
+	deleteMarkerAction := expiredObjectDeleteMarker || expiration == "DeleteMarker"
+
+	if deleteMarkerAction && len(tags) > 0 {
+		id, _ := getStringValue(ruleData, "id")
+		if id == "" {
+			id = "<unknown>"
+		}
+		return fmt.Errorf(
+			"rule %q: delete-marker expiration is mutually exclusive with 'tags'",
+			id,
+		)
+	}
+
+	if expiration == "" || expiration == "DeleteMarker" || !expiredObjectDeleteMarker {
+		return nil
+	}
+
+	id, _ := getStringValue(ruleData, "id")
+	if id == "" {
+		id = "<unknown>"
+	}
+
+	return fmt.Errorf(
+		"rule %q: 'expiration' and 'expired_object_delete_marker' are mutually exclusive; use 'expiration' for time-based expiration or 'expired_object_delete_marker' to remove delete markers, but not both",
+		id,
+	)
+}
+
 func validateILMDays(v interface{}, p cty.Path) diag.Diagnostics {
 	value := v.(string)
 	var days int
@@ -290,6 +350,10 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		status = "Enabled"
 	}
 
+	if err := validateILMRuleConflicts(ruleData); err != nil {
+		return lifecycle.Rule{}, err
+	}
+
 	if transition, exists := ruleData["transition"].([]interface{}); exists && len(transition) > 0 {
 		t := transition[0].(map[string]interface{})
 		if _, ok := t["storage_class"].(string); !ok {
@@ -323,7 +387,12 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 	}
 
 	expiration, _ := getStringValue(ruleData, "expiration")
-	expiredObjectDeleteMarker := ruleData["expired_object_delete_marker"].(bool)
+	expiredObjectDeleteMarker := false
+	if v, ok := ruleData["expired_object_delete_marker"]; ok {
+		if b, ok := v.(bool); ok {
+			expiredObjectDeleteMarker = b
+		}
+	}
 
 	noncurrentTransition, err := parseILMNoncurrentTransition(ruleData["noncurrent_transition"])
 	if err != nil {

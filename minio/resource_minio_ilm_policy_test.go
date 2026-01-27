@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -603,6 +604,76 @@ resource "minio_ilm_policy" "expired_dm" {
 	  days = "30d"
 	}
   }
+}
+`, randInt)
+}
+
+func TestAccILMPolicy_mutuallyExclusiveExpirationAttributes(t *testing.T) {
+	name := fmt.Sprintf("test-ilm-mutex-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioILMPolicyConfigMutuallyExclusive(name),
+				ExpectError: regexp.MustCompile(`'expiration' and 'expired_object_delete_marker' are mutually exclusive`),
+			},
+		},
+	})
+}
+
+func testAccMinioILMPolicyConfigMutuallyExclusive(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+	bucket = "%s"
+	acl    = "public"
+}
+
+resource "minio_ilm_policy" "mutex_test" {
+	bucket = minio_s3_bucket.bucket.bucket
+	rule {
+		id                           = "invalid-mutex-rule"
+		expiration                   = "30d"
+		expired_object_delete_marker = true
+	}
+}
+`, randInt)
+}
+
+func TestAccILMPolicy_mutuallyExclusiveDeleteMarkerTags(t *testing.T) {
+	name := fmt.Sprintf("test-ilm-dm-tags-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioILMPolicyConfigDeleteMarkerWithTags(name),
+				ExpectError: regexp.MustCompile(`delete-marker expiration is mutually exclusive with 'tags'`),
+			},
+		},
+	})
+}
+
+func testAccMinioILMPolicyConfigDeleteMarkerWithTags(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+	bucket = "%s"
+	acl    = "public"
+}
+
+resource "minio_ilm_policy" "dm_tags" {
+	bucket = minio_s3_bucket.bucket.bucket
+	rule {
+		id                           = "invalid-dm-tags-rule"
+		expired_object_delete_marker = true
+		tags = {
+			environment = "test"
+		}
+	}
 }
 `, randInt)
 }

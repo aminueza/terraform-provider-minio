@@ -30,6 +30,10 @@ resource "minio_s3_bucket_versioning" "example" {
 - `bucket` (String) Name of the bucket
 - `versioning_configuration` (Block List, Min: 1, Max: 1) (see [below for nested schema](#nestedblock--versioning_configuration))
 
+### Optional
+
+- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
+
 ### Read-Only
 
 - `id` (String) The ID of this resource.
@@ -45,6 +49,17 @@ Optional:
 
 - `exclude_folders` (Boolean)
 - `excluded_prefixes` (List of String)
+
+
+<a id="nestedblock--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `create` (String)
+- `delete` (String)
+- `read` (String)
+- `update` (String)
 
 ## Import
 

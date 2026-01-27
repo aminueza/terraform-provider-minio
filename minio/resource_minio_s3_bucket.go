@@ -17,6 +17,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
@@ -544,6 +545,48 @@ func isCredentialError(errResp minio.ErrorResponse) bool {
 	default:
 		return false
 	}
+}
+
+// isNoSuchBucketError checks if the error indicates the bucket does not exist.
+func isNoSuchBucketError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errResp := minio.ToErrorResponse(err)
+	if errResp.Code == "NoSuchBucket" || errResp.StatusCode == http.StatusNotFound {
+		return true
+	}
+
+	// Fallback string check for non-standard error responses
+	errStr := err.Error()
+	return strings.Contains(errStr, "NoSuchBucket") || strings.Contains(errStr, "does not exist")
+}
+
+// waitForBucketReady waits for a bucket to become available for operations.
+func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string, timeout time.Duration) error {
+	return retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		_, err := client.GetBucketLocation(ctx, bucket)
+		if err == nil {
+			return nil
+		}
+
+		errResp := minio.ToErrorResponse(err)
+
+		// Fail fast on credential errors
+		if isCredentialError(errResp) {
+			return retry.NonRetryableError(fmt.Errorf("access denied while waiting for bucket %q: %w", bucket, err))
+		}
+
+		// Retry on NoSuchBucket for eventual consistency
+		if isNoSuchBucketError(err) {
+			log.Printf("[DEBUG] Bucket %q not yet available, retrying...", bucket)
+			return retry.RetryableError(fmt.Errorf("bucket %q not yet available: %w", bucket, err))
+		}
+
+		// Non-retryable for other errors
+		return retry.NonRetryableError(fmt.Errorf("error checking bucket %q availability: %w", bucket, err))
+	})
 }
 
 // bucketHasObjects checks if a bucket contains at least one object.

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	minio "github.com/minio/minio-go/v7"
@@ -19,6 +21,12 @@ func resourceMinioBucketVersioning() *schema.Resource {
 		DeleteContext: minioDeleteBucketVersioning,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(5 * time.Minute),
+			Read:   schema.DefaultTimeout(2 * time.Minute),
+			Update: schema.DefaultTimeout(5 * time.Minute),
+			Delete: schema.DefaultTimeout(5 * time.Minute),
 		},
 		Schema: map[string]*schema.Schema{
 			"bucket": {
@@ -66,11 +74,37 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 
 	log.Printf("[DEBUG] S3 bucket: %s, put versioning configuration: %v", bucketVersioningConfig.MinioBucket, versioningConfig)
 
-	err := bucketVersioningConfig.MinioClient.SetBucketVersioning(
-		ctx,
-		bucketVersioningConfig.MinioBucket,
-		convertBucketVersioningConfig(*versioningConfig),
-	)
+	// Wait for bucket to be ready for eventual consistency
+	timeout := d.Timeout(schema.TimeoutCreate)
+	if d.Id() != "" {
+		timeout = d.Timeout(schema.TimeoutUpdate)
+	}
+	// Reserve time for the actual operation
+	waitTimeout := timeout - 30*time.Second
+	if waitTimeout < 30*time.Second {
+		waitTimeout = 30 * time.Second
+	}
+
+	if err := waitForBucketReady(ctx, bucketVersioningConfig.MinioClient, bucketVersioningConfig.MinioBucket, waitTimeout); err != nil {
+		return NewResourceError("error waiting for bucket to be ready", bucketVersioningConfig.MinioBucket, err)
+	}
+
+	// Retry SetBucketVersioning for transient NoSuchBucket errors
+	err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
+		err := bucketVersioningConfig.MinioClient.SetBucketVersioning(
+			ctx,
+			bucketVersioningConfig.MinioBucket,
+			convertBucketVersioningConfig(*versioningConfig),
+		)
+		if err != nil {
+			if isNoSuchBucketError(err) {
+				log.Printf("[DEBUG] Bucket %q not yet available for versioning, retrying...", bucketVersioningConfig.MinioBucket)
+				return retry.RetryableError(err)
+			}
+			return retry.NonRetryableError(err)
+		}
+		return nil
+	})
 
 	if err != nil {
 		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, err)
@@ -78,7 +112,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 
 	d.SetId(bucketVersioningConfig.MinioBucket)
 
-	return nil
+	return minioReadBucketVersioning(ctx, d, meta)
 }
 
 func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -86,13 +120,28 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	log.Printf("[DEBUG] S3 bucket versioning, read for bucket: %s", d.Id())
 
-	exists, err := bucketVersioningConfig.MinioClient.BucketExists(ctx, d.Id())
-	if err != nil {
-		return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
-	}
-	if !exists {
-		d.SetId("")
-		return nil
+	// For new resources, wait for bucket to be ready
+	if d.IsNewResource() {
+		timeout := d.Timeout(schema.TimeoutRead)
+		if err := waitForBucketReady(ctx, bucketVersioningConfig.MinioClient, d.Id(), timeout); err != nil {
+			if isNoSuchBucketError(err) {
+				log.Printf("[WARN] Bucket %s not found after waiting, removing versioning resource from state", d.Id())
+				d.SetId("")
+				return nil
+			}
+			return NewResourceError("error waiting for bucket to be ready", d.Id(), err)
+		}
+	} else {
+		// For existing resources, check if bucket exists
+		exists, err := bucketVersioningConfig.MinioClient.BucketExists(ctx, d.Id())
+		if err != nil {
+			return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
+		}
+		if !exists {
+			log.Printf("[WARN] Bucket %s no longer exists, removing versioning resource from state", d.Id())
+			d.SetId("")
+			return nil
+		}
 	}
 
 	versioningConfig, err := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())

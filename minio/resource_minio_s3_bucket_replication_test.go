@@ -330,7 +330,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
             host = local.second_minio_host
             secure = false
             region = "eu-west-1"
-            syncronous = true
+            synchronous = true
             bandwidth_limit = "100M"
             access_key = minio_iam_service_account.replication_in_b.access_key
             secret_key = minio_iam_service_account.replication_in_b.secret_key
@@ -360,6 +360,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
             host = local.primary_minio_host
             region = "eu-north-1"
             secure = false
+            syncronous = true  # Test deprecated attribute for backwards compatibility
             bandwidth_limit = "800M"
             health_check_period = "2m"
             access_key = minio_iam_service_account.replication_in_a.access_key
@@ -416,7 +417,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -484,7 +485,7 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -549,7 +550,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Minute * 5,
@@ -616,7 +617,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Minute * 5,
@@ -656,7 +657,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -729,7 +730,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-west-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -754,7 +755,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 									Host:              thirdMinioEndpoint,
 									Path:              "/",
 									Region:            "ap-south-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 60,
@@ -781,7 +782,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 									Host:              fourthMinioEndpoint,
 									Path:              "/",
 									Region:            "us-west-2",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -849,7 +850,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 									StorageClass:      "",
 									Host:              secondaryMinioEndpoint,
 									Region:            "eu-west-1",
-									Syncronous:        true,
+									Synchronous:        true,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -878,7 +879,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 									StorageClass:      "",
 									Host:              primaryMinioEndpoint,
 									Region:            "eu-north-1",
-									Syncronous:        false,
+									Synchronous:        true,  // Tests deprecated "syncronous" attribute
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 120,
@@ -1015,7 +1016,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-west-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1040,7 +1041,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              thirdMinioEndpoint,
 									Path:              "/",
 									Region:            "ap-south-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 60,
@@ -1067,7 +1068,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              fourthMinioEndpoint,
 									Path:              "/",
 									Region:            "us-west-2",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1097,7 +1098,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              thirdMinioEndpoint,
 									Path:              "/",
 									Region:            "ap-south-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1122,7 +1123,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              fourthMinioEndpoint,
 									Path:              "/",
 									Region:            "us-west-2",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 60,
@@ -1149,7 +1150,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              primaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-central-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1179,7 +1180,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              fourthMinioEndpoint,
 									Path:              "/",
 									Region:            "us-west-2",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1204,7 +1205,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              primaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-central-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 60,
@@ -1231,7 +1232,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-west-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1261,7 +1262,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              primaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-central-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1286,7 +1287,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              secondaryMinioEndpoint,
 									Path:              "/",
 									Region:            "eu-west-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 60,
@@ -1313,7 +1314,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 									Host:              thirdMinioEndpoint,
 									Path:              "/",
 									Region:            "ap-south-1",
-									Syncronous:        false,
+									Synchronous:        false,
 									Secure:            false,
 									PathStyle:         S3PathSyleAuto,
 									HealthCheckPeriod: time.Second * 30,
@@ -1691,8 +1692,8 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 			if existingTarget.TargetBucket != bucket {
 				return fmt.Errorf("Mismatch TargetBucket %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.TargetBucket, bucket)
 			}
-			if existingTarget.ReplicationSync != rule.Target.Syncronous {
-				return fmt.Errorf("Mismatch synchronous mode %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.ReplicationSync, rule.Target.Syncronous)
+			if existingTarget.ReplicationSync != rule.Target.Synchronous {
+				return fmt.Errorf("Mismatch synchronous mode %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.ReplicationSync, rule.Target.Synchronous)
 			}
 			if existingTarget.Region != rule.Target.Region {
 				return fmt.Errorf("Mismatch region %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.Region, rule.Target.Region)

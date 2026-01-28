@@ -906,3 +906,68 @@ func testAccCheckMinioS3BucketTagsRemoved(n string) resource.TestCheckFunc {
 		return nil
 	}
 }
+
+func TestIsNoSuchBucketError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name: "NoSuchBucket error code",
+			err: minio.ErrorResponse{
+				Code:       "NoSuchBucket",
+				Message:    "The specified bucket does not exist",
+				StatusCode: http.StatusNotFound,
+			},
+			expected: true,
+		},
+		{
+			name: "404 status code without NoSuchBucket code",
+			err: minio.ErrorResponse{
+				Code:       "",
+				Message:    "Not Found",
+				StatusCode: http.StatusNotFound,
+			},
+			expected: true,
+		},
+		{
+			name:     "string error containing NoSuchBucket",
+			err:      fmt.Errorf("The bucket NoSuchBucket error occurred"),
+			expected: true,
+		},
+		{
+			name:     "string error containing does not exist",
+			err:      fmt.Errorf("The specified bucket does not exist"),
+			expected: true,
+		},
+		{
+			name: "AccessDenied error",
+			err: minio.ErrorResponse{
+				Code:       "AccessDenied",
+				Message:    "Access Denied",
+				StatusCode: http.StatusForbidden,
+			},
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      fmt.Errorf("some other error"),
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isNoSuchBucketError(tt.err)
+			if result != tt.expected {
+				t.Errorf("isNoSuchBucketError(%v) = %v, want %v", tt.err, result, tt.expected)
+			}
+		})
+	}
+}

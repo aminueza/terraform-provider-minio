@@ -363,8 +363,8 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			rules[ruleIdx]["tags"] = nil
 		}
 
-	rules[ruleIdx]["target"] = []interface{}{target}
-}
+		rules[ruleIdx]["target"] = []interface{}{target}
+	}
 
 	// Second, we read the remote bucket config
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
@@ -413,30 +413,47 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-	target["bandwidth_limit"] = humanize.Bytes(bwUint64)
-	target["region"] = remoteTarget.Region
-	target["access_key"] = remoteTarget.Credentials.AccessKey
+		target["bandwidth_limit"] = humanize.Bytes(bwUint64)
+		target["region"] = remoteTarget.Region
 
-	log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%v, disableProxy=%v",
-		target["bucket"],
-		target["host"],
-		target["region"],
-		target["secure"],
-		target["path"],
-		target["path_style"],
-		target["syncronous"],
-		target["disable_proxy"],
-	)
+		target["access_key"] = remoteTarget.Credentials.AccessKey
 
-	// Set secret_key AFTER logging to prevent sensitive data flowing into logged structures.
-	// During import, there are no rules defined and it's impossible to read the secret from API,
-	// so we default to empty string.
-	if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
-		target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
+		logTarget := struct {
+			Bucket       interface{}
+			Host         interface{}
+			Region       interface{}
+			Secure       interface{}
+			Path         interface{}
+			PathStyle    interface{}
+			Syncronous   interface{}
+			DisableProxy interface{}
+		}{
+			Bucket:       target["bucket"],
+			Host:         target["host"],
+			Region:       target["region"],
+			Secure:       target["secure"],
+			Path:         target["path"],
+			PathStyle:    target["path_style"],
+			Syncronous:   target["syncronous"],
+			DisableProxy: target["disable_proxy"],
+		}
+
+		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%v, disableProxy=%v",
+			logTarget.Bucket,
+			logTarget.Host,
+			logTarget.Region,
+			logTarget.Secure,
+			logTarget.Path,
+			logTarget.PathStyle,
+			logTarget.Syncronous,
+			logTarget.DisableProxy,
+		)
+		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
+			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
+		}
+
+		rules[ruleIdx]["target"] = []interface{}{target}
 	}
-
-	rules[ruleIdx]["target"] = []interface{}{target}
-}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
 		return diag.FromErr(fmt.Errorf("error setting replication configuration: %w", err))

@@ -112,8 +112,8 @@ func testAccCheckBucketHasNotification(n string, config notification.Configurati
 
 		for _, actualQueueConfig := range actualConfig.QueueConfigs {
 			for _, queueConfig := range config.QueueConfigs {
-			if actualQueueConfig.Queue != queueConfig.Arn.String() {
-				return fmt.Errorf("non-equivalent queue configuration error:\n\nexpected %s\n\ngot: %s", actualQueueConfig.Queue, queueConfig.Arn.String())
+				if actualQueueConfig.Queue != queueConfig.Arn.String() {
+					return fmt.Errorf("non-equivalent queue configuration error:\n\nexpected %s\n\ngot: %s", actualQueueConfig.Queue, queueConfig.Arn.String())
 				}
 				if !notificationConfigsEqual(actualQueueConfig.Config, queueConfig.Config) {
 					return fmt.Errorf("non-equivalent queue configuration error:\n\nexpected: %v\n\ngot: %v", queueConfig.Config, actualQueueConfig.Config)

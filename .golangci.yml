@@ -1,0 +1,48 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - bodyclose
+    - noctx
+    - unconvert
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: check_config\.go
+        linters:
+          - errcheck
+      - path: import_.*\.go
+        linters:
+          - errcheck
+
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Set
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Get
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).GetOk
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

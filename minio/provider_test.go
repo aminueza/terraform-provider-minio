@@ -41,7 +41,7 @@ func TestProvider(t *testing.T) {
 }
 
 func TestProvider_impl(t *testing.T) {
-	var _ *schema.Provider = newProvider()
+	var _ = newProvider()
 }
 
 var kEnvVarNeeded = []string{

@@ -142,14 +142,14 @@ func resourceMinioBucketReplication() *schema.Resource {
 									},
 									"path_style": {
 										Type:         schema.TypeString,
-										Description:  "Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommened)`",
+										Description:  "Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommended)`",
 										Optional:     true,
 										Default:      "auto",
 										ValidateFunc: validation.StringInSlice([]string{"on", "off", "auto"}, true),
 									},
 									"path": {
 										Type:        schema.TypeString,
-										Description: "Path of the Minio endpoint. This is usefull if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`",
+										Description: "Path of the Minio endpoint. This is useful if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`",
 										Optional:    true,
 									},
 									"syncronous": {
@@ -364,7 +364,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
-		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omitting the secret_key
 		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
 			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
 		}
@@ -436,7 +436,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		)
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
-		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omitting the secret_key
 		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
 			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
 		}

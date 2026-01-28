@@ -433,7 +433,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
-					"rule.0.priority", // This is ommited in our test case, so it gets automatically generated and thus mismatch
+					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
 				},
 				Config: kOneWaySimpleResource,
 			},
@@ -673,7 +673,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
-					"rule.0.priority", // This is ommited in our test case, so it gets automatically generated and thus mismatch
+					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
 				},
 				Config: kOneWaySimpleResource,
 			},

@@ -363,6 +363,12 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			rules[ruleIdx]["tags"] = nil
 		}
 
+		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
+			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
+		}
+
 		rules[ruleIdx]["target"] = []interface{}{target}
 	}
 
@@ -448,6 +454,9 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			logTarget.Syncronous,
 			logTarget.DisableProxy,
 		)
+
+		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
 		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
 			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
 		}

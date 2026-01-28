@@ -423,17 +423,6 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		target["region"] = remoteTarget.Region
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
-		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%v, disableProxy=%v",
-			target["bucket"],
-			target["host"],
-			target["region"],
-			target["secure"],
-			target["path"],
-			target["path_style"],
-			target["syncronous"],
-			target["disable_proxy"],
-		)
-
 		rules[ruleIdx]["target"] = []interface{}{target}
 	}
 

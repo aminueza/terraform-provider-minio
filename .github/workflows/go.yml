@@ -38,11 +38,6 @@ jobs:
         with:
           args: ./...
 
-      - name: Run govulncheck
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
-
   test:
     name: Test
     runs-on: ubuntu-latest

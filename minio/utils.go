@@ -196,6 +196,23 @@ func NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy string) (string, error
 	return normalizedPolicy, nil
 }
 
+// SafeUint64ToInt64 converts a uint64 to int64, returning MaxInt64 if the value exceeds it.
+func SafeUint64ToInt64(val uint64) (int64, bool) {
+	if val > uint64(math.MaxInt64) {
+		return math.MaxInt64, false
+	}
+	return int64(val), true
+}
+
+// SafeInt64ToInt64 safely handles int64 values that represent unsigned quantities (like uptime).
+// Returns 0 if negative, otherwise returns the value unchanged.
+func SafeInt64ToInt64(val int64) int64 {
+	if val < 0 {
+		return 0
+	}
+	return val
+}
+
 // ParseBandwidthLimit extracts and parses the bandwidth limit from a target map.
 // It handles both the legacy attribute "bandwidth_limt" and the new attribute "bandwidth_limit".
 // Returns the parsed bandwidth value, a boolean indicating success, and any diagnostic errors.

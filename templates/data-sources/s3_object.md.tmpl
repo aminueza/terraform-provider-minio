@@ -1,0 +1,25 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}: {{.Name}}
+
+{{ .Description | trimspace }}
+
+Reads an object from a MinIO bucket. This is useful for reading configuration files, retrieving content, or checking object metadata.
+
+## Example Usage
+
+{{ tffile "examples/data-sources/minio_s3_object/data-source.tf" }}
+
+## Use Cases
+
+- **Configuration Retrieval**: Read configuration files stored in MinIO buckets
+- **Content Access**: Retrieve object content for use in other resources
+- **Metadata Inspection**: Check object properties like size, checksums, and storage class
+- **Version Management**: Access specific versions of objects in versioned buckets
+
+{{ .SchemaMarkdown | trimspace }}

@@ -14,6 +14,7 @@ import (
 
 func dataSourceMinioS3Object() *schema.Resource {
 	return &schema.Resource{
+		Description:        "Reads an object from a MinIO bucket including its content and metadata.",
 		ReadWithoutTimeout: dataSourceMinioS3ObjectRead,
 		Schema: map[string]*schema.Schema{
 			"bucket_name": {

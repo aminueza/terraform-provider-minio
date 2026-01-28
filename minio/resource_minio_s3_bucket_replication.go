@@ -581,12 +581,28 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 				existingRemoteTarget.Path = bktTarget.Path
 				remoteTargetUpdate = append(remoteTargetUpdate, madmin.PathUpdateType)
 			}
-			log.Printf("[DEBUG] Editing remote target %v for %q", *bktTarget, bucketReplicationConfig.MinioBucket)
-			arn, err = admclient.UpdateRemoteTarget(ctx, existingRemoteTarget, remoteTargetUpdate...)
-			if err != nil {
-				log.Printf("[WARN] Unable to update the remote target %v for %q: %v", *bktTarget, bucketReplicationConfig.MinioBucket, err)
-				return
-			}
+		log.Printf("[DEBUG] Editing remote target for bucket %q: targetBucket=%q, endpoint=%q, region=%q, secure=%t, path=%q, bandwidthLimit=%d, sync=%t, disableProxy=%t, healthCheckDuration=%s",
+			bucketReplicationConfig.MinioBucket,
+			bktTarget.TargetBucket,
+			bktTarget.Endpoint,
+			bktTarget.Region,
+			bktTarget.Secure,
+			bktTarget.Path,
+			bktTarget.BandwidthLimit,
+			bktTarget.ReplicationSync,
+			bktTarget.DisableProxy,
+			bktTarget.HealthCheckDuration,
+		)
+		arn, err = admclient.UpdateRemoteTarget(ctx, existingRemoteTarget, remoteTargetUpdate...)
+		if err != nil {
+		log.Printf("[WARN] Unable to update remote target for bucket %q and targetBucket=%q at endpoint=%q: %v",
+			bucketReplicationConfig.MinioBucket,
+			bktTarget.TargetBucket,
+			bktTarget.Endpoint,
+			err,
+		)
+			return
+		}
 		}
 
 		tagList := []string{}

@@ -98,7 +98,7 @@ func TestSafeUint64ToInt64_NoNegative(t *testing.T) {
 func BenchmarkSafeUint64ToInt64(b *testing.B) {
 	testValues := []uint64{
 		1024,
-		1099511627776,      // 1TB
+		1099511627776, // 1TB
 		math.MaxInt64,
 		math.MaxUint64,
 	}

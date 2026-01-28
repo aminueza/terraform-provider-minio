@@ -142,21 +142,27 @@ func resourceMinioBucketReplication() *schema.Resource {
 									},
 									"path_style": {
 										Type:         schema.TypeString,
-										Description:  "Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommened)`",
+										Description:  "Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommended)`",
 										Optional:     true,
 										Default:      "auto",
 										ValidateFunc: validation.StringInSlice([]string{"on", "off", "auto"}, true),
 									},
 									"path": {
 										Type:        schema.TypeString,
-										Description: "Path of the Minio endpoint. This is usefull if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`",
+										Description: "Path of the Minio endpoint. This is useful if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`",
 										Optional:    true,
+									},
+									"synchronous": {
+										Type:        schema.TypeBool,
+										Description: "Use synchronous replication.",
+										Optional:    true,
+										Default:     false,
 									},
 									"syncronous": {
 										Type:        schema.TypeBool,
 										Description: "Use synchronous replication.",
 										Optional:    true,
-										Default:     false,
+										Deprecated:  "Use 'synchronous' instead. This attribute will be removed in a future major version.",
 									},
 									"disable_proxy": {
 										Type:        schema.TypeBool,
@@ -364,7 +370,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
-		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omitting the secret_key
 		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
 			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
 		}
@@ -407,7 +413,8 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		target["secure"] = remoteTarget.Secure
 		target["path_style"] = remoteTarget.Path
 		target["path"] = strings.Join(pathComponent[:len(pathComponent)-1], "/")
-		target["syncronous"] = remoteTarget.ReplicationSync
+		target["synchronous"] = remoteTarget.ReplicationSync
+		target["syncronous"] = remoteTarget.ReplicationSync // Deprecated: for backwards compatibility
 		target["disable_proxy"] = remoteTarget.DisableProxy
 		target["health_check_period"] = shortDur(remoteTarget.HealthCheckDuration)
 		var bwUint64 uint64
@@ -436,7 +443,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		)
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
-		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omitting the secret_key
 		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
 			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
 		}
@@ -543,7 +550,7 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 			Type:                madmin.ReplicationService,
 			Region:              rule.Target.Region,
 			BandwidthLimit:      rule.Target.BandwidthLimit,
-			ReplicationSync:     rule.Target.Syncronous,
+			ReplicationSync:     rule.Target.Synchronous,
 			DisableProxy:        rule.Target.DisableProxy,
 			HealthCheckDuration: rule.Target.HealthCheckPeriod,
 		}
@@ -767,8 +774,12 @@ func getBucketReplicationConfig(v []interface{}) (result []S3MinioBucketReplicat
 			})
 		}
 
-		result[i].Target.Syncronous, ok = target["syncronous"].(bool)
-		result[i].Target.Syncronous = result[i].Target.Syncronous && ok
+		// Prefer "synchronous" over deprecated "syncronous"
+		if sync, syncOk := target["synchronous"].(bool); syncOk {
+			result[i].Target.Synchronous = sync
+		} else if sync, syncOk := target["syncronous"].(bool); syncOk {
+			result[i].Target.Synchronous = sync
+		}
 		result[i].Target.DisableProxy, ok = target["disable_proxy"].(bool)
 		result[i].Target.DisableProxy = result[i].Target.DisableProxy && ok
 

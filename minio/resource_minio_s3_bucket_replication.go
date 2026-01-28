@@ -424,35 +424,15 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
-		logTarget := struct {
-			Bucket       interface{}
-			Host         interface{}
-			Region       interface{}
-			Secure       interface{}
-			Path         interface{}
-			PathStyle    interface{}
-			Syncronous   interface{}
-			DisableProxy interface{}
-		}{
-			Bucket:       target["bucket"],
-			Host:         target["host"],
-			Region:       target["region"],
-			Secure:       target["secure"],
-			Path:         target["path"],
-			PathStyle:    target["path_style"],
-			Syncronous:   target["syncronous"],
-			DisableProxy: target["disable_proxy"],
-		}
-
-		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%v, disableProxy=%v",
-			logTarget.Bucket,
-			logTarget.Host,
-			logTarget.Region,
-			logTarget.Secure,
-			logTarget.Path,
-			logTarget.PathStyle,
-			logTarget.Syncronous,
-			logTarget.DisableProxy,
+		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%t, disableProxy=%t",
+			pathComponent[len(pathComponent)-1],
+			remoteTarget.Endpoint,
+			remoteTarget.Region,
+			remoteTarget.Secure,
+			strings.Join(pathComponent[:len(pathComponent)-1], "/"),
+			remoteTarget.Path,
+			remoteTarget.ReplicationSync,
+			remoteTarget.DisableProxy,
 		)
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we

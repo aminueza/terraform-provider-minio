@@ -742,10 +742,15 @@ resource "minio_s3_bucket" "test" {
 
 func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		resp, err := http.Get("http://" + os.Getenv("MINIO_ENDPOINT") + "/" + bucket)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://"+os.Getenv("MINIO_ENDPOINT")+"/"+bucket, nil)
 		if err != nil {
 			return err
 		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
 		if resp.StatusCode != 403 {
 			return fmt.Errorf("should not be able to list buckets (Got a %d status)", resp.StatusCode)
 		}

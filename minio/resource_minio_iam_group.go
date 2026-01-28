@@ -135,7 +135,7 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 
 	log.Printf("[WARN] (%v)", output)
 
-	if err := d.Set("group_name", string(output.Name)); err != nil {
+	if err := d.Set("group_name", output.Name); err != nil {
 		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 

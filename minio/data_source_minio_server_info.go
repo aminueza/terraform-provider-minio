@@ -173,10 +173,10 @@ func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) err
 			readThroughput, _ := SafeUint64ToInt64(uint64(disk.ReadThroughput))
 			writeThroughput, _ := SafeUint64ToInt64(uint64(disk.WriteThroughPut))
 
-			drives = append(drives, map[string]interface{}{
-				"endpoint":         disk.Endpoint,
-				"state":            string(disk.State),
-				"uuid":             disk.UUID,
+		drives = append(drives, map[string]interface{}{
+			"endpoint":         disk.Endpoint,
+			"state":            disk.State,
+			"uuid":             disk.UUID,
 				"total_space":      totalSpace,
 				"used_space":       usedSpace,
 				"available_space":  availableSpace,
@@ -185,9 +185,9 @@ func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) err
 			})
 		}
 
-		uptime := SafeInt64ToInt64(int64(server.Uptime))
-		servers = append(servers, map[string]interface{}{
-			"state":     string(server.State),
+	uptime := SafeInt64ToInt64(server.Uptime)
+	servers = append(servers, map[string]interface{}{
+		"state":     server.State,
 			"endpoint":  server.Endpoint,
 			"uptime":    uptime,
 			"version":   server.Version,

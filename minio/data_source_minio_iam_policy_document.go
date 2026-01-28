@@ -288,14 +288,14 @@ func dataSourceMinioIAMPolicyDocumentMakeConditions(in []interface{}, version st
 				item["values"].(*schema.Set).List(),
 			), version,
 		)
-		switch v := values.(type) {
-		case string:
-			condKeyMap.Add(item["variable"].(string), set.CreateStringSet(string(v)))
-		case []string:
-			for _, itemV := range v {
-				condKeyMap.Add(item["variable"].(string), set.CreateStringSet(string(itemV)))
-			}
+	switch v := values.(type) {
+	case string:
+		condKeyMap.Add(item["variable"].(string), set.CreateStringSet(v))
+	case []string:
+		for _, itemV := range v {
+			condKeyMap.Add(item["variable"].(string), set.CreateStringSet(itemV))
 		}
+	}
 		condMap.Add(item["test"].(string), condKeyMap)
 		if err != nil {
 			return nil, fmt.Errorf("error reading values: %s", err)

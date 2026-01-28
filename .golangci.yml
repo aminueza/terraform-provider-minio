@@ -7,13 +7,26 @@ run:
 linters:
   default: none
   enable:
-    # Default linters
     - errcheck
     - govet
     - ineffassign
     - staticcheck
     - unused
-    # Security: gosec runs as dedicated step in CI workflow
+    - bodyclose
+    - noctx
+    - unconvert
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+      - path: check_config\.go
+        linters:
+          - errcheck
+      - path: import_.*\.go
+        linters:
+          - errcheck
 
   settings:
     errcheck:
@@ -33,24 +46,3 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-
-  exclusions:
-    rules:
-      # Exclude linters from running on test files
-      - path: _test\.go
-        linters:
-          - errcheck
-
-      # Exclude errcheck for specific files with heavy SDK usage
-      - path: check_config\.go
-        linters:
-          - errcheck
-
-      - path: import_.*\.go
-        linters:
-          - errcheck
-
-    paths:
-      - third_party$
-      - builtin$
-      - examples$

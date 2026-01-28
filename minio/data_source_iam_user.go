@@ -7,18 +7,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// Data source: minio_iam_user — reads one existing user by name.
 func dataSourceIAMUser() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceIAMUserRead,
+		Description: "Retrieves information about a specific IAM user by name.",
+		Read:        dataSourceIAMUserRead,
 		Schema: map[string]*schema.Schema{
-			// Input
-			"name": {Type: schema.TypeString, Required: true},
-
-			// Outputs
+			"name":   {Type: schema.TypeString, Required: true},
 			"status": {Type: schema.TypeString, Computed: true},
-
-			// Placeholders for future enrichment (policies & groups).
 			"policy_names": {
 				Type:     schema.TypeList,
 				Computed: true,

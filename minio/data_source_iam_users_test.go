@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// Creates two users with a common prefix, then lists them via the data source
-// using prefix + status filters. We also assert count=2 for the "enabled" set.
 func TestAccDataSourceMinioIAMUsers_listAndFilter(t *testing.T) {
 	prefix := "tfacc-" + acctest.RandString(5)
 	userName1 := prefix + "-" + acctest.RandString(6)
@@ -47,7 +45,6 @@ resource "minio_iam_user" "u2" {
   secret = "` + secret2 + `"
 }
 
-# Enabled subset (default status is "enabled")
 data "minio_iam_users" "enabled" {
   depends_on  = [minio_iam_user.u1, minio_iam_user.u2]
   name_prefix = "` + prefix + `-"

@@ -1,0 +1,25 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}: {{.Name}}
+
+{{ .Description | trimspace }}
+
+Retrieves information about a specific IAM user by name. This is useful for checking user status or using existing users in conditional resource creation.
+
+## Example Usage
+
+{{ tffile "examples/data-sources/minio_iam_user/data-source.tf" }}
+
+## Use Cases
+
+- **User Status Check**: Verify if a user is enabled or disabled
+- **Conditional Resources**: Create resources based on user existence or status
+- **Import Validation**: Check user details before importing
+- **Audit Queries**: Retrieve user information for compliance checks
+
+{{ .SchemaMarkdown | trimspace }}

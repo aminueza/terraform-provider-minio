@@ -1,0 +1,27 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}: {{.Name}}
+
+{{ .Description | trimspace }}
+
+Generates an IAM policy document in JSON format. This is useful for creating policy documents that can be attached to IAM users, groups, or used in bucket policies.
+
+This data source is similar to the AWS `aws_iam_policy_document` data source and follows the same schema conventions.
+
+## Example Usage
+
+{{ tffile "examples/data-sources/minio_iam_policy_document/data-source.tf" }}
+
+## Use Cases
+
+- **Generate IAM Policies**: Create policy documents programmatically using HCL syntax
+- **Policy Composition**: Combine multiple policy statements with conditions
+- **Least Privilege**: Define fine-grained permissions for S3 operations
+- **Conditional Access**: Apply policies based on IP addresses, user agents, or tags
+
+{{ .SchemaMarkdown | trimspace }}

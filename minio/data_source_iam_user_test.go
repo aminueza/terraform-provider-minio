@@ -7,14 +7,13 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// Creates an IAM user, then reads it via the data source.
 func TestAccDataSourceMinioIAMUser_basic(t *testing.T) {
 	userName := "tfacc-" + acctest.RandString(8)
 	userSecret := "s3cr3t-" + acctest.RandString(16)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) }, // from provider_test.go
-		ProviderFactories: testAccProviders,              // defined in provider_test.go
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceIAMUserConfig(userName, userSecret),

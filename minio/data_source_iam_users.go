@@ -10,14 +10,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
-// Data source: minio_iam_users — lists users with optional prefix & status filtering.
-//
-// status supports: "enabled", "disabled", "all" (default: "enabled").
 func dataSourceIAMUsers() *schema.Resource {
 	return &schema.Resource{
-		Read: dataSourceIAMUsersRead,
+		Description: "Lists IAM users with optional filtering by name prefix and status.",
+		Read:        dataSourceIAMUsersRead,
 		Schema: map[string]*schema.Schema{
-			// Inputs
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"status": {
 				Type:         schema.TypeString,
@@ -25,8 +22,6 @@ func dataSourceIAMUsers() *schema.Resource {
 				Default:      "enabled",
 				ValidateFunc: validation.StringInSlice([]string{"enabled", "disabled", "all"}, false),
 			},
-
-			// Outputs
 			"users": {
 				Type:     schema.TypeList,
 				Computed: true,
@@ -34,8 +29,6 @@ func dataSourceIAMUsers() *schema.Resource {
 					Schema: map[string]*schema.Schema{
 						"name":   {Type: schema.TypeString, Computed: true},
 						"status": {Type: schema.TypeString, Computed: true},
-
-						// Placeholders for future enrichment
 						"policy_names": {
 							Type:     schema.TypeList,
 							Computed: true,
@@ -63,7 +56,7 @@ func dataSourceIAMUsersRead(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))
-	wantStatus := strings.ToLower(strings.TrimSpace(d.Get("status").(string))) // enabled|disabled|all
+	wantStatus := strings.ToLower(strings.TrimSpace(d.Get("status").(string)))
 
 	var out []map[string]interface{}
 	for name, ui := range usersMap {
@@ -84,7 +77,6 @@ func dataSourceIAMUsersRead(d *schema.ResourceData, meta interface{}) error {
 				continue
 			}
 		default:
-			// Should never happen thanks to ValidateFunc.
 			continue
 		}
 
@@ -96,7 +88,6 @@ func dataSourceIAMUsersRead(d *schema.ResourceData, meta interface{}) error {
 		})
 	}
 
-	// A volatile ID to force refresh when re-reading during a plan/apply.
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 	_ = d.Set("users", out)
 	return nil

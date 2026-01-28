@@ -23,7 +23,8 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 	}
 
 	return &schema.Resource{
-		Read: dataSourceMinioIAMPolicyDocumentRead,
+		Description: "Generates an IAM policy document in JSON format for use with IAM policies.",
+		Read:        dataSourceMinioIAMPolicyDocumentRead,
 
 		Schema: map[string]*schema.Schema{
 			"override_json": {

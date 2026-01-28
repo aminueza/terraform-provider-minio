@@ -17,11 +17,11 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Markdown Link Validation
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        uses: tcort/github-action-markdown-link-check@v1
         with:
           config-file: "./.github/workflows/github-action-markdown-link-check-config.json"

@@ -5,59 +5,52 @@ run:
   modules-download-mode: readonly
 
 linters:
+  default: none
   enable:
     # Default linters
     - errcheck
     - govet
     - ineffassign
-    - staticcheck  # includes gosimple and stylecheck in v2
+    - staticcheck
     - unused
-    # Security
-    - gosec
+    # Security: gosec runs as dedicated step in CI workflow
 
-linters-settings:
-  errcheck:
-    # Disable type assertion checks - Terraform SDK guarantees types
-    check-type-assertions: false
-    # Disable blank identifier checks - common pattern in Terraform providers
-    check-blank: false
-    # Exclude common Terraform provider patterns
-    exclude-functions:
-      - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Set
-      - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Get
-      - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).GetOk
+  settings:
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+      exclude-functions:
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Set
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Get
+        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).GetOk
 
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-      - shadow  # too many pre-existing shadow issues
-
-  gosec:
-    excludes:
-      - G104  # Audit errors not checked (covered by errcheck)
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
 
 issues:
-  exclude-rules:
-    # Exclude linters from running on test files
-    - path: _test\.go
-      linters:
-        - errcheck
-        - gosec
-
-    # Exclude errcheck for specific files with heavy SDK usage
-    - path: check_config\.go
-      linters:
-        - errcheck
-
-    - path: import_.*\.go
-      linters:
-        - errcheck
-
-  # Don't limit issues
   max-issues-per-linter: 0
   max-same-issues: 0
 
-  # Exclude gofmt/goimports for now - can fix with `go fmt ./...` and `goimports -w .`
-  exclude:
-    - "File is not properly formatted"
+  exclusions:
+    rules:
+      # Exclude linters from running on test files
+      - path: _test\.go
+        linters:
+          - errcheck
+
+      # Exclude errcheck for specific files with heavy SDK usage
+      - path: check_config\.go
+        linters:
+          - errcheck
+
+      - path: import_.*\.go
+        linters:
+          - errcheck
+
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

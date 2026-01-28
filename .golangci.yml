@@ -15,7 +15,6 @@ linters:
     - bodyclose
     - noctx
     - unconvert
-    - misspell
 
   exclusions:
     rules:
@@ -43,10 +42,6 @@ linters:
       disable:
         - fieldalignment
         - shadow
-
-    misspell:
-      ignore-words:
-        - syncronous  # Deprecated schema attribute kept for backwards compatibility
 
 issues:
   max-issues-per-linter: 0

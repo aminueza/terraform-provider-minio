@@ -421,9 +421,25 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 		target["bandwidth_limit"] = humanize.Bytes(bwUint64)
 		target["region"] = remoteTarget.Region
+
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
-		log.Printf("[DEBUG] serialise remote target data is %v", target)
+		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%t, disableProxy=%t",
+			pathComponent[len(pathComponent)-1],
+			remoteTarget.Endpoint,
+			remoteTarget.Region,
+			remoteTarget.Secure,
+			strings.Join(pathComponent[:len(pathComponent)-1], "/"),
+			remoteTarget.Path,
+			remoteTarget.ReplicationSync,
+			remoteTarget.DisableProxy,
+		)
+
+		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
+		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omiting the secret_key
+		if len(bucketReplicationConfig.ReplicationRules) > ruleIdx {
+			target["secret_key"] = bucketReplicationConfig.ReplicationRules[ruleIdx].Target.SecretKey
+		}
 
 		rules[ruleIdx]["target"] = []interface{}{target}
 	}
@@ -548,10 +564,15 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 		}
 
 		if existingRemoteTarget == nil {
-			log.Printf("[DEBUG] Adding new remote target %v for %q", *bktTarget, bucketReplicationConfig.MinioBucket)
+			log.Printf("[DEBUG] Adding new remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget))
 			arn, err = admclient.SetRemoteTarget(ctx, bucketReplicationConfig.MinioBucket, bktTarget)
 			if err != nil {
-				log.Printf("[WARN] Unable to configure remote target %v for %q: %v", *bktTarget, bucketReplicationConfig.MinioBucket, err)
+				log.Printf("[WARN] Unable to configure remote target for bucket %q and targetBucket=%q at endpoint=%q: %v",
+					bucketReplicationConfig.MinioBucket,
+					bktTarget.TargetBucket,
+					bktTarget.Endpoint,
+					err,
+				)
 				return
 			}
 		} else {
@@ -581,10 +602,15 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 				existingRemoteTarget.Path = bktTarget.Path
 				remoteTargetUpdate = append(remoteTargetUpdate, madmin.PathUpdateType)
 			}
-			log.Printf("[DEBUG] Editing remote target %v for %q", *bktTarget, bucketReplicationConfig.MinioBucket)
+			log.Printf("[DEBUG] Editing remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget))
 			arn, err = admclient.UpdateRemoteTarget(ctx, existingRemoteTarget, remoteTargetUpdate...)
 			if err != nil {
-				log.Printf("[WARN] Unable to update the remote target %v for %q: %v", *bktTarget, bucketReplicationConfig.MinioBucket, err)
+				log.Printf("[WARN] Unable to update remote target for bucket %q and targetBucket=%q at endpoint=%q: %v",
+					bucketReplicationConfig.MinioBucket,
+					bktTarget.TargetBucket,
+					bktTarget.Endpoint,
+					err,
+				)
 				return
 			}
 		}
@@ -792,4 +818,18 @@ func getBucketReplicationConfig(v []interface{}) (result []S3MinioBucketReplicat
 
 	}
 	return
+}
+
+func formatBucketTargetForLog(t *madmin.BucketTarget) string {
+	return fmt.Sprintf("targetBucket=%q, endpoint=%q, region=%q, secure=%t, path=%q, bandwidthLimit=%d, sync=%t, disableProxy=%t, healthCheckDuration=%s",
+		t.TargetBucket,
+		t.Endpoint,
+		t.Region,
+		t.Secure,
+		t.Path,
+		t.BandwidthLimit,
+		t.ReplicationSync,
+		t.DisableProxy,
+		t.HealthCheckDuration,
+	)
 }

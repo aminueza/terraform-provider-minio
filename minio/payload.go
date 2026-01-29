@@ -107,7 +107,7 @@ type S3MinioBucketReplicationRuleTarget struct {
 	Secure            bool
 	Path              string
 	PathStyle         S3PathSyle
-	Syncronous        bool
+	Synchronous       bool
 	DisableProxy      bool
 	HealthCheckPeriod time.Duration
 	BandwidthLimit    int64

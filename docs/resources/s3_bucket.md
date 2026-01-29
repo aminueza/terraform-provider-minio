@@ -26,6 +26,18 @@ resource "minio_s3_bucket" "temporary_data" {
   force_destroy = true
 }
 
+# Bucket name prefix (create-only)
+resource "minio_s3_bucket" "customer" {
+  bucket_prefix = "customer-"
+  acl           = "private"
+}
+
+# Bucket name prefix for globally-unique buckets while keeping existing buckets via migration
+resource "minio_s3_bucket" "globally_unique_bucket" {
+  bucket_prefix = "globally-unique-bucket-"
+  acl           = "private"
+}
+
 output "minio_id" {
   value = minio_s3_bucket.state_terraform_s3.id
 }
@@ -54,7 +66,7 @@ resource "minio_s3_bucket" "data_lake" {
 
 - `acl` (String) Bucket's Access Control List (default: private)
 - `bucket` (String) Name of the bucket
-- `bucket_prefix` (String) Prefix of the bucket
+- `bucket_prefix` (String) Prefix of the bucket. Only used during bucket creation; ignored for existing resources.
 - `force_destroy` (Boolean) A boolean that indicates all objects (including locked objects) should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable.
 - `object_locking` (Boolean) Enable object locking for the bucket (default: false)
 - `quota` (Number) Quota of the bucket
@@ -65,6 +77,24 @@ resource "minio_s3_bucket" "data_lake" {
 - `arn` (String) ARN of the bucket
 - `bucket_domain_name` (String) The bucket domain name
 - `id` (String) The ID of this resource.
+
+## Notes
+
+- `bucket_prefix` is **create-only**. After a bucket exists in state, changes to `bucket_prefix` are ignored to avoid bucket replacement.
+- During a `bucket` -> `bucket_prefix` migration, `bucket_prefix` may not be persisted in state (it can show up as empty in `terraform state show`) because diffs are suppressed to preserve the existing bucket.
+- A migration from `bucket` to `bucket_prefix` can be done without replacement for an existing bucket when the current bucket name is compatible with the new prefix. For example:
+
+```terraform
+# Existing state
+resource "minio_s3_bucket" "customer" {
+  bucket = var.customer_name
+}
+
+# Migration (keeps existing bucket, new buckets use a generated suffix)
+resource "minio_s3_bucket" "customer" {
+  bucket_prefix = "${var.customer_name}-"
+}
+```
 
 ## Argument Reference
 

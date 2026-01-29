@@ -53,6 +53,38 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 	})
 }
 
+func TestAccMinioS3Bucket_migrateBucketToBucketPrefix_incompatibleForcesReplacement(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-migrate-incompat-%d", acctest.RandInt())
+	prefix := fmt.Sprintf("tf-mig-inc-%s-", acctest.RandString(10))
+	resourceName := "minio_s3_bucket.test"
+
+	var originalBucketName string
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithBucket(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+					testAccCaptureBucketName(resourceName, &originalBucketName),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketConfigWithBucketPrefix(prefix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					testAccCheckBucketNameHasPrefix(resourceName, prefix),
+					testAccCheckBucketNameDiffers(resourceName, &originalBucketName),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_CredentialErrorDoesNotRemoveFromState(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"
@@ -229,6 +261,100 @@ func TestAccMinioS3Bucket_generatedName(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"force_destroy", "bucket_prefix"},
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_migrateBucketToBucketPrefix(t *testing.T) {
+	prefix := fmt.Sprintf("tf-migrate-%d-", acctest.RandInt())
+	bucketName := prefix + "existing"
+	resourceName := "minio_s3_bucket.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithBucket(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketConfigWithBucketPrefix(prefix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy", "bucket_prefix"},
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_migrateBucketToBucketPrefix_fromExactBucketName(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-migrate-base-%d", acctest.RandInt())
+	prefix := bucketName + "-"
+	resourceName := "minio_s3_bucket.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithBucket(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketConfigWithBucketPrefix(prefix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_migrateBucketPrefixToBucket(t *testing.T) {
+	prefix := fmt.Sprintf("tf-migrate-rev-%d-", acctest.RandInt())
+	resourceName := "minio_s3_bucket.test"
+
+	var bucketName string
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithBucketPrefix(prefix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					testAccCaptureBucketName(resourceName, &bucketName),
+				),
+			},
+			{
+				PreConfig: func() {
+				},
+				Config: testAccMinioS3BucketConfigWithBucketDynamic(&bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					testAccCheckBucketNameMatches(resourceName, &bucketName),
+				),
 			},
 		},
 	})
@@ -974,5 +1100,82 @@ func TestIsNoSuchBucketError(t *testing.T) {
 				t.Errorf("isNoSuchBucketError(%v) = %v, want %v", tt.err, result, tt.expected)
 			}
 		})
+	}
+}
+
+func testAccMinioS3BucketConfigWithBucket(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket = "%s"
+  acl    = "private"
+}
+`, bucketName)
+}
+
+func testAccMinioS3BucketConfigWithBucketPrefix(prefix string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket_prefix = "%s"
+  acl           = "private"
+}
+`, prefix)
+}
+
+func testAccMinioS3BucketConfigWithBucketDynamic(bucketName *string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket = "%s"
+  acl    = "private"
+}
+`, *bucketName)
+}
+
+func testAccCaptureBucketName(resourceName string, bucketName *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		*bucketName = rs.Primary.ID
+		return nil
+	}
+}
+
+func testAccCheckBucketNameMatches(resourceName string, expectedName *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if rs.Primary.ID != *expectedName {
+			return fmt.Errorf("bucket name mismatch: got %s, expected %s", rs.Primary.ID, *expectedName)
+		}
+		return nil
+	}
+}
+
+func testAccCheckBucketNameDiffers(resourceName string, unexpectedName *string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if rs.Primary.ID == *unexpectedName {
+			return fmt.Errorf("bucket name unexpectedly unchanged: %s", rs.Primary.ID)
+		}
+		return nil
+	}
+}
+
+func testAccCheckBucketNameHasPrefix(resourceName string, prefix string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("resource not found: %s", resourceName)
+		}
+		if !strings.HasPrefix(rs.Primary.ID, prefix) {
+			return fmt.Errorf("bucket name %s does not have expected prefix %s", rs.Primary.ID, prefix)
+		}
+		return nil
 	}
 }

@@ -79,18 +79,28 @@ services:
     volumes:
       - .:/app
       - go-modules:/go/pkg/mod
+      - terraform-bin:/usr/local/terraform
     working_dir: /app
-    command: bash -c "\
-      apt-get update && \
-      apt-get install -y unzip && \
-      wget -O terraform.zip https://releases.hashicorp.com/terraform/1.6.6/terraform_1.6.6_linux_amd64.zip && \
-      unzip terraform.zip && \
-      mv terraform /usr/local/bin/ && \
-      rm terraform.zip && \
-      go mod download && \
-      go mod verify && \
-      echo 'Running tests...' && \
-      go test -v ./minio ${TEST_PATTERN:+-run $TEST_PATTERN}"
+    command:
+      - bash
+      - -c
+      - |
+        TERRAFORM_VERSION=1.6.6
+        TERRAFORM_BIN=/usr/local/terraform/terraform
+        if [ -f "$$TERRAFORM_BIN" ] && $$TERRAFORM_BIN version | grep -q "$$TERRAFORM_VERSION"; then
+          echo "Using cached Terraform $$TERRAFORM_VERSION"
+        else
+          echo "Downloading Terraform $$TERRAFORM_VERSION..."
+          apt-get update && apt-get install -y unzip
+          wget -q -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/$${TERRAFORM_VERSION}/terraform_$${TERRAFORM_VERSION}_linux_amd64.zip"
+          unzip -o /tmp/terraform.zip -d /usr/local/terraform
+          rm /tmp/terraform.zip
+        fi
+        ln -sf $$TERRAFORM_BIN /usr/local/bin/terraform
+        go mod download
+        go mod verify
+        echo 'Running tests...'
+        go test -v ./minio $${TEST_PATTERN:+-run $$TEST_PATTERN}
     environment:
       TF_ACC: "1"
       TEST_PATTERN: "${TEST_PATTERN:-}"
@@ -125,3 +135,5 @@ services:
 volumes:
   go-modules:
     # Persistent volume for Go modules to speed up subsequent test runs
+  terraform-bin:
+    # Persistent volume for Terraform binary to avoid re-downloading on each test run

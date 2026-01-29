@@ -74,7 +74,7 @@ func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBu
 func BucketReplicationConfig(d *schema.ResourceData, meta interface{}) (*S3MinioBucketReplication, diag.Diagnostics) {
 	m := meta.(*S3MinioClient)
 
-	replicationRules, diags := getBucketReplicationConfig(d.Get("rule").([]interface{}))
+	replicationRules, diags := getBucketReplicationConfig(d.Get("rule").([]interface{}), d)
 	if diags.HasError() {
 		return nil, diags
 	}

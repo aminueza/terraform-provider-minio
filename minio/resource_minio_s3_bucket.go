@@ -66,6 +66,8 @@ func resourceMinioBucket() *schema.Resource {
 
 		SchemaVersion: 0,
 
+		CustomizeDiff: customizeBucketDiff,
+
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:          schema.TypeString,
@@ -78,8 +80,9 @@ func resourceMinioBucket() *schema.Resource {
 			},
 			"bucket_prefix": {
 				Type:          schema.TypeString,
-				Description:   "Prefix of the bucket",
+				Description:   "Prefix of the bucket. Only used during bucket creation; ignored for existing resources.",
 				Optional:      true,
+				Computed:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"bucket"},
 				ValidateFunc:  validation.StringLenBetween(0, 63-id.UniqueIDSuffixLength),
@@ -127,6 +130,46 @@ func resourceMinioBucket() *schema.Resource {
 			},
 		},
 	}
+}
+
+func customizeBucketDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	if d.Id() == "" {
+		return nil
+	}
+
+	oldBucket, newBucket := d.GetChange("bucket")
+	oldPrefix, newPrefix := d.GetChange("bucket_prefix")
+
+	// Case 1: Switching from bucket to bucket_prefix
+	if oldBucket.(string) != "" && newPrefix.(string) != "" && oldPrefix.(string) == "" {
+		existingBucket := oldBucket.(string)
+		prefix := newPrefix.(string)
+
+		compatible := strings.HasPrefix(existingBucket, prefix) || prefix == existingBucket || prefix == existingBucket+"-"
+		if compatible {
+			log.Printf("[DEBUG] Bucket [%s] is compatible with prefix [%s], suppressing ForceNew", existingBucket, prefix)
+			if err := d.SetNew("bucket", existingBucket); err != nil {
+				return err
+			}
+			if err := d.SetNew("bucket_prefix", oldPrefix.(string)); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	// Case 2: Switching from bucket_prefix to bucket (or changing bucket)
+	if newBucket.(string) != "" && newBucket.(string) == d.Id() {
+		if oldPrefix.(string) != "" && newPrefix.(string) == "" {
+			log.Printf("[DEBUG] New bucket [%s] matches existing ID, suppressing ForceNew", newBucket.(string))
+			if err := d.SetNew("bucket_prefix", oldPrefix.(string)); err != nil {
+				return err
+			}
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

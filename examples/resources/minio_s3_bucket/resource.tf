@@ -12,6 +12,18 @@ resource "minio_s3_bucket" "temporary_data" {
   force_destroy = true
 }
 
+# Bucket name prefix (create-only)
+resource "minio_s3_bucket" "customer" {
+  bucket_prefix = "customer-"
+  acl           = "private"
+}
+
+# Bucket name prefix for globally-unique buckets while keeping existing buckets via migration
+resource "minio_s3_bucket" "globally_unique_bucket" {
+  bucket_prefix = "globally-unique-bucket-"
+  acl           = "private"
+}
+
 output "minio_id" {
   value = minio_s3_bucket.state_terraform_s3.id
 }

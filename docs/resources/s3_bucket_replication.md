@@ -245,13 +245,14 @@ Optional:
 - `bandwidth_limit` (String) Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB
 - `disable_proxy` (Boolean) Disable proxy for this target
 - `health_check_period` (String) Period where the health of this target will be checked. This must be a valid duration, such as `5s` or `2m`
-- `path` (String) Path of the Minio endpoint. This is usefull if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`
-- `path_style` (String) Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommened)`
+- `path` (String) Path of the Minio endpoint. This is useful if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`
+- `path_style` (String) Whether to use path-style or virtual-hosted-syle request to this target (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access). `auto` allows MinIO to chose automatically the appropriate option (Recommended)`
 - `region` (String) Region of the target MinIO. This will be used to generate the target ARN
 - `secret_key` (String, Sensitive) Secret key for the replication service account in the target MinIO. This is optional so it can be imported but prevent secret update
 - `secure` (Boolean) Whether to use HTTPS with this target (Recommended). Note that disabling HTTPS will yield Terraform warning for security reason`
 - `storage_class` (String) The storage class to use for the object on this target
-- `syncronous` (Boolean) Use synchronous replication.
+- `synchronous` (Boolean) Use synchronous replication.
+- `syncronous` (Boolean, Deprecated) Use synchronous replication.
 
 ## Import
 

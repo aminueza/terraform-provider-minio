@@ -9,32 +9,26 @@ description: |-
 
 {{ .Description | trimspace }}
 
-This resource provides a cleaner, more structured interface for managing object lock configuration compared to the legacy `minio_s3_bucket_retention` resource. It uses a nested schema that better represents the API structure.
+Cleaner alternative to `minio_s3_bucket_retention` with a nested schema structure that matches the API better.
 
-## Key Differences from minio_s3_bucket_retention
+## Differences from minio_s3_bucket_retention
 
-- **Better naming**: Clearly indicates this is about object lock configuration
-- **Nested structure**: Uses `rule { default_retention { } }` for better organization
-- **Explicit enabled status**: Includes `object_lock_enabled` attribute
-- **Flexible time units**: Choose between `days` or `years` within the retention block
+- More intuitive naming
+- Nested `rule { default_retention { } }` blocks instead of flat structure
+- Explicit `object_lock_enabled` field
+- Choose `days` or `years` in the same block
 
 ## Retention Modes
 
-### GOVERNANCE Mode
-- Prevents object modification by non-privileged users
-- Users with `s3:BypassGovernanceRetention` permission can override
-- Suitable for internal policies and backup retention
-- Can be bypassed if business needs change
+### GOVERNANCE
+Users with `s3:BypassGovernanceRetention` can override the lock. Good for backups and internal policies where you might need escape hatches.
 
-### COMPLIANCE Mode
-- **Strictest protection** - cannot be overridden by anyone, including root user
-- Objects cannot be deleted or modified until retention expires
-- Required for regulatory compliance (SEC, FINRA, CFTC)
-- Use for legal holds, audit trails, and immutable archives
+### COMPLIANCE
+Strict mode - nobody can override, not even root. Can't delete or modify objects until retention expires. Use for regulatory requirements (SEC, FINRA, CFTC) and legal holds.
 
 ## Prerequisites
 
-**Critical**: Object locking must be enabled when creating the bucket. You cannot enable it on existing buckets unless using MinIO RELEASE.2025-05-20T20-30-00Z or later.
+Object locking must be enabled at bucket creation. Can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
 
 ```hcl
 resource "minio_s3_bucket" "example" {
@@ -47,25 +41,15 @@ resource "minio_s3_bucket" "example" {
 
 {{ tffile "examples/resources/minio_s3_bucket_object_lock_configuration/resource.tf" }}
 
-## Use Cases
+## Common Uses
 
-- **Financial Services**: SEC17a-4(f) compliance for broker-dealer records (7 years)
-- **Healthcare**: HIPAA medical records retention requirements
-- **Legal**: E-discovery and litigation hold management
-- **Backup Protection**: Ransomware-proof immutable backups
-- **Audit Logs**: Tamper-proof log retention for security compliance
-- **Data Governance**: Enforce retention policies across departments
+- Ransomware-proof backups (immutable)
+- Financial records (SEC17a-4(f), FINRA 4511(c), CFTC 1.31)
+- HIPAA medical records
+- Audit logs and security compliance
+- Legal holds for e-discovery
 
-## Compliance Standards
-
-This resource helps meet requirements from:
-- **SEC 17a-4(f)**: Securities and Exchange Commission record retention
-- **FINRA 4511(c)**: Financial Industry Regulatory Authority books and records
-- **CFTC 1.31**: Commodity Futures Trading Commission recordkeeping
-
-## Migration from minio_s3_bucket_retention
-
-If you're currently using `minio_s3_bucket_retention`, you can migrate to this resource:
+## Migrating from minio_s3_bucket_retention
 
 ```hcl
 # Old (flat structure)
@@ -91,10 +75,10 @@ resource "minio_s3_bucket_object_lock_configuration" "new" {
 
 {{ .SchemaMarkdown | trimspace }}
 
-## Important Notes
+## Notes
 
-- **Versioning required**: Object locking automatically enables versioning
-- **Cannot disable**: Once enabled, object locking cannot be turned off
-- **Applies to new objects**: Default retention applies to all new objects automatically
-- **Individual overrides**: Per-object retention can override bucket defaults
-- **Delete markers**: Delete markers are created instead of actual deletion during retention
+- Versioning is required (gets enabled automatically with object locking)
+- Object locking can't be disabled once enabled
+- Default retention applies to all new objects
+- Per-object retention can override bucket defaults
+- Deletes create markers instead of actually removing data during retention

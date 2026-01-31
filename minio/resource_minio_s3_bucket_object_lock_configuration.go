@@ -20,13 +20,11 @@ func resourceMinioS3BucketObjectLockConfiguration() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		Description: `Manages object lock configuration for a MinIO S3 bucket. Object locking enforces Write-Once Read-Many (WORM) immutability to protect versioned objects from deletion or modification.
+		Description: `Configures object lock (WORM) retention policies at the bucket level. Sets default retention that applies to all new objects automatically.
 
-This resource configures default retention settings that apply automatically to all new objects in the bucket without requiring per-object configuration.
+Object locking must be enabled when creating the bucket - can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
 
-Note: Object locking must be enabled at bucket creation. You cannot enable object locking on an existing bucket unless using MinIO RELEASE.2025-05-20T20-30-00Z or later.
-
-Compliance standards: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
+Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 
 		Schema: map[string]*schema.Schema{
 			"bucket": {
@@ -34,50 +32,48 @@ Compliance standards: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(1, 63),
-				Description:  "Name of the bucket to configure object locking. The bucket must have object locking enabled.",
+				Description:  "Bucket name. Must have object locking enabled at creation time.",
 			},
 			"object_lock_enabled": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "Enabled",
 				ValidateFunc: validation.StringInSlice([]string{"Enabled"}, false),
-				Description:  "Indicates whether this bucket has an Object Lock configuration enabled. Valid value: Enabled. Defaults to Enabled.",
+				Description:  "Object lock status. Only valid value is 'Enabled'.",
 			},
 			"rule": {
 				Type:        schema.TypeList,
 				Optional:    true,
 				MaxItems:    1,
-				Description: "Object Lock rule configuration for default retention",
+				Description: "Retention rule configuration",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"default_retention": {
 							Type:        schema.TypeList,
 							Required:    true,
 							MaxItems:    1,
-							Description: "Default retention period for objects in this bucket",
+							Description: "Default retention applied to all new objects",
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"mode": {
 										Type:         schema.TypeString,
 										Required:     true,
 										ValidateFunc: validation.StringInSlice([]string{"GOVERNANCE", "COMPLIANCE"}, false),
-										Description: `Retention mode. Valid values:
-- GOVERNANCE: Prevents object modification by non-privileged users. Users with s3:BypassGovernanceRetention permission can modify objects.
-- COMPLIANCE: Prevents any object modification by all users, including the root user, until retention period expires.`,
+										Description:  "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides)",
 									},
 									"days": {
 										Type:          schema.TypeInt,
 										Optional:      true,
 										ValidateFunc:  validation.IntAtLeast(1),
 										ConflictsWith: []string{"rule.0.default_retention.0.years"},
-										Description:   "Number of days for which objects should be retained. Conflicts with years.",
+										Description:   "Retention period in days. Mutually exclusive with years.",
 									},
 									"years": {
 										Type:          schema.TypeInt,
 										Optional:      true,
 										ValidateFunc:  validation.IntAtLeast(1),
 										ConflictsWith: []string{"rule.0.default_retention.0.days"},
-										Description:   "Number of years for which objects should be retained. Conflicts with days.",
+										Description:   "Retention period in years. Mutually exclusive with days.",
 									},
 								},
 							},
@@ -198,10 +194,7 @@ func minioDeleteObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	return nil
 }
 
-// Helper functions
-
 func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, bucket string) error {
-	// Check if bucket exists
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("error checking bucket existence: %w", err)
@@ -210,27 +203,26 @@ func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, 
 		return fmt.Errorf("bucket %s does not exist", bucket)
 	}
 
-	// Check if versioning is enabled (required for object locking)
+	// Object locking requires versioning
 	versioning, err := client.GetBucketVersioning(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("error checking bucket versioning: %w", err)
 	}
 
 	if !versioning.Enabled() {
-		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning to be enabled", bucket)
+		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
 	}
 
-	// Check if object lock is enabled
 	objectLockStatus, _, _, _, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
-			return fmt.Errorf("bucket %s does not have object lock enabled. Object lock must be enabled when creating the bucket", bucket)
+			return fmt.Errorf("bucket %s doesn't have object lock enabled (must be set at bucket creation)", bucket)
 		}
 		return fmt.Errorf("error checking object lock configuration: %w", err)
 	}
 
 	if objectLockStatus != "Enabled" {
-		return fmt.Errorf("bucket %s does not have object lock enabled. Object lock must be enabled when creating the bucket", bucket)
+		return fmt.Errorf("bucket %s doesn't have object lock enabled", bucket)
 	}
 
 	return nil

@@ -89,9 +89,18 @@ func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 		usersToAdd := getStringList(ns.Difference(os).List())
 
 		if len(usersToAdd) > 0 {
-			_ = userToADD(ctx, iamGroupMembershipConfig, usersToAdd)
-		} else {
-			_ = userToRemove(ctx, iamGroupMembershipConfig, usersToRemove)
+			if err := userToADD(ctx, iamGroupMembershipConfig, usersToAdd); err != nil {
+				return NewResourceError("adding users to group", iamGroupMembershipConfig.MinioIAMGroup, err)
+			}
+		}
+		if len(usersToRemove) > 0 {
+			if err := userToRemove(ctx, iamGroupMembershipConfig, usersToRemove); err != nil {
+				// Ignore "user does not exist" errors - the user may have been deleted
+				// before the membership update, which effectively removes them from the group
+				if !strings.Contains(err.Error(), "does not exist") {
+					return NewResourceError("removing users from group", iamGroupMembershipConfig.MinioIAMGroup, err)
+				}
+			}
 		}
 
 	}

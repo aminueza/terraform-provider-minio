@@ -88,14 +88,12 @@ Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 
-	// Validate bucket object lock prerequisites
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
 	}
 
-	// Apply object lock configuration
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("applying object lock configuration", objectLockConfig.MinioBucket, err)
 	}
 
 	d.SetId(objectLockConfig.MinioBucket)
@@ -106,33 +104,30 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Id()
 
-	// Check if bucket exists
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
+		return NewResourceError("checking bucket existence", bucket, err)
 	}
 	if !exists {
 		d.SetId("")
 		return nil
 	}
 
-	// Get object lock configuration
 	objectLockStatus, mode, validity, unit, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("error reading object lock configuration: %w", err))
+		return NewResourceError("reading object lock configuration", bucket, err)
 	}
 
-	// Set simple attributes
 	if err := d.Set("bucket", bucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket", bucket, err)
 	}
 
 	if err := d.Set("object_lock_enabled", objectLockStatus); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting object_lock_enabled", bucket, err)
 	}
 
 	// Build rule structure if we have retention configuration
@@ -156,7 +151,7 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 		}
 
 		if err := d.Set("rule", rule); err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("setting rule", bucket, err)
 		}
 	}
 
@@ -167,14 +162,12 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 	objectLockConfig.MinioBucket = d.Id()
 
-	// Validate bucket object lock prerequisites
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
 	}
 
-	// Apply updated configuration
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("updating object lock configuration", objectLockConfig.MinioBucket, err)
 	}
 
 	return minioReadObjectLockConfiguration(ctx, d, meta)
@@ -184,10 +177,9 @@ func minioDeleteObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 	objectLockConfig.MinioBucket = d.Id()
 
-	// Clear object lock configuration by setting all parameters to nil
 	err := objectLockConfig.MinioClient.SetBucketObjectLockConfig(ctx, objectLockConfig.MinioBucket, nil, nil, nil)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error clearing object lock configuration: %w", err))
+		return NewResourceError("clearing object lock configuration", objectLockConfig.MinioBucket, err)
 	}
 
 	d.SetId("")

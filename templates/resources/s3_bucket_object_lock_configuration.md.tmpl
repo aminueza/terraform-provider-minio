@@ -1,0 +1,100 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}: {{.Name}}
+
+{{ .Description | trimspace }}
+
+This resource provides a cleaner, more structured interface for managing object lock configuration compared to the legacy `minio_s3_bucket_retention` resource. It uses a nested schema that better represents the API structure.
+
+## Key Differences from minio_s3_bucket_retention
+
+- **Better naming**: Clearly indicates this is about object lock configuration
+- **Nested structure**: Uses `rule { default_retention { } }` for better organization
+- **Explicit enabled status**: Includes `object_lock_enabled` attribute
+- **Flexible time units**: Choose between `days` or `years` within the retention block
+
+## Retention Modes
+
+### GOVERNANCE Mode
+- Prevents object modification by non-privileged users
+- Users with `s3:BypassGovernanceRetention` permission can override
+- Suitable for internal policies and backup retention
+- Can be bypassed if business needs change
+
+### COMPLIANCE Mode
+- **Strictest protection** - cannot be overridden by anyone, including root user
+- Objects cannot be deleted or modified until retention expires
+- Required for regulatory compliance (SEC, FINRA, CFTC)
+- Use for legal holds, audit trails, and immutable archives
+
+## Prerequisites
+
+**Critical**: Object locking must be enabled when creating the bucket. You cannot enable it on existing buckets unless using MinIO RELEASE.2025-05-20T20-30-00Z or later.
+
+```hcl
+resource "minio_s3_bucket" "example" {
+  bucket         = "my-bucket"
+  object_locking = true  # Must be true
+}
+```
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_bucket_object_lock_configuration/resource.tf" }}
+
+## Use Cases
+
+- **Financial Services**: SEC17a-4(f) compliance for broker-dealer records (7 years)
+- **Healthcare**: HIPAA medical records retention requirements
+- **Legal**: E-discovery and litigation hold management
+- **Backup Protection**: Ransomware-proof immutable backups
+- **Audit Logs**: Tamper-proof log retention for security compliance
+- **Data Governance**: Enforce retention policies across departments
+
+## Compliance Standards
+
+This resource helps meet requirements from:
+- **SEC 17a-4(f)**: Securities and Exchange Commission record retention
+- **FINRA 4511(c)**: Financial Industry Regulatory Authority books and records
+- **CFTC 1.31**: Commodity Futures Trading Commission recordkeeping
+
+## Migration from minio_s3_bucket_retention
+
+If you're currently using `minio_s3_bucket_retention`, you can migrate to this resource:
+
+```hcl
+# Old (flat structure)
+resource "minio_s3_bucket_retention" "old" {
+  bucket          = "my-bucket"
+  mode            = "GOVERNANCE"
+  unit            = "DAYS"
+  validity_period = 30
+}
+
+# New (nested structure)
+resource "minio_s3_bucket_object_lock_configuration" "new" {
+  bucket = "my-bucket"
+
+  rule {
+    default_retention {
+      mode = "GOVERNANCE"
+      days = 30
+    }
+  }
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Important Notes
+
+- **Versioning required**: Object locking automatically enables versioning
+- **Cannot disable**: Once enabled, object locking cannot be turned off
+- **Applies to new objects**: Default retention applies to all new objects automatically
+- **Individual overrides**: Per-object retention can override bucket defaults
+- **Delete markers**: Delete markers are created instead of actual deletion during retention

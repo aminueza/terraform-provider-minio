@@ -114,6 +114,17 @@ func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) 
 	}
 }
 
+// BucketObjectLockConfigurationConfig extracts object lock config from resource data.
+func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketObjectLockConfiguration {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBucketObjectLockConfiguration{
+		MinioClient:       m.S3Client,
+		MinioBucket:       getOptionalField(d, "bucket", "").(string),
+		ObjectLockEnabled: getOptionalField(d, "object_lock_enabled", "Enabled").(string),
+	}
+}
+
 // NewConfig creates a new MinIO client configuration.
 // It handles authentication and connection settings.
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {

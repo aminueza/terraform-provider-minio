@@ -1,5 +1,6 @@
 # Define MinIO image version to use across all services
-x-minio-image: &minio_image minio/minio:RELEASE.2025-04-22T22-12-26Z
+# Using version that supports adding object lock after bucket creation
+x-minio-image: &minio_image minio/minio:RELEASE.2025-09-07T16-13-09Z
 
 services:
   minio:

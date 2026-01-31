@@ -145,6 +145,16 @@ type S3MinioBucketServerSideEncryption struct {
 	Configuration *sse.Configuration
 }
 
+// S3MinioBucketObjectLockConfiguration defines bucket object lock configuration
+type S3MinioBucketObjectLockConfiguration struct {
+	MinioClient       *minio.Client
+	MinioBucket       string
+	ObjectLockEnabled string
+	Mode              *minio.RetentionMode
+	Validity          *uint
+	Unit              *minio.ValidityUnit
+}
+
 // S3MinioServiceAccountConfig defines service account config
 type S3MinioServiceAccountConfig struct {
 	MinioAdmin        *madmin.AdminClient

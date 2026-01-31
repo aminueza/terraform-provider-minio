@@ -145,6 +145,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_user":            dataSourceIAMUser(),
 			"minio_iam_users":           dataSourceIAMUsers(),
 			"minio_server_info":         dataSourceMinioServerInfo(),
+			"minio_health_status":       dataSourceMinioHealthStatus(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{

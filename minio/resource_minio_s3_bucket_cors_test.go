@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -10,12 +11,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func testAccPreCheckCORS(t *testing.T) {
+	if os.Getenv("MINIO_CORS_ENABLED") == "" {
+		t.Skip("Skipping CORS tests: MINIO_CORS_ENABLED not set. Bucket CORS requires MinIO Enterprise/AIStor subscription.")
+	}
+}
+
 func TestAccS3BucketCors_basic(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_s3_bucket_cors.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
@@ -47,7 +54,7 @@ func TestAccS3BucketCors_multipleRules(t *testing.T) {
 	resourceName := "minio_s3_bucket_cors.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
@@ -78,7 +85,7 @@ func TestAccS3BucketCors_update(t *testing.T) {
 	resourceName := "minio_s3_bucket_cors.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
@@ -114,7 +121,7 @@ func TestAccS3BucketCors_allHeaders(t *testing.T) {
 	resourceName := "minio_s3_bucket_cors.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
@@ -138,7 +145,7 @@ func TestAccS3BucketCors_import(t *testing.T) {
 	resourceName := "minio_s3_bucket_cors.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{

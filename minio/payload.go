@@ -145,6 +145,12 @@ type S3MinioBucketServerSideEncryption struct {
 	Configuration *sse.Configuration
 }
 
+// S3MinioBucketCors defines bucket CORS configuration
+type S3MinioBucketCors struct {
+	MinioClient *minio.Client
+	MinioBucket string
+}
+
 // S3MinioBucketObjectLockConfiguration defines bucket object lock configuration
 type S3MinioBucketObjectLockConfiguration struct {
 	MinioClient       *minio.Client

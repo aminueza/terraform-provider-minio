@@ -1,0 +1,34 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_bucket_cors/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# S3 bucket CORS configuration can be imported using the bucket name
+terraform import minio_s3_bucket_cors.example bucket-name
+```
+
+## Notes
+
+- CORS configuration is bucket-level and requires MinIO AIStor/Enterprise edition or MinIO Community Edition with appropriate configuration
+- Multiple CORS rules can be defined for fine-grained access control
+- The `allowed_origins` field supports wildcard (`*`) for allowing all origins
+- The `allowed_headers` field supports wildcard (`*`) for allowing all headers
+- The `max_age_seconds` field specifies how long browsers can cache preflight responses
+- Changes to CORS configuration may take a few seconds to propagate

@@ -100,6 +100,15 @@ func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3Minio
 	}
 }
 
+func BucketCorsConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketCors {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBucketCors{
+		MinioClient: m.S3Client,
+		MinioBucket: getOptionalField(d, "bucket", "").(string),
+	}
+}
+
 // BucketServerSideEncryptionConfig creates configuration for managing MinIO bucket server-side encryption.
 // It handles encryption settings for bucket objects.
 func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketServerSideEncryption {

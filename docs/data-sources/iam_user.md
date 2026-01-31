@@ -19,19 +19,16 @@ data "minio_iam_user" "example" {
 }
 
 output "user_status" {
-  description = "Status of the IAM user"
-  value       = data.minio_iam_user.example.status
+  value = data.minio_iam_user.example.status
 }
 
 output "user_details" {
-  description = "Complete user information"
   value = {
     name   = data.minio_iam_user.example.id
     status = data.minio_iam_user.example.status
   }
 }
 
-# Example: Use existing user to create conditional resources
 resource "minio_iam_user_policy_attachment" "conditional" {
   count = data.minio_iam_user.example.status == "enabled" ? 1 : 0
 

@@ -84,10 +84,10 @@ A value of `true` (HTTP 200) means the cluster has sufficient nodes online to ma
 
 ### Read-Only
 
-- `healthy` (Boolean) Overall health status (true if all checks pass)
-- `id` (String) Timestamp-based identifier for this health check
-- `live` (Boolean) Server liveness status (/minio/health/live)
-- `read_quorum` (Boolean) Read quorum health status (/minio/health/cluster/read)
-- `ready` (Boolean) Server readiness status (/minio/health/ready)
-- `safe_for_maintenance` (Boolean) Whether it's safe to perform maintenance without losing quorum (/minio/health/cluster?maintenance=true)
-- `write_quorum` (Boolean) Write quorum health status (/minio/health/cluster)
+- `healthy` (Boolean) Overall health (true if all checks pass)
+- `id` (String) Timestamp ID for this health check
+- `live` (Boolean) Liveness probe (/minio/health/live)
+- `read_quorum` (Boolean) Read quorum status (/minio/health/cluster/read)
+- `ready` (Boolean) Readiness probe (/minio/health/ready)
+- `safe_for_maintenance` (Boolean) Safe to perform maintenance without losing quorum
+- `write_quorum` (Boolean) Write quorum status (/minio/health/cluster)

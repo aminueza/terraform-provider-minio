@@ -19,37 +19,30 @@ data "minio_iam_users" "all_enabled" {
 }
 
 output "enabled_user_count" {
-  description = "Number of enabled users"
-  value       = length(data.minio_iam_users.all_enabled.users)
+  value = length(data.minio_iam_users.all_enabled.users)
 }
 
 output "enabled_user_names" {
-  description = "List of enabled user names"
-  value       = [for user in data.minio_iam_users.all_enabled.users : user.name]
+  value = [for user in data.minio_iam_users.all_enabled.users : user.name]
 }
 
-# Example: Filter users by prefix
 data "minio_iam_users" "service_accounts" {
   name_prefix = "svc-"
   status      = "enabled"
 }
 
 output "service_account_users" {
-  description = "Service account users"
-  value       = data.minio_iam_users.service_accounts.users
+  value = data.minio_iam_users.service_accounts.users
 }
 
-# Example: List all users (enabled and disabled)
 data "minio_iam_users" "all" {
   status = "all"
 }
 
 output "total_users" {
-  description = "Total number of users in the system"
-  value       = length(data.minio_iam_users.all.users)
+  value = length(data.minio_iam_users.all.users)
 }
 
-# Example: Create policy attachments for all enabled users
 resource "minio_iam_user_policy_attachment" "readonly_for_all" {
   for_each = {
     for user in data.minio_iam_users.all_enabled.users :

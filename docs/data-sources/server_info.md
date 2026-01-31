@@ -16,41 +16,29 @@ This data source reads information about the MinIO server including version, dep
 ```terraform
 data "minio_server_info" "current" {}
 
-# Output basic server information
 output "minio_version" {
-  description = "MinIO server version"
-  value       = data.minio_server_info.current.version
+  value = data.minio_server_info.current.version
 }
 
 output "minio_region" {
-  description = "MinIO server region"
-  value       = data.minio_server_info.current.region
+  value = data.minio_server_info.current.region
 }
 
 output "deployment_id" {
-  description = "MinIO deployment ID"
-  value       = data.minio_server_info.current.deployment_id
+  value = data.minio_server_info.current.deployment_id
 }
 
-# Output storage metrics calculated from drives
 output "storage_summary" {
-  description = "Summary of storage capacity across all servers"
   value = {
     total_servers = length(data.minio_server_info.current.servers)
-    # Note: To calculate total/used space, you would need to sum across all drives
-    # This is a simplified example showing structure access
   }
 }
 
-# Output detailed server information
 output "servers" {
-  description = "Detailed information about each server"
-  value       = data.minio_server_info.current.servers
+  value = data.minio_server_info.current.servers
 }
 
-# Example: Check if deployment is healthy
 output "all_servers_online" {
-  description = "Check if all servers are in 'online' state"
   value = alltrue([
     for server in data.minio_server_info.current.servers :
     server.state == "online"

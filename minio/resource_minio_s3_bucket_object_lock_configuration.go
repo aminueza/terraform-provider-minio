@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -142,12 +143,19 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 			"mode": mode.String(),
 		}
 
+		// Safe uint to int conversion
+		validityInt := int(*validity)
+		if *validity > uint(math.MaxInt) {
+			// If validity exceeds MaxInt, cap at MaxInt
+			validityInt = math.MaxInt
+		}
+
 		// Set either days or years based on the unit
 		switch *unit {
 		case minio.Days:
-			defaultRetention["days"] = int(*validity)
+			defaultRetention["days"] = validityInt
 		case minio.Years:
-			defaultRetention["years"] = int(*validity)
+			defaultRetention["years"] = validityInt
 		}
 
 		rule := []interface{}{

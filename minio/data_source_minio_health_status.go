@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -19,115 +20,108 @@ func dataSourceMinioHealthStatus() *schema.Resource {
 			"id": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "Timestamp-based identifier for this health check",
+				Description: "Timestamp ID for this health check",
 			},
 			"live": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Server liveness status (/minio/health/live)",
+				Description: "Liveness probe (/minio/health/live)",
 			},
 			"ready": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Server readiness status (/minio/health/ready)",
+				Description: "Readiness probe (/minio/health/ready)",
 			},
 			"write_quorum": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Write quorum health status (/minio/health/cluster)",
+				Description: "Write quorum status (/minio/health/cluster)",
 			},
 			"read_quorum": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Read quorum health status (/minio/health/cluster/read)",
+				Description: "Read quorum status (/minio/health/cluster/read)",
 			},
 			"safe_for_maintenance": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Whether it's safe to perform maintenance without losing quorum (/minio/health/cluster?maintenance=true)",
+				Description: "Safe to perform maintenance without losing quorum",
 			},
 			"healthy": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Overall health status (true if all checks pass)",
+				Description: "Overall health (true if all checks pass)",
 			},
 		},
 	}
 }
 
 func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	// Get provider configuration
 	m := meta.(*S3MinioClient)
-
-	// Get endpoint URL from the S3 client
 	endpointURL := m.S3Client.EndpointURL()
 	baseURL := fmt.Sprintf("%s://%s", endpointURL.Scheme, endpointURL.Host)
 
-	// Create HTTP client with timeout
-	// Health endpoints are unauthenticated, so we use a simple client
+	log.Printf("[DEBUG] Checking MinIO health at %s", baseURL)
+
 	client := &http.Client{
 		Timeout: 10 * time.Second,
 	}
 
-	// Check each health endpoint
 	live, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/live")
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to check liveness endpoint: %w", err))
+		return NewResourceError("checking liveness", baseURL, err)
 	}
 
 	ready, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/ready")
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to check readiness endpoint: %w", err))
+		return NewResourceError("checking readiness", baseURL, err)
 	}
 
 	writeQuorum, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/cluster")
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to check write quorum endpoint: %w", err))
+		return NewResourceError("checking write quorum", baseURL, err)
 	}
 
 	readQuorum, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/cluster/read")
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to check read quorum endpoint: %w", err))
+		return NewResourceError("checking read quorum", baseURL, err)
 	}
 
-	// For safe_for_maintenance: 200 = safe to perform maintenance, 412 = not safe (would lose quorum)
 	safeForMaintenance, err := checkMaintenanceEndpoint(ctx, client, baseURL, "/minio/health/cluster?maintenance=true")
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to check maintenance safety endpoint: %w", err))
+		return NewResourceError("checking maintenance safety", baseURL, err)
 	}
 
-	// Overall health is true only if all checks pass
-	// Note: safe_for_maintenance doesn't affect overall health - it's informational
 	healthy := live && ready && writeQuorum && readQuorum
 
-	// Set resource attributes
+	log.Printf("[DEBUG] Health status - live: %v, ready: %v, write_quorum: %v, read_quorum: %v, safe_for_maintenance: %v, healthy: %v",
+		live, ready, writeQuorum, readQuorum, safeForMaintenance, healthy)
+
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 
 	if err := d.Set("live", live); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting live", baseURL, err)
 	}
 	if err := d.Set("ready", ready); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting ready", baseURL, err)
 	}
 	if err := d.Set("write_quorum", writeQuorum); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting write_quorum", baseURL, err)
 	}
 	if err := d.Set("read_quorum", readQuorum); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting read_quorum", baseURL, err)
 	}
 	if err := d.Set("safe_for_maintenance", safeForMaintenance); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting safe_for_maintenance", baseURL, err)
 	}
 	if err := d.Set("healthy", healthy); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting healthy", baseURL, err)
 	}
 
-	return diags
+	return nil
 }
 
-// checkHealthEndpoint makes a GET request to a health endpoint and returns true if healthy (200), false if unhealthy (503)
+// Checks health endpoint. Returns true for 200, false for 503.
 func checkHealthEndpoint(ctx context.Context, client *http.Client, baseURL, path string) (bool, error) {
 	url := baseURL + path
 
@@ -152,8 +146,7 @@ func checkHealthEndpoint(ctx context.Context, client *http.Client, baseURL, path
 	}
 }
 
-// checkMaintenanceEndpoint checks if it's safe to perform maintenance on the cluster
-// Returns true if safe to perform maintenance (200), false if not safe/would lose quorum (412)
+// Checks maintenance endpoint. Returns true for 200 (safe), false for 412 (would lose quorum).
 func checkMaintenanceEndpoint(ctx context.Context, client *http.Client, baseURL, path string) (bool, error) {
 	url := baseURL + path
 
@@ -170,10 +163,8 @@ func checkMaintenanceEndpoint(ctx context.Context, client *http.Client, baseURL,
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		// 200 means it's safe to perform maintenance (sufficient nodes online)
 		return true, nil
 	case http.StatusPreconditionFailed:
-		// 412 means not safe to perform maintenance (would lose quorum)
 		return false, nil
 	default:
 		return false, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, url)

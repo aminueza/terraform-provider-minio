@@ -92,7 +92,7 @@ func doMinioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	}
 
 	if err := d.Set("policy_name", policyName); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting policy_name", d.Id(), err)
 	}
 
 	return nil
@@ -154,16 +154,16 @@ func minioReadUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, 
 
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
 	if errUser != nil {
-		errUserResponse, errUserIsResponse := errUser.(madmin.ErrorResponse)
+		var errUserResponse madmin.ErrorResponse
+		errUserIsResponse := errors.As(errUser, &errUserResponse)
 
 		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
 
-		if strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+		if errUserIsResponse && strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
 			return nil, nil
-		} else {
-			if !isLDAPUser || !errUserIsResponse {
-				return nil, NewResourceError("failed to load user Infos", userName, errUser)
-			}
+		}
+		if !isLDAPUser || !errUserIsResponse {
+			return nil, NewResourceError("failed to load user Infos", userName, errUser)
 		}
 	}
 	if userInfo.PolicyName == "" {

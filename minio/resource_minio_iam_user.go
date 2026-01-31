@@ -217,7 +217,10 @@ func deleteMinioIamUser(ctx context.Context, iamUserConfig *S3MinioIAMUserConfig
 
 func deleteMinioIamUserGroupMemberships(ctx context.Context, iamUserConfig *S3MinioIAMUserConfig) error {
 
-	userInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
+	userInfo, err := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
+	if err != nil {
+		return err
+	}
 
 	groupsMemberOf := userInfo.MemberOf
 

@@ -28,4 +28,4 @@ jobs:
       - name: Markdown Link Validation
         uses: tcort/github-action-markdown-link-check@v1
         with:
-          config-file: "./.github/workflows/github-action-markdown-link-check-config.json"
+          config-file: "./.github/github-action-markdown-link-check-config.json"

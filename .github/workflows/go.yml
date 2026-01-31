@@ -32,6 +32,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
+          args: --config .github/golangci.yml
 
       - name: Run Gosec Security Scanner
         uses: securego/gosec@v2.22.11

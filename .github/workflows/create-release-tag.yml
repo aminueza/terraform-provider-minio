@@ -25,6 +25,8 @@ jobs:
   create-tag:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.version.outputs.new }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -37,16 +39,16 @@ jobs:
           # Get latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $LATEST_TAG"
-          
+
           # Remove 'v' prefix for calculation
           LATEST_VERSION=${LATEST_TAG#v}
-          
+
           # Split into major.minor.patch
           IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
-          
+
           # Use manual version if provided, otherwise calculate
           MANUAL_VERSION="${{ github.event.inputs.version }}"
-          
+
           if [[ -n "$MANUAL_VERSION" ]]; then
             # Validate manual version format
             if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -71,7 +73,7 @@ jobs:
             esac
             echo "Calculated $RELEASE_TYPE version: $NEW_VERSION"
           fi
-          
+
           echo "latest=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "new=v$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "VERSION=v$NEW_VERSION" >> $GITHUB_ENV
@@ -101,4 +103,11 @@ jobs:
           echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Release Type** | \`${{ github.event.inputs.release_type }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The [Release workflow](../actions/workflows/release.yml) will now build and publish the provider with auto-generated release notes." >> $GITHUB_STEP_SUMMARY
+          echo "The [Release workflow](../actions/workflows/release.yml) has been triggered and will build and publish the provider with auto-generated release notes." >> $GITHUB_STEP_SUMMARY
+
+  release:
+    needs: create-tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.create-tag.outputs.tag }}
+    secrets: inherit

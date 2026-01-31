@@ -10,6 +10,12 @@
 name: Release
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Tag to release (e.g., v3.15.0)"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
@@ -21,11 +27,14 @@ jobs:
   goreleaser:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -44,10 +53,11 @@ jobs:
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: release --clean
+          args: release --clean --config .github/goreleaser.yml
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_TAG: ${{ env.RELEASE_TAG }}
 
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
@@ -60,3 +70,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: sbom.spdx.json
+          tag_name: ${{ env.RELEASE_TAG }}

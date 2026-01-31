@@ -24,6 +24,10 @@ func TestAccDataSourceMinioHealthStatus_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "healthy", "true"),
 					// safe_for_maintenance should be true for a healthy standalone instance
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "safe_for_maintenance", "true"),
+					// Verify outputs contain the actual data
+					resource.TestCheckOutput("health_live", "true"),
+					resource.TestCheckOutput("health_ready", "true"),
+					resource.TestCheckOutput("health_overall", "true"),
 				),
 			},
 		},
@@ -80,6 +84,18 @@ func testAccDataSourceMinioHealthStatusConfig() string {
 provider "minio" {}
 
 data "minio_health_status" "test" {}
+
+output "health_live" {
+  value = data.minio_health_status.test.live
+}
+
+output "health_ready" {
+  value = data.minio_health_status.test.ready
+}
+
+output "health_overall" {
+  value = data.minio_health_status.test.healthy
+}
 `
 }
 

@@ -92,12 +92,6 @@ jobs:
           git tag -a "${{ env.VERSION }}" -m "Release ${{ env.VERSION }}"
           git push origin "${{ env.VERSION }}"
 
-      - name: Trigger release workflow
-        run: |
-          gh workflow run release.yml -f tag="${{ steps.version.outputs.new }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Summary
         run: |
           echo "## Release Tag Created" >> $GITHUB_STEP_SUMMARY
@@ -110,3 +104,10 @@ jobs:
           echo "| **Release Type** | \`${{ github.event.inputs.release_type }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The [Release workflow](../actions/workflows/release.yml) has been triggered and will build and publish the provider with auto-generated release notes." >> $GITHUB_STEP_SUMMARY
+
+  release:
+    needs: create-tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.create-tag.outputs.tag }}
+    secrets: inherit

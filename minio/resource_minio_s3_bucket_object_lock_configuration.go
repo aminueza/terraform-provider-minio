@@ -90,20 +90,19 @@ Compliance standards: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 }
 
 func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-	bucket := d.Get("bucket").(string)
+	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 
 	// Validate bucket object lock prerequisites
-	if err := validateObjectLockPrerequisites(ctx, client, bucket); err != nil {
+	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return diag.FromErr(err)
 	}
 
 	// Apply object lock configuration
-	if err := applyObjectLockConfiguration(ctx, d, client, bucket); err != nil {
+	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId(bucket)
+	d.SetId(objectLockConfig.MinioBucket)
 	return minioReadObjectLockConfiguration(ctx, d, meta)
 }
 
@@ -169,16 +168,16 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 }
 
 func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-	bucket := d.Id()
+	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
+	objectLockConfig.MinioBucket = d.Id()
 
 	// Validate bucket object lock prerequisites
-	if err := validateObjectLockPrerequisites(ctx, client, bucket); err != nil {
+	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return diag.FromErr(err)
 	}
 
 	// Apply updated configuration
-	if err := applyObjectLockConfiguration(ctx, d, client, bucket); err != nil {
+	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return diag.FromErr(err)
 	}
 
@@ -186,11 +185,11 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 }
 
 func minioDeleteObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-	bucket := d.Id()
+	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
+	objectLockConfig.MinioBucket = d.Id()
 
 	// Clear object lock configuration by setting all parameters to nil
-	err := client.SetBucketObjectLockConfig(ctx, bucket, nil, nil, nil)
+	err := objectLockConfig.MinioClient.SetBucketObjectLockConfig(ctx, objectLockConfig.MinioBucket, nil, nil, nil)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("error clearing object lock configuration: %w", err))
 	}

@@ -114,6 +114,18 @@ func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) 
 	}
 }
 
+// BucketObjectLockConfigurationConfig creates configuration for managing MinIO bucket object lock.
+// It handles object lock retention settings for WORM (Write Once Read Many) compliance.
+func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketObjectLockConfiguration {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBucketObjectLockConfiguration{
+		MinioClient:       m.S3Client,
+		MinioBucket:       getOptionalField(d, "bucket", "").(string),
+		ObjectLockEnabled: getOptionalField(d, "object_lock_enabled", "Enabled").(string),
+	}
+}
+
 // NewConfig creates a new MinIO client configuration.
 // It handles authentication and connection settings.
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {

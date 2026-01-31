@@ -22,8 +22,8 @@ func TestAccDataSourceMinioHealthStatus_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "write_quorum", "true"),
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "read_quorum", "true"),
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "healthy", "true"),
-					// safe_for_maintenance should be true for a healthy standalone instance
-					resource.TestCheckResourceAttr("data.minio_health_status.test", "safe_for_maintenance", "true"),
+					// Standalone instance returns false (can't go down without losing service)
+					resource.TestCheckResourceAttr("data.minio_health_status.test", "safe_for_maintenance", "false"),
 					// Verify outputs contain the actual data
 					resource.TestCheckOutput("health_live", "true"),
 					resource.TestCheckOutput("health_ready", "true"),

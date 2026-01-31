@@ -140,7 +140,7 @@ func checkHealthEndpoint(ctx context.Context, client *http.Client, baseURL, path
 	if err != nil {
 		return false, fmt.Errorf("failed to make request to %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -166,7 +166,7 @@ func checkMaintenanceEndpoint(ctx context.Context, client *http.Client, baseURL,
 	if err != nil {
 		return false, fmt.Errorf("failed to make request to %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	switch resp.StatusCode {
 	case http.StatusOK:

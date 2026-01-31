@@ -1,0 +1,48 @@
+---
+page_title: "{{.Type}} {{.Name}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Type}}: {{.Name}}
+
+{{ .Description | trimspace }}
+
+This data source queries MinIO's unauthenticated health check endpoints to monitor cluster health, liveness, readiness, quorum status, and whether it's safe to perform maintenance operations.
+
+## Health Check Endpoints
+
+The data source checks the following MinIO health endpoints:
+
+- `/minio/health/live` - Server liveness (process running)
+- `/minio/health/ready` - Server readiness (accepting requests)
+- `/minio/health/cluster` - Write quorum status
+- `/minio/health/cluster/read` - Read quorum status
+- `/minio/health/cluster?maintenance=true` - Safe for maintenance check
+
+All endpoints return HTTP 200 (healthy) or 503/412 (unhealthy/unsafe).
+
+## Example Usage
+
+{{ tffile "examples/data-sources/minio_health_status/data-source.tf" }}
+
+## Use Cases
+
+- **Conditional Resource Creation**: Create resources only when the cluster is healthy
+- **Monitoring Integration**: Export health status to monitoring systems (Prometheus, Datadog, etc.)
+- **Deployment Validation**: Verify cluster health before/after deployments
+- **Health Checks in CI/CD**: Automated health verification in pipelines
+- **Maintenance Planning**: Check if it's safe to perform maintenance without losing quorum
+
+## Understanding `safe_for_maintenance`
+
+The `safe_for_maintenance` attribute indicates whether the cluster can tolerate taking a node offline for maintenance without losing read/write quorum. This is useful when:
+
+- Planning rolling updates or upgrades
+- Taking nodes offline for hardware maintenance
+- Decommissioning nodes from the cluster
+
+A value of `true` (HTTP 200) means the cluster has sufficient nodes online to maintain quorum if one node goes down. A value of `false` (HTTP 412) means taking a node offline would break quorum and potentially cause data unavailability.
+
+{{ .SchemaMarkdown | trimspace }}

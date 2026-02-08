@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -42,9 +43,23 @@ func resourceMinioObjectTags() *schema.Resource {
 }
 
 func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := ObjectTagsConfig(d, meta)
-	bucket := cfg.MinioBucket
-	objectKey := cfg.MinioObjectKey
+	bucket := d.Get("bucket").(string)
+	objectKey := d.Get("key").(string)
+
+	if bucket == "" || objectKey == "" {
+		id := d.Id()
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) == 2 {
+			bucket = parts[0]
+			objectKey = parts[1]
+		}
+	}
+
+	cfg := &S3MinioObjectTags{
+		MinioClient:    meta.(*S3MinioClient).S3Client,
+		MinioBucket:    bucket,
+		MinioObjectKey: objectKey,
+	}
 
 	log.Printf("[DEBUG] Setting tags for object %s in bucket %s", objectKey, bucket)
 
@@ -73,9 +88,23 @@ func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := ObjectTagsConfig(d, meta)
-	bucket := cfg.MinioBucket
-	objectKey := cfg.MinioObjectKey
+	bucket := d.Get("bucket").(string)
+	objectKey := d.Get("key").(string)
+
+	if bucket == "" || objectKey == "" {
+		id := d.Id()
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) == 2 {
+			bucket = parts[0]
+			objectKey = parts[1]
+		}
+	}
+
+	cfg := &S3MinioObjectTags{
+		MinioClient:    meta.(*S3MinioClient).S3Client,
+		MinioBucket:    bucket,
+		MinioObjectKey: objectKey,
+	}
 
 	opts := minio.GetObjectTaggingOptions{}
 	objectTags, err := cfg.MinioClient.GetObjectTagging(ctx, bucket, objectKey, opts)
@@ -93,9 +122,23 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 }
 
 func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := ObjectTagsConfig(d, meta)
-	bucket := cfg.MinioBucket
-	objectKey := cfg.MinioObjectKey
+	bucket := d.Get("bucket").(string)
+	objectKey := d.Get("key").(string)
+
+	if bucket == "" || objectKey == "" {
+		id := d.Id()
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) == 2 {
+			bucket = parts[0]
+			objectKey = parts[1]
+		}
+	}
+
+	cfg := &S3MinioObjectTags{
+		MinioClient:    meta.(*S3MinioClient).S3Client,
+		MinioBucket:    bucket,
+		MinioObjectKey: objectKey,
+	}
 
 	if d.HasChange("tags") {
 		if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
@@ -137,9 +180,32 @@ func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func minioDeleteObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	cfg := ObjectTagsConfig(d, meta)
-	bucket := cfg.MinioBucket
-	objectKey := cfg.MinioObjectKey
+	bucket := d.Get("bucket").(string)
+	objectKey := d.Get("key").(string)
+
+	if bucket == "" || objectKey == "" {
+		id := d.Id()
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) == 2 {
+			bucket = parts[0]
+			objectKey = parts[1]
+		}
+	}
+
+	if bucket == "" || objectKey == "" {
+		id := d.Id()
+		parts := strings.SplitN(id, "/", 2)
+		if len(parts) == 2 {
+			bucket = parts[0]
+			objectKey = parts[1]
+		}
+	}
+
+	cfg := &S3MinioObjectTags{
+		MinioClient:    meta.(*S3MinioClient).S3Client,
+		MinioBucket:    bucket,
+		MinioObjectKey: objectKey,
+	}
 
 	srcOpts := minio.CopySrcOptions{
 		Bucket: bucket,

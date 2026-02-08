@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -704,15 +705,24 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
-		isBucket, _ := minioC.BucketExists(context.Background(), rs.Primary.ID)
 
-		if !isBucket {
-			return fmt.Errorf("s3 bucket not found")
+		maxRetries := 6
+		for i := 0; i < maxRetries; i++ {
+			isBucket, err := minioC.BucketExists(context.Background(), rs.Primary.ID)
+			if err != nil {
+				return fmt.Errorf("error checking bucket existence: %s", err)
+			}
 
+			if isBucket {
+				return nil
+			}
+
+			if i < maxRetries-1 {
+				time.Sleep(time.Duration((i+1)*200) * time.Millisecond)
+			}
 		}
 
-		return nil
-
+		return fmt.Errorf("s3 bucket not found after %d attempts", maxRetries)
 	}
 }
 

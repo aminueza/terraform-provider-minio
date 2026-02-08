@@ -56,9 +56,7 @@ func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	cfg := &S3MinioObjectTags{
-		MinioClient:    meta.(*S3MinioClient).S3Client,
-		MinioBucket:    bucket,
-		MinioObjectKey: objectKey,
+		MinioClient: meta.(*S3MinioClient).S3Client,
 	}
 
 	log.Printf("[DEBUG] Setting tags for object %s in bucket %s", objectKey, bucket)
@@ -101,9 +99,7 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	cfg := &S3MinioObjectTags{
-		MinioClient:    meta.(*S3MinioClient).S3Client,
-		MinioBucket:    bucket,
-		MinioObjectKey: objectKey,
+		MinioClient: meta.(*S3MinioClient).S3Client,
 	}
 
 	opts := minio.GetObjectTaggingOptions{}
@@ -135,9 +131,7 @@ func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	cfg := &S3MinioObjectTags{
-		MinioClient:    meta.(*S3MinioClient).S3Client,
-		MinioBucket:    bucket,
-		MinioObjectKey: objectKey,
+		MinioClient: meta.(*S3MinioClient).S3Client,
 	}
 
 	if d.HasChange("tags") {
@@ -202,9 +196,7 @@ func minioDeleteObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	cfg := &S3MinioObjectTags{
-		MinioClient:    meta.(*S3MinioClient).S3Client,
-		MinioBucket:    bucket,
-		MinioObjectKey: objectKey,
+		MinioClient: meta.(*S3MinioClient).S3Client,
 	}
 
 	srcOpts := minio.CopySrcOptions{

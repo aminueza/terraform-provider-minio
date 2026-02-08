@@ -1,0 +1,160 @@
+package minio
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
+)
+
+func resourceMinioObjectTags() *schema.Resource {
+	return &schema.Resource{
+		CreateContext: minioCreateObjectTags,
+		ReadContext:   minioReadObjectTags,
+		UpdateContext: minioUpdateObjectTags,
+		DeleteContext: minioDeleteObjectTags,
+		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
+		Schema: map[string]*schema.Schema{
+			"bucket": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Name of the bucket",
+			},
+			"key": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Object key",
+			},
+			"tags": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "Map of tags to assign to the object",
+			},
+		},
+	}
+}
+
+func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := ObjectTagsConfig(d, meta)
+	bucket := cfg.MinioBucket
+	objectKey := cfg.MinioObjectKey
+
+	log.Printf("[DEBUG] Setting tags for object %s in bucket %s", objectKey, bucket)
+
+	if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
+		tagsMap := convertToStringMap(v.(map[string]interface{}))
+
+		srcOpts := minio.CopySrcOptions{
+			Bucket: bucket,
+			Object: objectKey,
+		}
+
+		dstOpts := minio.CopyDestOptions{
+			Bucket:      bucket,
+			Object:      objectKey,
+			UserTags:    tagsMap,
+			ReplaceTags: true,
+		}
+
+		if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
+			return NewResourceError("creating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+		}
+	}
+
+	d.SetId(fmt.Sprintf("%s/%s", bucket, objectKey))
+	return minioReadObjectTags(ctx, d, meta)
+}
+
+func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := ObjectTagsConfig(d, meta)
+	bucket := cfg.MinioBucket
+	objectKey := cfg.MinioObjectKey
+
+	opts := minio.GetObjectTaggingOptions{}
+	objectTags, err := cfg.MinioClient.GetObjectTagging(ctx, bucket, objectKey, opts)
+	if err != nil {
+		var minioErr minio.ErrorResponse
+		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
+			_ = d.Set("tags", map[string]string{})
+			return nil
+		}
+		return NewResourceError("reading object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+	}
+
+	_ = d.Set("tags", objectTags.ToMap())
+	return nil
+}
+
+func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := ObjectTagsConfig(d, meta)
+	bucket := cfg.MinioBucket
+	objectKey := cfg.MinioObjectKey
+
+	if d.HasChange("tags") {
+		if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
+			tagsMap := convertToStringMap(v.(map[string]interface{}))
+
+			srcOpts := minio.CopySrcOptions{
+				Bucket: bucket,
+				Object: objectKey,
+			}
+
+			dstOpts := minio.CopyDestOptions{
+				Bucket:      bucket,
+				Object:      objectKey,
+				UserTags:    tagsMap,
+				ReplaceTags: true,
+			}
+
+			if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
+				return NewResourceError("updating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+			}
+		} else {
+			srcOpts := minio.CopySrcOptions{
+				Bucket: bucket,
+				Object: objectKey,
+			}
+
+			dstOpts := minio.CopyDestOptions{
+				Bucket:      bucket,
+				Object:      objectKey,
+				ReplaceTags: true,
+			}
+
+			if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
+				return NewResourceError("removing object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+			}
+		}
+	}
+	return minioReadObjectTags(ctx, d, meta)
+}
+
+func minioDeleteObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	cfg := ObjectTagsConfig(d, meta)
+	bucket := cfg.MinioBucket
+	objectKey := cfg.MinioObjectKey
+
+	srcOpts := minio.CopySrcOptions{
+		Bucket: bucket,
+		Object: objectKey,
+	}
+
+	dstOpts := minio.CopyDestOptions{
+		Bucket:      bucket,
+		Object:      objectKey,
+		ReplaceTags: true,
+	}
+
+	if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
+		return NewResourceError("deleting object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+	}
+	d.SetId("")
+	return nil
+}

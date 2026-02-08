@@ -1,0 +1,34 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  {{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_bucket_tags/resource.tf" }}
+
+```terraform
+resource "minio_s3_bucket_tags" "example" {
+  bucket = "example-bucket"
+  tags = {
+    Environment = "dev"
+    Owner       = "team-a"
+  }
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+terraform import minio_s3_bucket_tags.example example-bucket
+```

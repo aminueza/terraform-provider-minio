@@ -18,6 +18,7 @@ func resourceMinioBucketTags() *schema.Resource {
 		UpdateContext: minioUpdateBucketTags,
 		DeleteContext: minioDeleteBucketTags,
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
+		Description:   "Manages tags for S3 buckets in MinIO.",
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:        schema.TypeString,
@@ -60,13 +61,18 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
+			_ = d.Set("bucket", bucket)
 			_ = d.Set("tags", map[string]string{})
 			return nil
 		}
 		if IsS3TaggingNotImplemented(err) {
+			_ = d.Set("bucket", bucket)
 			return nil
 		}
 		return NewResourceError("reading bucket tags", bucket, err)
+	}
+	if err := d.Set("bucket", bucket); err != nil {
+		return NewResourceError("setting bucket", bucket, err)
 	}
 	_ = d.Set("tags", bucketTags.ToMap())
 	return nil

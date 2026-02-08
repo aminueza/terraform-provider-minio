@@ -19,6 +19,7 @@ func resourceMinioObjectTags() *schema.Resource {
 		UpdateContext: minioUpdateObjectTags,
 		DeleteContext: minioDeleteObjectTags,
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
+		Description:   "Manages tags for S3 objects in a MinIO bucket.",
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:        schema.TypeString,
@@ -42,17 +43,21 @@ func resourceMinioObjectTags() *schema.Resource {
 	}
 }
 
+func parseBucketAndKeyFromID(id string) (bucket, objectKey string) {
+	parts := strings.SplitN(id, "/", 2)
+	if len(parts) == 2 {
+		bucket = parts[0]
+		objectKey = parts[1]
+	}
+	return bucket, objectKey
+}
+
 func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucket := d.Get("bucket").(string)
 	objectKey := d.Get("key").(string)
 
 	if bucket == "" || objectKey == "" {
-		id := d.Id()
-		parts := strings.SplitN(id, "/", 2)
-		if len(parts) == 2 {
-			bucket = parts[0]
-			objectKey = parts[1]
-		}
+		bucket, objectKey = parseBucketAndKeyFromID(d.Id())
 	}
 
 	cfg := &S3MinioObjectTags{
@@ -90,12 +95,7 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 	objectKey := d.Get("key").(string)
 
 	if bucket == "" || objectKey == "" {
-		id := d.Id()
-		parts := strings.SplitN(id, "/", 2)
-		if len(parts) == 2 {
-			bucket = parts[0]
-			objectKey = parts[1]
-		}
+		bucket, objectKey = parseBucketAndKeyFromID(d.Id())
 	}
 
 	cfg := &S3MinioObjectTags{
@@ -107,6 +107,12 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
+			if err := d.Set("bucket", bucket); err != nil {
+				return NewResourceError("setting bucket", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+			}
+			if err := d.Set("key", objectKey); err != nil {
+				return NewResourceError("setting key", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+			}
 			_ = d.Set("tags", map[string]string{})
 			return nil
 		}
@@ -130,12 +136,7 @@ func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	objectKey := d.Get("key").(string)
 
 	if bucket == "" || objectKey == "" {
-		id := d.Id()
-		parts := strings.SplitN(id, "/", 2)
-		if len(parts) == 2 {
-			bucket = parts[0]
-			objectKey = parts[1]
-		}
+		bucket, objectKey = parseBucketAndKeyFromID(d.Id())
 	}
 
 	cfg := &S3MinioObjectTags{
@@ -186,21 +187,7 @@ func minioDeleteObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	objectKey := d.Get("key").(string)
 
 	if bucket == "" || objectKey == "" {
-		id := d.Id()
-		parts := strings.SplitN(id, "/", 2)
-		if len(parts) == 2 {
-			bucket = parts[0]
-			objectKey = parts[1]
-		}
-	}
-
-	if bucket == "" || objectKey == "" {
-		id := d.Id()
-		parts := strings.SplitN(id, "/", 2)
-		if len(parts) == 2 {
-			bucket = parts[0]
-			objectKey = parts[1]
-		}
+		bucket, objectKey = parseBucketAndKeyFromID(d.Id())
 	}
 
 	cfg := &S3MinioObjectTags{

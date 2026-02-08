@@ -11,16 +11,8 @@ description: |-
 
 ## Example Usage
 
-{{ tffile "examples/resources/minio_s3_bucket_tags/resource.tf" }}
-
 ```terraform
-resource "minio_s3_bucket_tags" "example" {
-  bucket = "example-bucket"
-  tags = {
-    Environment = "dev"
-    Owner       = "team-a"
-  }
-}
+{{ tffile "examples/resources/minio_s3_bucket_tags/resource.tf" }}
 ```
 
 {{ .SchemaMarkdown | trimspace }}

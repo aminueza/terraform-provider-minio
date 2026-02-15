@@ -1,0 +1,32 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+  Manage anonymous access to an existing MinIO bucket using canned access types or fully custom JSON policies.
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+Use this resource when you want to expose part (or all) of a bucket to anonymous clients. It builds on the standard bucket policy primitives while adding conveniences for canned policies and importable state.
+
+> **Important:** For a given bucket, manage anonymous access with either this resource _or_ `minio_s3_bucket_policy`—not both. They share the same underlying bucket policy and will constantly fight each other if applied simultaneously.
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_bucket_anonymous_access/resource.tf" }}
+
+- `access_type` supports MinIO canned modes (`public`, `public-read`, `public-read-write`, `public-write`).
+- `policy` accepts any valid S3/MinIO policy JSON. When both `policy` and `access_type` are set, the explicit JSON policy always wins.
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Anonymous access is keyed by bucket name
+terraform import minio_s3_bucket_anonymous_access.example bucket-name
+```

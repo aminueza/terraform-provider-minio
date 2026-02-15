@@ -115,7 +115,7 @@ terraform import minio_s3_bucket_cors.example bucket-name
 
 ## Notes
 
-- CORS configuration is bucket-level and requires MinIO AIStor/Enterprise edition or MinIO Community Edition with appropriate configuration
+- **Bucket CORS requires a MinIO Enterprise/AIStor subscription.** Community/Free builds return `NotImplemented` for bucket-level CORS APIs.
 - Multiple CORS rules can be defined for fine-grained access control
 - The `allowed_origins` field supports wildcard (`*`) for allowing all origins
 - The `allowed_headers` field supports wildcard (`*`) for allowing all headers

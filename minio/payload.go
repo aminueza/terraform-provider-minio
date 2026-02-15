@@ -54,6 +54,13 @@ type S3MinioBucketPolicy struct {
 	MinioBucketPolicy string
 }
 
+// S3MinioBucketAnonymousPolicy defines bucket anonymous access config
+type S3MinioBucketAnonymousPolicy struct {
+	MinioClient *minio.Client
+	MinioBucket string
+	MinioPolicy string
+}
+
 // S3MinioBucketVersioningConfiguration defines bucket versioning config
 type S3MinioBucketVersioningConfiguration struct {
 	Status           string

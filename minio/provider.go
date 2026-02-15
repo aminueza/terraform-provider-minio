@@ -152,6 +152,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			// S3 Bucket Operations
 			"minio_s3_bucket":                           resourceMinioBucket(),
 			"minio_s3_bucket_policy":                    resourceMinioBucketPolicy(),
+			"minio_s3_bucket_anonymous_access":          resourceMinioS3BucketAnonymousAccess(),
 			"minio_s3_bucket_versioning":                resourceMinioBucketVersioning(),
 			"minio_s3_bucket_replication":               resourceMinioBucketReplication(),
 			"minio_s3_bucket_retention":                 resourceMinioBucketRetention(),

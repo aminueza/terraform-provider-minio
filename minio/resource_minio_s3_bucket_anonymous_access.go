@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"sync"
 	"time"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
@@ -127,10 +126,14 @@ func resourceMinioS3BucketAnonymousAccess() *schema.Resource {
 		DeleteContext: minioDeleteAnonymousPolicy,
 		Importer: &schema.ResourceImporter{
 			StateContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
-				bucket := d.Id()
+				bucket := decodeAnonymousAccessID(d.Id())
 				d.SetId(encodeAnonymousAccessID(bucket))
 				if err := d.Set("bucket", bucket); err != nil {
 					return nil, fmt.Errorf("setting bucket: %w", err)
+				}
+				diags := minioReadAnonymousPolicy(ctx, d, meta)
+				if diags.HasError() {
+					return nil, errors.New(diags[0].Summary)
 				}
 				return []*schema.ResourceData{d}, nil
 			},
@@ -192,14 +195,17 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("setting policy", bucketName, err)
 	}
 
-	// Determine and set access_type based on the policy
-	accessType, err := getAccessTypeFromPolicy(normalizedPolicy, bucketName)
-	if err != nil {
-		return NewResourceError("determining access_type", bucketName, err)
-	}
-	if accessType != "" {
-		if err := d.Set("access_type", accessType); err != nil {
-			return NewResourceError("setting access_type", bucketName, err)
+	// Preserve access_type if provided by user, otherwise derive from policy
+	accessType := d.Get("access_type").(string)
+	if accessType == "" {
+		accessType, err = getAccessTypeFromPolicy(normalizedPolicy, bucketName)
+		if err != nil {
+			return NewResourceError("determining access_type", bucketName, err)
+		}
+		if accessType != "" {
+			if err := d.Set("access_type", accessType); err != nil {
+				return NewResourceError("setting access_type", bucketName, err)
+			}
 		}
 	}
 
@@ -234,14 +240,16 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("setting policy", bucketName, err)
 	}
 
-	// Always determine access_type from the current policy to avoid state drift
+	// Derive access_type from policy - this is needed for import to work correctly
+	// and to maintain consistency between policy and access_type fields
 	accessType, err := getAccessTypeFromPolicy(currentPolicy, bucketName)
 	if err != nil {
 		return NewResourceError("determining access_type", bucketName, err)
 	}
-
-	if err := d.Set("access_type", accessType); err != nil {
-		return NewResourceError("setting access_type", bucketName, err)
+	if accessType != "" {
+		if err := d.Set("access_type", accessType); err != nil {
+			return NewResourceError("setting access_type", bucketName, err)
+		}
 	}
 
 	return nil
@@ -267,12 +275,28 @@ func minioDeleteAnonymousPolicy(ctx context.Context, d *schema.ResourceData, met
 }
 
 func getAnonymousPolicy(d *schema.ResourceData, bucket string) (string, error) {
-	if v, ok := d.GetOk("policy"); ok {
-		return v.(string), nil
+	// Determine if policy was explicitly set by checking raw config
+	// During Create/Update, RawConfig is available; during Read/Delete, it's not
+	rawConfig := d.GetRawConfig()
+	policyExplicitlySet := false
+	if !rawConfig.IsNull() {
+		policyAttr := rawConfig.GetAttr("policy")
+		policyExplicitlySet = !policyAttr.IsNull() && policyAttr.IsKnown() && policyAttr.AsString() != ""
 	}
 
-	if v, ok := d.GetOk("access_type"); ok {
-		switch v.(string) {
+	accessType := d.Get("access_type").(string)
+
+	// If policy is explicitly set by user, use it (it takes precedence over access_type)
+	if policyExplicitlySet {
+		policy := d.Get("policy").(string)
+		if policy != "" {
+			return policy, nil
+		}
+	}
+
+	// If access_type is set, generate policy from it
+	if accessType != "" {
+		switch accessType {
 		case "public":
 			return marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucket}))
 		case "public-read":
@@ -282,6 +306,12 @@ func getAnonymousPolicy(d *schema.ResourceData, bucket string) (string, error) {
 		case "public-write":
 			return marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucket}))
 		}
+	}
+
+	// Fallback: use whatever policy is in state (may be computed or from previous access_type)
+	policy := d.Get("policy").(string)
+	if policy != "" {
+		return policy, nil
 	}
 
 	return "", nil
@@ -295,27 +325,14 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 	return string(policyJSON), nil
 }
 
-var cannedPolicies struct {
-	sync.Once
-	public      string
-	publicRead  string
-	publicWrite string
-	publicRW    string
-}
-
 func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
-	cannedPolicies.Do(func() {
-		publicPolicy, _ := marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-		readOnlyPolicy, _ := marshalPolicy(ReadOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-		readWritePolicy, _ := marshalPolicy(ReadWritePolicy(&S3MinioBucket{MinioBucket: bucketName}))
-		writeOnlyPolicy, _ := marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-		cannedPolicies.public = publicPolicy
-		cannedPolicies.publicRead = readOnlyPolicy
-		cannedPolicies.publicRW = readWritePolicy
-		cannedPolicies.publicWrite = writeOnlyPolicy
-	})
+	// Generate canned policies for this specific bucket
+	publicPolicy, _ := marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucketName}))
+	readOnlyPolicy, _ := marshalPolicy(ReadOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
+	readWritePolicy, _ := marshalPolicy(ReadWritePolicy(&S3MinioBucket{MinioBucket: bucketName}))
+	writeOnlyPolicy, _ := marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
 
-	equivalent, err := awspolicy.PoliciesAreEquivalent(policy, cannedPolicies.publicRead)
+	equivalent, err := awspolicy.PoliciesAreEquivalent(policy, readOnlyPolicy)
 	if err != nil {
 		return "", err
 	}
@@ -323,7 +340,7 @@ func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
 		return "public-read", nil
 	}
 
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, cannedPolicies.public)
+	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, publicPolicy)
 	if err != nil {
 		return "", err
 	}
@@ -331,7 +348,7 @@ func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
 		return "public", nil
 	}
 
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, cannedPolicies.publicRW)
+	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, readWritePolicy)
 	if err != nil {
 		return "", err
 	}
@@ -339,7 +356,7 @@ func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
 		return "public-read-write", nil
 	}
 
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, cannedPolicies.publicWrite)
+	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, writeOnlyPolicy)
 	if err != nil {
 		return "", err
 	}

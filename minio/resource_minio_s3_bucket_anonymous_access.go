@@ -243,17 +243,22 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 	// If access_type is set in the configuration and matches the derived access_type,
 	// use the canonical policy representation to ensure consistency.
 	if accessType != "" {
-		if at, ok := d.GetOk("access_type"); ok && at == accessType {
-			canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
-			if err != nil {
-				return NewResourceError("building canonical anonymous access policy", bucketName, err)
+		if raw, ok := d.GetOk("access_type"); ok {
+			at, ok := raw.(string)
+			if !ok {
+				return NewResourceError("reading access_type", bucketName, fmt.Errorf("expected string"))
 			}
-			if canonical != "" {
-				policy = canonical
+			if at == accessType {
+				canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
+				if err != nil {
+					return NewResourceError("building canonical anonymous access policy", bucketName, err)
+				}
+				if canonical != "" {
+					policy = canonical
+				}
 			}
 		}
 	}
-
 	if err := d.Set("policy", policy); err != nil {
 		return NewResourceError("setting policy", bucketName, err)
 	}

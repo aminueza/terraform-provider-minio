@@ -43,18 +43,6 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	}
 }
 
-// BucketPolicyConfig creates configuration for managing MinIO bucket policies.
-// It sets up the basic policy configuration for a bucket.
-func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketPolicy {
-	m := meta.(*S3MinioClient)
-
-	return &S3MinioBucketPolicy{
-		MinioClient:       m.S3Client,
-		MinioBucket:       getOptionalField(d, "bucket", "").(string),
-		MinioBucketPolicy: getOptionalField(d, "policy", "").(string),
-	}
-}
-
 // BucketVersioningConfig creates configuration for managing MinIO bucket versioning.
 // It handles versioning configuration including excluded prefixes and folders.
 func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketVersioning {
@@ -131,6 +119,17 @@ func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{
 		MinioClient:       m.S3Client,
 		MinioBucket:       getOptionalField(d, "bucket", "").(string),
 		ObjectLockEnabled: getOptionalField(d, "object_lock_enabled", "Enabled").(string),
+	}
+}
+
+// BucketPolicyConfig creates configuration for managing MinIO bucket policies.
+func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketPolicy {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBucketPolicy{
+		MinioClient:       m.S3Client,
+		MinioBucket:       getOptionalField(d, "bucket", "").(string),
+		MinioBucketPolicy: getOptionalField(d, "policy", "").(string),
 	}
 }
 

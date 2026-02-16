@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -138,9 +139,10 @@ func resourceMinioAccessKey() *schema.Resource {
 				},
 			},
 			"policy": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Policy to attach to the access key (policy name or JSON document).",
+				Type:             schema.TypeString,
+				Optional:         true,
+				Description:      "Policy to attach to the access key (policy name or JSON document).",
+				DiffSuppressFunc: suppressEquivalentAwsPolicyDiffs,
 			},
 			"description": {
 				Type:        schema.TypeString,
@@ -178,9 +180,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	creds, err := client.S3Admin.AddServiceAccount(ctx, req)
 	if err != nil {
-		returnErr := fmt.Errorf("failed to create accesskey: %w", err)
-		log.Printf("[ERROR] %s", returnErr)
-		return diag.FromErr(returnErr)
+		return NewResourceError("creating access key", user, err)
 	}
 
 	d.SetId(aws.StringValue(&creds.AccessKey))
@@ -197,7 +197,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		return nil
 	})
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("waiting for access key readiness", creds.AccessKey, err)
 	}
 
 	// Attach policy if provided
@@ -206,7 +206,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			NewPolicy: []byte(policy),
 		})
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed to attach policy to accesskey: %w", err))
+			return NewResourceError("updating access key policy", creds.AccessKey, err)
 		}
 	}
 
@@ -243,7 +243,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to read accesskey %s after retries: %s", accessKeyID, err)
-		return diag.FromErr(err)
+		return NewResourceError("reading access key", accessKeyID, err)
 	}
 
 	if d.Id() == "" {
@@ -349,7 +349,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 		if err != nil {
 			log.Printf("[ERROR] Failed to update accesskey %s status after retries: %s", accessKeyID, err)
-			return diag.FromErr(err)
+			return NewResourceError("updating access key status", accessKeyID, err)
 		}
 
 		err = retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
@@ -372,7 +372,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		})
 
 		if err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("verifying access key status", accessKeyID, err)
 		}
 	}
 
@@ -393,7 +393,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 		if err != nil {
 			log.Printf("[ERROR] Failed to update accesskey %s policy after retries: %s", accessKeyID, err)
-			return diag.FromErr(err)
+			return NewResourceError("updating access key policy", accessKeyID, err)
 		}
 	}
 
@@ -413,12 +413,12 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			})
 			if err != nil {
 				log.Printf("[ERROR] Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err)
-				return diag.FromErr(err)
+				return NewResourceError("rotating access key secret", accessKeyID, err)
 			}
 			// Clear secret_key from state after rotation
 			_ = d.Set("secret_key", "")
 		} else {
-			return diag.Errorf("secret_key must be provided when secret_key_version changes")
+			return NewResourceError("missing required secret_key for secret rotation", accessKeyID, fmt.Errorf("secret_key must be provided when secret_key_version changes"))
 		}
 	}
 
@@ -439,7 +439,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 		if err != nil {
 			log.Printf("[ERROR] Failed to update accesskey %s description after retries: %s", accessKeyID, err)
-			return diag.FromErr(err)
+			return NewResourceError("updating access key description", accessKeyID, err)
 		}
 	}
 
@@ -459,7 +459,7 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			d.SetId("")
 			return nil
 		}
-		return diag.Errorf("error checking accesskey before deletion: %s", err)
+		return NewResourceError("checking access key before deletion", accessKeyID, err)
 	}
 
 	timeout := d.Timeout(schema.TimeoutDelete)
@@ -481,7 +481,7 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to delete accesskey %s after retries: %s", accessKeyID, err)
-		return diag.FromErr(err)
+		return NewResourceError("deleting access key", accessKeyID, err)
 	}
 
 	err = retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
@@ -499,9 +499,18 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to confirm deletion of accesskey %s: %s", accessKeyID, err)
-		return diag.FromErr(err)
+		return NewResourceError("confirming access key deletion", accessKeyID, err)
 	}
 
 	d.SetId("")
 	return nil
+}
+
+func suppressEquivalentAwsPolicyDiffs(k, old, new string, d *schema.ResourceData) bool {
+	equivalent, err := awspolicy.PoliciesAreEquivalent(old, new)
+	if err != nil {
+		return false
+	}
+
+	return equivalent
 }

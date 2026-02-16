@@ -11,7 +11,6 @@ import (
 	"github.com/minio/madmin-go/v3"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -184,13 +183,4 @@ func validateIAMPolicyJSON(v interface{}, k string) (ws []string, errors []error
 		errors = append(errors, fmt.Errorf("%q contains an invalid JSON: %s", k, err))
 	}
 	return
-}
-
-func suppressEquivalentAwsPolicyDiffs(k, old, new string, d *schema.ResourceData) bool {
-	equivalent, err := awspolicy.PoliciesAreEquivalent(old, new)
-	if err != nil {
-		return false
-	}
-
-	return equivalent
 }

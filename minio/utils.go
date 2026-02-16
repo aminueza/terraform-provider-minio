@@ -185,7 +185,11 @@ func NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy string) (string, error
 
 	if equivalent {
 		// If policies are equivalent, prefer the existing one for state consistency
-		return oldPolicy, nil
+		normalizedPolicy, err := structure.NormalizeJsonString(oldPolicy)
+		if err != nil {
+			return "", err
+		}
+		return normalizedPolicy, nil
 	}
 
 	// Policies are different, use the new one but normalize it

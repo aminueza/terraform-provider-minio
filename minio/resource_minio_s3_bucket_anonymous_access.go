@@ -234,18 +234,30 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 	if d.Id() == "" {
 		return nil
 	}
-	currentPolicy := policy
 
-	if err := d.Set("policy", currentPolicy); err != nil {
-		return NewResourceError("setting policy", bucketName, err)
-	}
-
-	// Derive access_type from policy - this is needed for import to work correctly
-	// and to maintain consistency between policy and access_type fields
-	accessType, err := getAccessTypeFromPolicy(currentPolicy, bucketName)
+	accessType, err := getAccessTypeFromPolicy(policy, bucketName)
 	if err != nil {
 		return NewResourceError("determining access_type", bucketName, err)
 	}
+
+	// If access_type is set in the configuration and matches the derived access_type,
+	// use the canonical policy representation to ensure consistency.
+	if accessType != "" {
+		if at, ok := d.GetOk("access_type"); ok && at == accessType {
+			canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
+			if err != nil {
+				return NewResourceError("building canonical anonymous access policy", bucketName, err)
+			}
+			if canonical != "" {
+				policy = canonical
+			}
+		}
+	}
+
+	if err := d.Set("policy", policy); err != nil {
+		return NewResourceError("setting policy", bucketName, err)
+	}
+
 	if accessType != "" {
 		if err := d.Set("access_type", accessType); err != nil {
 			return NewResourceError("setting access_type", bucketName, err)
@@ -315,6 +327,22 @@ func getAnonymousPolicy(d *schema.ResourceData, bucket string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func canonicalPolicyForAccessType(accessType, bucketName string) (string, error) {
+	b := &S3MinioBucket{MinioBucket: bucketName}
+	switch accessType {
+	case "public":
+		return marshalPolicy(PublicPolicy(b))
+	case "public-read":
+		return marshalPolicy(ReadOnlyPolicy(b))
+	case "public-read-write":
+		return marshalPolicy(ReadWritePolicy(b))
+	case "public-write":
+		return marshalPolicy(WriteOnlyPolicy(b))
+	default:
+		return "", nil
+	}
 }
 
 func marshalPolicy(policyStruct BucketPolicy) (string, error) {

@@ -206,17 +206,17 @@ resource "minio_accesskey" "test" {
 func TestAccMinioAccessKey_withPolicy(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test_policy"
-	policyJSON := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::osm/*"]}]}`
+	normalizedPolicyJSON := `{"Statement":[{"Action":["s3:GetObject"],"Effect":"Allow","Resource":["arn:aws:s3:::osm/*"]}],"Version":"2012-10-17"}`
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioAccessKeyConfigWithPolicy(rName, policyJSON),
+				Config: testAccMinioAccessKeyConfigWithPolicy(rName, normalizedPolicyJSON),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "user", rName),
-					testCheckResourceAttrJSON(resourceName, "policy", policyJSON),
+					testCheckResourceAttrJSON(resourceName, "policy", normalizedPolicyJSON),
 				),
 			},
 		},

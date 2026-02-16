@@ -160,6 +160,8 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_notification":              resourceMinioBucketNotification(),
 			"minio_s3_bucket_server_side_encryption":    resourceMinioBucketServerSideEncryption(),
 			"minio_s3_bucket_cors":                      resourceMinioS3BucketCors(),
+			"minio_s3_bucket_tags":                      resourceMinioBucketTags(),
+			"minio_s3_object_tags":                      resourceMinioObjectTags(),
 			"minio_s3_object":                           resourceMinioObject(),
 
 			// IAM Operations

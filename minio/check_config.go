@@ -273,3 +273,14 @@ func KMSKeyConfig(d *schema.ResourceData, meta interface{}) *S3MinioKMSKeyConfig
 		MinioKMSKeyID: getOptionalField(d, "key_id", "").(string),
 	}
 }
+
+// ObjectTagsConfig creates configuration for managing object tags.
+func ObjectTagsConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectTags {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioObjectTags{
+		MinioClient:    m.S3Client,
+		MinioBucket:    getOptionalField(d, "bucket", "").(string),
+		MinioObjectKey: getOptionalField(d, "key", "").(string),
+	}
+}

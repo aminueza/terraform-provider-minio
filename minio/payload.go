@@ -234,6 +234,13 @@ type S3MinioKMSKeyConfig struct {
 	MinioKMSKeyID string
 }
 
+// S3MinioObjectTags defines object tags configuration
+type S3MinioObjectTags struct {
+	MinioClient    *minio.Client
+	MinioBucket    string
+	MinioObjectKey string
+}
+
 // Princ defines policy princ
 type Princ struct {
 	AWS           set.StringSet `json:"AWS,omitempty"`

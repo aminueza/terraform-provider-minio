@@ -418,7 +418,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			// Clear secret_key from state after rotation
 			_ = d.Set("secret_key", "")
 		} else {
-			return NewResourceError("rotating access key secret", accessKeyID, fmt.Errorf("secret_key must be provided when secret_key_version changes"))
+			return NewResourceError("missing required secret_key for secret rotation", accessKeyID, fmt.Errorf("secret_key must be provided when secret_key_version changes"))
 		}
 	}
 

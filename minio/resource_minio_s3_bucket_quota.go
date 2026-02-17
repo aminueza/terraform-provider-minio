@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -45,7 +46,11 @@ func resourceMinioBucketQuota() *schema.Resource {
 func minioCreateBucketQuota(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := BucketConfig(d, meta)
 	bucket := cfg.MinioBucket
-	quota := uint64(d.Get("quota").(int))
+	quotaInt := d.Get("quota").(int)
+	if quotaInt < 0 {
+		return NewResourceError("setting bucket quota", bucket, fmt.Errorf("quota must be a non-negative value, got: %d", quotaInt))
+	}
+	quota := uint64(quotaInt) //#nosec G115 -- validated non-negative above
 
 	log.Printf("[DEBUG] Setting quota for bucket %s", bucket)
 
@@ -79,7 +84,11 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 	if err := d.Set("bucket", bucket); err != nil {
 		return NewResourceError("setting bucket", bucket, err)
 	}
-	_ = d.Set("quota", int(bucketQuota.Quota))
+	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Quota)
+	if !ok {
+		return NewResourceError("reading bucket quota", bucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Quota))
+	}
+	_ = d.Set("quota", int(quotaVal))
 	_ = d.Set("type", string(bucketQuota.Type))
 
 	return nil
@@ -90,7 +99,11 @@ func minioUpdateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 	bucket := d.Id()
 
 	if d.HasChanges("quota", "type") {
-		quota := uint64(d.Get("quota").(int))
+		quotaInt := d.Get("quota").(int)
+		if quotaInt < 0 {
+			return NewResourceError("updating bucket quota", bucket, fmt.Errorf("quota must be a non-negative value, got: %d", quotaInt))
+		}
+		quota := uint64(quotaInt) //#nosec G115 -- validated non-negative above
 		log.Printf("[DEBUG] Updating quota for bucket %s", bucket)
 
 		bucketQuota := madmin.BucketQuota{Quota: quota, Type: madmin.HardQuota}

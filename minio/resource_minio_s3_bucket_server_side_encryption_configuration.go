@@ -20,6 +20,15 @@ func resourceMinioBucketServerSideEncryption() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		Description: "Manages server-side encryption configuration for an S3 bucket. Supports SSE-S3 (AES256) and SSE-KMS (aws:kms) encryption types.",
+		CustomizeDiff: func(_ context.Context, diff *schema.ResourceDiff, _ interface{}) error {
+			encType := diff.Get("encryption_type").(string)
+			keyID, _ := diff.Get("kms_key_id").(string)
+			if encType == "aws:kms" && keyID == "" {
+				return fmt.Errorf("kms_key_id is required when encryption_type is \"aws:kms\"")
+			}
+			return nil
+		},
 
 		Schema: map[string]*schema.Schema{
 			"bucket": {
@@ -30,14 +39,14 @@ func resourceMinioBucketServerSideEncryption() *schema.Resource {
 			},
 			"encryption_type": {
 				Type:         schema.TypeString,
-				Description:  "Server side encryption type",
+				Description:  "Server side encryption type: `AES256` for SSE-S3 or `aws:kms` for SSE-KMS",
 				Required:     true,
-				ValidateFunc: validation.StringInSlice([]string{"aws:kms"}, false),
+				ValidateFunc: validation.StringInSlice([]string{"aws:kms", "AES256"}, false),
 			},
 			"kms_key_id": {
 				Type:        schema.TypeString,
-				Description: "KMS key id to use for server side encryption",
-				Required:    true,
+				Description: "KMS key id to use for SSE-KMS encryption. Required when encryption_type is `aws:kms`, ignored for `AES256`.",
+				Optional:    true,
 			},
 		},
 	}
@@ -80,6 +89,11 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 		return nil
 	}
 
+	if len(encryptionConfig.Rules) == 0 {
+		d.SetId("")
+		return nil
+	}
+
 	if err := d.Set("bucket", d.Id()); err != nil {
 		return diag.FromErr(err)
 	}
@@ -88,8 +102,11 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 		return diag.FromErr(fmt.Errorf("error setting encryption type: %w", err))
 	}
 
-	if err := d.Set("kms_key_id", encryptionConfig.Rules[0].Apply.KmsMasterKeyID); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting encryption kms key id: %w", err))
+	kmsMasterKeyID := encryptionConfig.Rules[0].Apply.KmsMasterKeyID
+	if kmsMasterKeyID != "" {
+		if err := d.Set("kms_key_id", kmsMasterKeyID); err != nil {
+			return diag.FromErr(fmt.Errorf("error setting encryption kms key id: %w", err))
+		}
 	}
 
 	return nil
@@ -114,16 +131,12 @@ func minioDeleteBucketServerSideEncryption(ctx context.Context, d *schema.Resour
 }
 
 func getBucketServerSideEncryptionConfig(d *schema.ResourceData) *sse.Configuration {
-	result := &sse.Configuration{
-		Rules: []sse.Rule{
-			{
-				Apply: sse.ApplySSEByDefault{
-					SSEAlgorithm:   d.Get("encryption_type").(string),
-					KmsMasterKeyID: d.Get("kms_key_id").(string),
-				},
-			},
-		},
+	encryptionType := d.Get("encryption_type").(string)
+
+	if encryptionType == "AES256" {
+		return sse.NewConfigurationSSES3()
 	}
 
-	return result
+	keyID, _ := d.Get("kms_key_id").(string)
+	return sse.NewConfigurationSSEKMS(keyID)
 }

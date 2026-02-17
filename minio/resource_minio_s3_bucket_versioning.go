@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -185,6 +186,11 @@ func minioDeleteBucketVersioning(ctx context.Context, d *schema.ResourceData, me
 
 	err := bucketVersioningConfig.MinioClient.SuspendVersioning(ctx, bucketVersioningConfig.MinioBucket)
 	if err != nil {
+		var minioErr minio.ErrorResponse
+		if errors.As(err, &minioErr) && minioErr.Code == "InvalidBucketState" {
+			log.Printf("[WARN] S3 bucket %s: cannot suspend versioning (%s), removing from state anyway", bucketVersioningConfig.MinioBucket, minioErr.Message)
+			return nil
+		}
 		return NewResourceError("error suspending bucket versioning", bucketVersioningConfig.MinioBucket, err)
 	}
 

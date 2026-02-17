@@ -241,6 +241,15 @@ type S3MinioObjectTags struct {
 	MinioObjectKey string
 }
 
+// S3MinioObjectLegalHold defines object legal hold configuration
+type S3MinioObjectLegalHold struct {
+	MinioClient    *minio.Client
+	MinioBucket    string
+	MinioObjectKey string
+	MinioVersionID string
+	MinioStatus    string
+}
+
 // Princ defines policy princ
 type Princ struct {
 	AWS           set.StringSet `json:"AWS,omitempty"`

@@ -110,6 +110,7 @@ func testAccMinioS3ObjectLegalHoldConfig(bucketName, objectKey, status string) s
 resource "minio_s3_bucket" "bucket" {
   bucket         = "%s"
   object_locking = true
+  force_destroy  = true
 }
 
 resource "minio_s3_object" "object" {

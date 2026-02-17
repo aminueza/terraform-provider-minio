@@ -284,3 +284,16 @@ func ObjectTagsConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectTa
 		MinioObjectKey: getOptionalField(d, "key", "").(string),
 	}
 }
+
+// ObjectLegalHoldConfig creates configuration for managing object legal hold.
+func ObjectLegalHoldConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectLegalHold {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioObjectLegalHold{
+		MinioClient:    m.S3Client,
+		MinioBucket:    getOptionalField(d, "bucket", "").(string),
+		MinioObjectKey: getOptionalField(d, "key", "").(string),
+		MinioVersionID: getOptionalField(d, "version_id", "").(string),
+		MinioStatus:    getOptionalField(d, "status", "").(string),
+	}
+}

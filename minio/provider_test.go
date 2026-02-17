@@ -12,12 +12,14 @@ var testAccProvider *schema.Provider
 var testAccSecondProvider *schema.Provider
 var testAccThirdProvider *schema.Provider
 var testAccFourthProvider *schema.Provider
+var testAccKmsProvider *schema.Provider
 
 func init() {
 	testAccProvider = newProvider()
 	testAccSecondProvider = newProvider("SECOND_")
 	testAccThirdProvider = newProvider("THIRD_")
 	testAccFourthProvider = newProvider("FOURTH_")
+	testAccKmsProvider = newProvider("KMS_")
 	testAccProviders = map[string]func() (*schema.Provider, error){
 		"minio": func() (*schema.Provider, error) {
 			return testAccProvider, nil
@@ -30,6 +32,9 @@ func init() {
 		},
 		"fourthminio": func() (*schema.Provider, error) {
 			return testAccFourthProvider, nil
+		},
+		"kmsminio": func() (*schema.Provider, error) {
+			return testAccKmsProvider, nil
 		},
 	}
 }

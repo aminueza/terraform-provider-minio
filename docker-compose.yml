@@ -21,6 +21,23 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+  kmsminio: # This is used to test server-side encryption (SSE-S3/SSE-KMS)
+    image: *minio_image
+    ports:
+      - "9008:9000"
+      - "9009:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio789
+      MINIO_CI_CD: "1"
+      MINIO_KMS_SECRET_KEY: "my-minio-key:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+    command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
   secondminio: #  This is used to test bucket replication
     image: *minio_image
     ports:
@@ -121,8 +138,15 @@ services:
       FOURTH_MINIO_USER: "minio"
       FOURTH_MINIO_PASSWORD: "minio654"
       FOURTH_MINIO_ENABLE_HTTPS: "false"
+      KMS_MINIO_ENDPOINT: "kmsminio:9000"
+      KMS_MINIO_USER: "minio"
+      KMS_MINIO_PASSWORD: "minio789"
+      KMS_MINIO_ENABLE_HTTPS: "false"
+      MINIO_KMS_CONFIGURED: "1"
     depends_on:
       minio:
+        condition: service_healthy
+      kmsminio:
         condition: service_healthy
       secondminio:
         condition: service_healthy

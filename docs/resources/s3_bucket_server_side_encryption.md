@@ -2,19 +2,26 @@
 page_title: "minio_s3_bucket_server_side_encryption Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages server-side encryption configuration for an S3 bucket. Supports SSE-S3 (AES256) and SSE-KMS (aws:kms) encryption types.
 ---
 
 # minio_s3_bucket_server_side_encryption (Resource)
 
-
+Manages server-side encryption configuration for an S3 bucket. Supports SSE-S3 (AES256) and SSE-KMS (aws:kms) encryption types.
 
 ## Example Usage
 
 ```terraform
-# Configure server-side encryption for a bucket
-resource "minio_s3_bucket_server_side_encryption" "example" {
+# SSE-S3 encryption (AES256)
+resource "minio_s3_bucket_server_side_encryption" "sse_s3" {
   bucket = "my-bucket"
+
+  encryption_type = "AES256"
+}
+
+# SSE-KMS encryption
+resource "minio_s3_bucket_server_side_encryption" "sse_kms" {
+  bucket = "my-kms-bucket"
 
   encryption_type = "aws:kms"
   kms_key_id      = "my-kms-key"
@@ -27,8 +34,11 @@ resource "minio_s3_bucket_server_side_encryption" "example" {
 ### Required
 
 - `bucket` (String) Name of the bucket on which to setup server side encryption
-- `encryption_type` (String) Server side encryption type
-- `kms_key_id` (String) KMS key id to use for server side encryption
+- `encryption_type` (String) Server side encryption type: `AES256` for SSE-S3 or `aws:kms` for SSE-KMS
+
+### Optional
+
+- `kms_key_id` (String) KMS key id to use for SSE-KMS encryption. Required when encryption_type is `aws:kms`, ignored for `AES256`.
 
 ### Read-Only
 

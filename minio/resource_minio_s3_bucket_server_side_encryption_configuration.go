@@ -60,7 +60,7 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 		return nil
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, put encryption configuration: %v", bucketEncryptionConfig.MinioBucket, encryptionConfig)
+	log.Printf("[DEBUG] S3 bucket: %s, putting encryption configuration", bucketEncryptionConfig.MinioBucket)
 
 	err := bucketEncryptionConfig.MinioClient.SetBucketEncryption(
 		ctx,
@@ -69,12 +69,13 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 	)
 
 	if err != nil {
-		return NewResourceError("error putting bucket encryption configuration", d.Id(), err)
+		return NewResourceError("putting bucket encryption configuration", bucketEncryptionConfig.MinioBucket, err)
 	}
 
 	d.SetId(bucketEncryptionConfig.MinioBucket)
+	log.Printf("[DEBUG] S3 bucket: %s, encryption configuration applied", bucketEncryptionConfig.MinioBucket)
 
-	return nil
+	return minioReadBucketServerSideEncryption(ctx, d, meta)
 }
 
 func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -85,7 +86,6 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 	encryptionConfig, err := bucketEncryptionConfig.MinioClient.GetBucketEncryption(ctx, d.Id())
 	if err != nil {
 		d.SetId("")
-
 		return nil
 	}
 
@@ -95,18 +95,15 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 	}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket", d.Id(), err)
 	}
 
 	if err := d.Set("encryption_type", encryptionConfig.Rules[0].Apply.SSEAlgorithm); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting encryption type: %w", err))
+		return NewResourceError("setting encryption_type", d.Id(), err)
 	}
 
-	kmsMasterKeyID := encryptionConfig.Rules[0].Apply.KmsMasterKeyID
-	if kmsMasterKeyID != "" {
-		if err := d.Set("kms_key_id", kmsMasterKeyID); err != nil {
-			return diag.FromErr(fmt.Errorf("error setting encryption kms key id: %w", err))
-		}
+	if err := d.Set("kms_key_id", encryptionConfig.Rules[0].Apply.KmsMasterKeyID); err != nil {
+		return NewResourceError("setting kms_key_id", d.Id(), err)
 	}
 
 	return nil

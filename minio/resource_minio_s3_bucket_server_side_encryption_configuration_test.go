@@ -33,7 +33,7 @@ func TestAccMinioBucketServerSideEncryption_sseS3(t *testing.T) {
 					testAccCheckMinioBucketEncryptionExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
 					resource.TestCheckResourceAttr(resourceName, "encryption_type", "AES256"),
-					resource.TestCheckNoResourceAttr(resourceName, "kms_key_id"),
+					resource.TestCheckResourceAttr(resourceName, "kms_key_id", ""),
 				),
 			},
 		},
@@ -136,6 +136,7 @@ func TestAccMinioBucketServerSideEncryption_updateKMStoS3(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioBucketEncryptionExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "encryption_type", "AES256"),
+					resource.TestCheckResourceAttr(resourceName, "kms_key_id", ""),
 				),
 			},
 		},
@@ -251,8 +252,12 @@ func testAccCheckMinioBucketEncryptionDestroy(s *terraform.State) error {
 			continue
 		}
 
-		_, err := client.GetBucketEncryption(ctx, rs.Primary.ID)
-		if err == nil {
+		config, err := client.GetBucketEncryption(ctx, rs.Primary.ID)
+		if err != nil {
+			continue
+		}
+
+		if len(config.Rules) > 0 {
 			return fmt.Errorf("bucket encryption still exists for %s", rs.Primary.ID)
 		}
 	}

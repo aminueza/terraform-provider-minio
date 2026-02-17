@@ -11,19 +11,15 @@ Manages server-side encryption configuration for an S3 bucket. Supports SSE-S3 (
 
 ## Example Usage
 
-### SSE-S3 (AES256)
-
 ```terraform
+# SSE-S3 encryption (AES256)
 resource "minio_s3_bucket_server_side_encryption" "sse_s3" {
   bucket = "my-bucket"
 
   encryption_type = "AES256"
 }
-```
 
-### SSE-KMS
-
-```terraform
+# SSE-KMS encryption
 resource "minio_s3_bucket_server_side_encryption" "sse_kms" {
   bucket = "my-kms-bucket"
 

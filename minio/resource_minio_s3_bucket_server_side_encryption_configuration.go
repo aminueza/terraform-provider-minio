@@ -112,17 +112,14 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 func minioDeleteBucketServerSideEncryption(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketEncryptionConfig := BucketServerSideEncryptionConfig(d, meta)
 
-	if v := getBucketServerSideEncryptionConfig(d); v != nil && len(v.Rules) == 0 {
-		log.Printf("[DEBUG] Removing bucket encryption for unencrypted bucket (%s) from state", d.Id())
-		return nil
-	}
-
 	log.Printf("[DEBUG] S3 bucket: %s, removing bucket encryption", bucketEncryptionConfig.MinioBucket)
 
 	err := bucketEncryptionConfig.MinioClient.RemoveBucketEncryption(ctx, bucketEncryptionConfig.MinioBucket)
 	if err != nil {
-		return NewResourceError("error removing bucket encryption", bucketEncryptionConfig.MinioBucket, err)
+		return NewResourceError("removing bucket encryption", bucketEncryptionConfig.MinioBucket, err)
 	}
+
+	log.Printf("[DEBUG] S3 bucket: %s, bucket encryption removed", bucketEncryptionConfig.MinioBucket)
 
 	return nil
 }

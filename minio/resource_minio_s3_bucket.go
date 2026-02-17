@@ -413,39 +413,9 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 					"or manually empty the bucket first", bucketName)
 		}
 
-		log.Printf("[DEBUG] Force destroying bucket %s - deleting all objects", bucketName)
-
-		objectsCh := make(chan minio.ObjectInfo)
-		var listErr error
-
-		go func() {
-			defer close(objectsCh)
-
-			for object := range bucketConfig.MinioClient.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
-				Recursive:    true,
-				WithVersions: true,
-			}) {
-				if object.Err != nil {
-					listErr = object.Err
-					log.Printf("[ERROR] Error listing objects for deletion: %s", object.Err)
-					return
-				}
-				objectsCh <- object
-			}
-		}()
-
-		errorCh := bucketConfig.MinioClient.RemoveObjects(ctx, bucketName, objectsCh, minio.RemoveObjectsOptions{})
-
-		for removeErr := range errorCh {
-			log.Printf("[ERROR] Error deleting object %s: %s", removeErr.ObjectName, removeErr.Err)
-			return NewResourceError("error deleting object during force destroy", removeErr.ObjectName, removeErr.Err)
+		if diagErr := forceDestroyBucketObjects(ctx, bucketConfig.MinioClient, bucketName); diagErr != nil {
+			return diagErr
 		}
-
-		if listErr != nil {
-			return NewResourceError("error listing objects for deletion", bucketName, listErr)
-		}
-
-		log.Printf("[DEBUG] All objects deleted from bucket %s", bucketName)
 	}
 
 	if err := bucketConfig.MinioClient.RemoveBucket(ctx, bucketName); err != nil {
@@ -457,6 +427,128 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	_ = d.Set("bucket_domain_name", "")
 
+	return nil
+}
+
+// forceDestroyBucketObjects deletes all object versions and delete markers from
+// a bucket, enabling bucket removal.
+//
+// It uses a two-phase approach:
+//
+//  1. Bulk delete via RemoveObjects with GovernanceBypass — efficiently removes
+//     most objects in batches of up to 1000.
+//
+//  2. Per-object fallback via RemoveObject with GovernanceBypass — catches
+//     versions that the bulk API silently skips. The minio-go bulk delete
+//     swallows InvalidArgument and NoSuchVersion per-object errors
+//     (processRemoveMultiObjectsResponse), which causes locked object versions
+//     on object-lock-enabled buckets to be silently left behind.
+//
+// Objects under active legal hold are never force-deleted; the function returns
+// an actionable error asking the user to remove the hold first.
+func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
+	log.Printf("[DEBUG] Force destroying bucket %s - deleting all objects", bucketName)
+
+	// ── Phase 1: bulk delete ──────────────────────────────────────────────
+	objectsCh := make(chan minio.ObjectInfo)
+	var listErr error
+
+	// The goroutine writes listErr then closes objectsCh (via defer).
+	// RemoveObjects drains objectsCh then closes errorCh. Reading listErr
+	// after draining errorCh is therefore safe (happens-before via channel
+	// close semantics).
+	go func() {
+		defer close(objectsCh)
+		for object := range client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+			Recursive:    true,
+			WithVersions: true,
+		}) {
+			if object.Err != nil {
+				listErr = object.Err
+				log.Printf("[ERROR] Error listing objects for deletion: %s", object.Err)
+				return
+			}
+			objectsCh <- object
+		}
+	}()
+
+	errorCh := client.RemoveObjects(ctx, bucketName, objectsCh, minio.RemoveObjectsOptions{
+		GovernanceBypass: true,
+	})
+
+	// Drain the full error channel so that the internal minio-go goroutines
+	// can complete. Returning on the first error would leave them blocked on
+	// an unconsumed channel, leaking goroutines until the context is cancelled.
+	var firstRemoveErr minio.RemoveObjectError
+	var hasRemoveErr bool
+	for removeErr := range errorCh {
+		log.Printf("[ERROR] Error deleting object %s: %s", removeErr.ObjectName, removeErr.Err)
+		if !hasRemoveErr {
+			firstRemoveErr = removeErr
+			hasRemoveErr = true
+		}
+	}
+
+	if hasRemoveErr {
+		return NewResourceError("error deleting object during force destroy", firstRemoveErr.ObjectName, firstRemoveErr.Err)
+	}
+
+	if listErr != nil {
+		return NewResourceError("error listing objects for deletion", bucketName, listErr)
+	}
+
+	// ── Phase 2: per-object fallback ──────────────────────────────────────
+	// Re-list the bucket. For non-lock buckets the list will be empty (bulk
+	// delete handled everything). For object-lock-enabled buckets any
+	// versions that the bulk API silently skipped will appear here.
+	for object := range client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
+		Recursive:    true,
+		WithVersions: true,
+	}) {
+		if object.Err != nil {
+			return NewResourceError("error listing remaining objects", bucketName, object.Err)
+		}
+
+		// Delete markers don't carry retention or legal hold metadata; skip the API calls.
+		if !object.IsDeleteMarker {
+			// Check compliance retention — cannot be bypassed by anyone until expiry.
+			mode, retainUntilDate, err := client.GetObjectRetention(ctx, bucketName, object.Key, object.VersionID)
+			if err == nil && mode != nil && *mode == minio.Compliance && retainUntilDate != nil && retainUntilDate.After(time.Now()) {
+				return NewResourceError("error deleting object during force destroy",
+					fmt.Sprintf("%s (version %s)", object.Key, object.VersionID),
+					fmt.Errorf("object has compliance retention until %s; it cannot be deleted until the retention period expires",
+						retainUntilDate.Format(time.RFC3339)))
+			}
+
+			// Check legal hold — must be explicitly removed before deletion.
+			holdStatus, err := client.GetObjectLegalHold(ctx, bucketName, object.Key, minio.GetObjectLegalHoldOptions{
+				VersionID: object.VersionID,
+			})
+			if err == nil && holdStatus != nil && *holdStatus == minio.LegalHoldEnabled {
+				return NewResourceError("error deleting object during force destroy",
+					fmt.Sprintf("%s (version %s)", object.Key, object.VersionID),
+					fmt.Errorf("object has legal hold enabled; remove the legal hold before destroying the bucket"))
+			}
+
+			// GetObjectRetention/GetObjectLegalHold may fail when object locking
+			// is not configured on the bucket or for transient reasons.
+			// GovernanceBypass does NOT bypass compliance retention or legal hold,
+			// so the server will still reject the delete if the object truly is
+			// protected — the pre-checks are a UX improvement, not the only guard.
+		}
+
+		log.Printf("[DEBUG] Removing remaining version %s (version: %s) from bucket %s",
+			object.Key, object.VersionID, bucketName)
+		err := client.RemoveObject(ctx, bucketName, object.Key, minio.RemoveObjectOptions{
+			VersionID:        object.VersionID,
+			GovernanceBypass: true,
+		})
+		if err != nil {
+			return NewResourceError("error deleting object during force destroy", object.Key, err)
+		}
+	}
+
+	log.Printf("[DEBUG] All objects deleted from bucket %s", bucketName)
 	return nil
 }
 
@@ -636,8 +728,9 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 // Returns (true, nil) if objects exist, (false, nil) if empty, or (false, error) on failure.
 func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName string) (bool, diag.Diagnostics) {
 	objectsCh := client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
-		Recursive: true,
-		MaxKeys:   1,
+		Recursive:    true,
+		MaxKeys:      1,
+		WithVersions: true,
 	})
 
 	obj, ok := <-objectsCh

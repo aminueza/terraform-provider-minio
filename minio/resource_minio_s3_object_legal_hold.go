@@ -50,8 +50,6 @@ func resourceMinioObjectLegalHold() *schema.Resource {
 	}
 }
 
-// legalHoldID builds a resource ID from bucket, key, and optional versionID.
-// Format: "bucket/key" or "bucket/key#versionID".
 func legalHoldID(bucket, key, versionID string) string {
 	id := fmt.Sprintf("%s/%s", bucket, key)
 	if versionID != "" {
@@ -60,9 +58,7 @@ func legalHoldID(bucket, key, versionID string) string {
 	return id
 }
 
-// parseLegalHoldID extracts bucket, key, and versionID from a resource ID.
 func parseLegalHoldID(id string) (bucket, key, versionID string) {
-	// Split off version_id (after #) first, then bucket/key.
 	rest := id
 	if idx := strings.LastIndex(id, "#"); idx != -1 {
 		rest = id[:idx]

@@ -580,11 +580,6 @@ func TestAccMinioS3Bucket_forceDestroyFalseWithObjects(t *testing.T) {
 	})
 }
 
-// TestAccMinioS3Bucket_forceDestroyRespectsLegalHold is intentionally removed.
-// WORM protection enforcement is MinIO server behavior and Destroy+ExpectError
-// in the plugin SDK does not match provider diagnostics, making this test
-// unreliable and prone to leaving dangling resources.
-
 func TestAccMinioS3Bucket_forceDestroyObjectLockWithObjects(t *testing.T) {
 	resourceName := "minio_s3_bucket.bucket"
 	bucketName := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())

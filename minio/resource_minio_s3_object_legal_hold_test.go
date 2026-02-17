@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -96,7 +97,11 @@ func testAccCheckMinioObjectLegalHoldDestroy(s *terraform.State) error {
 		}
 		status, err := client.S3Client.GetObjectLegalHold(ctx, bucket, key, minio.GetObjectLegalHoldOptions{})
 		if err != nil {
-			continue
+			var minioErr minio.ErrorResponse
+			if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchVersion" || minioErr.Code == "NoSuchBucket") {
+				continue
+			}
+			return fmt.Errorf("error checking legal hold for %s: %s", rs.Primary.ID, err)
 		}
 		if status != nil && *status == minio.LegalHoldEnabled {
 			return fmt.Errorf("legal hold still enabled for %s", rs.Primary.ID)

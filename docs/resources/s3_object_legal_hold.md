@@ -54,4 +54,7 @@ Import is supported using the following syntax:
 ```shell
 # Import using bucket name and object key separated by a slash
 terraform import minio_s3_object_legal_hold.example bucket_name/object_key
+
+# Import a specific object version by appending #version_id
+terraform import minio_s3_object_legal_hold.example bucket_name/object_key#version_id
 ```

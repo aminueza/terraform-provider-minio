@@ -1,0 +1,156 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+```terraform
+# Basic Prometheus configuration with JWT authentication
+resource "minio_prometheus_config" "main" {
+  auth_type       = "jwt"
+  metrics_version = "v3"
+}
+
+# Public metrics (no authentication)
+resource "minio_prometheus_config" "public" {
+  auth_type       = "public"
+  metrics_version = "v3"
+}
+
+# Custom configuration with URL and job ID
+resource "minio_prometheus_config" "custom" {
+  auth_type        = "jwt"
+  metrics_version  = "v2"
+  prometheus_url   = "https://prometheus.example.com"
+  job_id           = "minio-production"
+}
+
+# Generate bearer tokens automatically
+resource "minio_prometheus_config" "with_tokens" {
+  auth_type       = "jwt"
+  metrics_version = "v3"
+  generate_tokens = true
+}
+
+# Use generated tokens
+output "cluster_token" {
+  value     = minio_prometheus_config.with_tokens.cluster_token
+  sensitive = true
+}
+
+output "node_token" {
+  value     = minio_prometheus_config.with_tokens.node_token
+  sensitive = true
+}
+```
+
+## Integration with Bearer Tokens and Scrape Config
+
+```terraform
+# Configure Prometheus settings
+resource "minio_prometheus_config" "main" {
+  auth_type       = "jwt"
+  metrics_version = "v3"
+  generate_tokens = true
+}
+
+# Generate scrape configs using the configuration
+data "minio_prometheus_scrape_config" "cluster" {
+  metric_type  = "cluster"
+  bearer_token = minio_prometheus_config.main.cluster_token
+}
+
+data "minio_prometheus_scrape_config" "node" {
+  metric_type  = "node"
+  bearer_token = minio_prometheus_config.main.node_token
+}
+
+# Output complete Prometheus configuration
+output "prometheus_config" {
+  value = <<-EOT
+    ${data.minio_prometheus_scrape_config.cluster.scrape_config}
+    
+    ${data.minio_prometheus_scrape_config.node.scrape_config}
+  EOT
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Authentication Types
+
+### JWT Authentication (Default)
+- Requires bearer tokens for accessing metrics endpoints
+- Tokens can be generated automatically with `generate_tokens = true`
+- Tokens can also be created manually using `minio_prometheus_bearer_token` resource
+- Recommended for production environments
+
+### Public Authentication
+- No authentication required for metrics endpoints
+- Suitable for internal monitoring networks
+- Not recommended for production environments exposed to the internet
+
+## Metrics Versions
+
+### Version 3 (Default)
+- Current metrics format
+- Endpoint: `/minio/metrics/v3?type={metric_type}`
+- Supports all metric types: cluster, node, bucket, resource
+- More efficient and comprehensive metrics
+
+### Version 2
+- Legacy metrics format
+- Endpoint: `/minio/v2/metrics/{metric_type}`
+- Maintained for backward compatibility
+- May be deprecated in future versions
+
+## Configuration Options
+
+- **auth_type**: Authentication method (jwt/public)
+- **metrics_version**: Metrics API version (v2/v3)
+- **prometheus_url**: Custom metrics endpoint URL (optional)
+- **job_id**: Custom job identifier for Prometheus (optional)
+- **generate_tokens**: Auto-generate bearer tokens for all metric types
+
+## Token Generation
+
+When `generate_tokens = true` is set with `auth_type = "jwt"`, the resource automatically generates bearer tokens for all four metric types:
+
+- `cluster_token`: For cluster-wide metrics
+- `node_token`: For per-node metrics  
+- `bucket_token`: For bucket-specific metrics
+- `resource_token`: For resource utilization metrics
+
+Each token uses the default expiry of 10 years and can be used with the `minio_prometheus_scrape_config` data source.
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Import the Prometheus configuration
+terraform import minio_prometheus_config.main prometheus
+```
+
+## Server Restart Requirements
+
+Some configuration changes may require a MinIO server restart to take effect. The `restart_required` attribute indicates whether a restart is needed for the current configuration change.
+
+- Changes to `auth_type` typically require a restart
+- Changes to `metrics_version` typically require a restart
+- Changes to `prometheus_url` and `job_id` may require a restart
+
+## Security Considerations
+
+- Use JWT authentication for production environments
+- Store bearer tokens securely using Terraform's sensitive data handling
+- Regularly rotate tokens by updating the configuration
+- Consider using shorter token expiry periods for enhanced security
+- Limit access to metrics endpoints using network security controls

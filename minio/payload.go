@@ -361,3 +361,15 @@ type S3MinioPrometheusScrapeConfig struct {
 	MetricsVersion string
 	BearerToken    string
 }
+
+// S3MinioPrometheusConfig defines Prometheus server configuration
+type S3MinioPrometheusConfig struct {
+	MinioAdmin     *madmin.AdminClient
+	MinioAccessKey string
+	MinioSecretKey string
+	AuthType       string
+	MetricsVersion string
+	PrometheusURL  string
+	JobID          string
+	GenerateTokens bool
+}

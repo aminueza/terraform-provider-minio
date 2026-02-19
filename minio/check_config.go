@@ -298,22 +298,6 @@ func ObjectLegalHoldConfig(d *schema.ResourceData, meta interface{}) *S3MinioObj
 	}
 }
 
-// PrometheusConfig creates configuration for MinIO Prometheus metrics.
-func PrometheusConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusConfig {
-	m := meta.(*S3MinioClient)
-
-	return &S3MinioPrometheusConfig{
-		MinioAdmin:     m.S3Admin,
-		MinioAccessKey: m.S3UserAccess,
-		MinioSecretKey: m.S3UserSecret,
-		AuthType:       getOptionalField(d, "auth_type", "jwt").(string),
-		MetricsVersion: getOptionalField(d, "metrics_version", "v3").(string),
-		GenerateTokens: getOptionalField(d, "generate_tokens", false).(bool),
-		URL:            getOptionalField(d, "url", "").(string),
-		JobID:          getOptionalField(d, "job_id", "").(string),
-	}
-}
-
 // PrometheusBearerTokenConfig creates configuration for MinIO Prometheus bearer token.
 func PrometheusBearerTokenConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusBearerToken {
 	m := meta.(*S3MinioClient)

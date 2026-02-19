@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -49,7 +50,7 @@ duration from creation time.`,
 				Optional:     true,
 				Default:      "87600h",
 				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^\d+h$`), "must be in format: number followed by 'h' (e.g., 24h, 87600h)"),
-				Description:  "Token expiry duration in hours (e.g., 24h, 87600h). Default: 87600h (10 years)",
+				Description:  "Token expiry duration in whole hours only (e.g., 24h, 87600h). Go time.Duration formats like 24h30m or units such as m/s are not supported. Default: 87600h (10 years)",
 			},
 			"limit": {
 				Type:         schema.TypeInt,
@@ -108,7 +109,6 @@ func minioCreatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 }
 
 func minioReadPrometheusBearerToken(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	config := PrometheusBearerTokenConfig(d, meta)
 	metricType := d.Id()
 
 	log.Printf("[DEBUG] Reading Prometheus bearer token for metric type: %s", metricType)
@@ -117,32 +117,18 @@ func minioReadPrometheusBearerToken(ctx context.Context, d *schema.ResourceData,
 		return NewResourceError("setting metric_type", metricType, err)
 	}
 
-	if err := d.Set("expires_in", config.ExpiresIn); err != nil {
-		return NewResourceError("setting expires_in", metricType, err)
+	token, ok := d.GetOk("token")
+	if ok {
+		if err := d.Set("token", token); err != nil {
+			return NewResourceError("setting token", metricType, err)
+		}
 	}
 
-	if err := d.Set("limit", config.Limit); err != nil {
-		return NewResourceError("setting limit", metricType, err)
-	}
-
-	duration, err := time.ParseDuration(config.ExpiresIn)
-	if err != nil {
-		return NewResourceError("parsing expires_in duration", metricType, err)
-	}
-
-	token, err := generatePrometheusToken(config.MinioAccessKey, config.MinioSecretKey, duration, config.Limit)
-	if err != nil {
-		return NewResourceError("generating Prometheus bearer token", metricType, err)
-	}
-
-	expiry := time.Now().UTC().Add(duration)
-
-	if err := d.Set("token", token); err != nil {
-		return NewResourceError("setting token", metricType, err)
-	}
-
-	if err := d.Set("token_expiry", expiry.Format(time.RFC3339)); err != nil {
-		return NewResourceError("setting token_expiry", metricType, err)
+	tokenExpiry, ok := d.GetOk("token_expiry")
+	if ok {
+		if err := d.Set("token_expiry", tokenExpiry); err != nil {
+			return NewResourceError("setting token_expiry", metricType, err)
+		}
 	}
 
 	return nil
@@ -225,16 +211,19 @@ type jwtClaim struct {
 
 func (c *jwtClaim) sign(secretKey string) (string, error) {
 	header := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9"
-	payload := fmt.Sprintf(`{"sub":"%s","iss":"%s","exp":%d}`,
-		c.Subject, c.Issuer, c.ExpiresAt.Unix())
+	payloadBytes, err := json.Marshal(c)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JWT payload: %w", err)
+	}
 
-	data := header + "." + payload
+	encodedPayload := base64URLEncode(payloadBytes)
+	data := header + "." + encodedPayload
 
 	h := hmac.New(sha512.New, []byte(secretKey))
 	h.Write([]byte(data))
 	signature := h.Sum(nil)
 
-	return header + "." + base64URLEncode([]byte(payload)) + "." + base64URLEncode(signature), nil
+	return header + "." + encodedPayload + "." + base64URLEncode(signature), nil
 }
 
 func base64URLEncode(data []byte) string {

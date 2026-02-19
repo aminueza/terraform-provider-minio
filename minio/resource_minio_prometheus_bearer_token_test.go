@@ -100,6 +100,20 @@ func testAccCheckMinioPrometheusBearerTokenExists(resourceName string) resource.
 	}
 }
 
+func testAccCheckMinioPrometheusBearerTokenDestroy(s *terraform.State) error {
+	for name, rs := range s.RootModule().Resources {
+		if rs.Type != "minio_prometheus_bearer_token" {
+			continue
+		}
+
+		if rs.Primary != nil && rs.Primary.ID != "" {
+			return fmt.Errorf("resource %s of type %s still exists in state with ID %s", name, rs.Type, rs.Primary.ID)
+		}
+	}
+
+	return nil
+}
+
 func testAccMinioPrometheusBearerTokenBasic(metricType string) string {
 	return fmt.Sprintf(`
 resource "minio_prometheus_bearer_token" "test" {

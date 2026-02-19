@@ -340,18 +340,6 @@ var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:
 
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
 
-// S3MinioPrometheusConfig defines Prometheus metrics configuration
-type S3MinioPrometheusConfig struct {
-	MinioAdmin     *madmin.AdminClient
-	MinioAccessKey string
-	MinioSecretKey string
-	AuthType       string
-	MetricsVersion string
-	GenerateTokens bool
-	URL            string
-	JobID          string
-}
-
 // S3MinioPrometheusBearerToken defines Prometheus bearer token configuration
 type S3MinioPrometheusBearerToken struct {
 	MinioAdmin     *madmin.AdminClient

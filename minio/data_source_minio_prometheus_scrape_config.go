@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -23,10 +24,11 @@ func dataSourceMinioPrometheusScrapeConfig() *schema.Resource {
 				Description:  "Metric type for the scrape configuration. Valid values are: cluster, node, bucket, resource",
 			},
 			"alias": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "minio",
-				Description: "Alias for the MinIO server in Prometheus configuration",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "minio",
+				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`), "must start with alphanumeric and contain only alphanumeric characters, hyphens, and underscores"),
+				Description:  "Alias for the MinIO server in Prometheus configuration",
 			},
 			"metrics_version": {
 				Type:         schema.TypeString,
@@ -36,10 +38,11 @@ func dataSourceMinioPrometheusScrapeConfig() *schema.Resource {
 				Description:  "Metrics version. Valid values are: v2, v3",
 			},
 			"bearer_token": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Bearer token for authenticated access to Prometheus metrics (when using JWT auth)",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+$`), "must be a valid JWT token format"),
+				Description:  "Bearer token for authenticated access to Prometheus metrics (when using JWT auth)",
 			},
 			"scrape_config": {
 				Type:        schema.TypeString,
@@ -89,7 +92,7 @@ func dataSourceMinioPrometheusScrapeConfigRead(ctx context.Context, d *schema.Re
 
 	scrapeConfig += fmt.Sprintf(`
     static_configs:
-      - targets: [%s]`, config.MinioEndpoint)
+      - targets: [%q]`, config.MinioEndpoint)
 
 	if err := d.Set("scrape_config", scrapeConfig); err != nil {
 		return NewResourceError("setting scrape_config", metricType, err)

@@ -332,19 +332,3 @@ func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPr
 
 	return payload
 }
-
-// PrometheusConfig creates configuration for MinIO Prometheus server configuration.
-func PrometheusConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusConfig {
-	m := meta.(*S3MinioClient)
-
-	return &S3MinioPrometheusConfig{
-		MinioAdmin:     m.S3Admin,
-		MinioAccessKey: m.S3UserAccess,
-		MinioSecretKey: m.S3UserSecret,
-		AuthType:       getOptionalField(d, "auth_type", "jwt").(string),
-		MetricsVersion: getOptionalField(d, "metrics_version", "v3").(string),
-		PrometheusURL:  getOptionalField(d, "prometheus_url", "").(string),
-		JobID:          getOptionalField(d, "job_id", "").(string),
-		GenerateTokens: getOptionalField(d, "generate_tokens", false).(bool),
-	}
-}

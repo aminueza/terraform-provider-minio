@@ -47,6 +47,7 @@ func dataSourceMinioPrometheusScrapeConfig() *schema.Resource {
 			"scrape_config": {
 				Type:        schema.TypeString,
 				Computed:    true,
+				Sensitive:   true,
 				Description: "Generated Prometheus scrape configuration in YAML format",
 			},
 			"metrics_path": {

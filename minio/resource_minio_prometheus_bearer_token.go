@@ -55,6 +55,7 @@ duration from creation time.`,
 			"limit": {
 				Type:         schema.TypeInt,
 				Optional:     true,
+				Computed:     true,
 				Default:      876000,
 				ForceNew:     true,
 				ValidateFunc: validation.IntAtLeast(1),

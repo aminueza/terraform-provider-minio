@@ -851,6 +851,11 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 		for i := 0; i < maxRetries; i++ {
 			isBucket, err := minioC.BucketExists(context.Background(), rs.Primary.ID)
 			if err != nil {
+				// Retry on signature errors which can be transient in CI
+				if strings.Contains(err.Error(), "SignatureDoesNotMatch") && i < maxRetries-1 {
+					time.Sleep(time.Duration((i+1)*500) * time.Millisecond)
+					continue
+				}
 				return fmt.Errorf("error checking bucket existence: %s", err)
 			}
 

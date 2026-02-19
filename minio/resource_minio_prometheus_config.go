@@ -112,9 +112,7 @@ func minioCreatePrometheusConfig(ctx context.Context, d *schema.ResourceData, me
 	// Set the Prometheus configuration using the admin API
 	timeout := d.Timeout(schema.TimeoutCreate)
 	var restartRequired bool
-	var err error
-
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		restart, err := config.MinioAdmin.SetConfigKV(ctx, configStr)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -223,9 +221,7 @@ func minioUpdatePrometheusConfig(ctx context.Context, d *schema.ResourceData, me
 	// Update the Prometheus configuration
 	timeout := d.Timeout(schema.TimeoutUpdate)
 	var restartRequired bool
-	var err error
-
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		restart, err := config.MinioAdmin.SetConfigKV(ctx, configStr)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -267,9 +263,7 @@ func minioDeletePrometheusConfig(ctx context.Context, d *schema.ResourceData, me
 	log.Printf("[DEBUG] Deleting Prometheus config")
 
 	timeout := d.Timeout(schema.TimeoutDelete)
-	var err error
-
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		_, err := client.S3Admin.DelConfigKV(ctx, "prometheus")
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

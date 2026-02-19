@@ -297,3 +297,38 @@ func ObjectLegalHoldConfig(d *schema.ResourceData, meta interface{}) *S3MinioObj
 		MinioStatus:    getOptionalField(d, "status", "").(string),
 	}
 }
+
+// PrometheusBearerTokenConfig creates configuration for MinIO Prometheus bearer token.
+func PrometheusBearerTokenConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusBearerToken {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioPrometheusBearerToken{
+		MinioAdmin:     m.S3Admin,
+		MinioAccessKey: m.S3UserAccess,
+		MinioSecretKey: m.S3UserSecret,
+		MetricType:     getOptionalField(d, "metric_type", "cluster").(string),
+		ExpiresIn:      getOptionalField(d, "expires_in", "87600h").(string),
+		Limit:          getOptionalField(d, "limit", 876000).(int),
+	}
+}
+
+// PrometheusScrapeConfig creates configuration for MinIO Prometheus scrape config.
+func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusScrapeConfig {
+	m := meta.(*S3MinioClient)
+
+	payload := &S3MinioPrometheusScrapeConfig{
+		MinioEndpoint:  m.S3Endpoint,
+		MinioAccessKey: m.S3UserAccess,
+		MinioSecretKey: m.S3UserSecret,
+		UseSSL:         m.S3SSL,
+		MetricType:     getOptionalField(d, "metric_type", "cluster").(string),
+		Alias:          getOptionalField(d, "alias", "").(string),
+		MetricsVersion: getOptionalField(d, "metrics_version", "v3").(string),
+	}
+
+	if val, ok := d.GetOk("bearer_token"); ok {
+		payload.BearerToken = val.(string)
+	}
+
+	return payload
+}

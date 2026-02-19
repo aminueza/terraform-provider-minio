@@ -1,0 +1,89 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+```terraform
+# Create a bearer token for cluster metrics
+resource "minio_prometheus_bearer_token" "cluster" {
+  metric_type = "cluster"
+  expires_in  = "24h"
+}
+
+# Create a bearer token for node metrics with custom expiry
+resource "minio_prometheus_bearer_token" "node" {
+  metric_type = "node"
+  expires_in  = "168h"  # 1 week
+}
+
+# Create a bearer token for bucket metrics with limit
+resource "minio_prometheus_bearer_token" "bucket" {
+  metric_type = "bucket"
+  expires_in  = "720h"  # 30 days
+  limit       = 2160    # 90 days limit
+}
+
+# Create a bearer token for resource metrics
+resource "minio_prometheus_bearer_token" "resource" {
+  metric_type = "resource"
+  expires_in  = "87600h"  # 10 years (default)
+}
+```
+
+## Using with Prometheus Scrape Configuration
+
+```terraform
+# Generate bearer token
+resource "minio_prometheus_bearer_token" "cluster_metrics" {
+  metric_type = "cluster"
+  expires_in  = "24h"
+}
+
+# Generate scrape configuration with bearer token
+data "minio_prometheus_scrape_config" "cluster" {
+  metric_type  = "cluster"
+  bearer_token = minio_prometheus_bearer_token.cluster_metrics.token
+}
+
+output "prometheus_scrape_config" {
+  value = data.minio_prometheus_scrape_config.cluster.scrape_config
+}
+```
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Import using the metric type
+terraform import minio_prometheus_bearer_token.example cluster
+terraform import minio_prometheus_bearer_token.example node
+terraform import minio_prometheus_bearer_token.example bucket
+terraform import minio_prometheus_bearer_token.example resource
+```
+
+## Security Considerations
+
+- Bearer tokens are sensitive credentials. Treat them like passwords.
+- Tokens are generated locally using the provider's access and secret keys.
+- The token is stored in Terraform state as a sensitive value.
+- Use appropriate expiry durations based on your security requirements.
+- Regularly rotate tokens by updating the `expires_in` field.
+
+## Token Expiry
+
+- The `expires_in` field accepts durations in whole hours only (e.g., `24h`, `168h`).
+- The `limit` field sets the maximum allowed expiry in hours.
+- If the requested expiry exceeds the limit, it will be capped at the limit.
+- Default expiry is 87600 hours (10 years).
+- Default limit is 876000 hours (100 years).

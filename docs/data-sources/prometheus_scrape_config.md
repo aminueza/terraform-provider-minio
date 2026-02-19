@@ -120,7 +120,7 @@ output "complete_prometheus_config" {
 
 - `id` (String) The ID of this resource.
 - `metrics_path` (String) Metrics endpoint path
-- `scrape_config` (String) Generated Prometheus scrape configuration in YAML format
+- `scrape_config` (String, Sensitive) Generated Prometheus scrape configuration in YAML format
 
 ## Metric Types
 

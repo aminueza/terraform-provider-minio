@@ -32,6 +32,9 @@ type S3MinioClient struct {
 	S3Region     string
 	S3Client     *minio.Client
 	S3Admin      *madmin.AdminClient
+	S3Endpoint   string
+	S3UserSecret string
+	S3SSL        bool
 }
 
 // S3MinioBucket defines minio config
@@ -336,3 +339,37 @@ var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
+
+// S3MinioPrometheusConfig defines Prometheus metrics configuration
+type S3MinioPrometheusConfig struct {
+	MinioAdmin     *madmin.AdminClient
+	MinioAccessKey string
+	MinioSecretKey string
+	AuthType       string
+	MetricsVersion string
+	GenerateTokens bool
+	URL            string
+	JobID          string
+}
+
+// S3MinioPrometheusBearerToken defines Prometheus bearer token configuration
+type S3MinioPrometheusBearerToken struct {
+	MinioAdmin     *madmin.AdminClient
+	MinioAccessKey string
+	MinioSecretKey string
+	MetricType     string
+	ExpiresIn      string
+	Limit          int
+}
+
+// S3MinioPrometheusScrapeConfig defines Prometheus scrape configuration
+type S3MinioPrometheusScrapeConfig struct {
+	MinioEndpoint  string
+	MinioAccessKey string
+	MinioSecretKey string
+	UseSSL         bool
+	MetricType     string
+	Alias          string
+	MetricsVersion string
+	BearerToken    string
+}

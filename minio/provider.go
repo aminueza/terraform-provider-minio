@@ -140,12 +140,13 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"minio_iam_policy_document": dataSourceMinioIAMPolicyDocument(),
-			"minio_s3_object":           dataSourceMinioS3Object(),
-			"minio_iam_user":            dataSourceIAMUser(),
-			"minio_iam_users":           dataSourceIAMUsers(),
-			"minio_server_info":         dataSourceMinioServerInfo(),
-			"minio_health_status":       dataSourceMinioHealthStatus(),
+			"minio_iam_policy_document":      dataSourceMinioIAMPolicyDocument(),
+			"minio_s3_object":                dataSourceMinioS3Object(),
+			"minio_iam_user":                 dataSourceIAMUser(),
+			"minio_iam_users":                dataSourceIAMUsers(),
+			"minio_server_info":              dataSourceMinioServerInfo(),
+			"minio_health_status":            dataSourceMinioHealthStatus(),
+			"minio_prometheus_scrape_config": dataSourceMinioPrometheusScrapeConfig(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
@@ -191,8 +192,9 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_accesskey": resourceMinioAccessKey(),
 
 			// Server Configuration
-			"minio_config":           resourceMinioConfig(),
-			"minio_site_replication": resourceMinioSiteReplication(),
+			"minio_config":                  resourceMinioConfig(),
+			"minio_site_replication":        resourceMinioSiteReplication(),
+			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

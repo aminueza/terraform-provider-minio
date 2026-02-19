@@ -64,6 +64,9 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		S3Region:     config.S3Region,
 		S3Client:     minioClient,
 		S3Admin:      minioAdmin,
+		S3Endpoint:   config.S3HostPort,
+		S3UserSecret: config.S3UserSecret,
+		S3SSL:        config.S3SSL,
 	}, nil
 }
 

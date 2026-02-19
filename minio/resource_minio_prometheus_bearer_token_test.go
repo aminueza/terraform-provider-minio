@@ -29,7 +29,7 @@ func TestAccMinioPrometheusBearerToken_basic(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"token", "expires_in", "limit"},
+				ImportStateVerifyIgnore: []string{"token", "expires_in", "limit", "token_expiry"},
 			},
 		},
 	})

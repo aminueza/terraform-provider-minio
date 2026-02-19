@@ -55,7 +55,7 @@ duration from creation time.`,
 			"limit": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				Computed:     true,
+				Default:      876000,
 				ForceNew:     true,
 				ValidateFunc: validation.IntAtLeast(1),
 				Description:  "Maximum token expiry in hours. Default: 876000 (100 years)",
@@ -85,12 +85,17 @@ func minioCreatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("parsing expires_in duration", config.MetricType, err)
 	}
 
-	token, err := generatePrometheusToken(config.MinioAccessKey, config.MinioSecretKey, duration, config.Limit)
+	effectiveDuration := duration
+	if config.Limit > 0 && duration > time.Duration(config.Limit)*time.Hour {
+		effectiveDuration = time.Duration(config.Limit) * time.Hour
+	}
+
+	token, err := generatePrometheusToken(config.MinioAccessKey, config.MinioSecretKey, effectiveDuration, config.Limit)
 	if err != nil {
 		return NewResourceError("creating Prometheus bearer token", config.MetricType, err)
 	}
 
-	expiry := time.Now().UTC().Add(duration)
+	expiry := time.Now().UTC().Add(effectiveDuration)
 
 	id := config.MetricType
 	d.SetId(id)
@@ -145,12 +150,17 @@ func minioUpdatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("parsing expires_in duration", metricType, err)
 	}
 
-	token, err := generatePrometheusToken(config.MinioAccessKey, config.MinioSecretKey, duration, config.Limit)
+	effectiveDuration := duration
+	if config.Limit > 0 && duration > time.Duration(config.Limit)*time.Hour {
+		effectiveDuration = time.Duration(config.Limit) * time.Hour
+	}
+
+	token, err := generatePrometheusToken(config.MinioAccessKey, config.MinioSecretKey, effectiveDuration, config.Limit)
 	if err != nil {
 		return NewResourceError("updating Prometheus bearer token", metricType, err)
 	}
 
-	expiry := time.Now().UTC().Add(duration)
+	expiry := time.Now().UTC().Add(effectiveDuration)
 
 	if err := d.Set("token", token); err != nil {
 		return NewResourceError("setting token", metricType, err)

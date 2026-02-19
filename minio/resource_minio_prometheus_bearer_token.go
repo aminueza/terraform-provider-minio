@@ -192,7 +192,7 @@ func generateJWTToken(accessKey, secretKey string, expiry time.Duration) (string
 	jwt := &jwtClaim{
 		Subject:   accessKey,
 		Issuer:    prometheusIssuer,
-		ExpiresAt: time.Now().Add(expiry).UTC(),
+		ExpiresAt: time.Now().Add(expiry).UTC().Unix(),
 	}
 
 	token, err := jwt.sign(secretKey)
@@ -204,9 +204,9 @@ func generateJWTToken(accessKey, secretKey string, expiry time.Duration) (string
 }
 
 type jwtClaim struct {
-	Subject   string    `json:"sub"`
-	Issuer    string    `json:"iss"`
-	ExpiresAt time.Time `json:"exp"`
+	Subject   string `json:"sub"`
+	Issuer    string `json:"iss"`
+	ExpiresAt int64  `json:"exp,omitempty"`
 }
 
 func (c *jwtClaim) sign(secretKey string) (string, error) {

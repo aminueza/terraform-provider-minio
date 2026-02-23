@@ -13,6 +13,84 @@ permissions:
   contents: read
 
 jobs:
+  check-templates:
+    name: Check Doc Templates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Verify all resources and data sources have doc templates
+        run: |
+          MISSING=0
+
+          # Extract resource and data source names from ResourcesMap and DataSourcesMap only
+          # Uses sed to isolate the map blocks, then greps for "minio_*" keys
+          RESOURCES=$(sed -n '/ResourcesMap:/,/^[[:space:]]*},$/p' minio/provider.go | grep -oP '"minio_\K[^"]+')
+          DATASOURCES=$(sed -n '/DataSourcesMap:/,/^[[:space:]]*},$/p' minio/provider.go | grep -oP '"minio_\K[^"]+')
+
+          for name in $RESOURCES; do
+            if [ ! -f "templates/resources/${name}.md.tmpl" ]; then
+              echo "::error::Missing doc template for resource 'minio_${name}'. Create templates/resources/${name}.md.tmpl"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          for name in $DATASOURCES; do
+            if [ ! -f "templates/data-sources/${name}.md.tmpl" ]; then
+              echo "::error::Missing doc template for data source 'minio_${name}'. Create templates/data-sources/${name}.md.tmpl"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo ""
+            echo "Found ${MISSING} resource(s)/data source(s) without doc templates."
+            echo "Run 'task generate-docs' after creating templates to generate the docs."
+            exit 1
+          fi
+
+          echo "All resources and data sources have doc templates."
+
+  generate-docs:
+    name: Generate Docs
+    needs: check-templates
+    if: always() && !cancelled() && needs.check-templates.result == 'success' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.head_ref || github.ref }}
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Generate docs
+        run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+
+      - name: Commit updated docs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          if git diff --cached --quiet; then
+            echo "Docs are already up to date."
+          else
+            git commit -m "docs: auto-generate provider documentation [skip ci]"
+            git push
+          fi
+
   mdvalidate:
     name: Validate Markdown Files
     runs-on: ubuntu-latest

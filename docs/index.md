@@ -20,6 +20,7 @@ provider "minio" {
   minio_region      = "..."
   minio_api_version = "..."
   minio_ssl         = "..."
+  skip_bucket_tagging = "..."
 }
 ```
 
@@ -96,6 +97,8 @@ The following arguments are supported in the `provider` block:
 * `minio_key_file` - (Optional, Sensitive) Path to client private key file. Can be sourced from `MINIO_KEY_FILE`.
 
 * `minio_debug` - (Optional) Enable debug logging for API requests (default: `false`). Can be sourced from `MINIO_DEBUG`.
+
+* `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
 ## LDAP Integration
 

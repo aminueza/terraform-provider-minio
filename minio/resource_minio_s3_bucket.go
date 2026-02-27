@@ -26,20 +26,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
-func IsS3TaggingNotImplemented(err error) bool {
-	var minioErr minio.ErrorResponse
-
-	if errors.As(err, &minioErr) {
-		return minioErr.Code == "NotImplemented"
-	}
-
-	if resp, ok := err.(*minio.ErrorResponse); ok {
-		return resp.Code == "NotImplemented"
-	}
-
-	return false
-}
-
 type RetryConfig struct {
 	MaxRetries  int
 	MaxBackoff  time.Duration
@@ -225,7 +211,9 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
 
-	if v, ok := d.GetOk("tags"); ok {
+	if shouldSkipBucketTagging(bucketConfig) {
+		log.Printf("[INFO] Bucket [%s] tagging is disabled for this provider configuration; skipping tag creation", bucket)
+	} else if v, ok := d.GetOk("tags"); ok {
 		tagsMap := v.(map[string]interface{})
 		bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
 		if err != nil {
@@ -319,6 +307,10 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	if shouldSkipBucketTagging(bucketConfig) {
+		return nil
+	}
+
 	bucketTags, err := bucketConfig.MinioClient.GetBucketTagging(ctx, d.Id())
 	if err != nil {
 		var minioErr minio.ErrorResponse
@@ -352,7 +344,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		_ = d.Set("acl", bucketConfig.MinioACL)
 	}
 
-	if d.HasChange("tags") {
+	if d.HasChange("tags") && !shouldSkipBucketTagging(bucketConfig) {
 		if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
 			tagsMap := v.(map[string]interface{})
 			bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)

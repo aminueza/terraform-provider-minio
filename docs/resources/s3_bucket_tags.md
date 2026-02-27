@@ -36,6 +36,11 @@ resource "minio_s3_bucket_tags" "example" {
 
 - `id` (String) The ID of this resource.
 
+## Notes
+
+- This resource requires support for bucket tagging from the underlying S3-compatible endpoint. If your endpoint does not support tagging, you can set `skip_bucket_tagging = true` in the provider configuration to disable tagging operations and prevent errors.
+- When `skip_bucket_tagging = true`, this resource will preserve the last known tag state in Terraform state without making API calls to the remote endpoint.
+
 ## Import
 
 Import is supported using the following syntax:

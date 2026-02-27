@@ -137,6 +137,14 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_DEBUG",
 				}, false),
 			},
+			"skip_bucket_tagging": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging.",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					prefix + "MINIO_SKIP_BUCKET_TAGGING",
+				}, false),
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

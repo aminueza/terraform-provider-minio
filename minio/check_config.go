@@ -335,6 +335,26 @@ func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPr
 	return payload
 }
 
+// IdpLdapConfig creates configuration for an LDAP identity provider resource.
+func IdpLdapConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpLdap {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIdpLdap{
+		MinioAdmin:         m.S3Admin,
+		ServerAddr:         getOptionalField(d, "server_addr", "").(string),
+		LookupBindDN:       getOptionalField(d, "lookup_bind_dn", "").(string),
+		LookupBindPassword: getOptionalField(d, "lookup_bind_password", "").(string),
+		UserDNSearchBaseDN: getOptionalField(d, "user_dn_search_base_dn", "").(string),
+		UserDNSearchFilter: getOptionalField(d, "user_dn_search_filter", "").(string),
+		GroupSearchBaseDN:  getOptionalField(d, "group_search_base_dn", "").(string),
+		GroupSearchFilter:  getOptionalField(d, "group_search_filter", "").(string),
+		TLSSkipVerify:      getOptionalField(d, "tls_skip_verify", false).(bool),
+		ServerInsecure:     getOptionalField(d, "server_insecure", false).(bool),
+		StartTLS:           getOptionalField(d, "starttls", false).(bool),
+		Enable:             getOptionalField(d, "enable", true).(bool),
+	}
+}
+
 // IdpOpenIdConfig creates configuration for an OpenID Connect identity provider resource.
 func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId {
 	m := meta.(*S3MinioClient)

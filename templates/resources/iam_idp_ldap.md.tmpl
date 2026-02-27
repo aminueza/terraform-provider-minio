@@ -1,0 +1,30 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+MinIO supports a single LDAP/Active Directory configuration. Once set, users who authenticate via LDAP can have MinIO policies attached through `minio_iam_ldap_user_policy_attachment` and `minio_iam_ldap_group_policy_attachment`.
+
+**NOTE:** See the [MinIO LDAP documentation](https://min.io/docs/minio/linux/operations/external-iam/configure-ad-ldap-external-identity-management.html) for prerequisites and supported LDAP server versions.
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_iam_idp_ldap/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+The LDAP identity provider configuration can be imported using the fixed identifier `ldap`:
+
+```shell
+terraform import minio_iam_idp_ldap.default ldap
+```
+
+Note: `lookup_bind_password` is not returned by the MinIO API and must be set in your configuration after import.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_quota Resource - minio"
+page_title: "minio_s3_bucket_quota Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
     Manages quota limits for S3 buckets in MinIO.

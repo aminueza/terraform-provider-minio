@@ -1,5 +1,5 @@
 ---
-page_title: "Data Source minio_s3_object - minio"
+page_title: "Data Source minio_s3_object - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads an object from a MinIO bucket including its content and metadata.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_prometheus_bearer_token Resource - minio"
+page_title: "minio_prometheus_bearer_token Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages MinIO Prometheus bearer tokens for metrics authentication.

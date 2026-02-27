@@ -1,5 +1,5 @@
 ---
-page_title: "minio_accesskey Resource - minio"
+page_title: "minio_accesskey Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   

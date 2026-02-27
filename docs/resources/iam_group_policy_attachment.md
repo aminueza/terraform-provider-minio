@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_group_policy_attachment Resource - minio"
+page_title: "minio_iam_group_policy_attachment Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_kms_key Resource - minio"
+page_title: "minio_kms_key Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   

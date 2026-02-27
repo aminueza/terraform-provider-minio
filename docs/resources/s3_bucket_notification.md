@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_notification Resource - minio"
+page_title: "minio_s3_bucket_notification Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   

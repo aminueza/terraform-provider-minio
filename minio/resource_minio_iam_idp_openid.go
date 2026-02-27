@@ -161,9 +161,9 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 		}
 	}
 
-	// client_secret may be returned as "REDACTED" by the server; only update state
-	// when the server returns the actual value to avoid perpetual diffs.
-	if v, ok := cfgMap["client_secret"]; ok && v != "" {
+	// client_secret is returned as "REDACTED" by the server; skip overwriting state
+	// with the sentinel so that real user changes produce a visible diff.
+	if v, ok := cfgMap["client_secret"]; ok && v != "" && v != "REDACTED" {
 		if setErr := d.Set("client_secret", v); setErr != nil {
 			return NewResourceError("setting client_secret", cfgName, setErr)
 		}
@@ -263,13 +263,18 @@ func minioDeleteIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 }
 
 // buildIdpOpenIdCfgData constructs the space-separated key=value configuration
-// string that the MinIO IDP config API expects.
+// string that the MinIO IDP config API expects. Values containing whitespace are
+// quoted to prevent the MinIO config parser from misinterpreting them as separate keys.
 func buildIdpOpenIdCfgData(config *S3MinioIdpOpenId) string {
 	var parts []string
 
 	addParam := func(key, val string) {
 		if val != "" {
-			parts = append(parts, fmt.Sprintf("%s=%s", key, val))
+			if strings.ContainsAny(val, " \t") {
+				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
+			} else {
+				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
+			}
 		}
 	}
 

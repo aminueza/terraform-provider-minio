@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v3"
 )
 
 // testAccOIDCPreCheck skips the test when an OIDC-enabled MinIO instance is not configured.
@@ -105,7 +106,7 @@ func testAccCheckMinioIAMIdpOpenIdExists(resourceName string) resource.TestCheck
 		}
 
 		minioC := testAccProvider.Meta().(*S3MinioClient)
-		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), "openid", rs.Primary.ID)
+		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.OpenidIDPCfg, rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("OIDC IDP configuration %s not found: %w", rs.Primary.ID, err)
 		}
@@ -122,7 +123,7 @@ func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
 			continue
 		}
 
-		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), "openid", rs.Primary.ID)
+		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.OpenidIDPCfg, rs.Primary.ID)
 		if err == nil {
 			return fmt.Errorf("OIDC IDP configuration %s still exists", rs.Primary.ID)
 		}

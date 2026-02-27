@@ -45,19 +45,19 @@ resource "minio_iam_idp_openid" "keycloak" {
 ### Required
 
 - `client_id` (String) OAuth2 client ID registered with the identity provider.
-- `client_secret` (String, Sensitive) OAuth2 client secret registered with the identity provider. Not returned by the MinIO API; Terraform retains the configured value in state.
+- `client_secret` (String, Sensitive) OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `config_url` (String) URL to the OpenID Connect discovery document (e.g., https://accounts.example.com/.well-known/openid-configuration).
 
 ### Optional
 
-- `claim_name` (String) JWT claim attribute used to identify the policy for the authenticated user.
-- `claim_prefix` (String) Prefix to apply to JWT claim values when looking up policies.
+- `claim_name` (String) JWT claim attribute used to identify the policy for the authenticated user. Defaults to 'policy'. Cannot be set together with role_policy.
+- `claim_prefix` (String) Prefix to apply to JWT claim values when looking up policies. Cannot be set together with role_policy.
 - `comment` (String) Comment or description for this OIDC configuration.
 - `display_name` (String) Display name for this identity provider shown on the MinIO login screen.
 - `enable` (Boolean) Whether this OIDC configuration is enabled.
 - `name` (String) Name for this OIDC configuration. Use '_' (default) for the primary configuration or any identifier for named configurations.
 - `redirect_uri` (String) Redirect URI registered with the identity provider for the OAuth2 callback.
-- `role_policy` (String) Policy to apply for role-based access control. Mutually exclusive with claim_name-based policy lookup.
+- `role_policy` (String) Policy for role-based OIDC access. When set, MinIO uses a role ARN approach and ignores claim_name/claim_prefix. Cannot be set together with claim_name or claim_prefix.
 - `scopes` (String) Comma-separated list of OAuth2 scopes to request (e.g., 'openid,email,profile').
 
 ### Read-Only

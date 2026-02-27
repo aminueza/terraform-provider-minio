@@ -45,7 +45,7 @@ resource "minio_iam_idp_openid" "keycloak" {
 ### Required
 
 - `client_id` (String) OAuth2 client ID registered with the identity provider.
-- `client_secret` (String, Sensitive) OAuth2 client secret registered with the identity provider. Note: MinIO may return this value as 'REDACTED' on read; changes are suppressed when the server returns a redacted value.
+- `client_secret` (String, Sensitive) OAuth2 client secret registered with the identity provider. Not returned by the MinIO API; Terraform retains the configured value in state.
 - `config_url` (String) URL to the OpenID Connect discovery document (e.g., https://accounts.example.com/.well-known/openid-configuration).
 
 ### Optional

@@ -251,9 +251,6 @@ func minioDeleteIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 	return nil
 }
 
-// buildIdpOpenIdCfgData constructs the space-separated key=value configuration
-// string that the MinIO IDP config API expects. Values containing whitespace are
-// quoted to prevent the MinIO config parser from misinterpreting them as separate keys.
 func buildIdpOpenIdCfgData(config *S3MinioIdpOpenId) string {
 	var parts []string
 
@@ -287,8 +284,6 @@ func buildIdpOpenIdCfgData(config *S3MinioIdpOpenId) string {
 	return strings.Join(parts, " ")
 }
 
-// idpCfgInfoToMap converts a slice of IDPCfgInfo into a simple key→value map,
-// including only entries that are actual config values (IsCfg=true).
 func idpCfgInfoToMap(info []madmin.IDPCfgInfo) map[string]string {
 	m := make(map[string]string, len(info))
 	for _, item := range info {
@@ -299,11 +294,6 @@ func idpCfgInfoToMap(info []madmin.IDPCfgInfo) map[string]string {
 	return m
 }
 
-// isIDPConfigNotFound returns true when the error indicates the IDP configuration
-// does not exist on the server. "invalid config type" is intentionally excluded:
-// it signals an unsupported cfgType or an older MinIO that doesn't implement the
-// IDP config API at all, which should surface as a real error rather than
-// silently clearing state.
 func isIDPConfigNotFound(err error) bool {
 	if err == nil {
 		return false

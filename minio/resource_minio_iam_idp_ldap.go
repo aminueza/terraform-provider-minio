@@ -152,9 +152,6 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 		}
 	}
 
-	// lookup_bind_password is never set in Read: MinIO returns "REDACTED".
-	// Terraform retains the configured value in state.
-
 	for _, field := range []string{"tls_skip_verify", "server_insecure", "starttls"} {
 		val := false
 		if v, ok := cfgMap[field]; ok {

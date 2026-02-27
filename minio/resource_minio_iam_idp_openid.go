@@ -304,7 +304,10 @@ func idpCfgInfoToMap(info []madmin.IDPCfgInfo) map[string]string {
 }
 
 // isIDPConfigNotFound returns true when the error indicates the IDP configuration
-// does not exist on the server.
+// does not exist on the server. "invalid config type" is intentionally excluded:
+// it signals an unsupported cfgType or an older MinIO that doesn't implement the
+// IDP config API at all, which should surface as a real error rather than
+// silently clearing state.
 func isIDPConfigNotFound(err error) bool {
 	if err == nil {
 		return false
@@ -312,6 +315,5 @@ func isIDPConfigNotFound(err error) bool {
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "not found") ||
 		strings.Contains(msg, "does not exist") ||
-		strings.Contains(msg, "no such") ||
-		strings.Contains(msg, "invalid config type")
+		strings.Contains(msg, "no such")
 }

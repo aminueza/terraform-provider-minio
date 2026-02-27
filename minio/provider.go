@@ -193,6 +193,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 
 			// Identity Provider Operations
 			"minio_iam_idp_openid": resourceMinioIAMIdpOpenId(),
+			"minio_iam_idp_ldap":   resourceMinioIAMIdpLdap(),
 
 			// ILM and KMS Operations
 			"minio_ilm_policy": resourceMinioILMPolicy(),

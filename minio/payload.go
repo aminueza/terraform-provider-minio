@@ -365,6 +365,22 @@ type S3MinioPrometheusScrapeConfig struct {
 	BearerToken    string
 }
 
+// S3MinioIdpLdap defines configuration for an LDAP/Active Directory identity provider
+type S3MinioIdpLdap struct {
+	MinioAdmin         *madmin.AdminClient
+	ServerAddr         string
+	LookupBindDN       string
+	LookupBindPassword string
+	UserDNSearchBaseDN string
+	UserDNSearchFilter string
+	GroupSearchBaseDN  string
+	GroupSearchFilter  string
+	TLSSkipVerify      bool
+	ServerInsecure     bool
+	StartTLS           bool
+	Enable             bool
+}
+
 // S3MinioIdpOpenId defines configuration for an OpenID Connect identity provider
 type S3MinioIdpOpenId struct {
 	MinioAdmin   *madmin.AdminClient

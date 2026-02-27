@@ -118,7 +118,7 @@ services:
         go mod download
         go mod verify
         echo 'Running tests...'
-        go test -v ./minio $${TEST_PATTERN:+-run $$TEST_PATTERN}
+        go test -v -failfast ./minio $${TEST_PATTERN:+-run $$TEST_PATTERN}
     environment:
       TF_ACC: "1"
       TEST_PATTERN: "${TEST_PATTERN:-}"

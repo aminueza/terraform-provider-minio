@@ -40,14 +40,10 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "OAuth2 client ID registered with the identity provider.",
 			},
 			"client_secret": {
-				Type:      schema.TypeString,
-				Required:  true,
-				Sensitive: true,
-				Description: "OAuth2 client secret registered with the identity provider. " +
-					"Note: MinIO may return this value as 'REDACTED' on read; changes are suppressed when the server returns a redacted value.",
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					return old == "REDACTED"
-				},
+				Type:        schema.TypeString,
+				Required:    true,
+				Sensitive:   true,
+				Description: "OAuth2 client secret registered with the identity provider. Not returned by the MinIO API; Terraform retains the configured value in state.",
 			},
 			"claim_name": {
 				Type:        schema.TypeString,
@@ -161,13 +157,10 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 		}
 	}
 
-	// client_secret is returned as "REDACTED" by the server; skip overwriting state
-	// with the sentinel so that real user changes produce a visible diff.
-	if v, ok := cfgMap["client_secret"]; ok && v != "" && v != "REDACTED" {
-		if setErr := d.Set("client_secret", v); setErr != nil {
-			return NewResourceError("setting client_secret", cfgName, setErr)
-		}
-	}
+	// client_secret is never set in Read: MinIO always returns "REDACTED" and never
+	// the actual value. Following the AWS RDS password pattern, we leave the field
+	// untouched so Terraform state retains whatever the user configured and secret
+	// rotation triggers a real plan diff.
 
 	if v, ok := cfgMap["claim_name"]; ok {
 		if setErr := d.Set("claim_name", v); setErr != nil {

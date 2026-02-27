@@ -40,22 +40,25 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "OAuth2 client ID registered with the identity provider.",
 			},
 			"client_secret": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Sensitive:   true,
-				Description: "OAuth2 client secret registered with the identity provider. Not returned by the MinIO API; Terraform retains the configured value in state.",
+				Type:      schema.TypeString,
+				Required:  true,
+				Sensitive: true,
+				// MinIO never returns the real secret (always "REDACTED"), so Read
+				// deliberately skips d.Set for this field. Terraform retains whatever
+				// the user configured, which means secret rotation produces a real diff.
+				Description: "OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"claim_name": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Default:     "policy",
-				Description: "JWT claim attribute used to identify the policy for the authenticated user.",
+				Description: "JWT claim attribute used to identify the policy for the authenticated user. Defaults to 'policy'. Cannot be set together with role_policy.",
 			},
 			"claim_prefix": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Prefix to apply to JWT claim values when looking up policies.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				Default:       "",
+				ConflictsWith: []string{"role_policy"},
+				Description:   "Prefix to apply to JWT claim values when looking up policies. Cannot be set together with role_policy.",
 			},
 			"scopes": {
 				Type:        schema.TypeString,
@@ -82,10 +85,11 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "Comment or description for this OIDC configuration.",
 			},
 			"role_policy": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Policy to apply for role-based access control. Mutually exclusive with claim_name-based policy lookup.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				Default:       "",
+				ConflictsWith: []string{"claim_name", "claim_prefix"},
+				Description:   "Policy for role-based OIDC access. When set, MinIO uses a role ARN approach and ignores claim_name/claim_prefix. Cannot be set together with claim_name or claim_prefix.",
 			},
 			"enable": {
 				Type:        schema.TypeBool,

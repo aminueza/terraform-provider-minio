@@ -345,7 +345,7 @@ func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId
 		ConfigURL:    getOptionalField(d, "config_url", "").(string),
 		ClientID:     getOptionalField(d, "client_id", "").(string),
 		ClientSecret: getOptionalField(d, "client_secret", "").(string),
-		ClaimName:    getOptionalField(d, "claim_name", "policy").(string),
+		ClaimName:    getOptionalField(d, "claim_name", "").(string),
 		ClaimPrefix:  getOptionalField(d, "claim_prefix", "").(string),
 		Scopes:       getOptionalField(d, "scopes", "").(string),
 		RedirectURI:  getOptionalField(d, "redirect_uri", "").(string),

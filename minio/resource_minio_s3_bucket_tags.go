@@ -152,5 +152,6 @@ func minioDeleteBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 		}
 		log.Printf("[INFO] Bucket tagging is not supported by backend; skipping deletion")
 	}
+	d.SetId("")
 	return nil
 }

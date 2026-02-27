@@ -1411,3 +1411,56 @@ func testAccCheckBucketNameHasPrefix(resourceName string, prefix string) resourc
 		return nil
 	}
 }
+
+func TestAccMinioS3Bucket_SkipBucketTagging(t *testing.T) {
+	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigWithSkipTagging(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "bucket", rInt),
+					resource.TestCheckResourceAttr(resourceName, "arn", testAccBucketArn(rInt)),
+					resource.TestCheckResourceAttr(resourceName, "bucket_domain_name", testAccBucketDomainName(rInt)),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+					resource.TestCheckResourceAttr(resourceName, "object_locking", "false"),
+					// Tags should be preserved in state even when skip_bucket_tagging is enabled
+					resource.TestCheckResourceAttr(resourceName, "tags.Environment", "test"),
+					resource.TestCheckResourceAttr(resourceName, "tags.Name", "test-bucket"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"tags", // Tags are not read from backend when skip_bucket_tagging is enabled
+				},
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigWithSkipTagging(randInt string) string {
+	return fmt.Sprintf(`
+provider "minio" {
+  skip_bucket_tagging = true
+}
+
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "private"
+
+  tags = {
+    Environment = "test"
+    Name        = "test-bucket"
+  }
+}
+`, randInt)
+}

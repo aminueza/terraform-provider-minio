@@ -307,14 +307,16 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	if shouldSkipBucketTagging(bucketConfig) {
+		return nil
+	}
+
 	bucketTags, err := bucketConfig.MinioClient.GetBucketTagging(ctx, d.Id())
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			_ = d.Set("tags", map[string]string{})
 		} else if IsS3TaggingNotImplemented(err) {
-			return nil
-		} else if shouldSkipBucketTagging(bucketConfig) {
 			return nil
 		} else {
 			return NewResourceError("error reading bucket tags", d.Id(), err)

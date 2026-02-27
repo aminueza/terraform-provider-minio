@@ -185,33 +185,39 @@ func TestIsTaggingNotImplementedMessage(t *testing.T) {
 
 func TestIsBucketTaggingUnexpectedResponse(t *testing.T) {
 	tests := []struct {
+		name     string
 		err      error
 		expected bool
 	}{
 		{
+			name:     "exact XML unmarshal error with ListBucketResult",
 			err:      xml.UnmarshalError("expected element type <Tagging> but have <ListBucketResult>"),
 			expected: true,
 		},
 		{
+			name:     "XML unmarshal error with non-ListBucketResult element",
 			err:      xml.UnmarshalError("expected element type <Tagging> but have <SomethingElse>"),
 			expected: false,
 		},
 		{
+			name:     "generic error text with ListBucketResult",
 			err:      errors.New("expected element type <Tagging> but have <ListBucketResult>"),
 			expected: true,
 		},
 		{
+			name:     "unrelated error message",
 			err:      errors.New("some other error"),
 			expected: false,
 		},
 		{
+			name:     "nil error",
 			err:      nil,
 			expected: false,
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			if got := isBucketTaggingUnexpectedResponse(tt.err); got != tt.expected {
 				t.Errorf("isBucketTaggingUnexpectedResponse() = %v, want %v", got, tt.expected)
 			}

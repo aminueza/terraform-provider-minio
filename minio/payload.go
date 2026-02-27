@@ -13,28 +13,30 @@ import (
 
 // S3MinioConfig defines variable for minio
 type S3MinioConfig struct {
-	S3HostPort      string
-	S3UserAccess    string
-	S3UserSecret    string
-	S3Region        string
-	S3SessionToken  string
-	S3APISignature  string
-	S3SSL           bool
-	S3SSLCACertFile string
-	S3SSLCertFile   string
-	S3SSLKeyFile    string
-	S3SSLSkipVerify bool
+	S3HostPort        string
+	S3UserAccess      string
+	S3UserSecret      string
+	S3Region          string
+	S3SessionToken    string
+	S3APISignature    string
+	S3SSL             bool
+	S3SSLCACertFile   string
+	S3SSLCertFile     string
+	S3SSLKeyFile      string
+	S3SSLSkipVerify   bool
+	SkipBucketTagging bool
 }
 
 // S3MinioClient defines default minio
 type S3MinioClient struct {
-	S3UserAccess string
-	S3Region     string
-	S3Client     *minio.Client
-	S3Admin      *madmin.AdminClient
-	S3Endpoint   string
-	S3UserSecret string
-	S3SSL        bool
+	S3UserAccess      string
+	S3Region          string
+	S3Client          *minio.Client
+	S3Admin           *madmin.AdminClient
+	S3Endpoint        string
+	S3UserSecret      string
+	S3SSL             bool
+	SkipBucketTagging bool
 }
 
 // S3MinioBucket defines minio config
@@ -48,6 +50,7 @@ type S3MinioBucket struct {
 	MinioAccess          string
 	MinioForceDestroy    bool
 	ObjectLockingEnabled bool
+	SkipBucketTagging    bool
 }
 
 // S3MinioBucketPolicy defines bucket policy config

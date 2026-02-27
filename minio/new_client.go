@@ -60,13 +60,14 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 	minioAdmin.SetCustomTransport(tr)
 
 	return &S3MinioClient{
-		S3UserAccess: config.S3UserAccess,
-		S3Region:     config.S3Region,
-		S3Client:     minioClient,
-		S3Admin:      minioAdmin,
-		S3Endpoint:   config.S3HostPort,
-		S3UserSecret: config.S3UserSecret,
-		S3SSL:        config.S3SSL,
+		S3UserAccess:      config.S3UserAccess,
+		S3Region:          config.S3Region,
+		S3Client:          minioClient,
+		S3Admin:           minioAdmin,
+		S3Endpoint:        config.S3HostPort,
+		S3UserSecret:      config.S3UserSecret,
+		S3SSL:             config.S3SSL,
+		SkipBucketTagging: config.SkipBucketTagging,
 	}, nil
 }
 

@@ -45,6 +45,8 @@ resource "minio_s3_bucket" "customer" {
 }
 ```
 
+- Bucket tagging requires support from the underlying S3-compatible endpoint. If your endpoint does not support tagging, you can set `skip_bucket_tagging = true` in the provider configuration to disable tagging operations and prevent errors.
+
 ## Argument Reference
 
 - `tags` - (Optional) A map of tags to assign to the bucket. Tags are key-value pairs that help you organize and categorize your buckets.

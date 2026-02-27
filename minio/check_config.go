@@ -40,6 +40,7 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 		MinioACL:             getOptionalField(d, "acl", "private").(string),
 		MinioForceDestroy:    getOptionalField(d, "force_destroy", false).(bool),
 		ObjectLockingEnabled: getOptionalField(d, "object_locking", false).(bool),
+		SkipBucketTagging:    m.SkipBucketTagging,
 	}
 }
 
@@ -149,17 +150,18 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	}
 
 	return &S3MinioConfig{
-		S3HostPort:      getOptionalField(d, "minio_server", "").(string),
-		S3Region:        getOptionalField(d, "minio_region", "us-east-1").(string),
-		S3UserAccess:    user,
-		S3UserSecret:    password,
-		S3SessionToken:  getOptionalField(d, "minio_session_token", "").(string),
-		S3APISignature:  getOptionalField(d, "minio_api_version", "v4").(string),
-		S3SSL:           getOptionalField(d, "minio_ssl", false).(bool),
-		S3SSLCACertFile: getOptionalField(d, "minio_cacert_file", "").(string),
-		S3SSLCertFile:   getOptionalField(d, "minio_cert_file", "").(string),
-		S3SSLKeyFile:    getOptionalField(d, "minio_key_file", "").(string),
-		S3SSLSkipVerify: getOptionalField(d, "minio_insecure", false).(bool),
+		S3HostPort:        getOptionalField(d, "minio_server", "").(string),
+		S3Region:          getOptionalField(d, "minio_region", "us-east-1").(string),
+		S3UserAccess:      user,
+		S3UserSecret:      password,
+		S3SessionToken:    getOptionalField(d, "minio_session_token", "").(string),
+		S3APISignature:    getOptionalField(d, "minio_api_version", "v4").(string),
+		S3SSL:             getOptionalField(d, "minio_ssl", false).(bool),
+		S3SSLCACertFile:   getOptionalField(d, "minio_cacert_file", "").(string),
+		S3SSLCertFile:     getOptionalField(d, "minio_cert_file", "").(string),
+		S3SSLKeyFile:      getOptionalField(d, "minio_key_file", "").(string),
+		S3SSLSkipVerify:   getOptionalField(d, "minio_insecure", false).(bool),
+		SkipBucketTagging: getOptionalField(d, "skip_bucket_tagging", false).(bool),
 	}
 }
 

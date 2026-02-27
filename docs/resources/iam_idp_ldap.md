@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_idp_ldap Resource - terraform-provider-minio"
+page_title: "minio_iam_idp_ldap Resource - minio"
 subcategory: ""
 description: |-
   Manages an LDAP/Active Directory identity provider configuration for MinIO.

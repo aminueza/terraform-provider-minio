@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -122,7 +123,12 @@ func testAccCheckMinioIAMIdpLdapDestroy(s *terraform.State) error {
 func testAccMinioIAMIdpLdapBasic(serverAddr string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_idp_ldap" "test" {
-  server_addr = %[1]q
+  server_addr            = %[1]q
+  lookup_bind_dn         = "cn=readonly,dc=example,dc=com"
+  user_dn_search_base_dn = "ou=users,dc=example,dc=com"
+  user_dn_search_filter  = "(uid=%%s)"
+  group_search_base_dn   = "ou=groups,dc=example,dc=com"
+  group_search_filter    = "(&(objectclass=groupOfNames)(member=%%d))"
 }
 `, serverAddr)
 }
@@ -130,8 +136,81 @@ resource "minio_iam_idp_ldap" "test" {
 func testAccMinioIAMIdpLdapWithTLSSkipVerify(serverAddr string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_idp_ldap" "test" {
-  server_addr     = %[1]q
-  tls_skip_verify = true
+  server_addr            = %[1]q
+  lookup_bind_dn         = "cn=readonly,dc=example,dc=com"
+  user_dn_search_base_dn = "ou=users,dc=example,dc=com"
+  user_dn_search_filter  = "(uid=%%s)"
+  group_search_base_dn   = "ou=groups,dc=example,dc=com"
+  group_search_filter    = "(&(objectclass=groupOfNames)(member=%%d))"
+  tls_skip_verify        = true
 }
 `, serverAddr)
+}
+
+func TestBuildIdpLdapCfgData(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   S3MinioIdpLdap
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "basic fields",
+			config: S3MinioIdpLdap{
+				ServerAddr:    "ldap.example.com:636",
+				LookupBindDN:  "cn=admin,dc=example,dc=com",
+				TLSSkipVerify: true,
+				Enable:        true,
+			},
+			contains: []string{
+				"server_addr=ldap.example.com:636",
+				"lookup_bind_dn=cn=admin,dc=example,dc=com",
+				"tls_skip_verify=on",
+				"enable=on",
+				"server_insecure=off",
+				"starttls=off",
+			},
+		},
+		{
+			name: "value with spaces is quoted",
+			config: S3MinioIdpLdap{
+				ServerAddr:   "ldap.example.com:389",
+				LookupBindDN: "cn=Service Account,dc=example,dc=com",
+				Enable:       true,
+			},
+			contains: []string{`lookup_bind_dn="cn=Service Account,dc=example,dc=com"`},
+		},
+		{
+			name: "empty optional fields are omitted",
+			config: S3MinioIdpLdap{
+				ServerAddr: "ldap.example.com:389",
+				Enable:     true,
+			},
+			absent: []string{"lookup_bind_dn=", "lookup_bind_password="},
+		},
+		{
+			name: "disabled config",
+			config: S3MinioIdpLdap{
+				ServerAddr: "ldap.example.com:389",
+				Enable:     false,
+			},
+			contains: []string{"enable=off"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildIdpLdapCfgData(&tc.config)
+			for _, want := range tc.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected %q in config data, got: %s", want, got)
+				}
+			}
+			for _, unwanted := range tc.absent {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("expected %q to be absent in config data, got: %s", unwanted, got)
+				}
+			}
+		})
+	}
 }

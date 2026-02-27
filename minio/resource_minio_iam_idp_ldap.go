@@ -2,11 +2,13 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -22,9 +24,10 @@ func resourceMinioIAMIdpLdap() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"server_addr": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "LDAP server address in host:port format (e.g., 'ldap.example.com:389').",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validation.StringIsNotEmpty,
+				Description:  "LDAP server address in host:port format (e.g., 'ldap.example.com:389').",
 			},
 			"lookup_bind_dn": {
 				Type:        schema.TypeString,
@@ -152,19 +155,22 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 	// lookup_bind_password is never set in Read: MinIO returns "REDACTED".
 	// Terraform retains the configured value in state.
 
-	boolFields := []string{"tls_skip_verify", "server_insecure", "starttls"}
-	for _, field := range boolFields {
+	for _, field := range []string{"tls_skip_verify", "server_insecure", "starttls"} {
+		val := false
 		if v, ok := cfgMap[field]; ok {
-			if setErr := d.Set(field, v == "on"); setErr != nil {
-				return NewResourceError("setting "+field, "ldap", setErr)
-			}
+			val = v == "on"
+		}
+		if setErr := d.Set(field, val); setErr != nil {
+			return NewResourceError("setting "+field, "ldap", setErr)
 		}
 	}
 
+	enableVal := true
 	if v, ok := cfgMap["enable"]; ok {
-		if setErr := d.Set("enable", v == "on"); setErr != nil {
-			return NewResourceError("setting enable", "ldap", setErr)
-		}
+		enableVal = v == "on"
+	}
+	if setErr := d.Set("enable", enableVal); setErr != nil {
+		return NewResourceError("setting enable", "ldap", setErr)
 	}
 
 	return nil
@@ -217,9 +223,9 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 	addStr := func(key, val string) {
 		if val != "" {
 			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, key+"="+`"`+val+`"`)
+				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
 			} else {
-				parts = append(parts, key+"="+val)
+				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
 			}
 		}
 	}

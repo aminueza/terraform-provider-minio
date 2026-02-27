@@ -308,6 +308,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
 	if shouldSkipBucketTagging(bucketConfig) {
+		preserveBucketTagsState(d)
 		return nil
 	}
 

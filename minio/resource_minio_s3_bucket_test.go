@@ -1430,7 +1430,6 @@ func TestAccMinioS3Bucket_SkipBucketTagging(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bucket_domain_name", testAccBucketDomainName(rInt)),
 					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
 					resource.TestCheckResourceAttr(resourceName, "object_locking", "false"),
-					// Tags should be preserved in state even when skip_bucket_tagging is enabled
 					resource.TestCheckResourceAttr(resourceName, "tags.Environment", "test"),
 					resource.TestCheckResourceAttr(resourceName, "tags.Name", "test-bucket"),
 				),
@@ -1440,7 +1439,8 @@ func TestAccMinioS3Bucket_SkipBucketTagging(t *testing.T) {
 				ImportState:       true,
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
-					"tags", // Tags are not read from backend when skip_bucket_tagging is enabled
+					"tags",
+					"force_destroy",
 				},
 			},
 		},

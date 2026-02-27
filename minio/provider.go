@@ -191,6 +191,9 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_ldap_group_policy_attachment": resourceMinioIAMLDAPGroupPolicyAttachment(),
 			"minio_iam_ldap_user_policy_attachment":  resourceMinioIAMLDAPUserPolicyAttachment(),
 
+			// Identity Provider Operations
+			"minio_iam_idp_openid": resourceMinioIAMIdpOpenId(),
+
 			// ILM and KMS Operations
 			"minio_ilm_policy": resourceMinioILMPolicy(),
 			"minio_ilm_tier":   resourceMinioILMTier(),

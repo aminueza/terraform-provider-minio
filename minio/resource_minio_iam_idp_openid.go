@@ -40,12 +40,9 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "OAuth2 client ID registered with the identity provider.",
 			},
 			"client_secret": {
-				Type:      schema.TypeString,
-				Required:  true,
-				Sensitive: true,
-				// MinIO never returns the real secret (always "REDACTED"), so Read
-				// deliberately skips d.Set for this field. Terraform retains whatever
-				// the user configured, which means secret rotation produces a real diff.
+				Type:        schema.TypeString,
+				Required:    true,
+				Sensitive:   true,
 				Description: "OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"claim_name": {
@@ -160,11 +157,6 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 			return NewResourceError("setting client_id", cfgName, setErr)
 		}
 	}
-
-	// client_secret is never set in Read: MinIO always returns "REDACTED" and never
-	// the actual value. Following the AWS RDS password pattern, we leave the field
-	// untouched so Terraform state retains whatever the user configured and secret
-	// rotation triggers a real plan diff.
 
 	if v, ok := cfgMap["claim_name"]; ok {
 		if setErr := d.Set("claim_name", v); setErr != nil {

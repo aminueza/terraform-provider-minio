@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_anonymous_access Resource - terraform-provider-minio"
+page_title: "minio_s3_bucket_anonymous_access Resource - minio"
 subcategory: ""
 description: |-
   Manage anonymous access to an existing MinIO bucket using canned access types or fully custom JSON policies.

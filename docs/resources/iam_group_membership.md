@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_group_membership Resource - terraform-provider-minio"
+page_title: "minio_iam_group_membership Resource - minio"
 subcategory: ""
 description: |-
   

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_idp_openid Resource - terraform-provider-minio"
+page_title: "minio_iam_idp_openid Resource - minio"
 subcategory: ""
 description: |-
   Manages an OpenID Connect (OIDC) identity provider configuration for MinIO SSO.

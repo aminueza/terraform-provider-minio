@@ -1,5 +1,5 @@
 ---
-page_title: "minio_ilm_policy Resource - terraform-provider-minio"
+page_title: "minio_ilm_policy Resource - minio"
 subcategory: ""
 description: |-
   minio_ilm_policy handles lifecycle settings for a given minio_s3_bucket.

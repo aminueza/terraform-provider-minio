@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_ldap_user_policy_attachment Resource - terraform-provider-minio"
+page_title: "minio_iam_ldap_user_policy_attachment Resource - minio"
 subcategory: ""
 description: |-
   Attaches LDAP user to a policy. Can be used against both built-in and user-defined policies.

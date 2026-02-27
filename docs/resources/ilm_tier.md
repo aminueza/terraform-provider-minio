@@ -1,5 +1,5 @@
 ---
-page_title: "minio_ilm_tier Resource - terraform-provider-minio"
+page_title: "minio_ilm_tier Resource - minio"
 subcategory: ""
 description: |-
   minio_ilm_tier handles remote tiers

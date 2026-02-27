@@ -1,5 +1,5 @@
 ---
-page_title: "minio_config Resource - terraform-provider-minio"
+page_title: "minio_config Resource - minio"
 subcategory: ""
 description: |-
   

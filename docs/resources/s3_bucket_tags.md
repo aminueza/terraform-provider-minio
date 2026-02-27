@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_tags Resource - terraform-provider-minio"
+page_title: "minio_s3_bucket_tags Resource - minio"
 subcategory: ""
 description: |-
     Manages tags for S3 buckets in MinIO.

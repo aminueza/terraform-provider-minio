@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_object Resource - terraform-provider-minio"
+page_title: "minio_s3_object Resource - minio"
 subcategory: ""
 description: |-
   

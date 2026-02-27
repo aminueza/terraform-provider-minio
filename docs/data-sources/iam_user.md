@@ -1,5 +1,5 @@
 ---
-page_title: "Data Source minio_iam_user - terraform-provider-minio"
+page_title: "Data Source minio_iam_user - minio"
 subcategory: ""
 description: |-
   Retrieves information about a specific IAM user by name.

@@ -26,11 +26,11 @@ func preserveBucketTagsState(d *schema.ResourceData) {
 		return
 	}
 
-	if v, ok := d.GetOkExists("tags"); ok {
+	if v, ok := d.GetOk("tags"); ok && len(v.(map[string]any)) > 0 {
 		switch tags := v.(type) {
 		case map[string]string:
 			_ = d.Set("tags", tags)
-		case map[string]interface{}:
+		case map[string]any:
 			_ = d.Set("tags", convertToStringMap(tags))
 		default:
 			// ignore unexpected types; Terraform will maintain existing state

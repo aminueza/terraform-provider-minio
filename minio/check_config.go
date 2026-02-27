@@ -334,3 +334,24 @@ func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPr
 
 	return payload
 }
+
+// IdpOpenIdConfig creates configuration for an OpenID Connect identity provider resource.
+func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIdpOpenId{
+		MinioAdmin:   m.S3Admin,
+		Name:         getOptionalField(d, "name", "_").(string),
+		ConfigURL:    getOptionalField(d, "config_url", "").(string),
+		ClientID:     getOptionalField(d, "client_id", "").(string),
+		ClientSecret: getOptionalField(d, "client_secret", "").(string),
+		ClaimName:    getOptionalField(d, "claim_name", "").(string),
+		ClaimPrefix:  getOptionalField(d, "claim_prefix", "").(string),
+		Scopes:       getOptionalField(d, "scopes", "").(string),
+		RedirectURI:  getOptionalField(d, "redirect_uri", "").(string),
+		DisplayName:  getOptionalField(d, "display_name", "").(string),
+		Comment:      getOptionalField(d, "comment", "").(string),
+		RolePolicy:   getOptionalField(d, "role_policy", "").(string),
+		Enable:       getOptionalField(d, "enable", true).(bool),
+	}
+}

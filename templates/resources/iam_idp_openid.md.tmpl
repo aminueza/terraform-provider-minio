@@ -1,0 +1,34 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+MinIO supports multiple named OIDC configurations. The `name` attribute identifies each configuration; use `_` (the default) for a single provider setup or a descriptive name for multi-provider setups.
+
+**NOTE:** MinIO must be able to reach the `config_url` discovery document endpoint when applying the configuration. See the [MinIO OIDC documentation](https://min.io/docs/minio/linux/operations/external-iam/configure-openid-external-identity-management.html).
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_iam_idp_openid/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+OIDC identity provider configurations can be imported using the configuration name:
+
+```shell
+# Import the default configuration
+terraform import minio_iam_idp_openid.default _
+
+# Import a named configuration
+terraform import minio_iam_idp_openid.keycloak keycloak
+```
+
+Note: `client_secret` is not returned by the MinIO API and must be set in your configuration after import.

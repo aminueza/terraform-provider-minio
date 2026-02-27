@@ -364,3 +364,20 @@ type S3MinioPrometheusScrapeConfig struct {
 	MetricsVersion string
 	BearerToken    string
 }
+
+// S3MinioIdpOpenId defines configuration for an OpenID Connect identity provider
+type S3MinioIdpOpenId struct {
+	MinioAdmin   *madmin.AdminClient
+	Name         string
+	ConfigURL    string
+	ClientID     string
+	ClientSecret string
+	ClaimName    string
+	ClaimPrefix  string
+	Scopes       string
+	RedirectURI  string
+	DisplayName  string
+	Comment      string
+	RolePolicy   string
+	Enable       bool
+}

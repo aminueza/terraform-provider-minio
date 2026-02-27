@@ -851,8 +851,12 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 		for i := 0; i < maxRetries; i++ {
 			isBucket, err := minioC.BucketExists(context.Background(), rs.Primary.ID)
 			if err != nil {
-				// Retry on signature errors which can be transient in CI
-				if strings.Contains(err.Error(), "SignatureDoesNotMatch") && i < maxRetries-1 {
+				// Retry on signature errors which can be transient in CI.
+				// minio-go's ErrorResponse.Error() returns the message text, not the
+				// code, so we must inspect the code via errors.As rather than a string
+				// contains check.
+				var minioErr minio.ErrorResponse
+				if errors.As(err, &minioErr) && minioErr.Code == "SignatureDoesNotMatch" && i < maxRetries-1 {
 					time.Sleep(time.Duration((i+1)*500) * time.Millisecond)
 					continue
 				}

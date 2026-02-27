@@ -63,12 +63,6 @@ func IsS3TaggingNotImplemented(err error) bool {
 		}
 	}
 
-	if resp, ok := err.(*minio.ErrorResponse); ok {
-		if isTaggingNotImplementedCode(resp.Code) || isTaggingNotImplementedMessage(resp.Message) {
-			return true
-		}
-	}
-
 	if isBucketTaggingUnexpectedResponse(err) {
 		return true
 	}

@@ -1,0 +1,136 @@
+---
+name: Feature Request
+description: Suggest a new feature or enhancement
+title: "[FEATURE]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: I would like to be able to configure MinIO bucket replication through the Terraform provider
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-statement
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What limitation are you facing?
+      placeholder: Currently, there's no way to configure cross-region replication between MinIO clusters using Terraform, requiring manual configuration through the MinIO console or CLI
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How would you like this feature to work? Provide as much detail as possible
+      placeholder: Add a new resource `minio_bucket_replication` that allows configuring replication rules between buckets, including source/destination configuration, replication rules, and filters
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternative-solutions
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: I've tried using the `minio_client` provider with local-exec provisioner, but it's not ideal for production use
+    validations:
+      required: false
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe a specific use case for this feature
+      placeholder: We need to replicate critical data buckets between our primary and disaster recovery MinIO clusters for business continuity
+    validations:
+      required: true
+
+  - type: textarea
+    id: terraform-example
+    attributes:
+      label: Terraform Example
+      description: Show how you would like to use this feature in Terraform
+      render: hcl
+      placeholder: |
+        resource "minio_bucket_replication" "primary_to_dr" {
+          source_bucket = minio_s3_bucket.primary.id
+          destination_bucket = minio_s3_bucket.dr.id
+          
+          replication_rule {
+            id = "replicate-all-objects"
+            status = "Enabled"
+            destination {
+              bucket = minio_s3_bucket.dr.arn
+              storage_class = "STANDARD"
+            }
+            filter {
+              prefix = "important/"
+            }
+          }
+        }
+    validations:
+      required: false
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Feature Type
+      description: What type of feature is this?
+      options:
+        - New Resource
+        - New Data Source
+        - Enhancement to Existing Resource
+        - Provider Configuration
+        - Documentation Improvement
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Critical - Blocking my adoption
+        - High - Significant impact on workflow
+        - Medium - Nice to have
+        - Low - Minor improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any additional information, links to MinIO documentation, or related issues
+      placeholder: |
+        - MinIO documentation: https://min.io/docs/minio/linux/operations/install-deploy-manage/replication.html
+        - Related issue: #123
+        - This would be similar to the aws_s3_bucket_replication_configuration resource
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues for similar feature requests
+          required: true
+        - label: I have checked that this feature is not already implemented
+          required: true
+        - label: I have read the project vision and roadmap
+          required: true
+        - label: I understand this is a volunteer-maintained project
+          required: true

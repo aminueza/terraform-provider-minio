@@ -1,0 +1,190 @@
+---
+name: Security Vulnerability
+description: Report a security vulnerability (private)
+title: "[SECURITY]: "
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        # 🔒 Security Vulnerability Report
+        
+        **IMPORTANT**: This issue will be created privately and only visible to the security team.
+        
+        For non-security issues, please use the [Bug Report](../new?assignees=&labels=bug&template=bug_report.yml) template instead.
+        
+        If you prefer to report via email, contact us at security@aminueza.com
+
+  - type: textarea
+    id: vulnerability-type
+    attributes:
+      label: Vulnerability Type
+      description: What type of vulnerability is this?
+      placeholder: |
+        Examples:
+        - Authentication bypass
+        - Privilege escalation
+        - Information disclosure
+        - Denial of service
+        - Code injection
+        - Cross-site scripting
+        - Insecure direct object reference
+        - Other (please specify)
+    validations:
+      required: true
+
+  - type: textarea
+    id: vulnerability-description
+    attributes:
+      label: Vulnerability Description
+      description: A clear and concise description of the security vulnerability
+      placeholder: Describe the vulnerability and its potential impact
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected Versions
+      description: Which versions of the provider are affected?
+      placeholder: |
+        - All versions up to 3.1.0
+        - Versions 3.0.0 - 3.1.0
+        - Specific commit range: abc123..def456
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact-assessment
+    attributes:
+      label: Impact Assessment
+      description: What is the potential impact of this vulnerability?
+      placeholder: |
+        - Confidentiality: Access to sensitive data/credentials
+        - Integrity: Ability to modify MinIO resources
+        - Availability: Denial of service affecting infrastructure
+        - Scope: Local system, network, cloud environment
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction Steps
+      description: Detailed steps to reproduce the vulnerability
+      placeholder: |
+        1. Set up MinIO server with version X
+        2. Configure provider with these specific settings
+        3. Apply this Terraform configuration
+        4. Observe the vulnerability (describe what happens)
+    validations:
+      required: true
+
+  - type: textarea
+    id: proof-of-concept
+    attributes:
+      label: Proof of Concept
+      description: If possible, provide a minimal proof of concept
+      render: hcl
+      placeholder: |
+        terraform {
+          required_providers {
+            minio = {
+              source = "aminueza/minio"
+              version = "x.x.x"
+            }
+          }
+        }
+
+        provider "minio" {
+          # Provider configuration that triggers vulnerability
+        }
+
+        resource "minio_s3_bucket" "vulnerable" {
+          # Resource configuration that demonstrates issue
+        }
+    validations:
+      required: false
+
+  - type: textarea
+    id: attack-vector
+    attributes:
+      label: Attack Vector
+      description: How can an attacker exploit this vulnerability?
+      placeholder: |
+        - Requires access to Terraform configuration files
+        - Requires network access to MinIO server
+        - Requires valid MinIO credentials
+        - Can be exploited without authentication
+        - Local attack only
+        - Remote attack possible
+    validations:
+      required: true
+
+  - type: textarea
+    id: mitigation-suggestions
+    attributes:
+      label: Mitigation Suggestions
+      description: Do you have any suggestions for mitigating this vulnerability?
+      placeholder: |
+        - Input validation on user-provided parameters
+        - Additional authentication checks
+        - Secure credential handling
+        - Network restrictions
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity Assessment
+      description: How severe do you consider this vulnerability?
+      options:
+        - Critical - Can compromise system security completely
+        - High - Significant security impact
+        - Medium - Moderate security impact
+        - Low - Minor security issue
+    validations:
+      required: true
+
+  - type: dropdown
+    id: discoverer-type
+    attributes:
+      label: Discoverer Type
+      description: How did you discover this vulnerability?
+      options:
+        - Security Researcher
+        - User (accidental discovery)
+        - Internal Testing
+        - Code Review
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-information
+    attributes:
+      label: Additional Information
+      description: Any other relevant information, context, or questions
+      placeholder: |
+        - Related CVEs or security advisories
+        - Similar vulnerabilities in other projects
+        - Questions about disclosure timeline
+        - Request for credit in security advisory
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: disclosure-agreement
+    attributes:
+      label: Disclosure Agreement
+      description: Please confirm the following
+      options:
+        - label: I understand this is a private security report
+          required: true
+        - label: I will not publicly disclose this vulnerability until it's fixed
+          required: true
+        - label: I have provided sufficient information for reproduction
+          required: true
+        - label: I understand this may be a volunteer-maintained project
+          required: true

@@ -26,10 +26,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch all branches
-        run: |
-          git fetch origin +refs/heads/*:refs/remotes/origin/*
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -48,15 +44,12 @@ jobs:
           sarif_file: gosec.sarif
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-results.sarif"
-          ignore-unfixed: true
-          severity: "CRITICAL,HIGH"
-          vuln-type: "os,library"
+        run: |
+          curl -sSL https://github.com/aquasecurity/trivy/releases/latest/download/trivy_${{ github.actor }}_Linux-64bit.tar.gz | tar xzf - trivy
+          ./trivy fs --format sarif --output trivy-results.sarif --ignore-unfixed --severity CRITICAL,HIGH .
+        env:
+          TRIVY_SKIP_DB_UPDATE: true
+          TRIVY_SKIP_JAVA_DB_UPDATE: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4

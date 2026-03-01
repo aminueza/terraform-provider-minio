@@ -44,14 +44,14 @@ jobs:
           sarif_file: gosec.sarif
 
       - name: Run Trivy vulnerability scanner
-        run: |
-          curl -sSL -o trivy.tar.gz https://github.com/aquasecurity/trivy/releases/download/v0.60.0/trivy_0.60.0_linux-64bit.tar.gz
-          tar xzf trivy.tar.gz
-          chmod +x trivy
-          ./trivy fs --format sarif --output trivy-results.sarif --ignore-unfixed --severity CRITICAL,HIGH .
-        env:
-          TRIVY_SKIP_DB_UPDATE: true
-          TRIVY_SKIP_JAVA_DB_UPDATE: true
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4

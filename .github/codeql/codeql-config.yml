@@ -1,0 +1,21 @@
+# CodeQL Configuration
+paths-ignore:
+  - '**/*_test.go'
+  - '**/*_test'
+  - vendor/
+  - '**/*.md'
+
+query-filters:
+  - exclude:
+      id: go/hardcoded-credentials
+      # Terraform provider legitimately handles credentials from user configuration
+      # These are not hardcoded credentials but API credentials passed by users
+
+  - exclude:
+      id: go/http-convenience-function
+      # HTTP client usage in data_source_minio_health_status.go is for health checks
+      # It uses proper context and error handling
+
+  - exclude:
+      id: go/unused-package
+      # Some packages are used for type definitions and API compatibility

@@ -1,0 +1,11 @@
+# Code Owners File
+
+# This file specifies who should be automatically requested to review pull requests
+
+# Main maintainers - default for everything
+* @aminueza
+
+# Specific file patterns
+.github/ @aminueza
+go.mod @aminueza
+go.sum @aminueza

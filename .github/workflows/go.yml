@@ -87,7 +87,9 @@ jobs:
           echo "All services are ready!"
 
       - name: Run tests
-        run: docker compose run --rm test TEST_PATTERN="-skip TestAccMinioS3Bucket_objectLocking"
+        run: docker compose run --rm test
+        env:
+          TEST_PATTERN: "-skip TestAccMinioS3Bucket_objectLocking"
 
       - name: Cleanup test environment
         if: always()

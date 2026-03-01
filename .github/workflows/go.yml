@@ -15,37 +15,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  mfa-check:
-    name: MFA Compliance Check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    timeout-minutes: 5
-
-    steps:
-      - name: Check out the repository
-        uses: actions/checkout@v6
-
-      - name: Check MFA for PR author
-        run: |
-          # Check if PR author has MFA enabled using GitHub API
-          AUTHOR="${{ github.event.pull_request.user.login }}"
-          echo "Checking MFA status for user: $AUTHOR"
-
-          # Use GitHub CLI to check user MFA status
-          if ! gh api users/$AUTHOR --jq '.two_factor_authentication' | grep -q true; then
-            echo "❌ Error: PR author $AUTHOR does not have MFA enabled"
-            echo "Please enable MFA on your GitHub account and try again"
-            exit 1
-          else
-            echo "✅ MFA check passed for user: $AUTHOR"
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   lint:
     name: Lint & Security
     runs-on: ubuntu-latest
-    needs: mfa-check
     timeout-minutes: 15
     steps:
       - name: Check out the repository

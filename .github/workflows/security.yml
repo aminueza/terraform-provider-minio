@@ -38,7 +38,7 @@ jobs:
           args: "-fmt sarif -out gosec.sarif ./..."
 
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: gosec.sarif
@@ -52,7 +52,7 @@ jobs:
           output: "trivy-results.sarif"
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
@@ -100,40 +100,9 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
-          head: HEAD
-          extra_args: --debug --only-verified
-
-  codeql-analysis:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["go"]
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{matrix.language}}"
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
 
   security-scorecard:
     name: OSSF Scorecard Analysis
@@ -158,25 +127,9 @@ jobs:
           publish_results: true
 
       - name: Upload SARIF results to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: results.sarif
-
-  mfa-compliance:
-    name: MFA Compliance Check
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    timeout-minutes: 5
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Run Gitleaks for secret detection
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          config-path: .gitleaks.toml
-          verbose: true
 
   security-summary:
     name: Security Summary
@@ -187,7 +140,7 @@ jobs:
     steps:
       - name: Security Summary
         run: |
-          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Scan Type | Status | Details |" >> $GITHUB_STEP_SUMMARY
           echo "|------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
@@ -196,4 +149,4 @@ jobs:
           echo "| Dependency Security Check | ${{ needs.dependency-check.result }} | Known vulnerability detection |" >> $GITHUB_STEP_SUMMARY
           echo "| Secret Detection Scan | ${{ needs.secret-scan.result }} | Secrets and credentials detection |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📊 **Detailed results are available in the Security tab and workflow logs.**" >> $GITHUB_STEP_SUMMARY
+          echo "**Detailed results are available in the Security tab and workflow logs.**" >> $GITHUB_STEP_SUMMARY

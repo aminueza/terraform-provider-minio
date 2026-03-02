@@ -1,0 +1,172 @@
+---
+name: Bug Report
+description: File a bug report to help us improve
+title: "[BUG]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is
+      placeholder: Describe what happened and what you expected to happen
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Reproduction Steps
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Set up MinIO server with version X
+        2. Configure Terraform provider with version Y
+        3. Apply this configuration...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: The provider should create the bucket without errors
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened
+      placeholder: The provider failed with an error message...
+    validations:
+      required: true
+
+  - type: textarea
+    id: terraform-config
+    attributes:
+      label: Terraform Configuration
+      description: Minimal Terraform configuration that reproduces the issue
+      render: hcl
+      placeholder: |
+        terraform {
+          required_providers {
+            minio = {
+              source = "aminueza/minio"
+              version = "x.x.x"
+            }
+          }
+        }
+
+        provider "minio" {
+          minio_server   = "localhost:9000"
+          minio_user     = "minioadmin"
+          minio_password = "minioadmin"
+        }
+
+        resource "minio_s3_bucket" "test" {
+          bucket = "test-bucket"
+        }
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-output
+    attributes:
+      label: Error Output
+      description: Full error message and stack trace (if available)
+      render: shell
+      placeholder: |
+        Error: ...
+        
+        on main.tf line X, in resource "minio_s3_bucket" "test":
+          X:   bucket = "test-bucket"
+    validations:
+      required: false
+
+  - type: input
+    id: provider-version
+    attributes:
+      label: Provider Version
+      description: Version of the terraform-provider-minio
+      placeholder: "3.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: terraform-version
+    attributes:
+      label: Terraform Version
+      description: Version of Terraform CLI
+      placeholder: "1.5.7"
+    validations:
+      required: true
+
+  - type: input
+    id: minio-version
+    attributes:
+      label: MinIO Version
+      description: Version of MinIO server
+      placeholder: "RELEASE.2023-12-23T07-19-11Z"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: installation-method
+    attributes:
+      label: Installation Method
+      description: How did you install the provider?
+      options:
+        - Terraform Registry
+        - Built from source
+        - Manual binary download
+        - Package manager (brew, apt, etc.)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any additional context, screenshots, or information about the environment
+      placeholder: |
+        - Using Docker Compose for MinIO
+        - Behind corporate proxy
+        - Custom TLS certificates
+        - etc.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Confirmation
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues for similar problems
+          required: true
+        - label: I have provided all the requested information
+          required: true
+        - label: This is not a security vulnerability (use SECURITY.md for security issues)
+          required: true

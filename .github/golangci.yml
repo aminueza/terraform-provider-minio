@@ -27,6 +27,18 @@ linters:
       - path: import_.*\.go
         linters:
           - errcheck
+      # TODO: migrate aws-sdk-go v1 to v2
+      - text: "SA1019:.*aws-sdk-go.*is deprecated"
+        linters:
+          - staticcheck
+      # TODO: migrate SetPolicy to AttachPolicy/DetachPolicy
+      - text: "SA1019:.*SetPolicy is deprecated"
+        linters:
+          - staticcheck
+      # TODO: migrate InfoCannedPolicy to InfoCannedPolicyV2
+      - text: "SA1019:.*InfoCannedPolicy is deprecated"
+        linters:
+          - staticcheck
 
   settings:
     errcheck:

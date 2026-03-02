@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.45.9
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/go-cmp v0.5.9
-	github.com/hashicorp/awspolicyequivalence v1.6.0
+	github.com/hashicorp/awspolicyequivalence v1.7.0
 	github.com/hashicorp/go-cty v1.4.1-0.20200723130312-85980079f637
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.29.0
 	github.com/minio/madmin-go/v3 v3.0.18
@@ -23,6 +23,7 @@ require (
 	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95 // indirect
 	github.com/agext/levenshtein v1.2.3 // indirect
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.32.7 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/fatih/color v1.15.0 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect

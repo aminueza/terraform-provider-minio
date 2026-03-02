@@ -16,7 +16,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
-	gotest.tools/v3 v3.5.0
+	gotest.tools/v3 v3.5.2
 )
 
 require (

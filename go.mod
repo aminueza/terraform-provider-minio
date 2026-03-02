@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/aws/aws-sdk-go v1.45.9
+	github.com/aws/aws-sdk-go v1.55.8
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/awspolicyequivalence v1.6.0

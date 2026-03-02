@@ -2,7 +2,7 @@ module github.com/aminueza/terraform-provider-minio/v3
 
 go 1.24.0
 
-toolchain go1.24.2
+toolchain go1.24.13
 
 require (
 	github.com/aws/aws-sdk-go v1.55.8

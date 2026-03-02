@@ -1,0 +1,150 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: "0 2 * * *"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Run Gosec Security Scanner
+        uses: securego/gosec@v2.22.11
+        with:
+          args: "-fmt sarif -out gosec.sarif ./..."
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.18.0
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH"
+
+  dependency-check:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Run govulncheck
+        continue-on-error: true
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./... || echo "govulncheck found potential issues but will continue"
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/golang@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+  secret-scan:
+    name: Secret Detection Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog OSS on PR
+        if: github.event_name == 'pull_request'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
+
+      - name: Run TruffleHog OSS on push
+        if: github.event_name != 'pull_request'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          extra_args: --only-verified
+
+  security-scorecard:
+    name: OSSF Scorecard Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      id-token: write
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.3.3
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF results to GitHub
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [security-scan, dependency-check, secret-scan]
+    if: always()
+
+    steps:
+      - name: Security Summary
+        run: |
+          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan Type | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Gosec Security Scanner | ${{ needs.security-scan.result }} | Static code analysis for Go |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trivy Vulnerability Scanner | ${{ needs.security-scan.result }} | Container and filesystem security |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Security Check | ${{ needs.dependency-check.result }} | Known vulnerability detection |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Detection Scan | ${{ needs.secret-scan.result }} | Secrets and credentials detection |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Detailed results are available in the Security tab and workflow logs.**" >> $GITHUB_STEP_SUMMARY

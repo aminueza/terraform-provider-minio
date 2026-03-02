@@ -144,10 +144,9 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 		}
 
 		// Safe uint to int conversion
-		validityInt := int(*validity)
-		if *validity > uint(math.MaxInt) {
-			// If validity exceeds MaxInt, cap at MaxInt
-			validityInt = math.MaxInt
+		validityInt := math.MaxInt
+		if *validity <= uint(math.MaxInt) {
+			validityInt = int(*validity)
 		}
 
 		// Set either days or years based on the unit

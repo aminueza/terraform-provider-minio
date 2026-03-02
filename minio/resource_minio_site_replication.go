@@ -134,7 +134,7 @@ func minioCreateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 
 	log.Printf("[DEBUG] Creating site replication: %s with %d sites", name, len(sites))
 
-	status, err := client.SiteReplicationAdd(ctx, sites)
+	status, err := client.SiteReplicationAdd(ctx, sites, madmin.SRAddOptions{})
 	if err != nil {
 		return NewResourceError("error creating site replication", name, err)
 	}
@@ -205,7 +205,7 @@ func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 					}
 					return names
 				}())
-			_, err := client.SiteReplicationAdd(ctx, diff.toAdd)
+			_, err := client.SiteReplicationAdd(ctx, diff.toAdd, madmin.SRAddOptions{})
 			if err != nil {
 				return NewResourceError("error adding sites to replication", d.Id(), err)
 			}

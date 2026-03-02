@@ -19,7 +19,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
 
       - name: Verify all resources and data sources have doc templates
         run: |
@@ -65,7 +65,7 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           ref: ${{ github.head_ref || github.ref }}
           fetch-depth: 1
@@ -99,7 +99,7 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 1
 

@@ -1,0 +1,44 @@
+# Dependabot Configuration
+version: 2
+updates:
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    reviewers:
+      - "aminueza"
+    commit-message:
+      prefix: "ci(deps):"
+    open-pull-requests-limit: 10
+
+  # Enable version updates for Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    reviewers:
+      - "aminueza"
+    commit-message:
+      prefix: "deps:"
+    open-pull-requests-limit: 10
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "UTC"
+    reviewers:
+      - "aminueza"
+    commit-message:
+      prefix: "docker(deps):"
+    open-pull-requests-limit: 5

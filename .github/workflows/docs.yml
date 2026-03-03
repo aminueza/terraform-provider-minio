@@ -19,7 +19,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6.0.2
 
       - name: Verify all resources and data sources have doc templates
         run: |
@@ -65,13 +65,13 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6.0.2
         with:
           ref: ${{ github.head_ref || github.ref }}
           fetch-depth: 1
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version-file: "go.mod"
           cache: true
@@ -99,11 +99,11 @@ jobs:
       GOOS: linux
     steps:
       - name: Check out code
-        uses: actions/checkout@v6
+        uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6.0.2
         with:
           fetch-depth: 1
 
       - name: Markdown Link Validation
-        uses: tcort/github-action-markdown-link-check@v1
+        uses: tcort/github-action-markdown-link-check@e7c7a18363c842693fadde5d41a3bd3573a7a225 # v1
         with:
           config-file: "./.github/github-action-markdown-link-check-config.json"

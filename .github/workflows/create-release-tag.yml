@@ -19,11 +19,13 @@ on:
         default: "patch"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   create-tag:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create and push git tags
     timeout-minutes: 5
     outputs:
       tag: ${{ steps.version.outputs.new }}
@@ -107,6 +109,8 @@ jobs:
 
   release:
     needs: create-tag
+    permissions:
+      contents: write  # required by the release workflow to create GitHub releases and upload assets
     uses: ./.github/workflows/release.yml
     with:
       tag: ${{ needs.create-tag.outputs.tag }}

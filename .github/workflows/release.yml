@@ -21,11 +21,13 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create GitHub releases and upload release assets
     timeout-minutes: 30
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}

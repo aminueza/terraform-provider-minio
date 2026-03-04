@@ -1,0 +1,28 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+**NOTE:** Creating a new notification target may require a MinIO server restart before it becomes fully active. The `restart_required` attribute indicates when this is necessary.
+
+## Example Usage
+
+{{ tffile (printf "examples/resources/%s/resource.tf" .Name) }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the target name:
+
+```shell
+terraform import {{.Name}}.example target-name
+```
+
+Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.

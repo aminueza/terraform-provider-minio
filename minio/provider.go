@@ -207,6 +207,18 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_config":                  resourceMinioConfig(),
 			"minio_audit_webhook":           resourceMinioAuditWebhook(),
 			"minio_site_replication":        resourceMinioSiteReplication(),
+
+			// Notification Targets
+			"minio_notify_webhook":       resourceMinioNotifyWebhook(),
+			"minio_notify_amqp":          resourceMinioNotifyAmqp(),
+			"minio_notify_kafka":         resourceMinioNotifyKafka(),
+			"minio_notify_mqtt":          resourceMinioNotifyMqtt(),
+			"minio_notify_nats":          resourceMinioNotifyNats(),
+			"minio_notify_nsq":           resourceMinioNotifyNsq(),
+			"minio_notify_mysql":         resourceMinioNotifyMysql(),
+			"minio_notify_postgres":      resourceMinioNotifyPostgres(),
+			"minio_notify_elasticsearch": resourceMinioNotifyElasticsearch(),
+			"minio_notify_redis":         resourceMinioNotifyRedis(),
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
 		},
 

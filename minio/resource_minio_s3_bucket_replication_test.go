@@ -315,8 +315,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
 const kOneWaySimpleResourceWithResync = `
 resource "minio_s3_bucket_replication" "replication_in_b" {
-  bucket = minio_s3_bucket.my_bucket_in_a.bucket
-  resync = true
+  bucket         = minio_s3_bucket.my_bucket_in_a.bucket
+  resync_version = 1
 
   rule {
     delete_replication = true
@@ -490,7 +490,7 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 					testAccBucketReplicationConfigServiceAccount(username, 2) +
 					kOneWaySimpleResource,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync", "false"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync_version", "0"),
 				),
 			},
 			{
@@ -501,7 +501,8 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 					testAccBucketReplicationConfigServiceAccount(username, 2) +
 					kOneWaySimpleResourceWithResync,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync", "true"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync_version", "1"),
+					resource.TestCheckResourceAttrSet("minio_s3_bucket_replication.replication_in_b", "last_resync_id"),
 				),
 			},
 		},

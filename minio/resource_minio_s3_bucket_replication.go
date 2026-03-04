@@ -41,11 +41,16 @@ func resourceMinioBucketReplication() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 			},
-			"resync": {
-				Type:        schema.TypeBool,
+			"resync_version": {
+				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     false,
-				Description: "Trigger a resync of existing objects for all replication rules. Toggle to true to resync, then back to false.",
+				Default:     0,
+				Description: "Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.",
+			},
+			"last_resync_id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "ID of the last resync operation.",
 			},
 			"rule": {
 				Type:        schema.TypeList,
@@ -287,7 +292,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
 
-	if d.Get("resync").(bool) {
+	if d.HasChange("resync_version") {
 		log.Printf("[DEBUG] Triggering replication resync for bucket %s", bucketReplicationConfig.MinioBucket)
 		rcfg, err := bucketReplicationConfig.MinioClient.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 		if err != nil {
@@ -295,9 +300,12 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 		}
 		for _, rule := range rcfg.Rules {
 			if rule.Destination.Bucket != "" {
-				_, err := bucketReplicationConfig.MinioClient.ResetBucketReplicationOnTarget(ctx, bucketReplicationConfig.MinioBucket, 0, rule.Destination.Bucket)
+				info, err := bucketReplicationConfig.MinioClient.ResetBucketReplicationOnTarget(ctx, bucketReplicationConfig.MinioBucket, 0, rule.Destination.Bucket)
 				if err != nil {
 					return NewResourceError("triggering replication resync", bucketReplicationConfig.MinioBucket, err)
+				}
+				if len(info.Targets) > 0 {
+					_ = d.Set("last_resync_id", info.Targets[0].ResetID)
 				}
 			}
 		}

@@ -462,6 +462,8 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWaySimpleResource,
 			},
@@ -742,6 +744,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWaySimpleResource,
 			},
@@ -868,6 +872,8 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWayComplexResource,
 			},
@@ -963,6 +969,8 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kTwoWaySimpleResource,
 			},
@@ -972,6 +980,8 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kTwoWaySimpleResource,
 			},
@@ -1400,6 +1410,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1415,6 +1427,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1430,6 +1444,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1445,6 +1461,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",

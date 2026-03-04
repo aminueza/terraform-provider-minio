@@ -164,6 +164,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_anonymous_access":          resourceMinioS3BucketAnonymousAccess(),
 			"minio_s3_bucket_versioning":                resourceMinioBucketVersioning(),
 			"minio_s3_bucket_replication":               resourceMinioBucketReplication(),
+			"minio_s3_bucket_replication_resync":        resourceMinioBucketReplicationResync(),
 			"minio_s3_bucket_retention":                 resourceMinioBucketRetention(),
 			"minio_s3_bucket_object_lock_configuration": resourceMinioS3BucketObjectLockConfiguration(),
 			"minio_s3_bucket_notification":              resourceMinioBucketNotification(),

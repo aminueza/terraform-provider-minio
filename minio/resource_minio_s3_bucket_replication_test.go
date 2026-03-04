@@ -313,6 +313,33 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
   ]
 }`
 
+const kOneWaySimpleResourceWithResync = `
+resource "minio_s3_bucket_replication" "replication_in_b" {
+  bucket         = minio_s3_bucket.my_bucket_in_a.bucket
+  resync_version = 1
+
+  rule {
+    delete_replication = true
+    delete_marker_replication = true
+    existing_object_replication = true
+    metadata_sync = false
+
+    target {
+        bucket = minio_s3_bucket.my_bucket_in_b.bucket
+        host = local.second_minio_host
+        secure = false
+        bandwidth_limit = "100M"
+        access_key = minio_iam_service_account.replication_in_b.access_key
+        secret_key = minio_iam_service_account.replication_in_b.secret_key
+    }
+  }
+
+  depends_on = [
+    minio_s3_bucket_versioning.my_bucket_in_a,
+    minio_s3_bucket_versioning.my_bucket_in_b
+  ]
+}`
+
 const kTwoWaySimpleResource = `
 resource "minio_s3_bucket_replication" "replication_in_b" {
     bucket     = minio_s3_bucket.my_bucket_in_a.bucket
@@ -435,8 +462,50 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWaySimpleResource,
+			},
+		},
+	})
+}
+
+func TestAccS3BucketReplication_resync(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
+					testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+					testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+					testAccBucketReplicationConfigPolicy(bucketName, secondBucketName) +
+					testAccBucketReplicationConfigServiceAccount(username, 2) +
+					kOneWaySimpleResource,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync_version", "0"),
+				),
+			},
+			{
+				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
+					testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+					testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+					testAccBucketReplicationConfigPolicy(bucketName, secondBucketName) +
+					testAccBucketReplicationConfigServiceAccount(username, 2) +
+					kOneWaySimpleResourceWithResync,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_replication.replication_in_b", "resync_version", "1"),
+					resource.TestCheckResourceAttrSet("minio_s3_bucket_replication.replication_in_b", "last_resync_id"),
+				),
 			},
 		},
 	})
@@ -675,6 +744,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWaySimpleResource,
 			},
@@ -801,6 +872,8 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kOneWayComplexResource,
 			},
@@ -896,6 +969,8 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kTwoWaySimpleResource,
 			},
@@ -905,6 +980,8 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerify: true,
 				ImportStateVerifyIgnore: []string{
 					"rule.0.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 				},
 				Config: kTwoWaySimpleResource,
 			},
@@ -1333,6 +1410,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1348,6 +1427,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1363,6 +1444,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
@@ -1378,6 +1461,8 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.0.target.0.secret_key",
 					"rule.1.target.0.secret_key",
 					"rule.2.target.0.secret_key",
+					"resync_version",
+					"last_resync_id",
 					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",

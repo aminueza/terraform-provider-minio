@@ -202,11 +202,13 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
 ### Optional
 
+- `resync_version` (Number) Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.
 - `rule` (Block List) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+- `last_resync_id` (String) ID of the last resync operation.
 
 <a id="nestedblock--rule"></a>
 ### Nested Schema for `rule`

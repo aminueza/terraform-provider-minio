@@ -202,6 +202,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
 ### Optional
 
+- `resync` (Boolean) Trigger a resync of existing objects for all replication rules. Toggle to true to resync, then back to false.
 - `rule` (Block List) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
 ### Read-Only

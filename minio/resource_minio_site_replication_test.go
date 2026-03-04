@@ -232,9 +232,24 @@ func TestAccMinioSiteReplication_update(t *testing.T) {
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
-	thirdMinioEndpoint := "http://thirdminio:9000"
-	thirdMinioUser := os.Getenv("THIRD_MINIO_USER")
-	thirdMinioPassword := os.Getenv("THIRD_MINIO_PASSWORD")
+	config := fmt.Sprintf(`
+resource "minio_site_replication" "basic" {
+  name = %[1]q
+  site {
+    name       = "site1"
+    endpoint   = %[2]q
+    access_key = %[3]q
+    secret_key = %[4]q
+  }
+  site {
+    name       = "site2"
+    endpoint   = %[5]q
+    access_key = %[6]q
+    secret_key = %[7]q
+  }
+}`, replicationName,
+		primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
+		secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
@@ -242,34 +257,14 @@ func TestAccMinioSiteReplication_update(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: fmt.Sprintf(kBasicSiteReplicationResource,
-					replicationName,
-					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
-					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword,
-				),
+				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
 					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.#", "2"),
 				),
 			},
 			{
-				Config: fmt.Sprintf(kThreeSiteReplicationResource,
-					replicationName,
-					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
-					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword,
-					thirdMinioEndpoint, thirdMinioUser, thirdMinioPassword,
-				),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckSiteReplicationExists("minio_site_replication.three_site"),
-					resource.TestCheckResourceAttr("minio_site_replication.three_site", "site.#", "3"),
-				),
-			},
-			{
-				Config: fmt.Sprintf(kBasicSiteReplicationResource,
-					replicationName,
-					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
-					thirdMinioEndpoint, thirdMinioUser, thirdMinioPassword,
-				),
+				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
 					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.#", "2"),

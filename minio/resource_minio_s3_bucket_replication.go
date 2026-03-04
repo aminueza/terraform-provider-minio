@@ -41,6 +41,12 @@ func resourceMinioBucketReplication() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 			},
+			"resync": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Trigger a resync of existing objects for all replication rules. Toggle to true to resync, then back to false.",
+			},
 			"rule": {
 				Type:        schema.TypeList,
 				Description: "Rule definitions",
@@ -280,6 +286,14 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
+
+	if d.Get("resync").(bool) {
+		log.Printf("[DEBUG] Triggering replication resync for bucket %s", bucketReplicationConfig.MinioBucket)
+		_, err := bucketReplicationConfig.MinioClient.ResetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, 0)
+		if err != nil {
+			return NewResourceError("triggering replication resync", bucketReplicationConfig.MinioBucket, err)
+		}
+	}
 
 	return nil
 }

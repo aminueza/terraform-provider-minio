@@ -3,6 +3,8 @@ package minio
 import (
 	"context"
 	"log"
+	"regexp"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -22,10 +24,11 @@ func resourceMinioILMTier() *schema.Resource {
 		Description: "Manages remote storage tiers for MinIO ILM (Information Lifecycle Management). Tiers allow transitioning objects to cheaper remote storage (S3, GCS, Azure, or another MinIO deployment) based on lifecycle rules.",
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "Unique name for this tier (e.g., S3TIER, GCSTIER). Must be uppercase.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[A-Z0-9_-]+$`), "must be uppercase alphanumeric, hyphens, or underscores"),
+				Description:  "Unique name for this tier (e.g., S3TIER, GCSTIER). Must be uppercase.",
 			},
 			"prefix": {
 				Type:        schema.TypeString,
@@ -196,7 +199,6 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	var tierConf *madmin.TierConfig
 	c := meta.(*S3MinioClient).S3Admin
 	name := d.Get("name").(string)
-	d.SetId(name)
 	switch d.Get("type").(string) {
 	case madmin.S3.String():
 		s3Config := d.Get("s3_config").([]interface{})[0].(map[string]interface{})
@@ -294,6 +296,7 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	if err != nil {
 		return NewResourceError("adding remote tier failed", name, err)
 	}
+	d.SetId(name)
 	log.Printf("[DEBUG] Created Tier %s", name)
 	return minioReadILMTier(ctx, d, meta)
 }
@@ -374,8 +377,14 @@ func minioDeleteILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	c := meta.(*S3MinioClient).S3Admin
 	err := c.RemoveTier(ctx, d.Get("name").(string))
 	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("deleting remote tier failed", d.Id(), err)
 	}
+	d.SetId("")
 	return nil
 }
 
@@ -410,7 +419,7 @@ func minioUpdateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	if d.HasChanges("minio_config", "gcs_config", "azure_config", "s3_config") {
 		err := c.EditTier(ctx, name, credentials)
 		if err != nil {
-			return NewResourceError("error updating ILM tier %s: %s", d.Id(), err)
+			return NewResourceError("updating ILM tier", d.Id(), err)
 		}
 	}
 	return minioReadILMTier(ctx, d, meta)

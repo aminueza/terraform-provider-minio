@@ -49,7 +49,7 @@ func TestAccMinioILMTier_minioType(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"force_new_credentials"},
+				ImportStateVerifyIgnore: []string{"force_new_credentials", "minio_config.0.secret_key"},
 			},
 		},
 	})

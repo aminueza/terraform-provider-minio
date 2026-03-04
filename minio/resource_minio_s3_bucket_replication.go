@@ -289,9 +289,17 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	if d.Get("resync").(bool) {
 		log.Printf("[DEBUG] Triggering replication resync for bucket %s", bucketReplicationConfig.MinioBucket)
-		_, err := bucketReplicationConfig.MinioClient.ResetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, 0)
+		rcfg, err := bucketReplicationConfig.MinioClient.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 		if err != nil {
-			return NewResourceError("triggering replication resync", bucketReplicationConfig.MinioBucket, err)
+			return NewResourceError("reading replication config for resync", bucketReplicationConfig.MinioBucket, err)
+		}
+		for _, rule := range rcfg.Rules {
+			if rule.Destination.Bucket != "" {
+				_, err := bucketReplicationConfig.MinioClient.ResetBucketReplicationOnTarget(ctx, bucketReplicationConfig.MinioBucket, 0, rule.Destination.Bucket)
+				if err != nil {
+					return NewResourceError("triggering replication resync", bucketReplicationConfig.MinioBucket, err)
+				}
+			}
 		}
 	}
 

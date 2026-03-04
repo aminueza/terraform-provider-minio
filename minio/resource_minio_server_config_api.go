@@ -94,11 +94,13 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 	setBool := func(key, attr string) {
-		if v, ok := d.GetOkExists(attr); ok {
-			if v.(bool) {
-				parts = append(parts, key+"=on")
-			} else {
-				parts = append(parts, key+"=off")
+		if d.HasChange(attr) || d.Get(attr) != nil {
+			if v, ok := d.GetOk(attr); ok || d.HasChange(attr) {
+				if v.(bool) {
+					parts = append(parts, key+"=on")
+				} else {
+					parts = append(parts, key+"=off")
+				}
 			}
 		}
 	}

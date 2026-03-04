@@ -397,3 +397,16 @@ type S3MinioIdpOpenId struct {
 	RolePolicy   string
 	Enable       bool
 }
+
+// S3MinioAuditWebhook defines configuration for an audit webhook target
+type S3MinioAuditWebhook struct {
+	MinioAdmin *madmin.AdminClient
+	Name       string
+	Endpoint   string
+	AuthToken  string
+	Enable     bool
+	QueueSize  int
+	BatchSize  int
+	ClientCert string
+	ClientKey  string
+}

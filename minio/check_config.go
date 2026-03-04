@@ -375,3 +375,20 @@ func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId
 		Enable:       getOptionalField(d, "enable", true).(bool),
 	}
 }
+
+// AuditWebhookConfig creates configuration for an audit webhook resource.
+func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditWebhook {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioAuditWebhook{
+		MinioAdmin: m.S3Admin,
+		Name:       d.Get("name").(string),
+		Endpoint:   d.Get("endpoint").(string),
+		AuthToken:  getOptionalField(d, "auth_token", "").(string),
+		Enable:     getOptionalField(d, "enable", true).(bool),
+		QueueSize:  getOptionalField(d, "queue_size", 0).(int),
+		BatchSize:  getOptionalField(d, "batch_size", 0).(int),
+		ClientCert: getOptionalField(d, "client_cert", "").(string),
+		ClientKey:  getOptionalField(d, "client_key", "").(string),
+	}
+}

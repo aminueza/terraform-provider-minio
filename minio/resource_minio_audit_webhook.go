@@ -48,11 +48,13 @@ func resourceMinioAuditWebhook() *schema.Resource {
 			"queue_size": {
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Computed:    true,
 				Description: "Maximum number of audit events to queue before dropping. Defaults to MinIO server default if not set.",
 			},
 			"batch_size": {
 				Type:        schema.TypeInt,
 				Optional:    true,
+				Computed:    true,
 				Description: "Number of audit events to send in a single batch to the endpoint.",
 			},
 			"client_cert": {
@@ -145,15 +147,10 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	// Skip auth_token — MinIO redacts sensitive values
-
-	enableVal := true
-	if v, ok := cfgMap["enable"]; ok {
-		enableVal = v == "on"
-	}
-	if setErr := d.Set("enable", enableVal); setErr != nil {
-		return NewResourceError("setting enable", name, setErr)
-	}
+	// Skip auth_token — MinIO does not return this value
+	// Skip enable — MinIO does not return this in GetConfigKV response;
+	// Terraform retains the user's value from configuration
+	// Skip client_key — MinIO does not return this value
 
 	if v, ok := cfgMap["queue_size"]; ok {
 		if n, parseErr := strconv.Atoi(v); parseErr == nil {
@@ -171,13 +168,11 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if v, ok := cfgMap["client_cert"]; ok {
+	if v, ok := cfgMap["client_cert"]; ok && v != "" {
 		if setErr := d.Set("client_cert", v); setErr != nil {
 			return NewResourceError("setting client_cert", name, setErr)
 		}
 	}
-
-	// Skip client_key — MinIO redacts sensitive values
 
 	return nil
 }

@@ -126,7 +126,7 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"auth_token", "client_key", "restart_required"},
+				ImportStateVerifyIgnore: []string{"auth_token", "client_key", "enable", "restart_required"},
 			},
 		},
 	})

@@ -147,10 +147,6 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	// Skip auth_token — MinIO does not return this value
-	// Skip enable — MinIO does not return this in GetConfigKV response;
-	// Terraform retains the user's value from configuration
-	// Skip client_key — MinIO does not return this value
 
 	if v, ok := cfgMap["queue_size"]; ok {
 		if n, parseErr := strconv.Atoi(v); parseErr == nil {

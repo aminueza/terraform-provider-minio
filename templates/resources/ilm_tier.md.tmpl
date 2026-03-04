@@ -9,33 +9,24 @@ description: |-
 
 {{ .Description | trimspace }}
 
+Supported remote storage types:
+- **s3** — AWS S3 or any S3-compatible storage
+- **minio** — Remote MinIO deployment
+- **gcs** — Google Cloud Storage
+- **azure** — Azure Blob Storage
+
+Use `minio_ilm_policy` to create lifecycle rules that transition objects to these tiers.
+
 ## Example Usage
 
-```terraform
-# Configure S3-compatible remote tier for ILM
-resource "minio_ilm_tier" "s3_tier" {
-  name     = "S3TIER"
-  type     = "s3"
-  bucket   = "remote-tier-bucket"
-  prefix   = "minio-data/"
-  region   = "us-east-1"
-  endpoint = "s3.amazonaws.com"
-
-  s3_config {
-    access_key    = "AWS_ACCESS_KEY"
-    secret_key    = "AWS_SECRET_KEY"
-    storage_class = "STANDARD_IA"
-  }
-}
-```
+{{ tffile "examples/resources/minio_ilm_tier/resource.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import
 
-Import is supported using the following syntax:
-
 ```shell
-# ILM tiers can be imported using the tier name
-terraform import minio_ilm_tier.example tier-name
+terraform import minio_ilm_tier.example TIERNAME
 ```
+
+Note: Credentials (secret_key, account_key, credentials) are returned as REDACTED by MinIO. Set `force_new_credentials = true` to force credential updates.

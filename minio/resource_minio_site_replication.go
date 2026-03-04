@@ -117,6 +117,12 @@ func resourceMinioSiteReplication() *schema.Resource {
 					},
 				},
 			},
+			"replicate_ilm_expiry": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Replicate ILM expiration rules across sites.",
+			},
 			"enabled": {
 				Type:        schema.TypeBool,
 				Computed:    true,
@@ -134,7 +140,10 @@ func minioCreateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 
 	log.Printf("[DEBUG] Creating site replication: %s with %d sites", name, len(sites))
 
-	status, err := client.SiteReplicationAdd(ctx, sites, madmin.SRAddOptions{})
+	opts := madmin.SRAddOptions{
+		ReplicateILMExpiry: d.Get("replicate_ilm_expiry").(bool),
+	}
+	status, err := client.SiteReplicationAdd(ctx, sites, opts)
 	if err != nil {
 		return NewResourceError("error creating site replication", name, err)
 	}
@@ -178,6 +187,29 @@ func minioReadSiteReplication(ctx context.Context, d *schema.ResourceData, meta 
 
 func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Admin
+
+	if d.HasChange("replicate_ilm_expiry") {
+		enabled := d.Get("replicate_ilm_expiry").(bool)
+		editOpts := madmin.SREditOptions{
+			EnableILMExpiryReplication:  enabled,
+			DisableILMExpiryReplication: !enabled,
+		}
+		info, err := client.SiteReplicationInfo(ctx)
+		if err != nil {
+			return NewResourceError("reading site replication for ILM expiry update", d.Id(), err)
+		}
+		if len(info.Sites) > 0 {
+			peer := madmin.PeerInfo{
+				Endpoint:    info.Sites[0].Endpoint,
+				Name:        info.Sites[0].Name,
+				DeploymentID: info.Sites[0].DeploymentID,
+			}
+			_, err := client.SiteReplicationEdit(ctx, peer, editOpts)
+			if err != nil {
+				return NewResourceError("updating ILM expiry replication", d.Id(), err)
+			}
+		}
+	}
 
 	if d.HasChange("site") {
 		old, new := d.GetChange("site")

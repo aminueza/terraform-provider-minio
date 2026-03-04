@@ -167,6 +167,7 @@ func TestAccMinioSiteReplication_basic(t *testing.T) {
 					"site.0.secret_key",
 					"site.1.access_key",
 					"site.1.secret_key",
+					"replicate_ilm_expiry",
 				},
 				Check: testAccCheckImportSiteReplicationExists("minio_site_replication.basic", replicationName),
 			},

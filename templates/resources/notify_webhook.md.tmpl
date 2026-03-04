@@ -1,0 +1,34 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+MinIO supports publishing bucket events (object created, deleted, accessed, etc.) to HTTP webhook endpoints. This resource manages the server-level webhook notification target configuration. Once configured, use `minio_s3_bucket_notification` to subscribe specific buckets to this target.
+
+Multiple webhook targets can be configured simultaneously to send events to different endpoints.
+
+**NOTE:** Creating a new webhook target may require a MinIO server restart before it becomes fully active. The `restart_required` attribute indicates when this is necessary. Import is only supported for targets that are already active on the server.
+
+See the [MinIO Webhook Notification documentation](https://min.io/docs/minio/linux/administration/monitoring/publish-events-to-webhook.html) for more details.
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_notify_webhook/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the target name:
+
+```shell
+terraform import minio_notify_webhook.primary primary
+```
+
+Note: Sensitive fields (`auth_token`, `client_key`) are not returned by the MinIO API. After import, these values will be empty in state until the next apply sets them from your configuration.

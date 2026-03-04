@@ -372,9 +372,10 @@ Follow this structure:
 
 Key rules:
 
-- Always call Read after Create/Update.
+- Always call Read after Create/Update (exception: skip Read when `restart_required=true` and the subsystem won’t return the new values until restart).
 - Always clear the ID (`d.SetId("")`) when Read determines the resource doesn’t exist.
-- Delete should be idempotent (treat not-found as success).
+- Always set ID **after** the API call succeeds, not before. A failed create must not leave a phantom resource ID.
+- Delete should be idempotent (treat not-found as success) and always call `d.SetId("")`.
 
 ### Schema Definitions
 
@@ -442,7 +443,7 @@ If you need a custom validator, keep it small and return actionable errors.
 Avoid panics from unchecked casts. For optional fields:
 
 - Use `getOptionalField(d, "field", default)` when extracting into payload structs.
-- Use `GetOk`/`GetOkExists` when you need presence semantics ("unset" vs "set to zero value").
+- Use `GetOk` with `HasChange` when you need presence semantics ("unset" vs "set to zero value"). **Do NOT use `GetOkExists`** — it is deprecated and triggers lint failures.
 
 For collection types:
 
@@ -574,6 +575,10 @@ go test ./minio/...
 
 ### Common Issues
 
+**Config KV resources (notify_\*, audit_\*, logger_\*, server_config_\*):** These use `SetConfigKV`/`GetConfigKV`/`DelConfigKV` instead of the payload struct pattern. Named targets (e.g., `notify_kafka:primary`) use the shared helpers in `resource_minio_notify_common.go`. Singleton subsystems (e.g., `api`, `scanner`, `heal`) use the subsystem name as resource ID. Some subsystems (notably `notify_*` and `region`) require a server restart before `GetConfigKV` returns new values — handle the "there is no target" error by keeping state as-is.
+
+**Credentials and import:** MinIO returns `REDACTED` for sensitive fields (secret keys, passwords, tokens). Always add credential fields to `ImportStateVerifyIgnore` in tests.
+
 **ILM tier names:** Must be UPPERCASE:
 
 ```go
@@ -583,6 +588,10 @@ tierName := strings.ToUpper("TFACC-TIER-" + acctest.RandString(8))
 **Object lock:** Requires versioning enabled. Needs MinIO RELEASE.2025-05-20+ to add after bucket creation.
 
 **LDAP/KMS tests:** Skip automatically if not configured. Set `MINIO_LDAP_ENABLED=1` or `MINIO_KMS_ENABLED=1` to run.
+
+**Skipping tests in Docker:** Use `TEST_SKIP` (not `TEST_PATTERN`) for the `-skip` flag: `docker compose run --rm -e TEST_SKIP=TestName test`. `TEST_PATTERN` only supports `-run` patterns.
+
+**Template engine limitations:** `trimprefix` and other Go text/template functions are NOT available in tfplugindocs. Hardcode values instead.
 
 ## Reference Implementation
 

@@ -2,29 +2,74 @@
 page_title: "minio_ilm_tier Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  minio_ilm_tier handles remote tiers
+  Manages remote storage tiers for MinIO ILM (Information Lifecycle Management). Tiers allow transitioning objects to cheaper remote storage (S3, GCS, Azure, or another MinIO deployment) based on lifecycle rules.
 ---
 
 # minio_ilm_tier (Resource)
 
-`minio_ilm_tier` handles remote tiers
+Manages remote storage tiers for MinIO ILM (Information Lifecycle Management). Tiers allow transitioning objects to cheaper remote storage (S3, GCS, Azure, or another MinIO deployment) based on lifecycle rules.
+
+Supported remote storage types:
+- **s3** — AWS S3 or any S3-compatible storage
+- **minio** — Remote MinIO deployment
+- **gcs** — Google Cloud Storage
+- **azure** — Azure Blob Storage
+
+Use `minio_ilm_policy` to create lifecycle rules that transition objects to these tiers.
 
 ## Example Usage
 
 ```terraform
-# Configure S3-compatible remote tier for ILM
-resource "minio_ilm_tier" "s3_tier" {
-  name     = "S3TIER"
+# S3-compatible remote tier
+resource "minio_ilm_tier" "s3_archive" {
+  name     = "S3ARCHIVE"
   type     = "s3"
-  bucket   = "remote-tier-bucket"
+  bucket   = "archive-bucket"
   prefix   = "minio-data/"
-  region   = "us-east-1"
   endpoint = "s3.amazonaws.com"
+  region   = "us-east-1"
 
   s3_config {
-    access_key    = "AWS_ACCESS_KEY"
-    secret_key    = "AWS_SECRET_KEY"
-    storage_class = "STANDARD_IA"
+    access_key    = var.aws_access_key
+    secret_key    = var.aws_secret_key
+    storage_class = "GLACIER"
+  }
+}
+
+# Remote MinIO tier
+resource "minio_ilm_tier" "remote" {
+  name     = "REMOTEMINIO"
+  type     = "minio"
+  bucket   = "tier-storage"
+  endpoint = "minio2.example.com"
+
+  minio_config {
+    access_key = var.remote_access_key
+    secret_key = var.remote_secret_key
+  }
+}
+
+# Azure Blob Storage tier
+resource "minio_ilm_tier" "azure" {
+  name   = "AZURECOOL"
+  type   = "azure"
+  bucket = "archive-container"
+
+  azure_config {
+    account_name = var.azure_account
+    account_key  = var.azure_key
+  }
+}
+
+# GCS tier
+resource "minio_ilm_tier" "gcs" {
+  name   = "GCSNEARLINE"
+  type   = "gcs"
+  bucket = "gcs-archive"
+
+  gcs_config {
+    credentials   = file("gcs-service-account.json")
+    storage_class = "NEARLINE"
   }
 }
 ```
@@ -34,20 +79,20 @@ resource "minio_ilm_tier" "s3_tier" {
 
 ### Required
 
-- `bucket` (String)
-- `name` (String)
-- `type` (String)
+- `bucket` (String) Bucket name on the remote storage target.
+- `name` (String) Unique name for this tier (e.g., S3TIER, GCSTIER). Must be uppercase.
+- `type` (String) Remote storage type: s3, minio, gcs, or azure.
 
 ### Optional
 
-- `azure_config` (Block List, Max: 1) (see [below for nested schema](#nestedblock--azure_config))
-- `endpoint` (String)
-- `force_new_credentials` (Boolean)
-- `gcs_config` (Block List, Max: 1) (see [below for nested schema](#nestedblock--gcs_config))
-- `minio_config` (Block List, Max: 1) (see [below for nested schema](#nestedblock--minio_config))
-- `prefix` (String)
-- `region` (String)
-- `s3_config` (Block List, Max: 1) (see [below for nested schema](#nestedblock--s3_config))
+- `azure_config` (Block List, Max: 1) Configuration for Azure Blob Storage remote tier. Required when type is azure. (see [below for nested schema](#nestedblock--azure_config))
+- `endpoint` (String) Endpoint URL for the remote storage. Required for s3 and minio types.
+- `force_new_credentials` (Boolean) Force credential update even when the server returns REDACTED values.
+- `gcs_config` (Block List, Max: 1) Configuration for Google Cloud Storage remote tier. Required when type is gcs. (see [below for nested schema](#nestedblock--gcs_config))
+- `minio_config` (Block List, Max: 1) Configuration for MinIO remote tier. Required when type is minio. (see [below for nested schema](#nestedblock--minio_config))
+- `prefix` (String) Object name prefix to use on the remote tier bucket.
+- `region` (String) Region of the remote storage bucket.
+- `s3_config` (Block List, Max: 1) Configuration for S3 remote tier. Required when type is s3. (see [below for nested schema](#nestedblock--s3_config))
 
 ### Read-Only
 
@@ -58,9 +103,9 @@ resource "minio_ilm_tier" "s3_tier" {
 
 Optional:
 
-- `account_key` (String, Sensitive)
-- `account_name` (String)
-- `storage_class` (String)
+- `account_key` (String, Sensitive) Azure storage account key.
+- `account_name` (String) Azure storage account name.
+- `storage_class` (String) Azure storage tier (e.g., Hot, Cool, Archive).
 
 
 <a id="nestedblock--gcs_config"></a>
@@ -68,8 +113,8 @@ Optional:
 
 Optional:
 
-- `credentials` (String, Sensitive)
-- `storage_class` (String)
+- `credentials` (String, Sensitive) GCS service account credentials JSON.
+- `storage_class` (String) GCS storage class (e.g., NEARLINE, COLDLINE, ARCHIVE).
 
 
 <a id="nestedblock--minio_config"></a>
@@ -77,8 +122,8 @@ Optional:
 
 Optional:
 
-- `access_key` (String)
-- `secret_key` (String, Sensitive)
+- `access_key` (String) Access key for the remote MinIO instance.
+- `secret_key` (String, Sensitive) Secret key for the remote MinIO instance.
 
 
 <a id="nestedblock--s3_config"></a>
@@ -86,15 +131,14 @@ Optional:
 
 Optional:
 
-- `access_key` (String)
-- `secret_key` (String, Sensitive)
-- `storage_class` (String)
+- `access_key` (String) AWS access key ID.
+- `secret_key` (String, Sensitive) AWS secret access key.
+- `storage_class` (String) S3 storage class (e.g., STANDARD_IA, GLACIER, DEEP_ARCHIVE).
 
 ## Import
 
-Import is supported using the following syntax:
-
 ```shell
-# ILM tiers can be imported using the tier name
-terraform import minio_ilm_tier.example tier-name
+terraform import minio_ilm_tier.example TIERNAME
 ```
+
+Note: Credentials (secret_key, account_key, credentials) are returned as REDACTED by MinIO. Set `force_new_credentials = true` to force credential updates.

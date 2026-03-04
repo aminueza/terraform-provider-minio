@@ -108,3 +108,42 @@ resource "minio_server_config_scanner" "test" {
 		},
 	})
 }
+
+func TestAccMinioServerConfigHeal_basic(t *testing.T) {
+	resourceName := "minio_server_config_heal.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_heal" "test" {
+  bitrotscan = "off"
+  max_sleep  = "500ms"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "bitrotscan", "off"),
+					resource.TestCheckResourceAttr(resourceName, "max_sleep", "500ms"),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_heal" "test" {
+  bitrotscan = "on"
+  max_sleep  = "250ms"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "bitrotscan", "on"),
+					resource.TestCheckResourceAttr(resourceName, "max_sleep", "250ms"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}

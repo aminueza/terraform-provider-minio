@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/dustin/go-humanize"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -49,15 +48,14 @@ func Encode(value []byte) []byte {
 }
 
 // getStringList get array of strings
-func getStringList(listString []interface{}) []*string {
-	arrayString := make([]*string, 0, len(listString))
+func getStringList(listString []interface{}) []string {
+	var result []string
 	for _, v := range listString {
-		value, ret := v.(string)
-		if ret && value != "" {
-			arrayString = append(arrayString, aws.String(v.(string)))
+		if s, ok := v.(string); ok && s != "" {
+			result = append(result, s)
 		}
 	}
-	return arrayString
+	return result
 }
 
 // Contains check that an array has the given element

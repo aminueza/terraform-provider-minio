@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -273,7 +272,7 @@ func testAccCheckIAMGroupPolicyExists(
 
 func testAccCheckMinioIAMGroupPolicyNameChanged(i, j *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		if aws.StringValue(i) == aws.StringValue(j) {
+		if *i == *j {
 			return fmt.Errorf("the IAM Group Policy name did not change %s to %s", *i, *j)
 		}
 
@@ -283,7 +282,7 @@ func testAccCheckMinioIAMGroupPolicyNameChanged(i, j *string) resource.TestCheck
 
 func testAccCheckMinioIAMGroupPolicyNameExists(i *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		if aws.StringValue(i) == "" {
+		if *i == "" {
 			return errors.New("the IAM Group Policy name does not exist")
 		}
 

@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
 )
@@ -91,7 +90,7 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("error creating user", accessKey, err)
 	}
 
-	d.SetId(aws.StringValue(&accessKey))
+	d.SetId(accessKey)
 	_ = d.Set("secret", secretKey)
 
 	if iamUserConfig.MinioDisableUser {

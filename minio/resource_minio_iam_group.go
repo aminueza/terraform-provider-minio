@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
@@ -76,7 +75,7 @@ func minioCreateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
 	}
 
-	d.SetId(aws.StringValue(&iamGroupConfig.MinioIAMName))
+	d.SetId(iamGroupConfig.MinioIAMName)
 
 	return minioReadGroup(ctx, d, meta)
 }

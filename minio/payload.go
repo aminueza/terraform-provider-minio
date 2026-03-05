@@ -223,7 +223,7 @@ type S3MinioIAMGroupAttachmentConfig struct {
 type S3MinioIAMGroupMembershipConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioIAMName  string
-	MinioIAMUsers []*string
+	MinioIAMUsers []string
 	MinioIAMGroup string
 }
 

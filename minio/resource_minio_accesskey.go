@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
@@ -183,7 +182,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("creating access key", user, err)
 	}
 
-	d.SetId(aws.StringValue(&creds.AccessKey))
+	d.SetId(creds.AccessKey)
 	_ = d.Set("access_key", creds.AccessKey)
 
 	timeout := d.Timeout(schema.TimeoutCreate)

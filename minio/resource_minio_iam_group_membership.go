@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
 )
@@ -52,7 +50,7 @@ func minioCreateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
-		Members:  aws.StringValueSlice(iamGroupMembershipConfig.MinioIAMUsers),
+		Members:  iamGroupMembershipConfig.MinioIAMUsers,
 		IsRemove: false,
 	}
 
@@ -140,7 +138,7 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
-		Members:  aws.StringValueSlice(iamGroupMembershipConfig.MinioIAMUsers),
+		Members:  iamGroupMembershipConfig.MinioIAMUsers,
 		IsRemove: true,
 	}
 
@@ -152,14 +150,14 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 	return nil
 }
 
-func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []*string) error {
+func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []string) error {
 	var users []string
 
 	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
-	log.Printf("[WARN] Users to add before: %v and after: %v", groupDesc.Members, aws.StringValueSlice(usersToAdd))
+	log.Printf("[WARN] Users to add before: %v and after: %v", groupDesc.Members, usersToAdd)
 
-	users = append(groupDesc.Members, aws.StringValueSlice(usersToAdd)...)
+	users = append(groupDesc.Members, usersToAdd...)
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
@@ -175,11 +173,11 @@ func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMem
 	return nil
 }
 
-func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []*string) error {
+func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []string) error {
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
-		Members:  aws.StringValueSlice(usersToRemove),
+		Members:  usersToRemove,
 		IsRemove: true,
 	}
 

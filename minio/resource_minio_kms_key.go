@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -39,7 +38,7 @@ func minioCreateKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("error creating service account", keyID, err)
 	}
 
-	d.SetId(aws.StringValue(&keyID))
+	d.SetId(keyID)
 	_ = d.Set("key_id", d.Id())
 
 	return minioReadKMSKey(ctx, d, meta)

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -121,7 +120,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	accessKey := serviceAccount.AccessKey
 	secretKey := serviceAccount.SecretKey
 
-	d.SetId(aws.StringValue(&accessKey))
+	d.SetId(accessKey)
 	_ = d.Set("access_key", accessKey)
 	_ = d.Set("secret_key", secretKey)
 

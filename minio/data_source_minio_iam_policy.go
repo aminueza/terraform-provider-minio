@@ -2,7 +2,6 @@ package minio
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -29,11 +28,7 @@ func dataSourceIAMPolicyRead(d *schema.ResourceData, meta interface{}) error {
 
 	d.SetId(name)
 
-	policyJSON, err := json.Marshal(json.RawMessage(info.Policy))
-	if err != nil {
-		return err
-	}
-	_ = d.Set("policy", string(policyJSON))
+	_ = d.Set("policy", string(info.Policy))
 
 	return nil
 }

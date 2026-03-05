@@ -69,4 +69,4 @@ Import using `bucket_name/object_name`:
 terraform import minio_s3_object.example my-bucket/my-object
 ```
 
-Note: `content`, `content_base64`, `source`, and `acl` are not returned by the MinIO API. After import, set these in your configuration and run apply.
+Note: Import reads object metadata only (etag, content_type, version_id). Object content and ACL are not available from the API, so you may see a diff on the next plan.

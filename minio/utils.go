@@ -250,3 +250,18 @@ func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics)
 
 	return bandwidth, true, nil
 }
+
+// isS3CompatNotSupported returns true if the error indicates an unsupported
+// S3 feature and S3 compat mode is enabled on the client.
+func isS3CompatNotSupported(client *S3MinioClient, err error) bool {
+	if !client.S3CompatMode || err == nil {
+		return false
+	}
+	errStr := strings.ToLower(err.Error())
+	return strings.Contains(errStr, "not implemented") ||
+		strings.Contains(errStr, "not supported") ||
+		strings.Contains(errStr, "method not allowed") ||
+		strings.Contains(errStr, "unsupported") ||
+		strings.Contains(errStr, "501") ||
+		strings.Contains(errStr, "405")
+}

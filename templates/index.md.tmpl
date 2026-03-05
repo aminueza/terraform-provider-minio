@@ -100,6 +100,8 @@ The following arguments are supported in the `provider` block:
 
 * `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
+* `s3_compat_mode` - (Optional) Enable S3 compatibility mode for non-MinIO backends. Gracefully handles unsupported features instead of erroring (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
+
 * `assume_role` - (Optional) Configuration block for STS AssumeRole. See [Assume Role](#assume-role) below.
 
 * `assume_role_with_web_identity` - (Optional) Configuration block for OIDC-based authentication. See [Web Identity](#assume-role-with-web-identity) below.
@@ -164,6 +166,42 @@ provider "minio" {
 * `web_identity_token` - (Optional, Sensitive) OIDC/JWT token. Can be sourced from `MINIO_WEB_IDENTITY_TOKEN`.
 * `web_identity_token_file` - (Optional) Path to token file. Can be sourced from `MINIO_WEB_IDENTITY_TOKEN_FILE`.
 * `duration_seconds` - (Optional) Session duration in seconds (default: `3600`).
+
+## S3 Compatibility Mode
+
+This provider is built for MinIO but also works with other S3-compatible storage backends. Enable `s3_compat_mode` to gracefully handle unsupported features:
+
+```terraform
+provider "minio" {
+  minio_server   = "fsn1.your-objectstorage.com"
+  minio_user     = var.access_key
+  minio_password = var.secret_key
+  minio_ssl      = true
+
+  s3_compat_mode = true
+}
+```
+
+When enabled, the provider will skip features that return "Not Implemented" errors instead of failing. This affects:
+- Bucket notifications
+- CORS configuration
+- Object lock, retention, and legal hold
+- Lifecycle rules (ILM)
+
+### Tested S3-Compatible Backends
+
+| Backend | Buckets | Objects | Policies | Versioning | Tags | Notifications | CORS | Object Lock | Lifecycle |
+|---------|---------|---------|----------|------------|------|---------------|------|-------------|-----------|
+| **MinIO** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Hetzner Object Storage** | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ | ❌ | ❌ |
+| **Cloudflare R2** | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
+| **Backblaze B2** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
+| **DigitalOcean Spaces** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ |
+
+⚠️ = Use `skip_bucket_tagging = true`
+❌ = Requires `s3_compat_mode = true`
+
+-> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends.
 
 ## LDAP Integration
 

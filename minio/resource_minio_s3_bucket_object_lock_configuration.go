@@ -126,6 +126,11 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 			d.SetId("")
 			return nil
 		}
+		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
+			log.Printf("[INFO] Object lock not supported by backend; skipping")
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("reading object lock configuration", bucket, err)
 	}
 

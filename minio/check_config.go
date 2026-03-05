@@ -162,6 +162,7 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3SSLKeyFile:      getOptionalField(d, "minio_key_file", "").(string),
 		S3SSLSkipVerify:   getOptionalField(d, "minio_insecure", false).(bool),
 		SkipBucketTagging: getOptionalField(d, "skip_bucket_tagging", false).(bool),
+		S3CompatMode:      getOptionalField(d, "s3_compat_mode", false).(bool),
 	}
 
 	if v, ok := d.GetOk("assume_role"); ok {

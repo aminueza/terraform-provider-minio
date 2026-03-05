@@ -123,6 +123,7 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		S3UserSecret:      config.S3UserSecret,
 		S3SSL:             config.S3SSL,
 		SkipBucketTagging: config.SkipBucketTagging,
+		S3CompatMode:      config.S3CompatMode,
 	}, nil
 }
 

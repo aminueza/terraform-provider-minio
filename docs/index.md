@@ -190,6 +190,8 @@ When enabled, the provider will skip features that return "Not Implemented" erro
 
 ### Tested S3-Compatible Backends
 
+All non-MinIO backends should use `s3_compat_mode = true`. This single flag handles all unsupported features including tagging.
+
 | Backend | Buckets | Objects | Policies | Versioning | Tags | Notifications | CORS | Object Lock | Lifecycle |
 |---------|---------|---------|----------|------------|------|---------------|------|-------------|-----------|
 | **MinIO** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
@@ -198,10 +200,11 @@ When enabled, the provider will skip features that return "Not Implemented" erro
 | **Backblaze B2** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **DigitalOcean Spaces** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ |
 
-⚠️ = Use `skip_bucket_tagging = true`
-❌ = Requires `s3_compat_mode = true`
+✅ = Fully supported
+⚠️ = Partial support (may return errors on some operations)
+❌ = Not supported by backend (silently skipped with `s3_compat_mode = true`)
 
--> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends.
+-> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends. The legacy `skip_bucket_tagging` flag continues to work independently.
 
 ## LDAP Integration
 

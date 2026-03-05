@@ -60,3 +60,13 @@ output "minio_id" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import using `bucket_name/object_name`:
+
+```shell
+terraform import minio_s3_object.example my-bucket/my-object
+```
+
+Note: Import reads object metadata only (etag, content_type, version_id). Object content and ACL are not available from the API, so you may see a diff on the next plan.

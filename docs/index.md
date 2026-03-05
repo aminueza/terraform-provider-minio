@@ -100,6 +100,71 @@ The following arguments are supported in the `provider` block:
 
 * `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
+* `assume_role` - (Optional) Configuration block for STS AssumeRole. See [Assume Role](#assume-role) below.
+
+* `assume_role_with_web_identity` - (Optional) Configuration block for OIDC-based authentication. See [Web Identity](#assume-role-with-web-identity) below.
+
+## Assume Role
+
+Use `assume_role` to exchange static credentials for short-lived STS session credentials:
+
+```terraform
+provider "minio" {
+  minio_server   = "minio.example.com"
+  minio_user     = var.access_key
+  minio_password = var.secret_key
+  minio_ssl      = true
+
+  assume_role {
+    role_arn         = "arn:minio:iam:::role/terraform"
+    session_name     = "terraform"
+    duration_seconds = 3600
+  }
+}
+```
+
+### Assume Role Arguments
+
+* `role_arn` - (Optional) ARN of the role to assume. Can be sourced from `MINIO_ASSUME_ROLE_ARN`.
+* `session_name` - (Optional) Session name (default: `terraform`).
+* `duration_seconds` - (Optional) Session duration in seconds (default: `3600`).
+* `policy` - (Optional) IAM policy JSON to scope down permissions.
+* `external_id` - (Optional) External ID for cross-account assumption.
+
+## Assume Role with Web Identity
+
+Use `assume_role_with_web_identity` for passwordless authentication with OIDC tokens from CI/CD platforms like GitHub Actions or GitLab CI:
+
+```terraform
+provider "minio" {
+  minio_server = "minio.example.com"
+  minio_ssl    = true
+
+  assume_role_with_web_identity {
+    web_identity_token = var.oidc_token
+  }
+}
+```
+
+Or using a token file (common in Kubernetes):
+
+```terraform
+provider "minio" {
+  minio_server = "minio.example.com"
+  minio_ssl    = true
+
+  assume_role_with_web_identity {
+    web_identity_token_file = "/var/run/secrets/tokens/minio"
+  }
+}
+```
+
+### Web Identity Arguments
+
+* `web_identity_token` - (Optional, Sensitive) OIDC/JWT token. Can be sourced from `MINIO_WEB_IDENTITY_TOKEN`.
+* `web_identity_token_file` - (Optional) Path to token file. Can be sourced from `MINIO_WEB_IDENTITY_TOKEN_FILE`.
+* `duration_seconds` - (Optional) Session duration in seconds (default: `3600`).
+
 ## LDAP Integration
 
 This provider supports attaching IAM policies to LDAP users and groups. Before using LDAP resources, ensure your MinIO server is configured with LDAP authentication.

@@ -180,6 +180,16 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		}
 	}
 
+	if v, ok := d.GetOk("assume_role_with_web_identity"); ok {
+		wiList := v.([]interface{})
+		if len(wiList) > 0 {
+			wi := wiList[0].(map[string]interface{})
+			cfg.WebIdentityToken = wi["web_identity_token"].(string)
+			cfg.WebIdentityTokenFile = wi["web_identity_token_file"].(string)
+			cfg.WebIdentityDuration = wi["duration_seconds"].(int)
+		}
+	}
+
 	return cfg
 }
 

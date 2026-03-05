@@ -115,14 +115,13 @@ func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 		return err
 	}
 
-	newPolicies, found := Filter(policies, policyName)
-	if !found {
+	if !Contains(policies, policyName) {
 		return nil
 	}
 
-	log.Printf("[DEBUG] Detaching policy %s from user: %s (%v)", policyName, userName, newPolicies)
-	_, errIam := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
-		Policies: newPolicies,
+	log.Printf("[DEBUG] Detaching policy %s from user: %s", policyName, userName)
+	_, errIam := minioAdmin.DetachPolicy(ctx, madmin.PolicyAssociationReq{
+		Policies: []string{policyName},
 		User:     userName,
 	})
 	if errIam != nil {

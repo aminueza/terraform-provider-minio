@@ -25,6 +25,12 @@ type S3MinioConfig struct {
 	S3SSLKeyFile      string
 	S3SSLSkipVerify   bool
 	SkipBucketTagging bool
+
+	AssumeRoleARN         string
+	AssumeRoleSessionName string
+	AssumeRoleDuration    int
+	AssumeRolePolicy      string
+	AssumeRoleExternalID  string
 }
 
 // S3MinioClient defines default minio

@@ -10,7 +10,6 @@ import (
 
 	"github.com/minio/madmin-go/v3"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -77,7 +76,7 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("unable to create policy", name, err)
 	}
 
-	d.SetId(aws.StringValue(&name))
+	d.SetId(name)
 
 	return minioReadPolicy(ctx, d, meta)
 }

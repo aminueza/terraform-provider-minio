@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -24,6 +25,9 @@ func resourceMinioObject() *schema.Resource {
 		ReadContext:   minioReadObject,
 		UpdateContext: minioUpdateObject,
 		DeleteContext: minioDeleteObject,
+		Importer: &schema.ResourceImporter{
+			StateContext: minioImportObject,
+		},
 
 		SchemaVersion: 0,
 
@@ -200,6 +204,19 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 
 func minioUpdateObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return minioPutObject(ctx, d, meta)
+}
+
+func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	parts := strings.SplitN(d.Id(), "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return nil, fmt.Errorf("unexpected import ID format (%q), expected bucket_name/object_name", d.Id())
+	}
+
+	_ = d.Set("bucket_name", parts[0])
+	_ = d.Set("object_name", parts[1])
+	d.SetId(parts[1])
+
+	return []*schema.ResourceData{d}, nil
 }
 
 func minioDeleteObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

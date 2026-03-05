@@ -31,6 +31,13 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet(resourceName, "etag"),
 				),
 			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateId:           fmt.Sprintf("tf-test-bucket-%d/test-object", rInt),
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"content", "content_base64", "source", "acl"},
+			},
 		},
 	})
 }

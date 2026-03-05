@@ -33,13 +33,14 @@ The Terraform Provider for MinIO enables infrastructure as code management for M
 - **Object Operations**: Upload, download, and manage objects
 - **Advanced Features**: Replication, lifecycle rules, encryption, versioning
 - **Enterprise Support**: Multi-cluster, federation, and auditing capabilities
+- **S3 Compatibility**: Works with Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces
 
 ### Key Features
 
-- **Complete MinIO API Coverage** - Support for 95%+ of commonly used MinIO features
-- **Enterprise-Grade Reliability** - 99.9%+ success rate for resource operations
-- **Security First** - Secure credential handling and regular security audits
-- **Developer Friendly** - Clear documentation and intuitive resource design
+- **Complete MinIO API Coverage** - 55+ resources and 25+ data sources covering buckets, IAM, ILM, encryption, replication, notifications, and server configuration
+- **S3 Compatible** - Use with any S3-compatible backend via `s3_compat_mode`
+- **Security First** - STS AssumeRole, OIDC Web Identity, mTLS, and session token authentication
+- **Developer Friendly** - Descriptions on every attribute, import support on every resource
 - **Active Community** - Responsive maintainers and growing contributor base
 
 ## Building and Installing

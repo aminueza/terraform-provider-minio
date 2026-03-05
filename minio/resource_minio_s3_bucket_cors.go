@@ -98,8 +98,13 @@ func minioReadBucketCors(ctx context.Context, d *schema.ResourceData, meta inter
 
 	log.Printf("[DEBUG] Reading CORS configuration for bucket: %s", d.Id())
 
+	client := meta.(*S3MinioClient)
 	corsConfig, err := bucketCorsConfig.MinioClient.GetBucketCors(ctx, d.Id())
 	if err != nil {
+		if isS3CompatNotSupported(client, err) {
+			log.Printf("[INFO] CORS not supported by backend; skipping")
+			return nil
+		}
 		if isNoSuchBucketError(err) {
 			log.Printf("[WARN] Bucket %s not found, removing CORS resource from state", d.Id())
 			d.SetId("")

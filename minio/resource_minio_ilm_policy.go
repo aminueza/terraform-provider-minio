@@ -459,6 +459,11 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
+		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
+			log.Printf("[INFO] Lifecycle rules not supported by backend; skipping")
+			d.SetId("")
+			return nil
+		}
 		if isNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
 			if err = d.Set("bucket", d.Id()); err != nil {
 				return NewResourceError("setting bucket failed", d.Id(), err)

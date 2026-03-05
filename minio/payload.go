@@ -25,6 +25,7 @@ type S3MinioConfig struct {
 	S3SSLKeyFile      string
 	S3SSLSkipVerify   bool
 	SkipBucketTagging bool
+	S3CompatMode      bool
 
 	AssumeRoleARN         string
 	AssumeRoleSessionName string
@@ -47,6 +48,7 @@ type S3MinioClient struct {
 	S3UserSecret      string
 	S3SSL             bool
 	SkipBucketTagging bool
+	S3CompatMode      bool
 }
 
 // S3MinioBucket defines minio config
@@ -61,6 +63,7 @@ type S3MinioBucket struct {
 	MinioForceDestroy    bool
 	ObjectLockingEnabled bool
 	SkipBucketTagging    bool
+	S3CompatMode         bool
 }
 
 // S3MinioBucketPolicy defines bucket policy config

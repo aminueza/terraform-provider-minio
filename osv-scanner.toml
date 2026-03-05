@@ -1,7 +1,0 @@
-[[IgnoredVulns]]
-id = "GO-2022-0635"
-reason = "This vulnerability affects the deprecated AWS S3 Crypto SDK (S3EncryptionClient, in-band key negotiation). This provider does not use the S3 encryption client — only standard S3 API operations are used. Confirmed not reachable by govulncheck."
-
-[[IgnoredVulns]]
-id = "GO-2022-0646"
-reason = "This vulnerability affects the deprecated AWS S3 Crypto SDK (S3EncryptionClient, AES-CBC padding oracle). This provider does not use the S3 encryption client — only standard S3 API operations are used. Confirmed not reachable by govulncheck."

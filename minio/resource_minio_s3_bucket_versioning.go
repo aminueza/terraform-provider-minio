@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"time"
 
@@ -136,7 +135,7 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 		// For existing resources, check if bucket exists
 		exists, err := bucketVersioningConfig.MinioClient.BucketExists(ctx, d.Id())
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
+			return NewResourceError("checking bucket existence", d.Id(), err)
 		}
 		if !exists {
 			log.Printf("[WARN] Bucket %s no longer exists, removing versioning resource from state", d.Id())
@@ -164,11 +163,11 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 	config["exclude_folders"] = versioningConfig.ExcludeFolders
 
 	if err := d.Set("bucket", d.Id()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket attribute", d.Id(), err)
 	}
 
 	if err := d.Set("versioning_configuration", []interface{}{config}); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting versioning configuration: %w", err))
+		return NewResourceError("setting versioning configuration", d.Id(), err)
 	}
 
 	return nil

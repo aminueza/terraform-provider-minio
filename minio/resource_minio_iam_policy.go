@@ -103,7 +103,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	if err := d.Set("name", d.Id()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting policy name", d.Id(), err)
 	}
 
 	actualPolicyText := strings.TrimSpace(string(output))
@@ -118,7 +118,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	if err := d.Set("policy", policy); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting policy", d.Id(), err)
 	}
 
 	return nil

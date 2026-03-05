@@ -109,7 +109,7 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to set config %s after retries: %s", key, err)
-		return diag.FromErr(err)
+		return NewResourceError("setting config", key, err)
 	}
 
 	// Set the ID to the key
@@ -155,7 +155,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to read config %s after retries: %s", key, err)
-		return diag.FromErr(err)
+		return NewResourceError("reading config", key, err)
 	}
 
 	// If the resource was removed
@@ -215,7 +215,7 @@ func minioUpdateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to update config %s after retries: %s", key, err)
-		return diag.FromErr(err)
+		return NewResourceError("updating config", key, err)
 	}
 
 	_ = d.Set("restart_required", restartRequired)
@@ -241,7 +241,7 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 			d.SetId("")
 			return nil
 		}
-		return diag.Errorf("error checking config before deletion: %s", err)
+		return NewResourceError("checking config before deletion", key, err)
 	}
 
 	timeout := d.Timeout(schema.TimeoutDelete)
@@ -265,7 +265,7 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	if err != nil {
 		log.Printf("[ERROR] Failed to delete config %s after retries: %s", key, err)
-		return diag.FromErr(err)
+		return NewResourceError("deleting config", key, err)
 	}
 
 	if restart {

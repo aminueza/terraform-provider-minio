@@ -346,7 +346,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
 		log.Printf("[WARN] Unable to fetch bucket replication config for %q: %v", bucketName, err)
-		return diag.FromErr(fmt.Errorf("error reading bucket replication configuration: %s", err))
+		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}
 
 	rules := make([]map[string]interface{}, len(rcfg.Rules))
@@ -359,7 +359,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 		if _, ok = ruleArnMap[rule.Destination.Bucket]; ok {
 			log.Printf("[WARN] Conflict detetcted between two rules containing the same ARN for %q: %q", bucketName, rule.Destination.Bucket)
-			return diag.FromErr(fmt.Errorf("conflict detetcted between two rules containing the same ARN for %q: %q", bucketName, rule.Destination.Bucket))
+			return NewResourceError("reading replication rules", bucketName, fmt.Errorf("conflict detected between two rules containing the same ARN: %q", rule.Destination.Bucket))
 		}
 		ruleArnMap[rule.Destination.Bucket] = ruleIdx
 		target := map[string]interface{}{
@@ -413,11 +413,11 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
 	if err != nil {
 		log.Printf("[WARN] Unable to fetch existing remote target config for %q: %v", bucketName, err)
-		return diag.FromErr(fmt.Errorf("error reading replication remote target configuration: %s", err))
+		return NewResourceError("reading replication remote target configuration", bucketName, err)
 	}
 
 	if len(existingRemoteTargets) != len(rules) {
-		return diag.FromErr(fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(existingRemoteTargets), len(rules)))
+		return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(existingRemoteTargets), len(rules)))
 	}
 
 	for _, remoteTarget := range existingRemoteTargets {
@@ -425,14 +425,14 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		var ok bool
 		var target map[string]interface{}
 		if ruleIdx, ok = ruleArnMap[remoteTarget.Arn]; !ok {
-			return diag.FromErr(fmt.Errorf("unable to find the remote target configuration for ARN %q on %s", remoteTarget.Arn, bucketName))
+			return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("unable to find the remote target configuration for ARN %q", remoteTarget.Arn))
 		}
 		var targets []interface{}
 		if targets, ok = rules[ruleIdx]["target"].([]interface{}); !ok || len(targets) != 1 {
-			return diag.FromErr(fmt.Errorf("unable to find the bucket replication configuration associated to ARN %q (rule#%d) on %s", remoteTarget.Arn, ruleIdx, bucketName))
+			return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("unable to find the bucket replication configuration associated to ARN %q (rule#%d)", remoteTarget.Arn, ruleIdx))
 		}
 		if target, ok = targets[0].(map[string]interface{}); !ok || len(target) == 0 {
-			return diag.FromErr(fmt.Errorf("unable to extract the target information for the this remote target configuration associated on %s", bucketName))
+			return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("unable to extract the target information for the remote target configuration"))
 		}
 
 		pathComponent := strings.Split(remoteTarget.TargetBucket, "/")
@@ -487,11 +487,11 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting replication configuration: %w", err))
+		return NewResourceError("setting replication configuration", d.Id(), err)
 	}
 
 	if err := d.Set("rule", rules); err != nil {
-		return diag.FromErr(fmt.Errorf("error setting replication configuration: %w", err))
+		return NewResourceError("setting replication configuration", d.Id(), err)
 	}
 
 	return diags
@@ -512,7 +512,7 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 	rcfg, err := client.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 	if err != nil {
 		log.Printf("[WARN] Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err)
-		return diag.FromErr(fmt.Errorf("error reading bucket replication configuration: %s", err))
+		return NewResourceError("reading bucket replication configuration", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	log.Printf("[DEBUG] S3 bucket: %s, disabling replication", bucketReplicationConfig.MinioBucket)
@@ -521,16 +521,16 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 	err = client.SetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, rcfg)
 	if err != nil {
 		log.Printf("[WARN] Unable to set an empty replication config for %q: %v", bucketReplicationConfig.MinioBucket, err)
-		return diag.FromErr(fmt.Errorf("error writing bucket replication configuration: %s", err))
+		return NewResourceError("disabling bucket replication", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, "")
 	if err != nil {
 		log.Printf("[WARN] Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err)
-		return diag.FromErr(fmt.Errorf("error reading replication remote target configuration: %s", err))
+		return NewResourceError("reading replication remote target configuration", bucketReplicationConfig.MinioBucket, err)
 	}
 	if len(existingRemoteTargets) != 0 {
-		return diag.FromErr(fmt.Errorf("%d remote targets are still present on the bukcet while none are expected", len(existingRemoteTargets)))
+		return NewResourceError("deleting replication configuration", bucketReplicationConfig.MinioBucket, fmt.Errorf("%d remote targets are still present on the bucket while none are expected", len(existingRemoteTargets)))
 	}
 
 	return diags

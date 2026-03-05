@@ -262,12 +262,12 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	_, err := c.BucketExists(ctx, bucket)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("bucket validation failed: %v", err))
+		return NewResourceError("validating bucket", bucket, err)
 	}
 
 	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil && !isNotFoundError(err) {
-		return diag.FromErr(fmt.Errorf("failed to get existing lifecycle: %v", err))
+		return NewResourceError("getting existing lifecycle", bucket, err)
 	}
 
 	config := lifecycle.NewConfiguration()
@@ -315,7 +315,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 		lifecycleRule, err := createLifecycleRule(rule)
 		if err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("creating lifecycle rule", bucket, err)
 		}
 
 		config.Rules = append(config.Rules, lifecycleRule)
@@ -329,10 +329,10 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	if err := c.SetBucketLifecycle(ctx, bucket, config); err != nil {
 		if oldConfig != nil {
 			if rbErr := c.SetBucketLifecycle(ctx, bucket, oldConfig); rbErr != nil {
-				return diag.FromErr(fmt.Errorf("policy update failed and rollback failed: %v, rollback error: %v", err, rbErr))
+				return NewResourceError("setting lifecycle (rollback also failed)", bucket, fmt.Errorf("%v, rollback error: %v", err, rbErr))
 			}
 		}
-		return diag.FromErr(fmt.Errorf("failed to set lifecycle: %v", err))
+		return NewResourceError("setting lifecycle", bucket, err)
 	}
 
 	d.SetId(bucket)

@@ -378,7 +378,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		bucketQuota := madmin.BucketQuota{Quota: uint64(quotaInt), Type: madmin.HardQuota}
 
 		if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, &bucketQuota); err != nil {
-			return diag.Errorf("error setting bucket quota %v: %s", bucketConfig.MinioBucket, err)
+			return NewResourceError("setting bucket quota", bucketConfig.MinioBucket, err)
 		}
 
 		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)

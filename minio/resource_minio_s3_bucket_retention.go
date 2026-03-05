@@ -131,7 +131,7 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	// Validate bucket object lock status before proceeding
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("validating bucket object lock", bucket, err)
 	}
 
 	if hasLifecycleRules(ctx, client, bucket) {
@@ -153,7 +153,7 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error setting bucket object lock config: %w", err))
+		return NewResourceError("setting bucket object lock config", bucket, err)
 	}
 
 	d.SetId(bucket)
@@ -169,7 +169,7 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 	// First check if bucket still exists
 	exists, err := client.BucketExists(ctx, d.Id())
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error checking bucket existence: %w", err))
+		return NewResourceError("checking bucket existence", d.Id(), err)
 	}
 	if !exists {
 		d.SetId("")
@@ -183,7 +183,7 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 			d.SetId("")
 			return nil
 		}
-		return diag.FromErr(fmt.Errorf("error reading bucket retention config: %w", err))
+		return NewResourceError("reading bucket retention config", d.Id(), err)
 	}
 
 	// If any of the required fields are nil, the retention config is effectively gone
@@ -193,19 +193,19 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket attribute", d.Id(), err)
 	}
 
 	if err := d.Set("mode", mode.String()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting retention mode", d.Id(), err)
 	}
 
 	if err := d.Set("validity_period", *validity); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting validity period", d.Id(), err)
 	}
 
 	if err := d.Set("unit", unit.String()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting retention unit", d.Id(), err)
 	}
 
 	return nil
@@ -217,7 +217,7 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	// Validate bucket object lock status before proceeding
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("validating bucket object lock", bucket, err)
 	}
 
 	if d.HasChanges("mode", "unit", "validity_period") {
@@ -231,7 +231,7 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 		err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("error updating bucket object lock config: %w", err))
+			return NewResourceError("updating bucket object lock config", bucket, err)
 		}
 	}
 
@@ -244,7 +244,7 @@ func minioDeleteRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	// To clear object lock config, we pass nil for all optional parameters
 	err := client.SetBucketObjectLockConfig(ctx, d.Id(), nil, nil, nil)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error clearing bucket object lock config: %v", err))
+		return NewResourceError("clearing bucket object lock config", d.Id(), err)
 	}
 
 	d.SetId("")

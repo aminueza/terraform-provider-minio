@@ -15,6 +15,7 @@ import (
 
 func resourceMinioBucketNotification() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Manages event notification configuration for an S3 bucket. Sends bucket events to configured queue targets.",
 		CreateContext: minioPutBucketNotification,
 		ReadContext:   minioReadBucketNotification,
 		UpdateContext: minioPutBucketNotification,

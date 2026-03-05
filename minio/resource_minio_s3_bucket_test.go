@@ -1036,7 +1036,7 @@ func testAccCheckBucketNotReadableAnonymously(bucket string) resource.TestCheckF
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 		if resp.StatusCode != 403 {
 			return fmt.Errorf("should not be able to list buckets (Got a %d status)", resp.StatusCode)
 		}

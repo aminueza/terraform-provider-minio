@@ -74,6 +74,12 @@ func TestAccAWSUser_basic(t *testing.T) {
 					testAccCheckMinioUserAttributes(resourceName, name, status),
 				),
 			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"secret", "update_secret", "disable_user", "force_destroy"},
+			},
 		},
 	})
 }

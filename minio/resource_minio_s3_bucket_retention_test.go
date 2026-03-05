@@ -29,6 +29,11 @@ func TestAccMinioBucketRetention_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "validity_period", "30"),
 				),
 			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

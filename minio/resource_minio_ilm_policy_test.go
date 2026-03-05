@@ -32,6 +32,11 @@ func TestAccILMPolicy_basic(t *testing.T) {
 					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
 				),
 			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

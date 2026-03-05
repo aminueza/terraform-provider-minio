@@ -262,6 +262,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_tags":                      resourceMinioBucketTags(),
 			"minio_s3_object_tags":                      resourceMinioObjectTags(),
 			"minio_s3_object_legal_hold":                resourceMinioObjectLegalHold(),
+			"minio_s3_object_retention":                 resourceMinioObjectRetention(),
 			"minio_s3_object":                           resourceMinioObject(),
 
 			// IAM Operations

@@ -886,9 +886,9 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 		pathstyle, _ = target["path_style"].(string)
 		switch strings.TrimSpace(strings.ToLower(pathstyle)) {
 		case "on":
-			result[i].Target.PathStyle = S3PathSyleOn
+			result[i].Target.PathStyle = S3PathStyleOn
 		case "off":
-			result[i].Target.PathStyle = S3PathSyleOff
+			result[i].Target.PathStyle = S3PathStyleOff
 		default:
 			if pathstyle != "auto" && pathstyle != "" {
 				errs = append(errs, diag.Diagnostic{
@@ -896,7 +896,7 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 					Summary:  fmt.Sprintf("rule[%d].target.path_style must be \"on\", \"off\" or \"auto\". Defaulting to \"auto\"", i),
 				})
 			}
-			result[i].Target.PathStyle = S3PathSyleAuto
+			result[i].Target.PathStyle = S3PathStyleAuto
 		}
 
 	}

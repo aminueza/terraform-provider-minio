@@ -39,6 +39,31 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		return nil, fmt.Errorf("unsupported S3 API signature version %q: must be v2 or v4", config.S3APISignature)
 	}
 
+	if config.AssumeRoleARN != "" || config.AssumeRoleSessionName != "" {
+		scheme := "http"
+		if config.S3SSL {
+			scheme = "https"
+		}
+		stsEndpoint := fmt.Sprintf("%s://%s", scheme, config.S3HostPort)
+
+		stsCreds, err := credentials.NewSTSAssumeRole(stsEndpoint, credentials.STSAssumeRoleOptions{
+			AccessKey:       config.S3UserAccess,
+			SecretKey:       config.S3UserSecret,
+			SessionToken:    config.S3SessionToken,
+			RoleARN:         config.AssumeRoleARN,
+			RoleSessionName: config.AssumeRoleSessionName,
+			DurationSeconds: config.AssumeRoleDuration,
+			Policy:          config.AssumeRolePolicy,
+			ExternalID:      config.AssumeRoleExternalID,
+			Location:        config.S3Region,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to assume role: %w", err)
+		}
+		minioCredentials = stsCreds
+		log.Printf("[DEBUG] Using STS AssumeRole credentials (role=%s, session=%s)", config.AssumeRoleARN, config.AssumeRoleSessionName)
+	}
+
 	// Initialize S3 client
 	minioClient, err := minio.New(config.S3HostPort, &minio.Options{
 		Creds:     minioCredentials,

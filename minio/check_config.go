@@ -149,7 +149,7 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		password = getOptionalField(d, "minio_secret_key", "").(string)
 	}
 
-	return &S3MinioConfig{
+	cfg := &S3MinioConfig{
 		S3HostPort:        getOptionalField(d, "minio_server", "").(string),
 		S3Region:          getOptionalField(d, "minio_region", "us-east-1").(string),
 		S3UserAccess:      user,
@@ -163,6 +163,24 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3SSLSkipVerify:   getOptionalField(d, "minio_insecure", false).(bool),
 		SkipBucketTagging: getOptionalField(d, "skip_bucket_tagging", false).(bool),
 	}
+
+	if v, ok := d.GetOk("assume_role"); ok {
+		assumeRoleList := v.([]interface{})
+		if len(assumeRoleList) > 0 {
+			ar := assumeRoleList[0].(map[string]interface{})
+			cfg.AssumeRoleARN = ar["role_arn"].(string)
+			cfg.AssumeRoleSessionName = ar["session_name"].(string)
+			cfg.AssumeRoleDuration = ar["duration_seconds"].(int)
+			if p, ok := ar["policy"].(string); ok {
+				cfg.AssumeRolePolicy = p
+			}
+			if e, ok := ar["external_id"].(string); ok {
+				cfg.AssumeRoleExternalID = e
+			}
+		}
+	}
+
+	return cfg
 }
 
 // ServiceAccountConfig creates configuration for MinIO service accounts.

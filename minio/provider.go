@@ -145,6 +145,44 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_SKIP_BUCKET_TAGGING",
 				}, false),
 			},
+			"assume_role": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Use STS AssumeRole to obtain temporary credentials. When configured, the provider exchanges the static credentials for short-lived session credentials.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"role_arn": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "ARN of the role to assume.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_ASSUME_ROLE_ARN", ""),
+						},
+						"session_name": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Default:     "terraform",
+							Description: "Session name for the assumed role.",
+						},
+						"duration_seconds": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Default:     3600,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+						"policy": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "IAM policy in JSON format to scope down the assumed role permissions.",
+						},
+						"external_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "External ID for cross-account role assumption.",
+						},
+					},
+				},
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

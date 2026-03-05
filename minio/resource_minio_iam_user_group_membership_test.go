@@ -24,6 +24,11 @@ func TestAccMinioIAMUserGroupMembership_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("minio_iam_user_group_membership.test", "groups.#", "2"),
 				),
 			},
+			{
+				ResourceName:      "minio_iam_user_group_membership.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }

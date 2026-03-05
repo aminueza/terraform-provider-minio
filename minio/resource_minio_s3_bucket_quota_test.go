@@ -78,6 +78,33 @@ func testAccCheckMinioBucketQuotaDestroy(s *terraform.State) error {
 	return nil
 }
 
+func TestAccMinioS3BucketQuota_deletedBucket(t *testing.T) {
+	bucketName := "tfacc-quota-gone-" + acctest.RandString(8)
+	resourceName := "minio_s3_bucket_quota.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketQuotaConfig(bucketName, 1048576),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketQuotaExists(resourceName),
+				),
+			},
+			{
+				PreConfig: func() {
+					client := testAccProvider.Meta().(*S3MinioClient)
+					_ = client.S3Client.RemoveBucket(context.Background(), bucketName)
+				},
+				Config:             testAccMinioS3BucketQuotaConfig(bucketName, 1048576),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func testAccMinioS3BucketQuotaConfig(bucketName string, quota int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {

@@ -48,15 +48,18 @@ func resourceMinioILMPolicy() *schema.Resource {
 				Required:     true,
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(0, 63),
+				Description:  "Name of the bucket.",
 			},
 			"rule": {
-				Type:     schema.TypeList,
-				Required: true,
+				Type:        schema.TypeList,
+				Required:    true,
+				Description: "List of lifecycle rules.",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"id": {
-							Type:     schema.TypeString,
-							Required: true,
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Unique identifier for the rule.",
 						},
 						"status": {
 							Type:         schema.TypeString,
@@ -78,74 +81,86 @@ func resourceMinioILMPolicy() *schema.Resource {
 							Description: "Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).",
 						},
 						"transition": {
-							Type:     schema.TypeList,
-							MaxItems: 1,
-							Optional: true,
+							Type:        schema.TypeList,
+							MaxItems:    1,
+							Optional:    true,
+							Description: "Transition configuration for current object versions.",
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"days": {
 										Type:             schema.TypeString,
 										Optional:         true,
 										ValidateDiagFunc: validateILMDays,
+										Description:      "Number of days after object creation to transition, in format 'Nd'.",
 									},
 									"date": {
 										Type:             schema.TypeString,
 										Optional:         true,
 										ValidateDiagFunc: validateILMDate,
+										Description:      "Date after which objects are transitioned, in format 'YYYY-MM-DD'.",
 									},
 									"storage_class": {
-										Type:     schema.TypeString,
-										Required: true,
+										Type:        schema.TypeString,
+										Required:    true,
+										Description: "Target storage class for the transition.",
 									},
 								},
 							},
 						},
 						"noncurrent_transition": {
-							Type:     schema.TypeList,
-							MaxItems: 1,
-							Optional: true,
+							Type:        schema.TypeList,
+							MaxItems:    1,
+							Optional:    true,
+							Description: "Transition configuration for noncurrent object versions.",
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"storage_class": {
-										Type:     schema.TypeString,
-										Required: true,
+										Type:        schema.TypeString,
+										Required:    true,
+										Description: "Target storage class for noncurrent version transition.",
 									},
 									"days": {
 										Type:             schema.TypeString,
 										Required:         true,
 										ValidateDiagFunc: validateILMDays,
+										Description:      "Number of days after becoming noncurrent to transition, in format 'Nd'.",
 									},
 									"newer_versions": {
 										Type:             schema.TypeInt,
 										Optional:         true,
 										ValidateDiagFunc: validateILMVersions,
+										Description:      "Number of newer versions to retain.",
 									},
 								},
 							},
 						},
 						"noncurrent_expiration": {
-							Type:     schema.TypeList,
-							MaxItems: 1,
-							Optional: true,
+							Type:        schema.TypeList,
+							MaxItems:    1,
+							Optional:    true,
+							Description: "Expiration configuration for noncurrent object versions.",
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"days": {
 										Type:             schema.TypeString,
 										Required:         true,
 										ValidateDiagFunc: validateILMDays,
+										Description:      "Number of days after becoming noncurrent to expire, in format 'Nd'.",
 									},
 									"newer_versions": {
 										Type:             schema.TypeInt,
 										Optional:         true,
 										ValidateDiagFunc: validateILMVersions,
+										Description:      "Number of newer versions to retain.",
 									},
 								},
 							},
 						},
 						"abort_incomplete_multipart_upload": {
-							Type:     schema.TypeList,
-							MaxItems: 1,
-							Optional: true,
+							Type:        schema.TypeList,
+							MaxItems:    1,
+							Optional:    true,
+							Description: "Configuration for aborting incomplete multipart uploads.",
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"days_after_initiation": {
@@ -158,12 +173,14 @@ func resourceMinioILMPolicy() *schema.Resource {
 							},
 						},
 						"filter": {
-							Type:     schema.TypeString,
-							Optional: true,
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Object key prefix to filter which objects the rule applies to.",
 						},
 						"tags": {
-							Type:     schema.TypeMap,
-							Optional: true,
+							Type:        schema.TypeMap,
+							Optional:    true,
+							Description: "Key-value map of object tags to filter which objects the rule applies to.",
 							Elem: &schema.Schema{
 								Type: schema.TypeString,
 							},

@@ -28,7 +28,7 @@ resource "minio_s3_bucket_versioning" "example" {
 ### Required
 
 - `bucket` (String) Name of the bucket
-- `versioning_configuration` (Block List, Min: 1, Max: 1) (see [below for nested schema](#nestedblock--versioning_configuration))
+- `versioning_configuration` (Block List, Min: 1, Max: 1) Versioning configuration for the bucket. (see [below for nested schema](#nestedblock--versioning_configuration))
 
 ### Optional
 
@@ -43,12 +43,12 @@ resource "minio_s3_bucket_versioning" "example" {
 
 Required:
 
-- `status` (String)
+- `status` (String) Versioning status: Enabled or Suspended.
 
 Optional:
 
-- `exclude_folders` (Boolean)
-- `excluded_prefixes` (List of String)
+- `exclude_folders` (Boolean) Whether to exclude folders from versioning.
+- `excluded_prefixes` (List of String) List of object key prefixes to exclude from versioning.
 
 
 <a id="nestedblock--timeouts"></a>

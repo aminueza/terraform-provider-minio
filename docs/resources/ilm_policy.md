@@ -161,8 +161,8 @@ The following attributes within a `rule` block are **mutually exclusive** per Mi
 
 ### Required
 
-- `bucket` (String)
-- `rule` (Block List, Min: 1) (see [below for nested schema](#nestedblock--rule))
+- `bucket` (String) Name of the bucket.
+- `rule` (Block List, Min: 1) List of lifecycle rules. (see [below for nested schema](#nestedblock--rule))
 
 ### Read-Only
 
@@ -173,19 +173,19 @@ The following attributes within a `rule` block are **mutually exclusive** per Mi
 
 Required:
 
-- `id` (String)
+- `id` (String) Unique identifier for the rule.
 
 Optional:
 
-- `abort_incomplete_multipart_upload` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--abort_incomplete_multipart_upload))
+- `abort_incomplete_multipart_upload` (Block List, Max: 1) Configuration for aborting incomplete multipart uploads. (see [below for nested schema](#nestedblock--rule--abort_incomplete_multipart_upload))
 - `expiration` (String) Value may be duration (5d) or date (1970-01-01) to expire objects
 - `expired_object_delete_marker` (Boolean) Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).
-- `filter` (String)
-- `noncurrent_expiration` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--noncurrent_expiration))
-- `noncurrent_transition` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--noncurrent_transition))
+- `filter` (String) Object key prefix to filter which objects the rule applies to.
+- `noncurrent_expiration` (Block List, Max: 1) Expiration configuration for noncurrent object versions. (see [below for nested schema](#nestedblock--rule--noncurrent_expiration))
+- `noncurrent_transition` (Block List, Max: 1) Transition configuration for noncurrent object versions. (see [below for nested schema](#nestedblock--rule--noncurrent_transition))
 - `status` (String) Status of the rule. Can be either 'Enabled' or 'Disabled'. Defaults to 'Enabled'.
-- `tags` (Map of String)
-- `transition` (Block List, Max: 1) (see [below for nested schema](#nestedblock--rule--transition))
+- `tags` (Map of String) Key-value map of object tags to filter which objects the rule applies to.
+- `transition` (Block List, Max: 1) Transition configuration for current object versions. (see [below for nested schema](#nestedblock--rule--transition))
 
 <a id="nestedblock--rule--abort_incomplete_multipart_upload"></a>
 ### Nested Schema for `rule.abort_incomplete_multipart_upload`
@@ -200,11 +200,11 @@ Required:
 
 Required:
 
-- `days` (String)
+- `days` (String) Number of days after becoming noncurrent to expire, in format 'Nd'.
 
 Optional:
 
-- `newer_versions` (Number)
+- `newer_versions` (Number) Number of newer versions to retain.
 
 
 <a id="nestedblock--rule--noncurrent_transition"></a>
@@ -212,12 +212,12 @@ Optional:
 
 Required:
 
-- `days` (String)
-- `storage_class` (String)
+- `days` (String) Number of days after becoming noncurrent to transition, in format 'Nd'.
+- `storage_class` (String) Target storage class for noncurrent version transition.
 
 Optional:
 
-- `newer_versions` (Number)
+- `newer_versions` (Number) Number of newer versions to retain.
 
 
 <a id="nestedblock--rule--transition"></a>
@@ -225,12 +225,12 @@ Optional:
 
 Required:
 
-- `storage_class` (String)
+- `storage_class` (String) Target storage class for the transition.
 
 Optional:
 
-- `date` (String)
-- `days` (String)
+- `date` (String) Date after which objects are transitioned, in format 'YYYY-MM-DD'.
+- `days` (String) Number of days after object creation to transition, in format 'Nd'.
 
 ## Import
 

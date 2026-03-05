@@ -37,26 +37,30 @@ func resourceMinioBucketVersioning() *schema.Resource {
 				ForceNew:    true,
 			},
 			"versioning_configuration": {
-				Type:     schema.TypeList,
-				Required: true,
-				MaxItems: 1,
+				Type:        schema.TypeList,
+				Required:    true,
+				MaxItems:    1,
+				Description: "Versioning configuration for the bucket.",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"status": {
 							Type:         schema.TypeString,
 							Required:     true,
 							ValidateFunc: validation.StringInSlice([]string{minio.Enabled, minio.Suspended}, false),
+							Description:  "Versioning status: Enabled or Suspended.",
 						},
 						"excluded_prefixes": {
-							Type:     schema.TypeList,
-							Optional: true,
+							Type:        schema.TypeList,
+							Optional:    true,
+							Description: "List of object key prefixes to exclude from versioning.",
 							Elem: &schema.Schema{
 								Type: schema.TypeString,
 							},
 						},
 						"exclude_folders": {
-							Type:     schema.TypeBool,
-							Optional: true,
+							Type:        schema.TypeBool,
+							Optional:    true,
+							Description: "Whether to exclude folders from versioning.",
 						},
 					},
 				},

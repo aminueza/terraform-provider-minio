@@ -79,6 +79,11 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 
 	bucketTags, err := cfg.MinioClient.GetBucketTagging(ctx, bucket)
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			log.Printf("[WARN] Bucket %s no longer exists, removing tags from state", bucket)
+			d.SetId("")
+			return nil
+		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			_ = d.Set("bucket", bucket)

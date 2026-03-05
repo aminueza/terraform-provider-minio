@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -72,6 +73,12 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 
 	bucketQuota, err := cfg.MinioAdmin.GetBucketQuota(ctx, bucket)
 	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "no such bucket") ||
+			strings.Contains(err.Error(), "does not exist") {
+			log.Printf("[WARN] Bucket %s no longer exists, removing quota from state", bucket)
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("reading bucket quota", bucket, err)
 	}
 

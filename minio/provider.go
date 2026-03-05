@@ -183,6 +183,35 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					},
 				},
 			},
+			"assume_role_with_web_identity": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Use STS AssumeRoleWithWebIdentity to obtain credentials from an OIDC token (e.g., GitHub Actions, GitLab CI).",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"web_identity_token": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Sensitive:   true,
+							Description: "OIDC/JWT token for web identity authentication.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_WEB_IDENTITY_TOKEN", ""),
+						},
+						"web_identity_token_file": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Path to a file containing the OIDC/JWT token.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_WEB_IDENTITY_TOKEN_FILE", ""),
+						},
+						"duration_seconds": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Default:     3600,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+					},
+				},
+			},
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{

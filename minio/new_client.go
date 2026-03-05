@@ -64,6 +64,36 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		log.Printf("[DEBUG] Using STS AssumeRole credentials (role=%s, session=%s)", config.AssumeRoleARN, config.AssumeRoleSessionName)
 	}
 
+	if config.WebIdentityToken != "" || config.WebIdentityTokenFile != "" {
+		scheme := "http"
+		if config.S3SSL {
+			scheme = "https"
+		}
+		stsEndpoint := fmt.Sprintf("%s://%s", scheme, config.S3HostPort)
+
+		getToken := func() (*credentials.WebIdentityToken, error) {
+			token := config.WebIdentityToken
+			if token == "" && config.WebIdentityTokenFile != "" {
+				data, err := os.ReadFile(config.WebIdentityTokenFile)
+				if err != nil {
+					return nil, fmt.Errorf("reading web identity token file: %w", err)
+				}
+				token = string(data)
+			}
+			return &credentials.WebIdentityToken{
+				Token:  token,
+				Expiry: config.WebIdentityDuration,
+			}, nil
+		}
+
+		wiCreds, err := credentials.NewSTSWebIdentity(stsEndpoint, getToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assume role with web identity: %w", err)
+		}
+		minioCredentials = wiCreds
+		log.Printf("[DEBUG] Using STS WebIdentity credentials")
+	}
+
 	// Initialize S3 client
 	minioClient, err := minio.New(config.S3HostPort, &minio.Options{
 		Creds:     minioCredentials,

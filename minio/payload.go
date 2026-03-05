@@ -31,6 +31,10 @@ type S3MinioConfig struct {
 	AssumeRoleDuration    int
 	AssumeRolePolicy      string
 	AssumeRoleExternalID  string
+
+	WebIdentityToken     string
+	WebIdentityTokenFile string
+	WebIdentityDuration  int
 }
 
 // S3MinioClient defines default minio

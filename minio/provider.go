@@ -243,6 +243,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_storage_info":                dataSourceMinioStorageInfo(),
 			"minio_data_usage":                  dataSourceMinioDataUsage(),
 			"minio_ilm_tier_stats":              dataSourceMinioILMTierStats(),
+			"minio_s3_objects":                   dataSourceMinioS3Objects(),
 		},
 
 		ResourcesMap: map[string]*schema.Resource{

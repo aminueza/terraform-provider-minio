@@ -2,7 +2,6 @@ package minio
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -79,7 +78,7 @@ func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members: []string{cfg.UserName},
 		})
 		if err != nil {
-			return diag.FromErr(fmt.Errorf("failed to add user %q to group %q: %w", cfg.UserName, grp, err))
+			return NewResourceError("adding user to group", cfg.UserName, err)
 		}
 	}
 
@@ -94,7 +93,7 @@ func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 	}
 	userInfo, err := cfg.MinioAdmin.GetUserInfo(ctx, cfg.UserName)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to read user %q info for reconciliation: %w", cfg.UserName, err))
+		return NewResourceError("reading user info for reconciliation", cfg.UserName, err)
 	}
 	current := make(map[string]struct{})
 	for _, g := range userInfo.MemberOf {
@@ -107,7 +106,7 @@ func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 				Members:  []string{cfg.UserName},
 				IsRemove: true,
 			}); err != nil {
-				return diag.FromErr(fmt.Errorf("failed to remove user %q from extra group %q: %w", cfg.UserName, grp, err))
+				return NewResourceError("removing user from extra group", cfg.UserName, err)
 			}
 		}
 	}
@@ -121,19 +120,19 @@ func minioReadUserGroupMembership(ctx context.Context, d *schema.ResourceData, m
 
 	userInfo, err := cfg.MinioAdmin.GetUserInfo(ctx, cfg.UserName)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to read user %q info: %w", cfg.UserName, err))
+		return NewResourceError("reading user info", cfg.UserName, err)
 	}
 
 	// Ensure 'user' attribute is set in state (required for import)
 	if _, ok := d.GetOk("user"); !ok {
 		if err := d.Set("user", cfg.UserName); err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("setting user attribute", cfg.UserName, err)
 		}
 	}
 
 	// Set the groups attribute to the current membership
 	if err := d.Set("groups", schema.NewSet(schema.HashString, toInterfaceSlice(userInfo.MemberOf))); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting groups attribute", cfg.UserName, err)
 	}
 
 	return nil
@@ -156,7 +155,7 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 	// Current groups from MinIO
 	userInfo, err := cfg.MinioAdmin.GetUserInfo(ctx, cfg.UserName)
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("failed to fetch current groups for user %q: %w", cfg.UserName, err))
+		return NewResourceError("fetching current groups for user", cfg.UserName, err)
 	}
 	current := make(map[string]struct{})
 	for _, g := range userInfo.MemberOf {
@@ -171,7 +170,7 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 				Members:  []string{cfg.UserName},
 				IsRemove: false,
 			}); err != nil {
-				return diag.FromErr(fmt.Errorf("failed to add user %q to group %q: %w", cfg.UserName, grp, err))
+				return NewResourceError("adding user to group", cfg.UserName, err)
 			}
 		}
 	}
@@ -187,7 +186,7 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members:  []string{cfg.UserName},
 			IsRemove: true,
 		}); err != nil {
-			return diag.FromErr(fmt.Errorf("failed to remove user %q from group %q: %w", cfg.UserName, grp, err))
+			return NewResourceError("removing user from group", cfg.UserName, err)
 		}
 	}
 
@@ -205,7 +204,7 @@ func minioDeleteUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members:  []string{cfg.UserName},
 			IsRemove: true,
 		}); err != nil {
-			return diag.FromErr(fmt.Errorf("failed to remove user %q from group %q: %w", cfg.UserName, grp, err))
+			return NewResourceError("removing user from group", cfg.UserName, err)
 		}
 	}
 

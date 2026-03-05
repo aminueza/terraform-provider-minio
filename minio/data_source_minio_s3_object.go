@@ -2,7 +2,6 @@ package minio
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"strconv"
@@ -127,7 +126,7 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 
 	object, err := conn.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error reading object: %w", err))
+		return NewResourceError("reading object", objectName, err)
 	}
 	defer func() {
 		err := object.Close()
@@ -138,13 +137,13 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 
 	objectInfo, err := object.Stat()
 	if err != nil {
-		return diag.FromErr(fmt.Errorf("error getting object info: %w", err))
+		return NewResourceError("getting object info", objectName, err)
 	}
 
 	objectContent := make([]byte, objectInfo.Size)
 	bytesRead, err := object.Read(objectContent)
 	if err != io.EOF {
-		return diag.FromErr(fmt.Errorf("error reading object content: %w", err))
+		return NewResourceError("reading object content", objectName, err)
 	}
 	if bytesRead != int(objectInfo.Size) {
 		return diag.Errorf("error reading object content: expected %d bytes, got %d", objectInfo.Size, bytesRead)

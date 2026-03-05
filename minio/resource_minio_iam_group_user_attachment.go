@@ -52,7 +52,7 @@ func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return diag.Errorf("[FATAL] Error updating user %s to group %s: %s", iamGroupMembershipConfig.MinioIAMUser, iamGroupMembershipConfig.MinioIAMGroup, err)
+		return NewResourceError("adding user to group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser)))
@@ -91,7 +91,7 @@ func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return diag.Errorf("error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
+		return NewResourceError("removing user from group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
 	return nil

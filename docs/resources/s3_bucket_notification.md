@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_notification Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages event notification configuration for an S3 bucket. Sends bucket events to configured queue targets.
 ---
 
 # minio_s3_bucket_notification (Resource)
 
-
+Manages event notification configuration for an S3 bucket. Sends bucket events to configured queue targets.
 
 ## Example Usage
 

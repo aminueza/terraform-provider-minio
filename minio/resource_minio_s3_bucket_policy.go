@@ -132,11 +132,11 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if err := d.Set("policy", policy); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket policy", d.Id(), err)
 	}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("setting bucket attribute", d.Id(), err)
 	}
 
 	return nil

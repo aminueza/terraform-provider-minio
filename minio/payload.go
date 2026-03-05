@@ -63,6 +63,7 @@ type S3MinioBucket struct {
 	MinioForceDestroy    bool
 	ObjectLockingEnabled bool
 	SkipBucketTagging    bool
+	S3CompatMode         bool
 }
 
 // S3MinioBucketPolicy defines bucket policy config

@@ -16,7 +16,7 @@ func shouldSkipBucketTagging(cfg *S3MinioBucket) bool {
 		return false
 	}
 
-	return cfg.SkipBucketTagging
+	return cfg.SkipBucketTagging || cfg.S3CompatMode
 }
 
 // preserveBucketTagsState ensures Terraform state retains the last known set of

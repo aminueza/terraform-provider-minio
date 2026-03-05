@@ -41,6 +41,7 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 		MinioForceDestroy:    getOptionalField(d, "force_destroy", false).(bool),
 		ObjectLockingEnabled: getOptionalField(d, "object_locking", false).(bool),
 		SkipBucketTagging:    m.SkipBucketTagging,
+		S3CompatMode:         m.S3CompatMode,
 	}
 }
 

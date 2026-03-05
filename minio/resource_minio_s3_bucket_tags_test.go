@@ -75,6 +75,33 @@ func testAccCheckMinioBucketTagsDestroy(s *terraform.State) error {
 	return nil
 }
 
+func TestAccMinioS3BucketTags_deletedBucket(t *testing.T) {
+	bucketName := "tfacc-tags-gone-" + acctest.RandString(8)
+	resourceName := "minio_s3_bucket_tags.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketTagsConfig(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketTagsExists(resourceName),
+				),
+			},
+			{
+				PreConfig: func() {
+					client := testAccProvider.Meta().(*S3MinioClient)
+					_ = client.S3Client.RemoveBucket(context.Background(), bucketName)
+				},
+				Config:             testAccMinioS3BucketTagsConfig(bucketName),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
 func testAccMinioS3BucketTagsConfig(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {

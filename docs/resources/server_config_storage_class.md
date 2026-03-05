@@ -23,14 +23,14 @@ resource "minio_server_config_storage_class" "main" {
 
 ### Optional
 
-- `comment` (String)
+- `comment` (String) Optional comment for the storage class configuration.
 - `rrs` (String) Parity for REDUCED_REDUNDANCY storage class (e.g., "EC:2").
 - `standard` (String) Parity for STANDARD storage class (e.g., "EC:4" for 4 parity drives).
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `restart_required` (Boolean)
+- `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration.
 
 ## Import
 

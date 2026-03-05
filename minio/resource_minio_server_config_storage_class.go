@@ -32,13 +32,15 @@ func resourceMinioServerConfigStorageClass() *schema.Resource {
 				Description: "Parity for REDUCED_REDUNDANCY storage class (e.g., \"EC:2\").",
 			},
 			"comment": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "Optional comment for the storage class configuration.",
 			},
 			"restart_required": {
-				Type:     schema.TypeBool,
-				Computed: true,
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Whether a MinIO server restart is required to apply the configuration.",
 			},
 		},
 	}

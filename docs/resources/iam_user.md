@@ -44,14 +44,14 @@ output "secret" {
 
 - `disable_user` (Boolean) Disable user
 - `force_destroy` (Boolean) Delete user even if it has non-Terraform-managed IAM access keys
-- `secret` (String, Sensitive)
+- `secret` (String, Sensitive) Secret key for the IAM user.
 - `tags` (Map of String)
 - `update_secret` (Boolean) Rotate Minio User Secret Key
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `status` (String)
+- `status` (String) Status of the IAM user.
 
 ## Import
 

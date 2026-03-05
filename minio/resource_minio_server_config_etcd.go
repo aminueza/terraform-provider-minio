@@ -47,13 +47,15 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 				Description: "Path to client TLS private key for etcd mTLS.",
 			},
 			"comment": {
-				Type:     schema.TypeString,
-				Optional: true,
-				Computed: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				Computed:    true,
+				Description: "Optional comment for the etcd configuration.",
 			},
 			"restart_required": {
-				Type:     schema.TypeBool,
-				Computed: true,
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Whether a MinIO server restart is required to apply the configuration.",
 			},
 		},
 	}

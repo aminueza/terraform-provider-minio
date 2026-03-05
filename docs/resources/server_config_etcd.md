@@ -29,14 +29,14 @@ resource "minio_server_config_etcd" "federation" {
 
 - `client_cert` (String) Path to client TLS certificate for etcd mTLS.
 - `client_cert_key` (String, Sensitive) Path to client TLS private key for etcd mTLS.
-- `comment` (String)
+- `comment` (String) Optional comment for the etcd configuration.
 - `coredns_path` (String) CoreDNS path for bucket DNS registration (default: "/skydns").
 - `path_prefix` (String) Key prefix for MinIO data in etcd. Enables tenant isolation when set.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `restart_required` (Boolean)
+- `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration.
 
 ## Import
 

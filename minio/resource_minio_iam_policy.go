@@ -88,7 +88,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	log.Printf("[DEBUG] Getting IAM Policy: %s", d.Id())
 
-	output, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, d.Id())
+	info, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, d.Id())
 	if err != nil {
 		errResp := madmin.ErrorResponse{}
 		if errors.As(err, &errResp) {
@@ -106,7 +106,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("setting policy name", d.Id(), err)
 	}
 
-	actualPolicyText := strings.TrimSpace(string(output))
+	actualPolicyText := strings.TrimSpace(string(info.Policy))
 	existingPolicy := ""
 	if v, ok := d.GetOk("policy"); ok {
 		existingPolicy = v.(string)

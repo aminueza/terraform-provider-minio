@@ -58,7 +58,10 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	if !Contains(policies, policyName) {
 		policies = append(policies, policyName)
 		log.Printf("[DEBUG] Attaching policy %s to user: %s (%v)", policyName, userName, policies)
-		err := minioAdmin.SetPolicy(ctx, strings.Join(policies, ","), userName, false)
+		_, err := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+			Policies: policies,
+			User:     userName,
+		})
 		if err != nil {
 			return NewResourceError("unable to Set User policy", userName+" "+policyName, err)
 		}
@@ -118,7 +121,10 @@ func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	}
 
 	log.Printf("[DEBUG] Detaching policy %s from user: %s (%v)", policyName, userName, newPolicies)
-	errIam := minioAdmin.SetPolicy(ctx, strings.Join(newPolicies, ","), userName, false)
+	_, errIam := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+		Policies: newPolicies,
+		User:     userName,
+	})
 	if errIam != nil {
 		return NewResourceError("unable to delete user policy", userName, errIam)
 	}

@@ -58,7 +58,10 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	if !Contains(policies, policyName) {
 		log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
 		policies = append(policies, policyName)
-		err := minioAdmin.SetPolicy(ctx, strings.Join(policies, ","), groupName, true)
+		_, err := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+			Policies: policies,
+			Group:    groupName,
+		})
 		if err != nil {
 			return NewResourceError("unable to attach group policy", groupName+" "+policyName, err)
 		}
@@ -116,7 +119,10 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return nil
 	}
 
-	errIam := minioAdmin.SetPolicy(ctx, strings.Join(newPolicies, ","), groupName, true)
+	_, errIam := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+		Policies: newPolicies,
+		Group:    groupName,
+	})
 	if errIam != nil {
 		return NewResourceError("unable to delete user policy", groupName, errIam)
 	}

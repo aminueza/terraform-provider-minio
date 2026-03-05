@@ -206,7 +206,7 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 			return err
 		}
 
-		if output, _ := conn.InfoCannedPolicy(context.Background(), name); output != nil {
+		if info, _ := conn.InfoCannedPolicyV2(context.Background(), name); info != nil {
 			return fmt.Errorf("found IAM group policy, expected none %s: %s", name, err)
 
 		}
@@ -231,7 +231,7 @@ func testAccCheckIAMGroupPolicyDisappears(
 			return err
 		}
 
-		if output, _ := iamconn.InfoCannedPolicy(context.Background(), name); output != nil {
+		if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), name); info != nil {
 			err = iamconn.RemoveCannedPolicy(context.Background(), name)
 			if err != nil {
 				return err

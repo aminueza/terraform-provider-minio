@@ -77,20 +77,20 @@ type S3MinioBucketVersioningConfiguration struct {
 	ExcludeFolders   bool
 }
 
-// S3PathSyle
-type S3PathSyle int8
+// S3PathStyle
+type S3PathStyle int8
 
 const (
-	S3PathSyleAuto S3PathSyle = iota
-	S3PathSyleOn
-	S3PathSyleOff
+	S3PathStyleAuto S3PathStyle = iota
+	S3PathStyleOn
+	S3PathStyleOff
 )
 
-func (p S3PathSyle) String() string {
+func (p S3PathStyle) String() string {
 	switch p {
-	case S3PathSyleOn:
+	case S3PathStyleOn:
 		return "on"
-	case S3PathSyleOff:
+	case S3PathStyleOff:
 		return "off"
 	default:
 		return "auto"
@@ -122,7 +122,7 @@ type S3MinioBucketReplicationRuleTarget struct {
 	Host              string
 	Secure            bool
 	Path              string
-	PathStyle         S3PathSyle
+	PathStyle         S3PathStyle
 	Synchronous       bool
 	DisableProxy      bool
 	HealthCheckPeriod time.Duration

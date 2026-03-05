@@ -114,17 +114,17 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return err
 	}
 
-	newPolicies, found := Filter(policies, policyName)
-	if !found {
+	if !Contains(policies, policyName) {
 		return nil
 	}
 
-	_, errIam := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
-		Policies: newPolicies,
+	log.Printf("[DEBUG] Detaching policy %s from group: %s", policyName, groupName)
+	_, errIam := minioAdmin.DetachPolicy(ctx, madmin.PolicyAssociationReq{
+		Policies: []string{policyName},
 		Group:    groupName,
 	})
 	if errIam != nil {
-		return NewResourceError("unable to delete user policy", groupName, errIam)
+		return NewResourceError("unable to delete group policy", groupName, errIam)
 	}
 
 	return nil

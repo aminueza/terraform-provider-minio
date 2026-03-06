@@ -1,21 +1,49 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"log"
 
 	"github.com/aminueza/terraform-provider-minio/v3/minio"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov5/tf5server"
+	"github.com/hashicorp/terraform-plugin-mux/tf5muxserver"
 )
 
-func main() {
-	var debugMode bool
+var version = "dev"
 
-	flag.BoolVar(&debugMode, "debuggable", false, "set to true to run the provider with support for debuggers like delve")
+func main() {
+	var debug bool
+	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers")
 	flag.Parse()
 
-	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: minio.Provider,
-		Debug:        debugMode,
-		ProviderAddr: "registry.terraform.io/aminueza/minio",
-	})
+	ctx := context.Background()
+
+	sdkProvider := minio.Provider().GRPCProvider
+
+	frameworkProvider := func() tfprotov5.ProviderServer {
+		srv, _ := providerserver.NewProtocol5WithError(minio.NewFrameworkProvider(version)())()
+		return srv
+	}
+
+	muxServer, err := tf5muxserver.NewMuxServer(ctx, sdkProvider, frameworkProvider)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var serveOpts []tf5server.ServeOpt
+	if debug {
+		serveOpts = append(serveOpts, tf5server.WithManagedDebug())
+	}
+
+	err = tf5server.Serve(
+		"registry.terraform.io/aminueza/minio",
+		muxServer.ProviderServer,
+		serveOpts...,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

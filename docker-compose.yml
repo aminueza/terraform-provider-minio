@@ -3,6 +3,23 @@
 x-minio-image: &minio_image minio/minio:RELEASE.2025-09-07T16-13-09Z
 
 services:
+  openldap:
+    image: bitnami/openldap:latest
+    environment:
+      LDAP_ROOT: "dc=example,dc=com"
+      LDAP_ADMIN_USERNAME: admin
+      LDAP_ADMIN_PASSWORD: adminpassword
+      LDAP_USERS: testuser
+      LDAP_PASSWORDS: testpassword
+      LDAP_GROUP: testgroup
+    ports:
+      - "1389:1389"
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:1389", "-b", "dc=example,dc=com", "-D", "cn=admin,dc=example,dc=com", "-w", "adminpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
   minio:
     image: *minio_image
     ports:
@@ -14,7 +31,19 @@ services:
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
+      MINIO_IDENTITY_LDAP_SERVER_ADDR: "openldap:1389"
+      MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN: "cn=admin,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD: "adminpassword"
+      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER: "(cn=%s)"
+      MINIO_IDENTITY_LDAP_GROUP_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_GROUP_SEARCH_FILTER: "(&(objectclass=groupOfNames)(member=%d))"
+      MINIO_IDENTITY_LDAP_TLS_SKIP_VERIFY: "on"
+      MINIO_IDENTITY_LDAP_SERVER_INSECURE: "on"
     command: server --console-address :9001 /data{0...3}
+    depends_on:
+      openldap:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -143,6 +172,9 @@ services:
       KMS_MINIO_PASSWORD: "minio789"
       KMS_MINIO_ENABLE_HTTPS: "false"
       MINIO_KMS_CONFIGURED: "1"
+      MINIO_LDAP_ENABLED: "1"
+      MINIO_LDAP_TEST_USER_DN: "cn=testuser,ou=users,dc=example,dc=com"
+      MINIO_LDAP_TEST_GROUP_DN: "cn=testgroup,ou=users,dc=example,dc=com"
     depends_on:
       minio:
         condition: service_healthy

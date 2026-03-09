@@ -2,8 +2,6 @@ module github.com/aminueza/terraform-provider-minio/v3
 
 go 1.25
 
-toolchain go1.25
-
 require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/google/go-cmp v0.7.0

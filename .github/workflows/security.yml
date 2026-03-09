@@ -136,7 +136,7 @@ jobs:
 
       - name: Run TruffleHog OSS on PR
         if: github.event_name == 'pull_request'
-        uses: trufflesecurity/trufflehog@041f07e9df901a1038a528e5525b0226d04dd5ea # v3.93.6
+        uses: trufflesecurity/trufflehog@c3e599b7163e8198a55467f3133db0e7b2a492cb # v3.93.7
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -145,7 +145,7 @@ jobs:
 
       - name: Run TruffleHog OSS on push
         if: github.event_name != 'pull_request'
-        uses: trufflesecurity/trufflehog@041f07e9df901a1038a528e5525b0226d04dd5ea # v3.93.6
+        uses: trufflesecurity/trufflehog@c3e599b7163e8198a55467f3133db0e7b2a492cb # v3.93.7
         with:
           path: ./
           extra_args: --only-verified

@@ -1,8 +1,6 @@
 module github.com/aminueza/terraform-provider-minio/v3
 
-go 1.24.0
-
-toolchain go1.24.13
+go 1.25
 
 require (
 	github.com/dustin/go-humanize v1.0.1
@@ -11,7 +9,7 @@ require (
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.39.0
 	github.com/minio/madmin-go/v3 v3.0.110
-	github.com/minio/minio-go/v7 v7.0.98
+	github.com/minio/minio-go/v7 v7.0.99
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8

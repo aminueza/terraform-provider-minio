@@ -17,7 +17,7 @@ Thank you for considering contributing to the Terraform Provider for MinIO! This
 
 ### Prerequisites
 
-- [Go](https://golang.org/doc/install) 1.24 or later
+- [Go](https://golang.org/doc/install) 1.25 or later
 - [Docker](https://www.docker.com/get-started) and Docker Compose
 - [Task](https://taskfile.dev/docs/installation) (recommended) or Make
 - [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)

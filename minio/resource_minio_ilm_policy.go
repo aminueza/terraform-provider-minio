@@ -14,6 +14,12 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
+// emptyFilterSentinel forces lifecycle.Filter.IsNull() to return false so that
+// MarshalXML emits <Filter><Prefix></Prefix></Filter> for rules with no
+// prefix or tags. MarshalXML only emits ObjectSizeGreaterThan when > 0, so
+// the sentinel never leaks into the XML.
+const emptyFilterSentinel int64 = -1
+
 func resourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateILMPolicy,
@@ -401,6 +407,10 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 	} else {
 		prefix, _ := getStringValue(ruleData, "filter")
 		filter.Prefix = prefix
+	}
+
+	if filter.IsNull() {
+		filter.ObjectSizeGreaterThan = emptyFilterSentinel
 	}
 
 	expiration, _ := getStringValue(ruleData, "expiration")

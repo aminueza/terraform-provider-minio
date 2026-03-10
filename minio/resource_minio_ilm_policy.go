@@ -14,6 +14,16 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
+// emptyFilterSentinel forces lifecycle.Filter.IsNull() to return false so that
+// MarshalXML emits <Filter><Prefix></Prefix></Filter> for rules with no
+// prefix or tags. MarshalXML only emits ObjectSizeGreaterThan when > 0, so
+// the sentinel never leaks into the XML.
+//
+// Workaround for minio-go v7.0.98+ which omits <Filter> for zero-valued
+// filters, breaking S3-compatible backends that require it per the spec.
+// TODO: remove once https://github.com/minio/minio-go/issues/2096 is fixed.
+const emptyFilterSentinel int64 = -1
+
 func resourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateILMPolicy,
@@ -403,13 +413,8 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		filter.Prefix = prefix
 	}
 
-	// minio-go v7.0.98+ omits <Filter> entirely when all filter fields are zero,
-	// but the S3 lifecycle schema requires <Filter> in every rule. Non-MinIO
-	// backends (Hetzner, Cloudflare R2, etc.) reject XML without it.
-	// Setting ObjectSizeGreaterThan to -1 forces Filter.IsNull() to return false
-	// while MarshalXML still only emits <Prefix></Prefix> (it checks > 0).
 	if filter.IsNull() {
-		filter.ObjectSizeGreaterThan = -1
+		filter.ObjectSizeGreaterThan = emptyFilterSentinel
 	}
 
 	expiration, _ := getStringValue(ruleData, "expiration")

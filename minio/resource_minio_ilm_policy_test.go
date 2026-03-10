@@ -741,7 +741,7 @@ func TestCreateLifecycleRuleFilterXML(t *testing.T) {
 				"noncurrent_transition":             []interface{}{},
 				"abort_incomplete_multipart_upload": []interface{}{},
 			},
-			wantFilter: "<And>",
+			wantFilter: "<Filter><And><Prefix></Prefix><Tag><Key>env</Key><Value>test</Value></Tag></And></Filter>",
 		},
 	}
 
@@ -767,7 +767,35 @@ func TestCreateLifecycleRuleFilterXML(t *testing.T) {
 			if !strings.Contains(xmlStr, "<Filter>") {
 				t.Errorf("expected XML to contain <Filter>, got:\n%s", xmlStr)
 			}
+
+			if strings.Contains(xmlStr, "ObjectSizeGreaterThan") {
+				t.Errorf("sentinel value leaked into XML: %s", xmlStr)
+			}
 		})
+	}
+}
+
+func TestEmptyFilterSentinelNotAppliedToNonEmptyFilter(t *testing.T) {
+	ruleData := map[string]interface{}{
+		"id":                                "with-prefix",
+		"status":                            "Enabled",
+		"expiration":                        "30d",
+		"filter":                            "logs/",
+		"tags":                              map[string]interface{}{},
+		"expired_object_delete_marker":      false,
+		"transition":                        []interface{}{},
+		"noncurrent_expiration":             []interface{}{},
+		"noncurrent_transition":             []interface{}{},
+		"abort_incomplete_multipart_upload": []interface{}{},
+	}
+
+	rule, err := createLifecycleRule(ruleData)
+	if err != nil {
+		t.Fatalf("createLifecycleRule failed: %v", err)
+	}
+
+	if rule.RuleFilter.ObjectSizeGreaterThan != 0 {
+		t.Errorf("sentinel applied to non-empty filter: ObjectSizeGreaterThan = %d", rule.RuleFilter.ObjectSizeGreaterThan)
 	}
 }
 

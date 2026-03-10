@@ -19,9 +19,9 @@ import (
 // prefix or tags. MarshalXML only emits ObjectSizeGreaterThan when > 0, so
 // the sentinel never leaks into the XML.
 //
-// Workaround for minio-go v7.0.98+ which omits <Filter> for zero-valued
-// filters, breaking S3-compatible backends that require it per the spec.
-// TODO: remove once https://github.com/minio/minio-go/issues/2096 is fixed.
+// Workaround for minio-go v7.0.98+ (introduced by minio/minio-go#1907) which
+// omits <Filter> for zero-valued filters, breaking S3-compatible backends
+// that require it per the spec. See provider issue #837.
 const emptyFilterSentinel int64 = -1
 
 func resourceMinioILMPolicy() *schema.Resource {

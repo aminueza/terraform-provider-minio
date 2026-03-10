@@ -13,7 +13,7 @@ services:
       - ./testdata/ldap/seed.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/seed.ldif
     command: ["--copy-service"]
     ports:
-      - "1636:389"
+      - "1389:389"
     healthcheck:
       test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:389", "-b", "dc=example,dc=com", "-D", "cn=admin,dc=example,dc=com", "-w", "adminpassword"]
       interval: 5s
@@ -69,7 +69,7 @@ services:
       MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD: "adminpassword"
       MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
       MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER: "(cn=%s)"
-      MINIO_IDENTITY_LDAP_GROUP_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_GROUP_SEARCH_BASE_DN: "ou=groups,dc=example,dc=com"
       MINIO_IDENTITY_LDAP_GROUP_SEARCH_FILTER: "(&(objectclass=groupOfNames)(member=%d))"
       MINIO_IDENTITY_LDAP_TLS_SKIP_VERIFY: "on"
       MINIO_IDENTITY_LDAP_SERVER_INSECURE: "on"
@@ -194,7 +194,7 @@ services:
       LDAP_MINIO_PASSWORD: "minio999"
       LDAP_MINIO_ENABLE_HTTPS: "false"
       MINIO_LDAP_TEST_USER_DN: "cn=testuser,ou=users,dc=example,dc=com"
-      MINIO_LDAP_TEST_GROUP_DN: "cn=testgroup,ou=users,dc=example,dc=com"
+      MINIO_LDAP_TEST_GROUP_DN: "cn=testgroup,ou=groups,dc=example,dc=com"
     depends_on:
       minio:
         condition: service_healthy

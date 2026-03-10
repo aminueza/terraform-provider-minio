@@ -2,6 +2,10 @@ dn: ou=users,dc=example,dc=com
 objectClass: organizationalUnit
 ou: users
 
+dn: ou=groups,dc=example,dc=com
+objectClass: organizationalUnit
+ou: groups
+
 dn: cn=testuser,ou=users,dc=example,dc=com
 objectClass: inetOrgPerson
 cn: testuser
@@ -9,7 +13,7 @@ sn: User
 uid: testuser
 userPassword: testpassword
 
-dn: cn=testgroup,ou=users,dc=example,dc=com
+dn: cn=testgroup,ou=groups,dc=example,dc=com
 objectClass: groupOfNames
 cn: testgroup
 member: cn=testuser,ou=users,dc=example,dc=com

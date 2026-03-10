@@ -1,11 +1,14 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v3"
 )
 
 func testAccLDAPAttachmentPreCheck(t *testing.T) {
@@ -21,6 +24,9 @@ func testAccLDAPAttachmentPreCheck(t *testing.T) {
 	if os.Getenv("MINIO_LDAP_TEST_USER_DN") == "" {
 		t.Skip("Skipping LDAP tests: MINIO_LDAP_TEST_USER_DN not set")
 	}
+	if os.Getenv("MINIO_LDAP_TEST_GROUP_DN") == "" {
+		t.Skip("Skipping LDAP tests: MINIO_LDAP_TEST_GROUP_DN not set")
+	}
 }
 
 func TestAccMinioIAMLDAPUserPolicyAttachment_basic(t *testing.T) {
@@ -30,6 +36,7 @@ func TestAccMinioIAMLDAPUserPolicyAttachment_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPAttachmentPreCheck(t) },
 		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckLDAPUserPolicyAttachmentDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLDAPUserPolicyAttachmentConfig(userDN, "readonly"),
@@ -49,6 +56,7 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPAttachmentPreCheck(t) },
 		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckLDAPGroupPolicyAttachmentDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccLDAPGroupPolicyAttachmentConfig(groupDN, "readonly"),
@@ -61,38 +69,74 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 	})
 }
 
-func testAccLDAPUserPolicyAttachmentConfig(userDN, policyName string) string {
-	return fmt.Sprintf(`
-provider "minio" {
-  alias          = "ldap"
-  minio_server   = "%s"
-  minio_user     = "%s"
-  minio_password = "%s"
-  minio_ssl      = false
+func testAccCheckLDAPUserPolicyAttachmentDestroy(s *terraform.State) error {
+	client := testAccLdapProvider.Meta().(*S3MinioClient).S3Admin
+
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "minio_iam_ldap_user_policy_attachment" {
+			continue
+		}
+
+		userDN := rs.Primary.Attributes["user_dn"]
+		policyName := rs.Primary.Attributes["policy_name"]
+
+		per, err := client.GetLDAPPolicyEntities(context.Background(), madmin.PolicyEntitiesQuery{
+			Policy: []string{policyName},
+			Users:  []string{userDN},
+		})
+		if err != nil {
+			continue
+		}
+		if len(per.PolicyMappings) > 0 {
+			return fmt.Errorf("LDAP user policy attachment %s/%s still exists", userDN, policyName)
+		}
+	}
+
+	return nil
 }
 
-resource "minio_iam_ldap_user_policy_attachment" "test" {
-  provider    = minio.ldap
-  user_dn     = %[4]q
-  policy_name = %[5]q
+func testAccCheckLDAPGroupPolicyAttachmentDestroy(s *terraform.State) error {
+	client := testAccLdapProvider.Meta().(*S3MinioClient).S3Admin
+
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type != "minio_iam_ldap_group_policy_attachment" {
+			continue
+		}
+
+		groupDN := rs.Primary.Attributes["group_dn"]
+		policyName := rs.Primary.Attributes["policy_name"]
+
+		per, err := client.GetLDAPPolicyEntities(context.Background(), madmin.PolicyEntitiesQuery{
+			Policy: []string{policyName},
+			Groups: []string{groupDN},
+		})
+		if err != nil {
+			continue
+		}
+		if len(per.PolicyMappings) > 0 {
+			return fmt.Errorf("LDAP group policy attachment %s/%s still exists", groupDN, policyName)
+		}
+	}
+
+	return nil
 }
-`, os.Getenv("LDAP_MINIO_ENDPOINT"), os.Getenv("LDAP_MINIO_USER"), os.Getenv("LDAP_MINIO_PASSWORD"), userDN, policyName)
+
+func testAccLDAPUserPolicyAttachmentConfig(userDN, policyName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_ldap_user_policy_attachment" "test" {
+  provider    = ldapminio
+  user_dn     = %[1]q
+  policy_name = %[2]q
+}
+`, userDN, policyName)
 }
 
 func testAccLDAPGroupPolicyAttachmentConfig(groupDN, policyName string) string {
 	return fmt.Sprintf(`
-provider "minio" {
-  alias          = "ldap"
-  minio_server   = "%s"
-  minio_user     = "%s"
-  minio_password = "%s"
-  minio_ssl      = false
-}
-
 resource "minio_iam_ldap_group_policy_attachment" "test" {
-  provider    = minio.ldap
-  group_dn    = %[4]q
-  policy_name = %[5]q
+  provider    = ldapminio
+  group_dn    = %[1]q
+  policy_name = %[2]q
 }
-`, os.Getenv("LDAP_MINIO_ENDPOINT"), os.Getenv("LDAP_MINIO_USER"), os.Getenv("LDAP_MINIO_PASSWORD"), groupDN, policyName)
+`, groupDN, policyName)
 }

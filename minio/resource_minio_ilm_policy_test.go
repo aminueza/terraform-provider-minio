@@ -795,8 +795,6 @@ func TestEmptyFilterSentinelNotAppliedToNonEmptyFilter(t *testing.T) {
 	}
 }
 
-// TestAccILMPolicy_expirationNoFilter is an acceptance test for issue #837:
-// a simple expiration rule with no prefix or tags should work on all backends.
 func TestAccILMPolicy_expirationNoFilter(t *testing.T) {
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-nofilter-%d", acctest.RandInt())

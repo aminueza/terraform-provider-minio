@@ -403,6 +403,15 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		filter.Prefix = prefix
 	}
 
+	// minio-go v7.0.98+ omits <Filter> entirely when all filter fields are zero,
+	// but the S3 lifecycle schema requires <Filter> in every rule. Non-MinIO
+	// backends (Hetzner, Cloudflare R2, etc.) reject XML without it.
+	// Setting ObjectSizeGreaterThan to -1 forces Filter.IsNull() to return false
+	// while MarshalXML still only emits <Prefix></Prefix> (it checks > 0).
+	if filter.IsNull() {
+		filter.ObjectSizeGreaterThan = -1
+	}
+
 	expiration, _ := getStringValue(ruleData, "expiration")
 	expiredObjectDeleteMarker := false
 	if v, ok := ruleData["expired_object_delete_marker"]; ok {

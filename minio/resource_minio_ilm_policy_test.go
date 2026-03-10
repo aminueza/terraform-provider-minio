@@ -2,9 +2,11 @@ package minio
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -679,6 +681,140 @@ resource "minio_ilm_policy" "dm_tags" {
 			environment = "test"
 		}
 	}
+}
+`, randInt)
+}
+
+// TestCreateLifecycleRuleFilterXML verifies that createLifecycleRule always
+// produces XML containing a <Filter> element, even when no prefix or tags are
+// set. This is a regression test for #837 where minio-go v7.0.98 started
+// omitting <Filter> for empty filters, breaking S3-compatible backends.
+func TestCreateLifecycleRuleFilterXML(t *testing.T) {
+	tests := []struct {
+		name       string
+		ruleData   map[string]interface{}
+		wantFilter string
+	}{
+		{
+			name: "empty filter emits Filter element",
+			ruleData: map[string]interface{}{
+				"id":                                "expires",
+				"status":                            "Enabled",
+				"expiration":                        "30d",
+				"filter":                            "",
+				"tags":                              map[string]interface{}{},
+				"expired_object_delete_marker":      false,
+				"transition":                        []interface{}{},
+				"noncurrent_expiration":             []interface{}{},
+				"noncurrent_transition":             []interface{}{},
+				"abort_incomplete_multipart_upload": []interface{}{},
+			},
+			wantFilter: "<Filter><Prefix></Prefix></Filter>",
+		},
+		{
+			name: "prefix filter emits Filter with prefix",
+			ruleData: map[string]interface{}{
+				"id":                                "with-prefix",
+				"status":                            "Enabled",
+				"expiration":                        "30d",
+				"filter":                            "logs/",
+				"tags":                              map[string]interface{}{},
+				"expired_object_delete_marker":      false,
+				"transition":                        []interface{}{},
+				"noncurrent_expiration":             []interface{}{},
+				"noncurrent_transition":             []interface{}{},
+				"abort_incomplete_multipart_upload": []interface{}{},
+			},
+			wantFilter: "<Filter><Prefix>logs/</Prefix></Filter>",
+		},
+		{
+			name: "tag filter emits Filter with And",
+			ruleData: map[string]interface{}{
+				"id":                                "with-tags",
+				"status":                            "Enabled",
+				"expiration":                        "30d",
+				"filter":                            "",
+				"tags":                              map[string]interface{}{"env": "test"},
+				"expired_object_delete_marker":      false,
+				"transition":                        []interface{}{},
+				"noncurrent_expiration":             []interface{}{},
+				"noncurrent_transition":             []interface{}{},
+				"abort_incomplete_multipart_upload": []interface{}{},
+			},
+			wantFilter: "<And>",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rule, err := createLifecycleRule(tc.ruleData)
+			if err != nil {
+				t.Fatalf("createLifecycleRule failed: %v", err)
+			}
+
+			config := lifecycle.NewConfiguration()
+			config.Rules = append(config.Rules, rule)
+			xmlData, err := xml.Marshal(config)
+			if err != nil {
+				t.Fatalf("xml.Marshal failed: %v", err)
+			}
+
+			xmlStr := string(xmlData)
+			if !strings.Contains(xmlStr, tc.wantFilter) {
+				t.Errorf("expected XML to contain %q, got:\n%s", tc.wantFilter, xmlStr)
+			}
+
+			if !strings.Contains(xmlStr, "<Filter>") {
+				t.Errorf("expected XML to contain <Filter>, got:\n%s", xmlStr)
+			}
+		})
+	}
+}
+
+// TestAccILMPolicy_expirationNoFilter is an acceptance test for issue #837:
+// a simple expiration rule with no prefix or tags should work on all backends.
+func TestAccILMPolicy_expirationNoFilter(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-nofilter-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.rule"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigNoFilter(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.id", "expires"),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.expiration", "30d"),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.filter", ""),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccMinioILMPolicyConfigNoFilter(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public"
+}
+
+resource "minio_ilm_policy" "rule" {
+  bucket = minio_s3_bucket.bucket.bucket
+  rule {
+    id         = "expires"
+    expiration = "30d"
+  }
 }
 `, randInt)
 }

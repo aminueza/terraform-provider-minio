@@ -31,19 +31,7 @@ services:
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
-      MINIO_IDENTITY_LDAP_SERVER_ADDR: "openldap:389"
-      MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN: "cn=admin,dc=example,dc=com"
-      MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD: "adminpassword"
-      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
-      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER: "(cn=%s)"
-      MINIO_IDENTITY_LDAP_GROUP_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
-      MINIO_IDENTITY_LDAP_GROUP_SEARCH_FILTER: "(&(objectclass=groupOfNames)(member=%d))"
-      MINIO_IDENTITY_LDAP_TLS_SKIP_VERIFY: "on"
-      MINIO_IDENTITY_LDAP_SERVER_INSECURE: "on"
     command: server --console-address :9001 /data{0...3}
-    depends_on:
-      openldap:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -61,6 +49,34 @@ services:
       MINIO_CI_CD: "1"
       MINIO_KMS_SECRET_KEY: "my-minio-key:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
     command: server --console-address :9001 /data{0...3}
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+  ldapminio: # This is used to test LDAP identity provider integration
+    image: *minio_image
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio999
+      MINIO_CI_CD: "1"
+      MINIO_IDENTITY_LDAP_SERVER_ADDR: "openldap:389"
+      MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN: "cn=admin,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_LOOKUP_BIND_PASSWORD: "adminpassword"
+      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_USER_DN_SEARCH_FILTER: "(cn=%s)"
+      MINIO_IDENTITY_LDAP_GROUP_SEARCH_BASE_DN: "ou=users,dc=example,dc=com"
+      MINIO_IDENTITY_LDAP_GROUP_SEARCH_FILTER: "(&(objectclass=groupOfNames)(member=%d))"
+      MINIO_IDENTITY_LDAP_TLS_SKIP_VERIFY: "on"
+      MINIO_IDENTITY_LDAP_SERVER_INSECURE: "on"
+    command: server --console-address :9001 /data{0...3}
+    depends_on:
+      openldap:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 5s
@@ -173,12 +189,18 @@ services:
       KMS_MINIO_ENABLE_HTTPS: "false"
       MINIO_KMS_CONFIGURED: "1"
       MINIO_LDAP_ENABLED: "1"
+      LDAP_MINIO_ENDPOINT: "ldapminio:9000"
+      LDAP_MINIO_USER: "minio"
+      LDAP_MINIO_PASSWORD: "minio999"
+      LDAP_MINIO_ENABLE_HTTPS: "false"
       MINIO_LDAP_TEST_USER_DN: "cn=testuser,ou=users,dc=example,dc=com"
       MINIO_LDAP_TEST_GROUP_DN: "cn=testgroup,ou=users,dc=example,dc=com"
     depends_on:
       minio:
         condition: service_healthy
       kmsminio:
+        condition: service_healthy
+      ldapminio:
         condition: service_healthy
       secondminio:
         condition: service_healthy

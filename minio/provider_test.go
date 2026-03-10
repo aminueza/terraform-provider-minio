@@ -13,6 +13,7 @@ var testAccSecondProvider *schema.Provider
 var testAccThirdProvider *schema.Provider
 var testAccFourthProvider *schema.Provider
 var testAccKmsProvider *schema.Provider
+var testAccLdapProvider *schema.Provider
 
 func init() {
 	testAccProvider = newProvider()
@@ -20,6 +21,7 @@ func init() {
 	testAccThirdProvider = newProvider("THIRD_")
 	testAccFourthProvider = newProvider("FOURTH_")
 	testAccKmsProvider = newProvider("KMS_")
+	testAccLdapProvider = newProvider("LDAP_")
 	testAccProviders = map[string]func() (*schema.Provider, error){
 		"minio": func() (*schema.Provider, error) {
 			return testAccProvider, nil
@@ -35,6 +37,9 @@ func init() {
 		},
 		"kmsminio": func() (*schema.Provider, error) {
 			return testAccKmsProvider, nil
+		},
+		"ldapminio": func() (*schema.Provider, error) {
+			return testAccLdapProvider, nil
 		},
 	}
 }

@@ -15,6 +15,9 @@ func testAccLDAPAttachmentPreCheck(t *testing.T) {
 	if os.Getenv("MINIO_LDAP_ENABLED") != "1" {
 		t.Skip("Skipping LDAP tests: set MINIO_LDAP_ENABLED=1 to run")
 	}
+	if os.Getenv("LDAP_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping LDAP tests: LDAP_MINIO_ENDPOINT not set")
+	}
 	if os.Getenv("MINIO_LDAP_TEST_USER_DN") == "" {
 		t.Skip("Skipping LDAP tests: MINIO_LDAP_TEST_USER_DN not set")
 	}
@@ -60,18 +63,36 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 
 func testAccLDAPUserPolicyAttachmentConfig(userDN, policyName string) string {
 	return fmt.Sprintf(`
-resource "minio_iam_ldap_user_policy_attachment" "test" {
-  user_dn     = %[1]q
-  policy_name = %[2]q
+provider "minio" {
+  alias          = "ldap"
+  minio_server   = "%s"
+  minio_user     = "%s"
+  minio_password = "%s"
+  minio_ssl      = false
 }
-`, userDN, policyName)
+
+resource "minio_iam_ldap_user_policy_attachment" "test" {
+  provider    = minio.ldap
+  user_dn     = %[4]q
+  policy_name = %[5]q
+}
+`, os.Getenv("LDAP_MINIO_ENDPOINT"), os.Getenv("LDAP_MINIO_USER"), os.Getenv("LDAP_MINIO_PASSWORD"), userDN, policyName)
 }
 
 func testAccLDAPGroupPolicyAttachmentConfig(groupDN, policyName string) string {
 	return fmt.Sprintf(`
-resource "minio_iam_ldap_group_policy_attachment" "test" {
-  group_dn    = %[1]q
-  policy_name = %[2]q
+provider "minio" {
+  alias          = "ldap"
+  minio_server   = "%s"
+  minio_user     = "%s"
+  minio_password = "%s"
+  minio_ssl      = false
 }
-`, groupDN, policyName)
+
+resource "minio_iam_ldap_group_policy_attachment" "test" {
+  provider    = minio.ldap
+  group_dn    = %[4]q
+  policy_name = %[5]q
+}
+`, os.Getenv("LDAP_MINIO_ENDPOINT"), os.Getenv("LDAP_MINIO_USER"), os.Getenv("LDAP_MINIO_PASSWORD"), groupDN, policyName)
 }

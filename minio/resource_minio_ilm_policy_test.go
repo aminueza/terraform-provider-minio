@@ -685,10 +685,6 @@ resource "minio_ilm_policy" "dm_tags" {
 `, randInt)
 }
 
-// TestCreateLifecycleRuleFilterXML verifies that createLifecycleRule always
-// produces XML containing a <Filter> element, even when no prefix or tags are
-// set. This is a regression test for #837 where minio-go v7.0.98 started
-// omitting <Filter> for empty filters, breaking S3-compatible backends.
 func TestCreateLifecycleRuleFilterXML(t *testing.T) {
 	tests := []struct {
 		name       string

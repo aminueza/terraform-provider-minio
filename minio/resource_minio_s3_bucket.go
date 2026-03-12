@@ -202,11 +202,31 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	_ = d.Set("bucket", bucket)
 	d.SetId(bucket)
 
+	timeout := d.Timeout(schema.TimeoutCreate)
+	waitTimeout := timeout - 30*time.Second
+	if waitTimeout < 30*time.Second {
+		waitTimeout = 30 * time.Second
+	}
+
+	if err := waitForBucketReady(ctx, bucketConfig.MinioClient, bucket, waitTimeout); err != nil {
+		return NewResourceError("error waiting for bucket to be ready after creation", bucket, err)
+	}
+
 	bucketConfig = BucketConfig(d, meta)
 
-	if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to create bucket", bucket, errACL))
-		return NewResourceError("[ACL] Unable to create bucket", bucket, errACL)
+	if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
+		if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
+			for _, d := range errACL {
+				if strings.Contains(d.Summary, "NoSuchBucket") || strings.Contains(d.Summary, "does not exist") {
+					log.Printf("[DEBUG] Bucket %q not yet available for ACL, retrying...", bucket)
+					return retry.RetryableError(fmt.Errorf("%s", d.Summary))
+				}
+			}
+			return retry.NonRetryableError(fmt.Errorf("%s", errACL[0].Summary))
+		}
+		return nil
+	}); err != nil {
+		return NewResourceError("[ACL] Unable to create bucket", bucket, err)
 	}
 
 	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
@@ -220,19 +240,22 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 			return NewResourceError("error creating bucket tags", bucket, err)
 		}
 
-		err = bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
-		if err != nil {
-			if !IsS3TaggingNotImplemented(err) {
-				return NewResourceError("error setting bucket tags", bucket, err)
+		if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
+			err := bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
+			if err != nil {
+				if IsS3TaggingNotImplemented(err) {
+					return nil
+				}
+				if isNoSuchBucketError(err) {
+					log.Printf("[DEBUG] Bucket %q not yet available for tagging, retrying...", bucket)
+					return retry.RetryableError(err)
+				}
+				return retry.NonRetryableError(err)
 			}
+			return nil
+		}); err != nil {
+			return NewResourceError("error setting bucket tags", bucket, err)
 		}
-	}
-
-	found, err := bucketConfig.MinioClient.BucketExists(ctx, bucket)
-	if err != nil {
-		log.Printf("[WARNING] Error verifying bucket creation: %s", err)
-	} else if !found {
-		log.Printf("[WARNING] Bucket [%s] not immediately visible after creation, proceeding anyway", bucket)
 	}
 
 	return minioUpdateBucket(ctx, d, meta)
@@ -582,6 +605,10 @@ func removeBucketPolicy(ctx context.Context, bucketConfig *S3MinioBucket) diag.D
 		errResp := minio.ToErrorResponse(err)
 
 		if errResp.Code == "NoSuchBucketPolicy" || errResp.StatusCode == http.StatusNotFound {
+			return nil
+		}
+
+		if isNoSuchBucketError(err) {
 			return nil
 		}
 

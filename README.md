@@ -103,19 +103,17 @@ variable "minio_password" {
 
 ## Testing
 
-For testing locally, run the docker compose to spin up a minio server:
+The project uses Docker Compose to run acceptance tests against multiple MinIO instances. Docker is required.
 
-```sh
-docker compose up
-```
+### Running Tests
 
-To run the acceptance tests:
+**Run all acceptance tests:**
 
 ```sh
 docker compose run --rm test
 ```
 
-Run a specific test by name pattern:
+**Run specific tests by pattern:**
 
 ```sh
 TEST_PATTERN=TestAccAWSUser_SettingAccessKey docker compose run --rm test

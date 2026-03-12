@@ -1274,6 +1274,84 @@ func testAccCheckMinioS3BucketTagsRemoved(n string) resource.TestCheckFunc {
 	}
 }
 
+func TestIsCredentialError(t *testing.T) {
+	tests := []struct {
+		name     string
+		errResp  minio.ErrorResponse
+		expected bool
+	}{
+		{
+			name:     "empty error response",
+			errResp:  minio.ErrorResponse{},
+			expected: false,
+		},
+		{
+			name: "AccessDenied error code",
+			errResp: minio.ErrorResponse{
+				Code:       "AccessDenied",
+				StatusCode: http.StatusForbidden,
+			},
+			expected: true,
+		},
+		{
+			name: "InvalidAccessKeyId error code",
+			errResp: minio.ErrorResponse{
+				Code:       "InvalidAccessKeyId",
+				StatusCode: http.StatusForbidden,
+			},
+			expected: true,
+		},
+		{
+			name: "SignatureDoesNotMatch error code",
+			errResp: minio.ErrorResponse{
+				Code:       "SignatureDoesNotMatch",
+				StatusCode: http.StatusForbidden,
+			},
+			expected: true,
+		},
+		{
+			name: "ExpiredToken error code",
+			errResp: minio.ErrorResponse{
+				Code: "ExpiredToken",
+			},
+			expected: true,
+		},
+		{
+			name: "403 status without known code",
+			errResp: minio.ErrorResponse{
+				Code:       "SomeUnknownCode",
+				StatusCode: http.StatusForbidden,
+			},
+			expected: true,
+		},
+		{
+			name: "NoSuchBucket is not a credential error",
+			errResp: minio.ErrorResponse{
+				Code:       "NoSuchBucket",
+				StatusCode: http.StatusNotFound,
+			},
+			expected: false,
+		},
+		{
+			name: "500 server error is not a credential error",
+			errResp: minio.ErrorResponse{
+				Code:       "InternalError",
+				StatusCode: http.StatusInternalServerError,
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isCredentialError(tt.errResp)
+			if result != tt.expected {
+				t.Errorf("isCredentialError(%v) = %v, want %v", tt.errResp, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsNoSuchBucketError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -1337,6 +1415,66 @@ func TestIsNoSuchBucketError(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAccMinioS3Bucket_withPolicyAndVersioning(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketWithPolicyAndVersioning(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasVersioning(
+						"minio_s3_bucket_versioning.bucket",
+						S3MinioBucketVersioningConfiguration{
+							Status: "Enabled",
+						},
+					),
+					resource.TestCheckResourceAttr("minio_s3_bucket.bucket", "acl", "private"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketWithPolicyAndVersioning(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = %[1]q
+  acl    = "private"
+}
+
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": [
+        "${minio_s3_bucket.bucket.arn}"
+      ],
+      "Action": ["s3:ListBucket"]
+    }
+  ]
+}
+EOF
+}
+
+resource "minio_s3_bucket_versioning" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+`, bucketName)
 }
 
 func testAccMinioS3BucketConfigWithBucket(bucketName string) string {

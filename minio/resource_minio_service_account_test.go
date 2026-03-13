@@ -223,6 +223,66 @@ func TestServiceAccount_Expiration(t *testing.T) {
 	})
 }
 
+func TestServiceAccount_WriteOnlySecret_basic(t *testing.T) {
+	var serviceAccount madmin.InfoServiceAccountResp
+
+	targetUser := "minio"
+	resourceName := "minio_iam_service_account.test_wo"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioServiceAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioServiceAccountConfigWriteOnlySecret(targetUser, "serviceaccountsecret123", 1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+				),
+			},
+		},
+	})
+}
+
+func TestServiceAccount_WriteOnlySecret_transition(t *testing.T) {
+	var serviceAccount madmin.InfoServiceAccountResp
+
+	targetUser := "minio"
+	resourceName := "minio_iam_service_account.test_wo_transition"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioServiceAccountDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioServiceAccountConfigWriteOnlyBase(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					resource.TestCheckResourceAttrSet(resourceName, "secret_key"),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountConfigWriteOnlyTransition(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+				),
+			},
+			{
+				Config: testAccMinioServiceAccountConfigWriteOnlyBack(targetUser),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					resource.TestCheckResourceAttrSet(resourceName, "secret_key"),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioServiceAccountConfig(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_service_account" "test" {
@@ -321,6 +381,43 @@ func testAccMinioServiceAccountConfigUpdateExpiration(rName string, expiration s
 		  target_user = %q
       expiration = %q
 		}`, rName, expiration)
+}
+
+func testAccMinioServiceAccountConfigWriteOnlySecret(rName string, secret string, version int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test_wo" {
+  target_user           = %q
+  secret_key_wo         = %q
+  secret_key_wo_version = %d
+}
+`, rName, secret, version)
+}
+
+func testAccMinioServiceAccountConfigWriteOnlyBase(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test_wo_transition" {
+  target_user = %q
+}
+`, rName)
+}
+
+func testAccMinioServiceAccountConfigWriteOnlyTransition(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test_wo_transition" {
+  target_user           = %q
+  secret_key_wo         = "serviceaccountsecret456"
+  secret_key_wo_version = 1
+}
+`, rName)
+}
+
+func testAccMinioServiceAccountConfigWriteOnlyBack(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_service_account" "test_wo_transition" {
+  target_user   = %q
+  update_secret = true
+}
+`, rName)
 }
 
 func testAccCheckMinioServiceAccountExists(provider *schema.Provider, n string, res *madmin.InfoServiceAccountResp) resource.TestCheckFunc {

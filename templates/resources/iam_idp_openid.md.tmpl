@@ -17,6 +17,10 @@ MinIO supports multiple named OIDC configurations. The `name` attribute identifi
 
 {{ tffile "examples/resources/minio_iam_idp_openid/resource.tf" }}
 
+## Write-Only Client Secret
+
+Prefer `client_secret_wo` with `client_secret_wo_version` for secret rotation without persisting the supplied client secret value in Terraform state.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import

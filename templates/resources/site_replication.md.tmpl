@@ -37,6 +37,50 @@ resource "minio_site_replication" "primary" {
     secret_key = "minio789"
   }
 }
+
+# Optional: write-only variant using ephemeral Vault secrets
+ephemeral "vault_kv_secret_v2" "site1_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site1"
+}
+
+ephemeral "vault_kv_secret_v2" "site2_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site2"
+}
+
+ephemeral "vault_kv_secret_v2" "site3_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site3"
+}
+
+resource "minio_site_replication" "primary_write_only" {
+  name = "my-cluster-replication-write-only"
+
+  site {
+    name                  = "site1"
+    endpoint              = "https://minio1.example.com"
+    access_key            = "minioadmin"
+    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site1_secret.data.secret_key)
+    secret_key_wo_version = 1
+  }
+
+  site {
+    name                  = "site2"
+    endpoint              = "https://minio2.example.com"
+    access_key            = "minioadmin"
+    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site2_secret.data.secret_key)
+    secret_key_wo_version = 1
+  }
+
+  site {
+    name                  = "site3"
+    endpoint              = "https://minio3.example.com"
+    access_key            = "minioadmin"
+    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site3_secret.data.secret_key)
+    secret_key_wo_version = 1
+  }
+}
 ```
 
 ## Argument Reference
@@ -46,7 +90,9 @@ resource "minio_site_replication" "primary" {
   * `name` - (Required) Unique name for this site.
   * `endpoint` - (Required) MinIO server endpoint URL.
   * `access_key` - (Required) Access key for the site. This value is stored in Terraform state but not returned by the MinIO API for security reasons.
-  * `secret_key` - (Required, Sensitive) Secret key for the site. This value is stored in Terraform state but not returned by the MinIO API for security reasons.
+  * `secret_key` - (Optional, Sensitive) Secret key for the site. This value is stored in Terraform state but not returned by the MinIO API for security reasons.
+  * `secret_key_wo` - (Optional, Write-only, Sensitive) Write-only secret key for the site.
+  * `secret_key_wo_version` - (Optional, Integer) Version for `secret_key_wo`. Increase the number to trigger rotation when using write-only secret.
 * `enabled` - (Computed) Whether site replication is enabled.
 
 ## Attributes Reference

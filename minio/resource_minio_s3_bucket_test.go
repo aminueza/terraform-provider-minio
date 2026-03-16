@@ -1469,13 +1469,15 @@ EOF
 }
 
 resource "minio_s3_bucket_versioning" "bucket" {
-  bucket = minio_s3_bucket.bucket.bucket
+  depends_on = [minio_s3_bucket_policy.bucket]
+  bucket     = minio_s3_bucket.bucket.bucket
   versioning_configuration {
     status = "Enabled"
   }
 }
 `, bucketName)
 }
+
 
 func testAccMinioS3BucketConfigWithBucket(bucketName string) string {
 	return fmt.Sprintf(`

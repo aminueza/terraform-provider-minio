@@ -3,7 +3,9 @@ package minio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -114,6 +116,19 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, err)
 	}
 
+	// MinIO multi-drive deployments can lose the bucket policy when versioning
+	// is set immediately after a policy write. Capture the policy before and
+	// restore it if SetBucketVersioning destroyed it.
+	policyBefore, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+	if strings.TrimSpace(policyBefore) != "" && strings.TrimSpace(policyBefore) != "{}" {
+		time.Sleep(500 * time.Millisecond)
+		policyAfter, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+		if strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
+			log.Printf("[WARN] Bucket %s policy was lost after SetBucketVersioning, restoring", bucketVersioningConfig.MinioBucket)
+			_ = bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore)
+		}
+	}
+
 	d.SetId(bucketVersioningConfig.MinioBucket)
 
 	return minioReadBucketVersioning(ctx, d, meta)
@@ -148,9 +163,36 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 		}
 	}
 
-	versioningConfig, err := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
-	if err != nil {
-		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, err)
+	var versioningConfig minio.BucketVersioningConfiguration
+
+	cfg, readErr := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
+	if readErr != nil {
+		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, readErr)
+	}
+	versioningConfig = cfg
+
+	if versioningConfig.Status == "" {
+		retryTimeout := 5 * time.Second
+		if d.IsNewResource() {
+			retryTimeout = d.Timeout(schema.TimeoutRead)
+		}
+		retryErr := retry.RetryContext(ctx, retryTimeout, func() *retry.RetryError {
+			cfg, err := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
+			if err != nil {
+				if isNoSuchBucketError(err) && d.IsNewResource() {
+					return retry.RetryableError(err)
+				}
+				return retry.NonRetryableError(err)
+			}
+			if cfg.Status == "" {
+				return retry.RetryableError(fmt.Errorf("versioning status not yet available for bucket %s", d.Id()))
+			}
+			versioningConfig = cfg
+			return nil
+		})
+		if retryErr != nil && d.IsNewResource() {
+			return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, retryErr)
+		}
 	}
 
 	config := make(map[string]interface{})

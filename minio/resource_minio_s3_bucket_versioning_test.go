@@ -221,6 +221,73 @@ func TestAccS3BucketVersioning_disappears(t *testing.T) {
 	})
 }
 
+func TestAccS3BucketVersioning_survivesPolicyChange(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketVersioningConfig(name, "Enabled", nil, false),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasVersioning(
+						"minio_s3_bucket_versioning.bucket",
+						S3MinioBucketVersioningConfiguration{
+							Status: "Enabled",
+						},
+					),
+				),
+			},
+			{
+				Config: testAccBucketVersioningWithPolicyConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasVersioning(
+						"minio_s3_bucket_versioning.bucket",
+						S3MinioBucketVersioningConfiguration{
+							Status: "Enabled",
+						},
+					),
+				),
+			},
+		},
+	})
+}
+
+func testAccBucketVersioningWithPolicyConfig(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = %[1]q
+}
+resource "minio_s3_bucket_versioning" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+resource "minio_s3_bucket_policy" "bucket" {
+  depends_on = [minio_s3_bucket_versioning.bucket]
+  bucket     = minio_s3_bucket.bucket.bucket
+  policy     = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": ["${minio_s3_bucket.bucket.arn}/*"],
+      "Action": ["s3:GetObject"]
+    }
+  ]
+}
+EOF
+}
+`, bucketName)
+}
+
 func testAccCheckMinioS3BucketDeleteExternally(bucket string) error {
 	minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
 	if err := minioC.RemoveBucket(context.Background(), bucket); err != nil {

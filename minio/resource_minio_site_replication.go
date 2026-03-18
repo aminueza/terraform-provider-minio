@@ -2,11 +2,14 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -114,6 +117,19 @@ func resourceMinioSiteReplication() *schema.Resource {
 							Sensitive:   true,
 							Description: "Secret key for the site. Stored in Terraform state but not returned by the MinIO API for security reasons.",
 						},
+						"secret_key_wo": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							WriteOnly:   true,
+							Sensitive:   true,
+							Description: "Write-only secret key for the site.",
+						},
+						"secret_key_wo_version": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							ValidateFunc: validation.IntAtLeast(1),
+							Description:  "Version identifier for write-only secret key. Change this value to trigger updates when using secret_key_wo.",
+						},
 					},
 				},
 			},
@@ -136,7 +152,10 @@ func minioCreateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 	client := meta.(*S3MinioClient).S3Admin
 	name := d.Get("name").(string)
 
-	sites := expandSites(d.Get("site").([]interface{}))
+	sites, err := expandSitesWithWriteOnly(d, d.Get("site").([]interface{}))
+	if err != nil {
+		return NewResourceError("expanding site replication sites", name, err)
+	}
 
 	log.Printf("[DEBUG] Creating site replication: %s with %d sites", name, len(sites))
 
@@ -200,8 +219,8 @@ func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 		if len(info.Sites) > 0 {
 			peer := madmin.PeerInfo{
-				Endpoint:    info.Sites[0].Endpoint,
-				Name:        info.Sites[0].Name,
+				Endpoint:     info.Sites[0].Endpoint,
+				Name:         info.Sites[0].Name,
 				DeploymentID: info.Sites[0].DeploymentID,
 			}
 			_, err := client.SiteReplicationEdit(ctx, peer, editOpts)
@@ -214,7 +233,10 @@ func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 	if d.HasChange("site") {
 		old, new := d.GetChange("site")
 		oldSites := expandSites(old.([]interface{}))
-		newSites := expandSites(new.([]interface{}))
+		newSites, err := expandSitesWithWriteOnly(d, new.([]interface{}))
+		if err != nil {
+			return NewResourceError("expanding site replication sites", d.Id(), err)
+		}
 
 		diff := calculateSiteDiff(oldSites, newSites)
 
@@ -287,6 +309,39 @@ func expandSites(sites []interface{}) []madmin.PeerSite {
 	return result
 }
 
+func expandSitesWithWriteOnly(d *schema.ResourceData, sites []interface{}) ([]madmin.PeerSite, error) {
+	result := make([]madmin.PeerSite, len(sites))
+
+	for i, s := range sites {
+		site := s.(map[string]interface{})
+		accessKey := site["access_key"].(string)
+		secretKey := site["secret_key"].(string)
+		secretWOVersion := site["secret_key_wo_version"].(int)
+
+		secretKeyWOPath := cty.GetAttrPath("site").IndexInt(i).GetAttr("secret_key_wo")
+		secretKeyWO, hasSecretKeyWO, err := getWriteOnlyStringAt(d, secretKeyWOPath, fmt.Sprintf("site[%d].secret_key_wo", i))
+		if err != nil {
+			return nil, err
+		}
+		if hasSecretKeyWO {
+			secretKey = secretKeyWO
+		}
+
+		if secretWOVersion > 0 && !hasSecretKeyWO {
+			return nil, fmt.Errorf("site[%d] requires secret_key_wo when secret_key_wo_version is set", i)
+		}
+
+		result[i] = madmin.PeerSite{
+			Name:      site["name"].(string),
+			Endpoint:  site["endpoint"].(string),
+			AccessKey: accessKey,
+			SecretKey: secretKey,
+		}
+	}
+
+	return result, nil
+}
+
 // flattenSitesWithState preserves sensitive credentials from Terraform state
 // because MinIO API doesn't return access_key/secret_key for security.
 func flattenSitesWithState(d *schema.ResourceData, sites []madmin.PeerInfo) []map[string]interface{} {
@@ -304,12 +359,16 @@ func flattenSitesWithState(d *schema.ResourceData, sites []madmin.PeerInfo) []ma
 		// This is necessary because MinIO API doesn't return these sensitive values
 		if i < len(existingSites) {
 			if existingSite, ok := existingSites[i].(map[string]interface{}); ok {
+				secretWOVersion, _ := existingSite["secret_key_wo_version"].(int)
 				if accessKey, ok := existingSite["access_key"].(string); ok && accessKey != "" {
 					siteMap["access_key"] = accessKey
 				}
-				if secretKey, ok := existingSite["secret_key"].(string); ok && secretKey != "" {
-					siteMap["secret_key"] = secretKey
+				if secretWOVersion == 0 {
+					if secretKey, ok := existingSite["secret_key"].(string); ok && secretKey != "" {
+						siteMap["secret_key"] = secretKey
+					}
 				}
+				siteMap["secret_key_wo_version"] = secretWOVersion
 			}
 		}
 

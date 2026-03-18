@@ -148,7 +148,7 @@ services:
       - bash
       - -c
       - |
-        TERRAFORM_VERSION=1.6.6
+        TERRAFORM_VERSION=1.11.4
         TERRAFORM_BIN=/usr/local/terraform/terraform
         if [ -f "$$TERRAFORM_BIN" ] && $$TERRAFORM_BIN version | grep -q "$$TERRAFORM_VERSION"; then
           echo "Using cached Terraform $$TERRAFORM_VERSION"

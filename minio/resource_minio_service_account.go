@@ -53,6 +53,25 @@ func resourceMinioServiceAccount() *schema.Resource {
 				Computed:    true,
 				Sensitive:   true,
 			},
+			"secret_key_wo": {
+				Type:        schema.TypeString,
+				Description: "write-only secret key of service account",
+				Optional:    true,
+				WriteOnly:   true,
+				Sensitive:   true,
+				RequiredWith: []string{
+					"secret_key_wo_version",
+				},
+			},
+			"secret_key_wo_version": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				RequiredWith: []string{
+					"secret_key_wo",
+				},
+				ValidateFunc: validation.IntAtLeast(1),
+				Description:  "Version identifier for secret_key_wo. Change this value to trigger secret key rotation when using secret_key_wo.",
+			},
 			"access_key": {
 				Type:        schema.TypeString,
 				Description: "access key of service account",
@@ -97,6 +116,10 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	var err error
 	targetUser := serviceAccountConfig.MinioTargetUser
 	policy := serviceAccountConfig.MinioSAPolicy
+	secretWO, hasSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("secret_key_wo"), "secret_key_wo")
+	if err != nil {
+		return NewResourceError("retrieving secret_key_wo", targetUser, err)
+	}
 
 	var expirationPtr *time.Time
 	if serviceAccountConfig.MinioExpiration != "" {
@@ -107,13 +130,15 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		expirationPtr = &expiration
 	}
 
-	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, madmin.AddServiceAccountReq{
+	addReq := madmin.AddServiceAccountReq{
 		Policy:      processServiceAccountPolicy(policy),
 		TargetUser:  targetUser,
 		Name:        serviceAccountConfig.MinioName,
 		Description: serviceAccountConfig.MinioDescription,
 		Expiration:  expirationPtr,
-	})
+	}
+
+	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, addReq)
 	if err != nil {
 		return NewResourceError("error creating service account", targetUser, err)
 	}
@@ -122,7 +147,15 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	d.SetId(accessKey)
 	_ = d.Set("access_key", accessKey)
-	_ = d.Set("secret_key", secretKey)
+	if hasSecretWO {
+		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewSecretKey: secretWO})
+		if err != nil {
+			return NewResourceError("updating service account secret", accessKey, err)
+		}
+		_ = d.Set("secret_key", "")
+	} else {
+		_ = d.Set("secret_key", secretKey)
+	}
 
 	if serviceAccountConfig.MinioDisableUser {
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewStatus: "off"})
@@ -161,6 +194,15 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	wantedSecret := serviceAccountConfig.MinioSecretKey
+	secretWO, hasSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("secret_key_wo"), "secret_key_wo")
+	if err != nil {
+		return NewResourceError("retrieving secret_key_wo", d.Id(), err)
+	}
+	if hasSecretWO {
+		wantedSecret = secretWO
+	}
+	_, hasSecretWOVersion := d.GetOk("secret_key_wo_version")
+	hasSecretWOChange := d.HasChange("secret_key_wo_version") && hasSecretWOVersion
 	if serviceAccountConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
 			return NewResourceError("error creating user", d.Id(), err)
@@ -169,7 +211,11 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		}
 	}
 
-	if d.HasChange("secret_key") || serviceAccountConfig.MinioSecretKey != wantedSecret {
+	if hasSecretWOChange && !hasSecretWO {
+		return NewResourceError("updating service account secret", d.Id(), fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes"))
+	}
+
+	if d.HasChange("secret_key") || hasSecretWOChange || serviceAccountConfig.MinioSecretKey != wantedSecret {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, d.Id(), madmin.UpdateServiceAccountReq{
 			NewSecretKey: wantedSecret,
 			NewPolicy:    processServiceAccountPolicy(policy),
@@ -178,7 +224,11 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
 		}
 
-		_ = d.Set("secret_key", wantedSecret)
+		if hasSecretWO {
+			_ = d.Set("secret_key", "")
+		} else {
+			_ = d.Set("secret_key", wantedSecret)
+		}
 	}
 
 	if d.HasChange("policy") {

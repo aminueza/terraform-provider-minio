@@ -6,8 +6,10 @@ import (
 	"log"
 	"strings"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -20,6 +22,33 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 		DeleteContext: minioDeleteIdpOpenId,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
+		},
+		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+			legacySecret := strings.TrimSpace(d.Get("client_secret").(string))
+			secretWO, hasSecretWO, err := getRawConfigStringAttr(d.GetRawConfig(), "client_secret_wo", "client_secret_wo")
+			if err != nil {
+				return err
+			}
+
+			if legacySecret != "" && hasSecretWO {
+				return fmt.Errorf("client_secret and client_secret_wo cannot be set together")
+			}
+
+			if d.Id() == "" && legacySecret == "" && secretWO == "" {
+				return fmt.Errorf("one of client_secret or client_secret_wo must be provided")
+			}
+
+			_, hasVersionWO := d.GetOk("client_secret_wo_version")
+			if hasSecretWO && !hasVersionWO {
+				return fmt.Errorf("client_secret_wo_version must be provided when client_secret_wo is set")
+			}
+
+			hasSecretWOVersionChange := d.HasChange("client_secret_wo_version") && hasVersionWO
+			if hasSecretWOVersionChange && !hasSecretWO {
+				return fmt.Errorf("client_secret_wo must be provided when client_secret_wo_version changes")
+			}
+
+			return nil
 		},
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -40,10 +69,39 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "OAuth2 client ID registered with the identity provider.",
 			},
 			"client_secret": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Sensitive:   true,
+				Type:      schema.TypeString,
+				Optional:  true,
+				Sensitive: true,
+				ConflictsWith: []string{
+					"client_secret_wo",
+					"client_secret_wo_version",
+				},
 				Description: "OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+			},
+			"client_secret_wo": {
+				Type:      schema.TypeString,
+				Optional:  true,
+				WriteOnly: true,
+				Sensitive: true,
+				RequiredWith: []string{
+					"client_secret_wo_version",
+				},
+				ConflictsWith: []string{
+					"client_secret",
+				},
+				Description: "Write-only OAuth2 client secret for this OIDC configuration.",
+			},
+			"client_secret_wo_version": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				RequiredWith: []string{
+					"client_secret_wo",
+				},
+				ConflictsWith: []string{
+					"client_secret",
+				},
+				ValidateFunc: validation.IntAtLeast(1),
+				Description:  "Version identifier for client_secret_wo. Change this value to trigger updates when using client_secret_wo.",
 			},
 			"claim_name": {
 				Type:        schema.TypeString,
@@ -105,6 +163,16 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 
 func minioCreateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IdpOpenIdConfig(d, meta)
+	clientSecretWO, hasClientSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("client_secret_wo"), "client_secret_wo")
+	if err != nil {
+		return NewResourceError("retrieving client_secret_wo", config.Name, err)
+	}
+	if hasClientSecretWO {
+		config.ClientSecret = clientSecretWO
+	}
+	if strings.TrimSpace(config.ClientSecret) == "" {
+		return NewResourceError("creating OIDC IDP configuration", config.Name, fmt.Errorf("one of client_secret or client_secret_wo must be provided"))
+	}
 
 	log.Printf("[DEBUG] Creating OIDC IDP configuration: %s", config.Name)
 
@@ -211,6 +279,18 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 
 func minioUpdateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IdpOpenIdConfig(d, meta)
+	clientSecretWO, hasClientSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("client_secret_wo"), "client_secret_wo")
+	if err != nil {
+		return NewResourceError("retrieving client_secret_wo", config.Name, err)
+	}
+	if hasClientSecretWO {
+		config.ClientSecret = clientSecretWO
+	}
+	_, hasClientSecretWOVersion := d.GetOk("client_secret_wo_version")
+	hasClientSecretWOChange := d.HasChange("client_secret_wo_version") && hasClientSecretWOVersion
+	if hasClientSecretWOChange && !hasClientSecretWO {
+		return NewResourceError("updating OIDC IDP configuration", config.Name, fmt.Errorf("client_secret_wo must be provided when client_secret_wo_version changes"))
+	}
 
 	log.Printf("[DEBUG] Updating OIDC IDP configuration: %s", config.Name)
 

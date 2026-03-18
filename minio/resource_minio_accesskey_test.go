@@ -58,6 +58,24 @@ func TestAccMinioAccessKey_validation_requiresVersionWithSecret(t *testing.T) {
 	})
 }
 
+func TestAccMinioAccessKey_validation_requiresVersionWithWriteOnlySecret(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	customAccessKey := acctest.RandString(20)
+	secret := acctest.RandString(40)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioAccessKeyConfigWriteOnlySecretOnly(rName, customAccessKey, secret),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("Missing required argument|secret_key_wo_version must be provided when secret_key_wo is set"),
+			},
+		},
+	})
+}
+
 func TestAccMinioAccessKey_validation_requiresSecretOnVersionChange(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test"
@@ -81,6 +99,43 @@ func TestAccMinioAccessKey_validation_requiresSecretOnVersionChange(t *testing.T
 				Config:      testAccMinioAccessKeyConfigVersionOnly(rName, customAccessKey, "v2"),
 				PlanOnly:    true,
 				ExpectError: regexp.MustCompile("secret_key must be provided when secret_key_version changes"),
+			},
+		},
+	})
+}
+
+func TestAccMinioAccessKey_validation_requiresWriteOnlySecretOnVersionChange(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test"
+	customAccessKey := acctest.RandString(20)
+	secretV1 := acctest.RandString(40)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, 1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "1"),
+				),
+			},
+			{
+				Config:      testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, customAccessKey, 2),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("Missing required argument|secret_key_wo must be provided when secret_key_wo_version changes"),
+			},
+			{
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, 1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "1"),
+				),
 			},
 		},
 	})
@@ -110,6 +165,49 @@ resource "minio_accesskey" "test" {
   user               = minio_iam_user.test.name
   access_key         = %q
   secret_key_version = %q
+}
+`, rName, accessKey, version)
+}
+
+func testAccMinioAccessKeyConfigWriteOnlySecretOnly(rName, accessKey, secretKey string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test" {
+  name = %q
+}
+
+resource "minio_accesskey" "test" {
+  user          = minio_iam_user.test.name
+  access_key    = %q
+  secret_key_wo = %q
+}
+`, rName, accessKey, secretKey)
+}
+
+func testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, accessKey, secretKey string, version int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test" {
+  name = %q
+}
+
+resource "minio_accesskey" "test" {
+  user                  = minio_iam_user.test.name
+  access_key            = %q
+  secret_key_wo         = %q
+  secret_key_wo_version = %d
+}
+`, rName, accessKey, secretKey, version)
+}
+
+func testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, accessKey string, version int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test" {
+  name = %q
+}
+
+resource "minio_accesskey" "test" {
+  user                  = minio_iam_user.test.name
+  access_key            = %q
+  secret_key_wo_version = %d
 }
 `, rName, accessKey, version)
 }
@@ -345,6 +443,44 @@ func TestAccMinioAccessKey_secretRotation(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v2"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioAccessKey_writeOnlySecretTransition(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test"
+	customAccessKey := acctest.RandString(20)
+	secretV1 := acctest.RandString(40)
+	secretV2 := acctest.RandString(40)
+	secretV3 := acctest.RandString(40)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV1, "v1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v1"),
+				),
+			},
+			{
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV2, 2),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "2"),
+				),
+			},
+			{
+				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV3, "v3"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v3"),
 				),
 			},
 		},

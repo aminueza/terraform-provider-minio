@@ -9,9 +9,11 @@ import (
 	"time"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -31,10 +33,21 @@ func resourceMinioAccessKey() *schema.Resource {
 				secret = strings.TrimSpace(secretRaw.(string))
 			}
 
+			_, hasSecretWO, err := getRawConfigStringAttr(d.GetRawConfig(), "secret_key_wo", "secret_key_wo")
+			if err != nil {
+				return err
+			}
+
 			versionRaw, hasVersion := d.GetOk("secret_key_version")
 			version := ""
 			if hasVersion {
 				version = strings.TrimSpace(versionRaw.(string))
+			}
+
+			_, hasVersionWO := d.GetOk("secret_key_wo_version")
+
+			if secret != "" && hasSecretWO {
+				return fmt.Errorf("secret_key and secret_key_wo cannot be set together")
 			}
 
 			// Enforce that when secret_key is set, secret_key_version must be provided
@@ -42,8 +55,14 @@ func resourceMinioAccessKey() *schema.Resource {
 				return fmt.Errorf("secret_key_version must be provided when secret_key is set")
 			}
 
-			// When secret_key_version changes, validate secret_key availability
-			if d.HasChange("secret_key_version") {
+			// Enforce that when secret_key_wo is set, secret_key_wo_version must be provided
+			if hasSecretWO && !hasVersionWO {
+				return fmt.Errorf("secret_key_wo_version must be provided when secret_key_wo is set")
+			}
+
+			hasSecretVersionChange := d.HasChange("secret_key_version") && version != ""
+			// When secret_key_version changes to non-empty value, validate secret_key availability
+			if hasSecretVersionChange {
 				// Check if secret_key is present in the configuration
 				rawConfig := d.GetRawConfig()
 				secretKeyAttr := rawConfig.GetAttr("secret_key")
@@ -53,6 +72,11 @@ func resourceMinioAccessKey() *schema.Resource {
 				if secret == "" && secretKeyAttr.IsNull() {
 					return fmt.Errorf("secret_key must be provided when secret_key_version changes")
 				}
+			}
+
+			hasSecretWOVersionChange := d.HasChange("secret_key_wo_version") && hasVersionWO
+			if hasSecretWOVersionChange && !hasSecretWO {
+				return fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes")
 			}
 
 			return nil
@@ -93,9 +117,13 @@ func resourceMinioAccessKey() *schema.Resource {
 				},
 			},
 			"secret_key": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
+				Type:      schema.TypeString,
+				Optional:  true,
+				Sensitive: true,
+				ConflictsWith: []string{
+					"secret_key_wo",
+					"secret_key_wo_version",
+				},
 				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
 					// On creation, do not suppress so validation and planning behave normally
@@ -119,10 +147,50 @@ func resourceMinioAccessKey() *schema.Resource {
 					return
 				},
 			},
+			"secret_key_wo": {
+				Type:      schema.TypeString,
+				Optional:  true,
+				WriteOnly: true,
+				Sensitive: true,
+				RequiredWith: []string{
+					"secret_key_wo_version",
+				},
+				ConflictsWith: []string{
+					"secret_key",
+					"secret_key_version",
+				},
+				Description: "Write-only secret key for the access key.",
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if v != "" {
+						if len(v) < 8 {
+							errs = append(errs, fmt.Errorf("%q must be at least 8 characters when specified", key))
+						}
+					}
+					return
+				},
+			},
 			"secret_key_version": {
-				Type:        schema.TypeString,
-				Optional:    true,
+				Type:     schema.TypeString,
+				Optional: true,
+				ConflictsWith: []string{
+					"secret_key_wo",
+					"secret_key_wo_version",
+				},
 				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
+			},
+			"secret_key_wo_version": {
+				Type:     schema.TypeInt,
+				Optional: true,
+				RequiredWith: []string{
+					"secret_key_wo",
+				},
+				ConflictsWith: []string{
+					"secret_key",
+					"secret_key_version",
+				},
+				ValidateFunc: validation.IntAtLeast(1),
+				Description:  "Version identifier for secret_key_wo. Change this value to trigger rotation when using secret_key_wo.",
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -164,6 +232,13 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	user := d.Get("user").(string)
 	accessKey := d.Get("access_key").(string)
 	secretKey := d.Get("secret_key").(string)
+	secretKeyWO, hasSecretKeyWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("secret_key_wo"), "secret_key_wo")
+	if err != nil {
+		return NewResourceError("retrieving secret_key_wo", user, err)
+	}
+	if hasSecretKeyWO {
+		secretKey = secretKeyWO
+	}
 	status := d.Get("status").(string)
 	policy := d.Get("policy").(string)
 	description := d.Get("description").(string)
@@ -319,7 +394,8 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 	hasStatusChange := d.HasChange("status")
 	hasPolicyChange := d.HasChange("policy")
-	hasSecretChange := d.HasChange("secret_key_version")
+	secretVersion := strings.TrimSpace(d.Get("secret_key_version").(string))
+	hasSecretChange := d.HasChange("secret_key_version") && secretVersion != ""
 	hasDescriptionChange := d.HasChange("description")
 
 	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v, description change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange, hasDescriptionChange)
@@ -396,8 +472,21 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 	}
 
-	if hasSecretChange {
+	_, hasSecretWOVersion := d.GetOk("secret_key_wo_version")
+	hasSecretWOChange := d.HasChange("secret_key_wo_version") && hasSecretWOVersion
+
+	if hasSecretChange || hasSecretWOChange {
 		newSecret := strings.TrimSpace(d.Get("secret_key").(string))
+		if hasSecretWOChange {
+			secretWO, hasSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("secret_key_wo"), "secret_key_wo")
+			if err != nil {
+				return NewResourceError("retrieving secret_key_wo", accessKeyID, err)
+			}
+			if !hasSecretWO {
+				return NewResourceError("missing required secret_key_wo for secret rotation", accessKeyID, fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes"))
+			}
+			newSecret = secretWO
+		}
 		if newSecret != "" {
 			log.Printf("[DEBUG] Rotating secret for accesskey %s", accessKeyID)
 			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -416,6 +505,8 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			}
 			// Clear secret_key from state after rotation
 			_ = d.Set("secret_key", "")
+		} else if hasSecretWOChange {
+			return NewResourceError("missing required secret_key_wo for secret rotation", accessKeyID, fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes"))
 		} else {
 			return NewResourceError("missing required secret_key for secret rotation", accessKeyID, fmt.Errorf("secret_key must be provided when secret_key_version changes"))
 		}

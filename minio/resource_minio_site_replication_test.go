@@ -60,6 +60,27 @@ resource "minio_site_replication" "three_site" {
   }
 }`
 
+const kBasicSiteReplicationResourceWriteOnly = `
+resource "minio_site_replication" "basic" {
+  name = "%s"
+
+  site {
+    name                  = "site1"
+    endpoint              = "%s"
+    access_key            = "%s"
+    secret_key_wo         = "%s"
+    secret_key_wo_version = %d
+  }
+
+  site {
+    name                  = "site2"
+    endpoint              = "%s"
+    access_key            = "%s"
+    secret_key_wo         = "%s"
+    secret_key_wo_version = %d
+  }
+}`
+
 func testAccPreCheckSiteReplication(t *testing.T) {
 	if os.Getenv("MINIO_USER") == "" || os.Getenv("MINIO_PASSWORD") == "" {
 		t.Skip("MINIO_USER or MINIO_PASSWORD not set for acceptance test")
@@ -214,6 +235,102 @@ func TestAccMinioSiteReplication_threeSites(t *testing.T) {
 					resource.TestCheckResourceAttr("minio_site_replication.three_site", "site.1.endpoint", secondaryMinioEndpoint),
 					resource.TestCheckResourceAttr("minio_site_replication.three_site", "site.2.name", "site3"),
 					resource.TestCheckResourceAttr("minio_site_replication.three_site", "site.2.endpoint", thirdMinioEndpoint),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioSiteReplication_writeOnlyCredentials(t *testing.T) {
+	cleanupAllBuckets(t)
+
+	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-wo")
+
+	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioUser := os.Getenv("MINIO_USER")
+	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
+
+	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
+	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(kBasicSiteReplicationResourceWriteOnly,
+					replicationName,
+					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword, 1,
+					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword, 1,
+				),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
+					resource.TestCheckResourceAttr("minio_site_replication.basic", "enabled", "true"),
+					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.#", "2"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.access_key"),
+					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.0.secret_key", ""),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.1.access_key"),
+					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.1.secret_key", ""),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioSiteReplication_writeOnlyCredentials_transition(t *testing.T) {
+	cleanupAllBuckets(t)
+
+	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-wo-transition")
+
+	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioUser := os.Getenv("MINIO_USER")
+	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
+
+	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
+	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(kBasicSiteReplicationResource,
+					replicationName,
+					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
+					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword,
+				),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.access_key"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.secret_key"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(kBasicSiteReplicationResourceWriteOnly,
+					replicationName,
+					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword, 2,
+					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword, 2,
+				),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.access_key"),
+					resource.TestCheckResourceAttr("minio_site_replication.basic", "site.0.secret_key", ""),
+				),
+			},
+			{
+				Config: fmt.Sprintf(kBasicSiteReplicationResource,
+					replicationName,
+					primaryMinioEndpoint, primaryMinioUser, primaryMinioPassword,
+					secondaryMinioEndpoint, secondaryMinioUser, secondaryMinioPassword,
+				),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckSiteReplicationExists("minio_site_replication.basic"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.access_key"),
+					resource.TestCheckResourceAttrSet("minio_site_replication.basic", "site.0.secret_key"),
 				),
 			},
 		},

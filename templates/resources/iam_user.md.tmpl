@@ -13,6 +13,10 @@ description: |-
 
 {{ tffile "examples/resources/minio_iam_user/resource.tf" }}
 
+## Write-Only Secret
+
+Use `secret_wo` with `secret_wo_version` when you do not want the provided secret value to be persisted in Terraform state.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import

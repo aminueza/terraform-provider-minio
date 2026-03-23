@@ -45,7 +45,7 @@ jobs:
           args: -fmt sarif -out gosec.sarif -exclude-dir=vendor -tests=false -exclude=G101 ./
 
       - name: Upload security scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
+        uses: github/codeql-action/upload-sarif@38697555549f1db7851b81482ff19f1fa5c4fedc # v4.34.1
         if: always() && hashFiles('gosec.sarif') != ''
         with:
           sarif_file: gosec.sarif

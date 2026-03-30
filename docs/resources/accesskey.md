@@ -12,6 +12,11 @@ description: |-
 ## Example Usage
 
 ```terraform
+ephemeral "vault_kv_secret_v2" "access_key_password" {
+  mount = "secret"
+  name  = "minio/accesskey/custom-key-write-only"
+}
+
 # Create a user first
 resource "minio_iam_user" "example_user" {
   name = "example-user"
@@ -29,6 +34,15 @@ resource "minio_accesskey" "custom_key" {
   secret_key         = "mySuperSecretKey" # Must be at least 8 characters
   secret_key_version = "v1"               # Version identifier for change detection
   status            = "enabled"
+}
+
+# Create an access key with write-only secret
+resource "minio_accesskey" "custom_key_write_only" {
+  user                  = minio_iam_user.example_user.name
+  access_key            = "MINIO_ACCESS_KEY2"
+  secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.access_key_password.data.secret_key)
+  secret_key_wo_version = 1
+  status                = "enabled"
 }
 
 # Create a disabled access key
@@ -76,11 +90,15 @@ The `policy` argument expects a JSON policy document. Use `jsonencode({...})` to
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `access_key` (String) The access key. If provided, must be between 8 and 20 characters.
 - `description` (String) Description for the access key (max 256 characters).
 - `policy` (String) Policy to attach to the access key (policy name or JSON document).
 - `secret_key` (String, Sensitive) The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.
 - `secret_key_version` (String) Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.
+- `secret_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the access key.
+- `secret_key_wo_version` (Number) Version identifier for secret_key_wo. Increment this integer to trigger rotation when using secret_key_wo.
 - `status` (String) The status of the access key (enabled/disabled).
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
@@ -110,12 +128,13 @@ terraform import minio_accesskey.example AKIAIOSFODNN7EXAMPLE
 ## Security Note
 
 The `secret_key` is intentionally designed as write-only to avoid persisting sensitive credentials in Terraform state files. It is never exposed in state or outputs, including at creation time. When you provide a custom secret key, you must also provide a `secret_key_version` to enable change detection without storing the actual secret.
+Use `secret_key_wo` for write-only secret handling with support ephemeral values. Pair it with `secret_key_wo_version` (integer) to trigger rotation without persisting the submitted secret value in Terraform state.
 
 ### Secret Key Rotation
 
 To rotate a secret key:
 
-1. Update both `secret_key` and `secret_key_version` in your configuration
+1. Update `secret_key`, `secret_key_version` or `secret_key_wo`, `secret_key_wo_version` pair in your configuration
 2. Run `terraform apply`
 3. The new secret will be set, but not stored in state
 

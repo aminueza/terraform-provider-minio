@@ -258,6 +258,65 @@ func TestAccAWSUser_RecreateMissing(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_WriteOnlySecret_basic(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-wo-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.testwo"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfigSetSecretWO(name, "secret1234", 1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					resource.TestCheckResourceAttr(resourceName, "secret", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_wo"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccAWSUser_WriteOnlySecret_transition(t *testing.T) {
+	var user madmin.UserInfo
+
+	name := fmt.Sprintf("test-user-wo-transition-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.testwo_transition"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfigSensitiveTransitionOne(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					resource.TestCheckResourceAttr(resourceName, "secret", "secret1234"),
+				),
+			},
+			{
+				Config: testAccMinioUserConfigSensitiveToWriteOnly(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					resource.TestCheckResourceAttr(resourceName, "secret", ""),
+				),
+			},
+			{
+				Config: testAccMinioUserConfigSensitiveTransitionTwo(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserExists(resourceName, &user),
+					resource.TestCheckResourceAttr(resourceName, "secret", "secret4321"),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioUserConfigWithSecretOne(rName string) string {
 	return fmt.Sprintf(`
 	resource "minio_iam_user" "test5" {
@@ -265,6 +324,44 @@ func testAccMinioUserConfigWithSecretOne(rName string) string {
 	  name   = %q
 	}
 	`, rName)
+}
+
+func testAccMinioUserConfigSetSecretWO(rName string, secret string, version int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "testwo" {
+  name              = %q
+  secret_wo         = %q
+  secret_wo_version = %d
+}
+`, rName, secret, version)
+}
+
+func testAccMinioUserConfigSensitiveTransitionOne(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "testwo_transition" {
+  name   = %q
+  secret = "secret1234"
+}
+`, rName)
+}
+
+func testAccMinioUserConfigSensitiveToWriteOnly(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "testwo_transition" {
+  name              = %q
+  secret_wo         = "secret5678"
+  secret_wo_version = 1
+}
+`, rName)
+}
+
+func testAccMinioUserConfigSensitiveTransitionTwo(rName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "testwo_transition" {
+  name   = %q
+  secret = "secret4321"
+}
+`, rName)
 }
 func testAccMinioUserConfigWithSecretTwo(rName string) string {
 	return fmt.Sprintf(`

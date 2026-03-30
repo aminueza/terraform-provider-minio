@@ -94,6 +94,70 @@ func TestAccMinioIAMIdpOpenId_update(t *testing.T) {
 	})
 }
 
+func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret(t *testing.T) {
+	resourceName := "minio_iam_idp_openid.test"
+	cfgName := "tfacc-oidc-wo-" + acctest.RandString(6)
+	configURL := os.Getenv("MINIO_OIDC_CONFIG_URL")
+	clientID := os.Getenv("MINIO_OIDC_CLIENT_ID")
+	clientSecret := os.Getenv("MINIO_OIDC_CLIENT_SECRET")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccOIDCPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpOpenIdWriteOnly(cfgName, configURL, clientID, clientSecret, 1),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", cfgName),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"client_secret", "client_secret_wo_version", "restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret_transition(t *testing.T) {
+	resourceName := "minio_iam_idp_openid.test"
+	cfgName := "tfacc-oidc-wo-transition-" + acctest.RandString(6)
+	configURL := os.Getenv("MINIO_OIDC_CONFIG_URL")
+	clientID := os.Getenv("MINIO_OIDC_CLIENT_ID")
+	clientSecret := os.Getenv("MINIO_OIDC_CLIENT_SECRET")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccOIDCPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+				),
+			},
+			{
+				Config: testAccMinioIAMIdpOpenIdWriteOnly(cfgName, configURL, clientID, clientSecret, 2),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "client_secret", ""),
+				),
+			},
+			{
+				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioIAMIdpOpenIdExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]
@@ -156,4 +220,16 @@ resource "minio_iam_idp_openid" "test" {
   comment       = %[5]q
 }
 `, name, configURL, clientID, clientSecret, comment)
+}
+
+func testAccMinioIAMIdpOpenIdWriteOnly(name, configURL, clientID, clientSecret string, version int) string {
+	return fmt.Sprintf(`
+resource "minio_iam_idp_openid" "test" {
+  name                     = %[1]q
+  config_url               = %[2]q
+  client_id                = %[3]q
+  client_secret_wo         = %[4]q
+  client_secret_wo_version = %[5]d
+}
+`, name, configURL, clientID, clientSecret, version)
 }

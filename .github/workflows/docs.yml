@@ -56,7 +56,10 @@ jobs:
   generate-docs:
     name: Generate Docs
     needs: check-templates
-    if: always() && !cancelled() && needs.check-templates.result == 'success' || github.event_name == 'push'
+    if: |
+      (always() && !cancelled() && needs.check-templates.result == 'success' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)) ||
+      github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write

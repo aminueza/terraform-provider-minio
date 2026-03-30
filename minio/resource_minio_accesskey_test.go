@@ -115,26 +115,26 @@ func TestAccMinioAccessKey_validation_requiresWriteOnlySecretOnVersionChange(t *
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, 1),
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, "v1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "user", rName),
 					resource.TestCheckResourceAttr(resourceName, "access_key", customAccessKey),
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
-					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "1"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "v1"),
 				),
 			},
 			{
-				Config:      testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, customAccessKey, 2),
+				Config:      testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, customAccessKey, "v2"),
 				PlanOnly:    true,
 				ExpectError: regexp.MustCompile("Missing required argument|secret_key_wo must be provided when secret_key_wo_version changes"),
 			},
 			{
-				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, 1),
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, "v1"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
-					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "1"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "v1"),
 				),
 			},
 		},
@@ -183,7 +183,7 @@ resource "minio_accesskey" "test" {
 `, rName, accessKey, secretKey)
 }
 
-func testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, accessKey, secretKey string, version int) string {
+func testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, accessKey, secretKey, version string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {
   name = %q
@@ -193,12 +193,12 @@ resource "minio_accesskey" "test" {
   user                  = minio_iam_user.test.name
   access_key            = %q
   secret_key_wo         = %q
-  secret_key_wo_version = %d
+  secret_key_wo_version = %q
 }
 `, rName, accessKey, secretKey, version)
 }
 
-func testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, accessKey string, version int) string {
+func testAccMinioAccessKeyConfigWriteOnlyVersionOnly(rName, accessKey, version string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {
   name = %q
@@ -207,7 +207,7 @@ resource "minio_iam_user" "test" {
 resource "minio_accesskey" "test" {
   user                  = minio_iam_user.test.name
   access_key            = %q
-  secret_key_wo_version = %d
+  secret_key_wo_version = %q
 }
 `, rName, accessKey, version)
 }
@@ -469,11 +469,11 @@ func TestAccMinioAccessKey_writeOnlySecretTransition(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV2, 2),
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV2, "v2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
-					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "2"),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_wo_version", "v2"),
 				),
 			},
 			{

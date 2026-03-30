@@ -42,6 +42,10 @@ func resourceMinioServiceAccount() *schema.Resource {
 				Description: "rotate secret key",
 				Optional:    true,
 				Default:     false,
+				ConflictsWith: []string{
+					"secret_key_wo",
+					"secret_key_wo_version",
+				},
 			},
 			"status": {
 				Type:     schema.TypeString,
@@ -62,12 +66,18 @@ func resourceMinioServiceAccount() *schema.Resource {
 				RequiredWith: []string{
 					"secret_key_wo_version",
 				},
+				ConflictsWith: []string{
+					"update_secret",
+				},
 			},
 			"secret_key_wo_version": {
 				Type:     schema.TypeInt,
 				Optional: true,
 				RequiredWith: []string{
 					"secret_key_wo",
+				},
+				ConflictsWith: []string{
+					"update_secret",
 				},
 				ValidateFunc: validation.IntAtLeast(1),
 				Description:  "Version identifier for secret_key_wo. Change this value to trigger secret key rotation when using secret_key_wo.",

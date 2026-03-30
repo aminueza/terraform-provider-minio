@@ -269,6 +269,136 @@ EOF
 `, bucketName)
 }
 
+func TestAccS3BucketPolicy_disappears(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketPolicyConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+				),
+			},
+			{
+				PreConfig: func() {
+					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					_ = minioC.SetBucketPolicy(context.Background(), name, "")
+					_ = minioC.RemoveBucket(context.Background(), name)
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
+func TestAccS3BucketPolicy_policyDeletedExternally(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketPolicyConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+				),
+			},
+			{
+				PreConfig: func() {
+					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					_ = minioC.SetBucketPolicy(context.Background(), name, "")
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
+func TestAccS3BucketPolicy_survivesVersioningChange(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	expectedPolicyText := fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": ["arn:aws:s3:::%s"],
+      "Action": ["s3:ListBucket"]
+    }
+  ]
+}`, name)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketPolicyConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasPolicy("minio_s3_bucket.bucket", expectedPolicyText),
+				),
+			},
+			{
+				Config: testAccBucketPolicyWithVersioningConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasPolicy("minio_s3_bucket.bucket", expectedPolicyText),
+					testAccCheckBucketHasVersioning(
+						"minio_s3_bucket_versioning.bucket",
+						S3MinioBucketVersioningConfiguration{
+							Status: "Enabled",
+						},
+					),
+				),
+			},
+		},
+	})
+}
+
+func testAccBucketPolicyWithVersioningConfig(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = %[1]q
+}
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": [
+        "${minio_s3_bucket.bucket.arn}"
+      ],
+      "Action": ["s3:ListBucket"]
+    }
+  ]
+}
+EOF
+}
+resource "minio_s3_bucket_versioning" "bucket" {
+  depends_on = [minio_s3_bucket_policy.bucket]
+  bucket     = minio_s3_bucket.bucket.bucket
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+`, bucketName)
+}
+
 func testAccCheckBucketHasPolicy(n string, expectedPolicyText string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]

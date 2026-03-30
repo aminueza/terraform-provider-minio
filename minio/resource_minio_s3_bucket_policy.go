@@ -2,7 +2,9 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -87,6 +89,19 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("error putting bucket policy: %s", policy, err)
 	}
 
+	// MinIO multi-drive deployments can lose bucket versioning when a policy
+	// is set immediately after versioning. Capture versioning before and
+	// restore it if SetBucketPolicy destroyed it.
+	versioningBefore, _ := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
+	if versioningBefore.Status != "" {
+		time.Sleep(500 * time.Millisecond)
+		versioningAfter, _ := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
+		if versioningAfter.Status == "" {
+			log.Printf("[WARN] Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket)
+			_ = bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore)
+		}
+	}
+
 	d.SetId(bucketPolicyConfig.MinioBucket)
 
 	return minioReadBucketPolicy(ctx, d, meta)
@@ -110,15 +125,48 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	actualPolicyText, err := bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
-	if err != nil {
-		// Handle bucket not found for existing resources
-		if isNoSuchBucketError(err) && !d.IsNewResource() {
+	var actualPolicyText string
+	var readPolicyErr error
+
+	actualPolicyText, readPolicyErr = bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
+	if readPolicyErr != nil {
+		if isNoSuchBucketError(readPolicyErr) && !d.IsNewResource() {
 			log.Printf("[WARN] Bucket %s no longer exists, removing policy resource from state", d.Id())
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("failed to load bucket policy", d.Id(), err)
+		if !d.IsNewResource() {
+			return NewResourceError("failed to load bucket policy", d.Id(), readPolicyErr)
+		}
+	}
+
+	if strings.TrimSpace(actualPolicyText) == "" || strings.TrimSpace(actualPolicyText) == "{}" {
+		retryTimeout := 5 * time.Second
+		if d.IsNewResource() {
+			retryTimeout = d.Timeout(schema.TimeoutRead)
+		}
+		retryErr := retry.RetryContext(ctx, retryTimeout, func() *retry.RetryError {
+			var err error
+			actualPolicyText, err = bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
+			if err != nil {
+				if isNoSuchBucketError(err) && d.IsNewResource() {
+					return retry.RetryableError(err)
+				}
+				return retry.NonRetryableError(err)
+			}
+			if strings.TrimSpace(actualPolicyText) == "" || strings.TrimSpace(actualPolicyText) == "{}" {
+				return retry.RetryableError(fmt.Errorf("policy not yet available for bucket %s", d.Id()))
+			}
+			return nil
+		})
+		if retryErr != nil {
+			if d.IsNewResource() {
+				return NewResourceError("failed to load bucket policy", d.Id(), retryErr)
+			}
+			log.Printf("[WARN] Bucket %s policy is empty, assuming deleted externally", d.Id())
+			d.SetId("")
+			return nil
+		}
 	}
 
 	existingPolicy := ""

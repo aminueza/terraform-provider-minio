@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -179,8 +180,9 @@ func resourceMinioAccessKey() *schema.Resource {
 				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
 			},
 			"secret_key_wo_version": {
-				Type:     schema.TypeString,
-				Optional: true,
+				Type:         schema.TypeInt,
+				Optional:     true,
+				ValidateFunc: validation.IntAtLeast(1),
 				RequiredWith: []string{
 					"secret_key_wo",
 				},
@@ -188,7 +190,7 @@ func resourceMinioAccessKey() *schema.Resource {
 					"secret_key",
 					"secret_key_version",
 				},
-				Description: "Version identifier for secret_key_wo. Change this value to trigger rotation when using secret_key_wo. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
+				Description: "Version identifier for secret_key_wo. Increment this integer to trigger rotation when using secret_key_wo.",
 			},
 			"status": {
 				Type:        schema.TypeString,

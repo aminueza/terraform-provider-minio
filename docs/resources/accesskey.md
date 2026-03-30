@@ -98,7 +98,7 @@ The `policy` argument expects a JSON policy document. Use `jsonencode({...})` to
 - `secret_key` (String, Sensitive) The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.
 - `secret_key_version` (String) Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.
 - `secret_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the access key.
-- `secret_key_wo_version` (Number) Version identifier for secret_key_wo. Change this value to trigger rotation when using secret_key_wo.
+- `secret_key_wo_version` (String) Version identifier for secret_key_wo. Change this value to trigger rotation when using secret_key_wo. Can be a hash, version number, timestamp, or any string that changes when the secret changes.
 - `status` (String) The status of the access key (enabled/disabled).
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 

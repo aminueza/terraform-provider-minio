@@ -27,5 +27,7 @@ data "minio_iam_user" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+- `member_of_groups` (List of String)
+- `policy_names` (List of String)
 - `status` (String)
 - `tags` (Map of String)

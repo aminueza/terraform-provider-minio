@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"math"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -35,6 +36,10 @@ func dataSourceMinioS3BucketRetentionRead(d *schema.ResourceData, meta interface
 
 	_ = d.Set("mode", mode.String())
 	_ = d.Set("unit", unit.String())
-	_ = d.Set("validity_period", int(*validity))
+	validityInt := math.MaxInt
+	if *validity <= uint(math.MaxInt) {
+		validityInt = int(*validity)
+	}
+	_ = d.Set("validity_period", validityInt)
 	return nil
 }

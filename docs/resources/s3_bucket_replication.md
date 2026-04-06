@@ -42,9 +42,9 @@ data "minio_iam_policy_document" "replication_policy" {
   statement {
     sid       = "ReadBuckets"
     effect    = "Allow"
-    resource = "arn:aws:s3:::*"
+    resources = ["arn:aws:s3:::*"]
 
-    action = [
+    actions = [
       "s3:ListBucket",
     ]
   }
@@ -52,9 +52,9 @@ data "minio_iam_policy_document" "replication_policy" {
   statement {
     sid       = "EnableReplicationOnBucket"
     effect    = "Allow"
-    resource = "arn:aws:s3:::my-bucket"
+    resources = ["arn:aws:s3:::my-bucket"]
 
-    action = [
+    actions = [
       "s3:GetReplicationConfiguration",
       "s3:ListBucket",
       "s3:ListBucketMultipartUploads",
@@ -68,9 +68,9 @@ data "minio_iam_policy_document" "replication_policy" {
   statement {
     sid       = "EnableReplicatingDataIntoBucket"
     effect    = "Allow"
-    resource = "arn:aws:s3:::my-bucket/*"
+    resources = ["arn:aws:s3:::my-bucket/*"]
 
-    action = [
+    actions = [
       "s3:GetReplicationConfiguration",
       "s3:ReplicateTags",
       "s3:AbortMultipartUpload",

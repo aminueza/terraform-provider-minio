@@ -27,5 +27,5 @@ data "minio_s3_bucket_quota" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `quota` (Number) Quota size in bytes.
-- `type` (String) Quota type (e.g. "hard").
+- `quota` (Number)
+- `type` (String)

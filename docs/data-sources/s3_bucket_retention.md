@@ -27,6 +27,6 @@ data "minio_s3_bucket_retention" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `mode` (String) Retention mode: GOVERNANCE or COMPLIANCE.
-- `unit` (String) Retention period unit: DAYS or YEARS.
-- `validity_period` (Number) Duration for which objects are retained.
+- `mode` (String)
+- `unit` (String)
+- `validity_period` (Number)

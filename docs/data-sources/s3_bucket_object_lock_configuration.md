@@ -27,21 +27,21 @@ data "minio_s3_bucket_object_lock_configuration" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `object_lock_enabled` (String) Whether object lock is enabled.
-- `rule` (List of Object) Default retention rule. (see [below for nested schema](#nestedatt--rule))
+- `object_lock_enabled` (String)
+- `rule` (List of Object) (see [below for nested schema](#nestedatt--rule))
 
 <a id="nestedatt--rule"></a>
 ### Nested Schema for `rule`
 
 Read-Only:
 
-- `default_retention` (List of Object) (see [below for nested schema](#nestedatt--rule--default_retention))
+- `default_retention` (List of Object) (see [below for nested schema](#nestedobjatt--rule--default_retention))
 
-<a id="nestedatt--rule--default_retention"></a>
+<a id="nestedobjatt--rule--default_retention"></a>
 ### Nested Schema for `rule.default_retention`
 
 Read-Only:
 
-- `mode` (String) GOVERNANCE or COMPLIANCE.
-- `days` (Number) Retention period in days.
-- `years` (Number) Retention period in years.
+- `days` (Number)
+- `mode` (String)
+- `years` (Number)

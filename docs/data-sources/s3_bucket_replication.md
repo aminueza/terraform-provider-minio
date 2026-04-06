@@ -7,7 +7,7 @@ description: |-
 
 # minio_s3_bucket_replication (Data Source)
 
-Reads the replication configuration of an existing S3 bucket, including replication rules and their destination details.
+Reads the replication configuration of an existing S3 bucket.
 
 ## Example Usage
 
@@ -27,34 +27,34 @@ data "minio_s3_bucket_replication" "example" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `rule` (List of Object) Replication rules. (see [below for nested schema](#nestedatt--rule))
+- `rule` (List of Object) (see [below for nested schema](#nestedatt--rule))
 
 <a id="nestedatt--rule"></a>
 ### Nested Schema for `rule`
 
 Read-Only:
 
-- `id` (String) Rule ID.
-- `enabled` (Boolean) Whether the rule is enabled.
-- `priority` (Number) Rule priority.
-- `prefix` (String) Object key prefix filter.
-- `tags` (Map of String) Tag filters.
-- `delete_replication` (Boolean) Whether deletions are replicated.
-- `delete_marker_replication` (Boolean) Whether delete markers are replicated.
-- `existing_object_replication` (Boolean) Whether existing objects are replicated.
-- `metadata_sync` (Boolean) Whether metadata is synchronized.
-- `destination` (List of Object) Replication destination. (see [below for nested schema](#nestedatt--rule--destination))
+- `delete_marker_replication` (Boolean)
+- `delete_replication` (Boolean)
+- `destination` (List of Object) (see [below for nested schema](#nestedobjatt--rule--destination))
+- `enabled` (Boolean)
+- `existing_object_replication` (Boolean)
+- `id` (String)
+- `metadata_sync` (Boolean)
+- `prefix` (String)
+- `priority` (Number)
+- `tags` (Map of String)
 
-<a id="nestedatt--rule--destination"></a>
+<a id="nestedobjatt--rule--destination"></a>
 ### Nested Schema for `rule.destination`
 
 Read-Only:
 
-- `bucket` (String) Target bucket name.
-- `storage_class` (String) Storage class on the target.
-- `host` (String) Target host endpoint.
-- `secure` (Boolean) Whether HTTPS is used.
-- `path_style` (String) Path style setting.
-- `path` (String) Path prefix on the target.
-- `synchronous` (Boolean) Whether replication is synchronous.
-- `region` (String) Target region.
+- `bucket` (String)
+- `host` (String)
+- `path` (String)
+- `path_style` (String)
+- `region` (String)
+- `secure` (Boolean)
+- `storage_class` (String)
+- `synchronous` (Boolean)

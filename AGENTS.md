@@ -533,6 +533,21 @@ ResourcesMap: map[string]*schema.Resource{
 - Resource registered in `provider.go`
 - Acceptance tests include `_basic`, `_update`
 - Integer conversions are safe
+- Template file created: `templates/resources/{name}.md.tmpl`
+- Example TF file created: `examples/resources/minio_{name}/resource.tf`
+- Test file created: `minio/resource_minio_{name}_test.go`
+
+### Checklist for new data sources
+
+- Data source function defined: `dataSourceMinio{Name}()`
+- Read function implemented with correct naming
+- All errors use `NewResourceError`
+- Schema: `bucket` (or lookup key) Required, all other fields Computed
+- Data source registered in `provider.go` `DataSourcesMap`
+- Template file created: `templates/data-sources/{name}.md.tmpl`
+- Example TF file created: `examples/data-sources/minio_{name}/data-source.tf`
+- Test file created: `minio/data_source_minio_{name}_test.go`
+- Acceptance test covers at least `_basic` scenario
 
 ---
 

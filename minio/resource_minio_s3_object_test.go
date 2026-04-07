@@ -184,6 +184,59 @@ resource "minio_s3_object" "test" {
 `, rInt, acl)
 }
 
+func TestAccMinioS3Object_withMetadata(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_object.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3ObjectConfigWithMetadata(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "test"),
+					resource.TestCheckResourceAttr(resourceName, "metadata.team", "platform"),
+					resource.TestCheckResourceAttr(resourceName, "cache_control", "max-age=3600"),
+					resource.TestCheckResourceAttr(resourceName, "content_disposition", "attachment"),
+					resource.TestCheckResourceAttr(resourceName, "content_encoding", "identity"),
+					resource.TestCheckResourceAttr(resourceName, "storage_class", "STANDARD"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Object_withMetadataUpdate(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_object.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3ObjectConfigWithMetadata(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "test"),
+				),
+			},
+			{
+				Config: testAccMinioS3ObjectConfigWithMetadataUpdated(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "production"),
+					resource.TestCheckResourceAttr(resourceName, "cache_control", "no-cache"),
+				),
+			},
+		},
+	})
+}
+
 func testAccMinioS3ObjectConfigWithContentType(rInt int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
@@ -196,6 +249,56 @@ resource "minio_s3_object" "test" {
   object_name  = "test-object.txt"
   content      = "test content"
   content_type = "text/plain"
+}
+`, rInt)
+}
+
+func testAccMinioS3ObjectConfigWithMetadata(rInt int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket = "tf-test-bucket-%d"
+  acl    = "public-read-write"
+}
+
+resource "minio_s3_object" "test" {
+  bucket_name         = minio_s3_bucket.test.bucket
+  object_name         = "test-object-meta"
+  content             = "test content with metadata"
+  content_type        = "text/plain"
+  cache_control       = "max-age=3600"
+  content_disposition = "attachment"
+  content_encoding    = "identity"
+  storage_class       = "STANDARD"
+
+  metadata = {
+    environment = "test"
+    team        = "platform"
+  }
+}
+`, rInt)
+}
+
+func testAccMinioS3ObjectConfigWithMetadataUpdated(rInt int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket = "tf-test-bucket-%d"
+  acl    = "public-read-write"
+}
+
+resource "minio_s3_object" "test" {
+  bucket_name         = minio_s3_bucket.test.bucket
+  object_name         = "test-object-meta"
+  content             = "updated content"
+  content_type        = "text/plain"
+  cache_control       = "no-cache"
+  content_disposition = "attachment"
+  content_encoding    = "identity"
+  storage_class       = "STANDARD"
+
+  metadata = {
+    environment = "production"
+    team        = "platform"
+  }
 }
 `, rInt)
 }

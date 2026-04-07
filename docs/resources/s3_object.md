@@ -34,6 +34,23 @@ resource "minio_s3_object" "public_file" {
   acl          = "public-read"
 }
 
+resource "minio_s3_object" "with_metadata" {
+  depends_on          = [minio_s3_bucket.state_terraform_s3]
+  bucket_name         = minio_s3_bucket.state_terraform_s3.bucket
+  object_name         = "report.json"
+  content             = "{}"
+  content_type        = "application/json"
+  content_encoding    = "gzip"
+  content_disposition = "attachment; filename=\"report.json\""
+  cache_control       = "max-age=3600"
+  storage_class       = "STANDARD"
+
+  metadata = {
+    environment = "production"
+    team        = "platform"
+  }
+}
+
 output "minio_id" {
   value = minio_s3_object.txt_file.id
 }
@@ -50,11 +67,17 @@ output "minio_id" {
 ### Optional
 
 - `acl` (String) The canned ACL to apply to the object. Valid values: private, public-read, public-read-write, authenticated-read
+- `cache_control` (String)
 - `content` (String) Content of the object as a string. Use only one of content, content_base64, or source
 - `content_base64` (String) Base64-encoded content of the object. Use only one of content, content_base64, or source
+- `content_disposition` (String)
+- `content_encoding` (String)
 - `content_type` (String) Content type of the object, in the form of a MIME type
 - `etag` (String) ETag of the object
+- `expires` (String)
+- `metadata` (Map of String)
 - `source` (String) Path to the file that will be uploaded. Use only one of content, content_base64, or source
+- `storage_class` (String)
 - `version_id` (String) Version ID of the object
 
 ### Read-Only

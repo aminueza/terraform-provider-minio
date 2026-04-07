@@ -9,8 +9,9 @@ import (
 	"io"
 	"log"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -94,6 +95,35 @@ func resourceMinioObject() *schema.Resource {
 					"authenticated-read",
 				}, false),
 			},
+			"metadata": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+			},
+			"cache_control": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"content_disposition": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"content_encoding": {
+				Type:     schema.TypeString,
+				Optional: true,
+			},
+			"expires": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validation.IsRFC3339Time,
+			},
+			"storage_class": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice(
+					[]string{"STANDARD", "REDUCED_REDUNDANCY", "ONEZONE_IA", "INTELLIGENT_TIERING"}, false),
+			},
 		},
 	}
 }
@@ -143,6 +173,32 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 	options := minio.PutObjectOptions{}
 	if v, ok := d.GetOk("content_type"); ok {
 		options.ContentType = v.(string)
+	}
+	if v, ok := d.GetOk("cache_control"); ok {
+		options.CacheControl = v.(string)
+	}
+	if v, ok := d.GetOk("content_disposition"); ok {
+		options.ContentDisposition = v.(string)
+	}
+	if v, ok := d.GetOk("content_encoding"); ok {
+		options.ContentEncoding = v.(string)
+	}
+	if v, ok := d.GetOk("expires"); ok {
+		t, err := time.Parse(time.RFC3339, v.(string))
+		if err != nil {
+			return NewResourceError("parsing expires", d.Id(), err)
+		}
+		options.Expires = t
+	}
+	if v, ok := d.GetOk("storage_class"); ok {
+		options.StorageClass = v.(string)
+	}
+	if v, ok := d.GetOk("metadata"); ok {
+		metadata := make(map[string]string)
+		for k, val := range v.(map[string]interface{}) {
+			metadata[k] = val.(string)
+		}
+		options.UserMetadata = metadata
 	}
 
 	// Set ACL via x-amz-acl header
@@ -197,6 +253,34 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 	if err := d.Set("content_type", objInfo.ContentType); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
+	}
+	if err := d.Set("content_encoding", objInfo.ContentEncoding); err != nil {
+		return NewResourceError("reading object failed", d.Id(), err)
+	}
+	if err := d.Set("storage_class", objInfo.StorageClass); err != nil {
+		return NewResourceError("reading object failed", d.Id(), err)
+	}
+
+	if v := objInfo.Metadata.Get("Cache-Control"); v != "" {
+		_ = d.Set("cache_control", v)
+	}
+	if v := objInfo.Metadata.Get("Content-Disposition"); v != "" {
+		_ = d.Set("content_disposition", v)
+	}
+	if !objInfo.Expires.IsZero() {
+		_ = d.Set("expires", objInfo.Expires.Format(time.RFC3339))
+	}
+
+	userMeta := make(map[string]string)
+	for k, v := range objInfo.UserMetadata {
+		lower := strings.ToLower(k)
+		if lower == "x-amz-acl" || lower == "content-type" {
+			continue
+		}
+		userMeta[k] = v
+	}
+	if len(userMeta) > 0 {
+		_ = d.Set("metadata", userMeta)
 	}
 
 	return nil

@@ -57,3 +57,4 @@ resource "minio_iam_user_policy_attachment" "conditional" {
 - `member_of_groups` (List of String)
 - `policy_names` (List of String)
 - `status` (String)
+- `tags` (Map of String)

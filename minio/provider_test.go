@@ -1,57 +1,43 @@
 package minio
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
-	"github.com/hashicorp/terraform-plugin-mux/tf5muxserver"
 )
 
-// testAccProtoV5ProviderFactories is the muxed provider factory for acceptance
-// tests. Framework resources and SDK data sources are both available.
+// testAccProtoV5ProviderFactories is the framework provider factory for acceptance
+// tests. All resources use this.
 var testAccProtoV5ProviderFactories map[string]func() (tfprotov5.ProviderServer, error)
 
 // testAccProtoV5SecondProviderFactories is used by site-replication tests that
 // spin up multiple independent MinIO endpoints.
 var testAccProtoV5SecondProviderFactories map[string]func() (tfprotov5.ProviderServer, error)
 
-func newMuxedProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, error) {
+func newFrameworkProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, error) {
 	return func() (tfprotov5.ProviderServer, error) {
-		ctx := context.Background()
-		sdkProvider := newProvider(envPrefix).GRPCProvider
 		frameworkServer := providerserver.NewProtocol5(NewFrameworkProvider("test")())
-		mux, err := tf5muxserver.NewMuxServer(ctx, sdkProvider, frameworkServer)
-		if err != nil {
-			return nil, err
-		}
-		return mux.ProviderServer(), nil
+		return frameworkServer(), nil
 	}
 }
 
 func init() {
+	// Framework provider factories
 	testAccProtoV5ProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
-		"minio":       newMuxedProviderServer(""),
-		"secondminio": newMuxedProviderServer("SECOND_"),
-		"thirdminio":  newMuxedProviderServer("THIRD_"),
+		"minio":       newFrameworkProviderServer(""),
+		"secondminio": newFrameworkProviderServer("SECOND_"),
+		"thirdminio":  newFrameworkProviderServer("THIRD_"),
 		"fourthminio": newFrameworkProviderServer("FOURTH_"),
 		"kmsminio":    newFrameworkProviderServer("KMS_"),
 		"ldapminio":   newFrameworkProviderServer("LDAP_"),
 	}
 
 	testAccProtoV5SecondProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
-		"secondminio": newMuxedProviderServer("SECOND_"),
-		"thirdminio":  newMuxedProviderServer("THIRD_"),
-		"fourthminio": newMuxedProviderServer("FOURTH_"),
-	}
-}
-
-func newFrameworkProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, error) {
-	return func() (tfprotov5.ProviderServer, error) {
-		frameworkServer := providerserver.NewProtocol5(NewFrameworkProvider("test")())
-		return frameworkServer(), nil
+		"secondminio": newFrameworkProviderServer("SECOND_"),
+		"thirdminio":  newFrameworkProviderServer("THIRD_"),
+		"fourthminio": newFrameworkProviderServer("FOURTH_"),
 	}
 }
 

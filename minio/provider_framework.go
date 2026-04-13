@@ -219,9 +219,6 @@ func getBoolOrDefault(v types.Bool, defaultVal bool) bool {
 }
 
 // Resources returns the list of resources
-// Note: Resources with ListNestedAttribute/MapNestedAttribute are temporarily
-// excluded due to terraform-plugin-framework limitations with protocol v5.
-// minio_s3_bucket is included as it's required by many tests.
 func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		newS3BucketResource,
@@ -240,16 +237,45 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		newS3ObjectLegalHoldResource,
 		newS3ObjectRetentionResource,
 		newBucketPolicyResource,
+		newBucketVersioningResource,
+		newBucketEncryptionResource,
+		newBucketObjectLockConfigurationResource,
 		newBucketQuotaResource,
 		newBucketTagsResource,
+		newBucketCorsResource,
 		newBucketRetentionResource,
+		newBucketNotificationResource,
 		newILMPolicyResource,
 		newILMTierResource,
 		newIAMGroupPolicyResource,
 		newIAMUserGroupMembershipResource,
 		newKMSKeyResource,
+		newConfigResource,
+		newServerConfigRegionResource,
+		newServerConfigHealResource,
+		newServerConfigStorageClassResource,
+		newServerConfigScannerResource,
+		newServerConfigApiResource,
+		newServerConfigEtcdResource,
+		newAccessKeyResource,
+		newPrometheusBearerTokenResource,
 		newIAMIdpLdapResource,
 		newS3BucketAnonymousAccessResource,
+		newSiteReplicationResource,
+		newBucketReplicationResource(),
+		resourceMinioNotifyWebhookFramework,
+		resourceMinioNotifyAmqpFramework,
+		resourceMinioNotifyKafkaFramework,
+		resourceMinioNotifyMqttFramework,
+		resourceMinioNotifyNatsFramework,
+		resourceMinioNotifyNsqFramework,
+		resourceMinioNotifyMysqlFramework,
+		resourceMinioNotifyPostgresFramework,
+		resourceMinioNotifyElasticsearchFramework,
+		resourceMinioNotifyRedisFramework,
+		resourceMinioAuditWebhookFramework,
+		resourceMinioAuditKafkaFramework,
+		resourceMinioLoggerWebhookFramework,
 	}
 }
 

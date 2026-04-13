@@ -2,11 +2,13 @@ package minio
 
 import (
 	"context"
+	"os"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // minioFrameworkProvider defines the provider implementation
@@ -96,14 +98,132 @@ func (p *minioFrameworkProvider) Schema(_ context.Context, _ provider.SchemaRequ
 	}
 }
 
-// Configure sets up the provider
-func (p *minioFrameworkProvider) Configure(_ context.Context, _ provider.ConfigureRequest, _ *provider.ConfigureResponse) {
+// Configure sets up the provider - reads config and creates MinIO client
+func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+	var data providerModel
+
+	// Read provider configuration
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Read environment variables as fallback
+	minioServer := getStringOrDefault(data.MinioServer, os.Getenv("MINIO_ENDPOINT"))
+	minioRegion := getStringOrDefault(data.MinioRegion, "us-east-1")
+	if minioRegion == "us-east-1" && data.MinioRegion.IsNull() {
+		if v := os.Getenv("MINIO_REGION"); v != "" {
+			minioRegion = v
+		}
+	}
+	minioUser := getStringOrDefault(data.MinioUser, os.Getenv("MINIO_USER"))
+	minioPassword := getStringOrDefault(data.MinioPassword, os.Getenv("MINIO_PASSWORD"))
+	minioSessionToken := getStringOrDefault(data.MinioSessionToken, os.Getenv("MINIO_SESSION_TOKEN"))
+	minioAPIVersion := getStringOrDefault(data.MinioAPIVersion, "v4")
+	minioSSL := getBoolOrDefault(data.MinioSSL, false)
+	if !minioSSL && data.MinioSSL.IsNull() {
+		if v := os.Getenv("MINIO_ENABLE_HTTPS"); v != "" {
+			minioSSL = v == "true" || v == "1" || v == "on"
+		}
+	}
+	minioInsecure := getBoolOrDefault(data.MinioInsecure, false)
+	if !minioInsecure && data.MinioInsecure.IsNull() {
+		if v := os.Getenv("MINIO_INSECURE"); v != "" {
+			minioInsecure = v == "true" || v == "1" || v == "on"
+		}
+	}
+	minioCACertFile := getStringOrDefault(data.MinioCACertFile, os.Getenv("MINIO_CACERT_FILE"))
+	minioCertFile := getStringOrDefault(data.MinioCertFile, os.Getenv("MINIO_CERT_FILE"))
+	minioKeyFile := getStringOrDefault(data.MinioKeyFile, os.Getenv("MINIO_KEY_FILE"))
+	minioDebug := getBoolOrDefault(data.MinioDebug, false)
+	if !minioDebug && data.MinioDebug.IsNull() {
+		if v := os.Getenv("MINIO_DEBUG"); v != "" {
+			minioDebug = v == "true" || v == "1" || v == "on"
+		}
+	}
+	skipBucketTagging := getBoolOrDefault(data.SkipBucketTagging, false)
+	if !skipBucketTagging && data.SkipBucketTagging.IsNull() {
+		if v := os.Getenv("MINIO_SKIP_BUCKET_TAGGING"); v != "" {
+			skipBucketTagging = v == "true" || v == "1" || v == "on"
+		}
+	}
+	s3CompatMode := getBoolOrDefault(data.S3CompatMode, false)
+	if !s3CompatMode && data.S3CompatMode.IsNull() {
+		if v := os.Getenv("MINIO_S3_COMPAT_MODE"); v != "" {
+			s3CompatMode = v == "true" || v == "1" || v == "on"
+		}
+	}
+
+	// Build S3MinioConfig from framework data
+	cfg := &S3MinioConfig{
+		S3HostPort:        minioServer,
+		S3Region:          minioRegion,
+		S3UserAccess:      minioUser,
+		S3UserSecret:      minioPassword,
+		S3SessionToken:    minioSessionToken,
+		S3APISignature:    minioAPIVersion,
+		S3SSL:             minioSSL,
+		S3SSLCACertFile:   minioCACertFile,
+		S3SSLCertFile:     minioCertFile,
+		S3SSLKeyFile:      minioKeyFile,
+		S3SSLSkipVerify:   minioInsecure,
+		SkipBucketTagging: skipBucketTagging,
+		S3CompatMode:      s3CompatMode,
+	}
+
+	// Create MinIO client
+	client, err := cfg.NewClient()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create MinIO client",
+			err.Error(),
+		)
+		return
+	}
+
+	resp.DataSourceData = client
+	resp.ResourceData = client
+}
+
+// providerModel represents the provider configuration data
+type providerModel struct {
+	MinioServer       types.String `tfsdk:"minio_server"`
+	MinioRegion       types.String `tfsdk:"minio_region"`
+	MinioUser         types.String `tfsdk:"minio_user"`
+	MinioPassword     types.String `tfsdk:"minio_password"`
+	MinioSessionToken types.String `tfsdk:"minio_session_token"`
+	MinioAPIVersion   types.String `tfsdk:"minio_api_version"`
+	MinioSSL          types.Bool   `tfsdk:"minio_ssl"`
+	MinioInsecure     types.Bool   `tfsdk:"minio_insecure"`
+	MinioCACertFile   types.String `tfsdk:"minio_cacert_file"`
+	MinioCertFile     types.String `tfsdk:"minio_cert_file"`
+	MinioKeyFile      types.String `tfsdk:"minio_key_file"`
+	MinioDebug        types.Bool   `tfsdk:"minio_debug"`
+	SkipBucketTagging types.Bool   `tfsdk:"skip_bucket_tagging"`
+	S3CompatMode      types.Bool   `tfsdk:"s3_compat_mode"`
+}
+
+// Helper functions for converting framework types to Go types
+func getStringOrDefault(v types.String, defaultVal string) string {
+	if v.IsNull() || v.IsUnknown() {
+		return defaultVal
+	}
+	return v.ValueString()
+}
+
+func getBoolOrDefault(v types.Bool, defaultVal bool) bool {
+	if v.IsNull() || v.IsUnknown() {
+		return defaultVal
+	}
+	return v.ValueBool()
 }
 
 // Resources returns the list of resources
+// Note: Resources with nested attributes or timeouts are excluded due to
+// terraform-plugin-mux v1 limitations with protocol v5. These continue to
+// work via the SDK provider once SDK resources are restored.
 func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		newS3BucketResource,
 		newIAMUserResource,
 		newIAMPolicyResource,
 		newServiceAccountResource,
@@ -119,51 +239,21 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		newS3ObjectLegalHoldResource,
 		newS3ObjectRetentionResource,
 		newBucketPolicyResource,
-		newBucketVersioningResource,
-		newBucketEncryptionResource,
-		newBucketObjectLockConfigurationResource,
 		newBucketQuotaResource,
 		newBucketTagsResource,
-		newBucketCorsResource,
 		newBucketRetentionResource,
-		newBucketNotificationResource,
 		newILMPolicyResource,
 		newILMTierResource,
 		newIAMGroupPolicyResource,
 		newIAMUserGroupMembershipResource,
 		newKMSKeyResource,
-		newConfigResource,
-		newServerConfigRegionResource,
-		newServerConfigHealResource,
-		newServerConfigStorageClassResource,
-		newServerConfigScannerResource,
-		newServerConfigApiResource,
-		newServerConfigEtcdResource,
-		newAccessKeyResource,
-		newPrometheusBearerTokenResource,
 		newIAMIdpLdapResource,
 		newS3BucketAnonymousAccessResource,
-		newSiteReplicationResource,
-		newBucketReplicationResource(),
-		resourceMinioNotifyWebhookFramework,
-		resourceMinioNotifyAmqpFramework,
-		resourceMinioNotifyKafkaFramework,
-		resourceMinioNotifyMqttFramework,
-		resourceMinioNotifyNatsFramework,
-		resourceMinioNotifyNsqFramework,
-		resourceMinioNotifyMysqlFramework,
-		resourceMinioNotifyPostgresFramework,
-		resourceMinioNotifyElasticsearchFramework,
-		resourceMinioNotifyRedisFramework,
-		resourceMinioAuditWebhookFramework,
-		resourceMinioAuditKafkaFramework,
-		resourceMinioLoggerWebhookFramework,
 	}
 }
 
 // DataSources returns the list of data sources
+// Note: minio_s3_bucket is excluded to avoid duplication with SDK provider
 func (p *minioFrameworkProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{
-		newS3BucketDataSource,
-	}
+	return []func() datasource.DataSource{}
 }

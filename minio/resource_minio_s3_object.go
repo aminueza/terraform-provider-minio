@@ -196,7 +196,7 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 	if v, ok := d.GetOk("metadata"); ok {
 		metadata := make(map[string]string)
 		for k, val := range v.(map[string]interface{}) {
-			metadata[k] = val.(string)
+			metadata[strings.ToLower(k)] = val.(string)
 		}
 		options.UserMetadata = metadata
 	}
@@ -257,7 +257,11 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	if err := d.Set("content_encoding", objInfo.ContentEncoding); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
-	if err := d.Set("storage_class", objInfo.StorageClass); err != nil {
+	storageClass := objInfo.StorageClass
+	if storageClass == "" {
+		storageClass = "STANDARD"
+	}
+	if err := d.Set("storage_class", storageClass); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
 
@@ -277,7 +281,7 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 		if lower == "x-amz-acl" || lower == "content-type" {
 			continue
 		}
-		userMeta[k] = v
+		userMeta[lower] = v
 	}
 	if len(userMeta) > 0 {
 		_ = d.Set("metadata", userMeta)

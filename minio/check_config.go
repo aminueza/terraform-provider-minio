@@ -741,3 +741,25 @@ func toEnableFlag(b bool) string {
 	}
 	return "disable"
 }
+
+// validateMinioIamGroupName validates IAM group names
+func validateMinioIamGroupName(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	if !StaticGroupNamePattern.MatchString(value) && !LDAPGroupDistinguishedNamePattern.MatchString(value) {
+		errors = append(errors, fmt.Errorf(
+			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed or a valid LDAP Distinguished Name (DN) in %q: %q",
+			k, value))
+	}
+	return
+}
+
+// validateMinioIamUserName validates IAM user names
+func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	if !StaticUserNamePattern.MatchString(value) && !LDAPUserDistinguishedNamePattern.MatchString(value) {
+		errors = append(errors, fmt.Errorf(
+			"only alphanumeric characters, hyphens, underscores, commas, periods, @ symbols, plus and equals signs allowed or a valid LDAP Distinguished Name (DN) in %q: %q",
+			k, value))
+	}
+	return
+}

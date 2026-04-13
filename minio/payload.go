@@ -27,6 +27,9 @@ var (
 	// IAM user name patterns
 	LDAPUserDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:CN|cn)=([^,]*)),)+(?:((?:(?:CN|cn|OU|ou)=[^,]+,?)+),)+((?:(?:DC|dc)=[^,]+,?)+)$`)
 	StaticUserNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
+	// IAM group name patterns
+	LDAPGroupDistinguishedNamePattern = regexp.MustCompile(`^(?:(?:CN|cn|OU|ou)=[^,]+,?)+(?:(?:DC|dc)=[^,]+,?)+$`)
+	StaticGroupNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
 )
 
 // emptyFilterSentinel forces lifecycle.Filter.IsNull() to return false so that

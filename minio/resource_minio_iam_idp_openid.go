@@ -373,13 +373,3 @@ func idpCfgInfoToMap(info []madmin.IDPCfgInfo) map[string]string {
 	}
 	return m
 }
-
-func isIDPConfigNotFound(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "does not exist") ||
-		strings.Contains(msg, "no such")
-}

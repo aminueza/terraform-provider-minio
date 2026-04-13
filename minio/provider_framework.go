@@ -257,6 +257,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newServerConfigEtcdResource,
 		newAccessKeyResource,
 		newPrometheusBearerTokenResource,
+		newIAMIdpLdapResource,
 	}
 }
 

@@ -277,3 +277,12 @@ func isNotFoundError(err error) bool {
 		strings.Contains(errStr, "NoSuchKey") ||
 		strings.Contains(errStr, "NoSuchBucket")
 }
+
+// isIDPConfigNotFound returns true if the error indicates an IDP config was not found.
+func isIDPConfigNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "no target found") || strings.Contains(errStr, "config not found")
+}

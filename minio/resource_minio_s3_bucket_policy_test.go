@@ -30,7 +30,7 @@ func TestAccS3BucketPolicy_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -105,7 +105,7 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -172,7 +172,7 @@ func TestAccS3BucketPolicy_order(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -274,7 +274,7 @@ func TestAccS3BucketPolicy_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -285,7 +285,7 @@ func TestAccS3BucketPolicy_disappears(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					minioC := testMustGetMinioClient().S3Client
 					_ = minioC.SetBucketPolicy(context.Background(), name, "")
 					_ = minioC.RemoveBucket(context.Background(), name)
 				},
@@ -301,7 +301,7 @@ func TestAccS3BucketPolicy_policyDeletedExternally(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -312,7 +312,7 @@ func TestAccS3BucketPolicy_policyDeletedExternally(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					minioC := testMustGetMinioClient().S3Client
 					_ = minioC.SetBucketPolicy(context.Background(), name, "")
 				},
 				RefreshState:       true,
@@ -339,7 +339,7 @@ func TestAccS3BucketPolicy_survivesVersioningChange(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -410,7 +410,7 @@ func testAccCheckBucketHasPolicy(n string, expectedPolicyText string) resource.T
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)

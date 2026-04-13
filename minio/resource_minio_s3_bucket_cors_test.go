@@ -23,7 +23,7 @@ func TestAccS3BucketCors_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -55,7 +55,7 @@ func TestAccS3BucketCors_multipleRules(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -86,7 +86,7 @@ func TestAccS3BucketCors_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -122,7 +122,7 @@ func TestAccS3BucketCors_allHeaders(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -146,7 +146,7 @@ func TestAccS3BucketCors_import(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -175,7 +175,7 @@ func testAccCheckMinioS3BucketCorsExists(resourceName string) resource.TestCheck
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 		corsConfig, err := minioC.GetBucketCors(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error getting bucket CORS configuration: %v", err)
@@ -190,7 +190,7 @@ func testAccCheckMinioS3BucketCorsExists(resourceName string) resource.TestCheck
 }
 
 func testAccCheckMinioS3BucketCorsDestroy(s *terraform.State) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+	minioC := testMustGetMinioClient().S3Client
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_cors" {

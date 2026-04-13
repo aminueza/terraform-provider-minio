@@ -15,7 +15,7 @@ func TestAccMinioNotifyWebhook_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -38,7 +38,7 @@ func TestAccMinioNotifyWebhook_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{

@@ -33,7 +33,7 @@ func TestS3BucketNotification_queue(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -99,7 +99,7 @@ func testAccCheckBucketHasNotification(n string, config notification.Configurati
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 		actualConfig, err := minioC.GetBucketNotification(context.Background(), rs.Primary.ID)
 
 		if err != nil {
@@ -142,7 +142,7 @@ func TestAccMinioS3BucketNotification_disappearsBucket(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

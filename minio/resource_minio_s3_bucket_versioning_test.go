@@ -17,7 +17,7 @@ func TestAccS3BucketVersioning_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -48,7 +48,7 @@ func TestAccS3BucketVersioning_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -93,7 +93,7 @@ func TestAccS3BucketVersioning_forceDestroy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -162,7 +162,7 @@ func testAccCheckBucketHasVersioning(n string, config S3MinioBucketVersioningCon
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 		actualConfig, err := minioC.GetBucketVersioning(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketVersioning: %v", err)
@@ -195,7 +195,7 @@ func TestAccS3BucketVersioning_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -226,7 +226,7 @@ func TestAccS3BucketVersioning_survivesPolicyChange(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -289,7 +289,7 @@ EOF
 }
 
 func testAccCheckMinioS3BucketDeleteExternally(bucket string) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+	minioC := testMustGetMinioClient().S3Client
 	if err := minioC.RemoveBucket(context.Background(), bucket); err != nil {
 		return fmt.Errorf("bucket could not be deleted: %w", err)
 	}

@@ -25,7 +25,7 @@ func TestAccMinioGroupMembership_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioGroupMembershipDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -63,7 +63,7 @@ func TestAccMinioGroupMembership_paginatedUserList(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioGroupMembershipDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -79,7 +79,7 @@ func TestAccMinioGroupMembership_paginatedUserList(t *testing.T) {
 }
 
 func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
-	iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	iamconn := testMustGetMinioClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_group_membership" {
@@ -108,7 +108,7 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 			return fmt.Errorf("no User name is set")
 		}
 
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testMustGetMinioClient().S3Admin
 		gn := rs.Primary.Attributes["group"]
 
 		resp, err := iamconn.GetGroupDescription(context.Background(), gn)

@@ -32,7 +32,7 @@ func TestAccMinioILMTier_minioType(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccILMTierPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioILMTierDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -65,7 +65,7 @@ func testAccCheckMinioILMTierExists(resourceName string) resource.TestCheckFunc 
 			return fmt.Errorf("no ILM tier ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testMustGetMinioClient()
 		tier, err := getTier(minioC.S3Admin, context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error reading tier %s: %w", rs.Primary.ID, err)
@@ -78,7 +78,7 @@ func testAccCheckMinioILMTierExists(resourceName string) resource.TestCheckFunc 
 }
 
 func testAccCheckMinioILMTierDestroy(s *terraform.State) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient)
+	minioC := testMustGetMinioClient()
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_ilm_tier" {

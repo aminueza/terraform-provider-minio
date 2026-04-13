@@ -21,7 +21,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -65,7 +65,7 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -86,7 +86,7 @@ func TestAccMinioIAMPolicy_recreate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -120,7 +120,7 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -167,7 +167,7 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -227,7 +227,7 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 			return fmt.Errorf("no Policy name is set")
 		}
 
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testMustGetMinioClient().S3Admin
 
 		_, err := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID)
 		return err
@@ -235,7 +235,7 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
-	iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	iamconn := testMustGetMinioClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_policy" {
@@ -253,7 +253,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 
 func testAccCheckMinioIAMPolicyDisappears(resource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testMustGetMinioClient().S3Admin
 
 		if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), resource); info == nil {
 
@@ -318,7 +318,7 @@ resource "minio_iam_policy" "test" {
 }
 
 func testAccCheckMinioIAMPolicyDeleteExternally(rName string) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testMustGetMinioClient().S3Admin
 
 	if err := minioIam.RemoveCannedPolicy(context.Background(), rName); err != nil {
 		return fmt.Errorf("policy could not be deleted: %w", err)
@@ -336,7 +336,7 @@ func TestAccMinioIAMPolicy_jsonencode(t *testing.T) {
 	// Run the test in multiple phases to verify the policy remains unchanged
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			// Apply the policy for the first time

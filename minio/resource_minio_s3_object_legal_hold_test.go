@@ -19,7 +19,7 @@ func TestAccMinioS3ObjectLegalHold_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -55,7 +55,7 @@ func TestAccMinioS3ObjectLegalHold_off(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -85,7 +85,7 @@ func testAccCheckMinioS3ObjectLegalHoldExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioObjectLegalHoldDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient)
+	client := testMustGetMinioClient()
 	ctx := context.Background()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_object_legal_hold" {

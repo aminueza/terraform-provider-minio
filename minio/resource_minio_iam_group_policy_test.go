@@ -17,7 +17,7 @@ func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -61,7 +61,7 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -87,7 +87,7 @@ func TestAccMinioIAMGroupPolicy_policyContentUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -140,7 +140,7 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -169,7 +169,7 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -193,14 +193,14 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 }
 
 func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	conn := testMustGetMinioClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_group_policy" {
 			continue
 		}
 
-		_, name, err := resourceMinioIamGroupPolicyParseID(rs.Primary.ID)
+		_, name, err := parseIAMGroupPolicyID(rs.Primary.ID)
 		if err != nil {
 			return err
 		}
@@ -218,14 +218,14 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 func testAccCheckIAMGroupPolicyDisappears(
 	iamGroupPolicyResource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testMustGetMinioClient().S3Admin
 
 		policy, ok := s.RootModule().Resources[iamGroupPolicyResource]
 		if !ok {
 			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
-		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
+		_, name, err := parseIAMGroupPolicyID(policy.Primary.ID)
 		if err != nil {
 			return err
 		}
@@ -259,7 +259,7 @@ func testAccCheckIAMGroupPolicyExists(
 			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
-		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
+		_, name, err := parseIAMGroupPolicyID(policy.Primary.ID)
 		if err != nil {
 			return err
 		}

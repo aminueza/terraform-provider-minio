@@ -17,7 +17,7 @@ func TestAccMinioConfig_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -46,7 +46,7 @@ func TestAccMinioConfig_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -80,7 +80,7 @@ func TestAccMinioConfig_multipleSettings(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -104,7 +104,7 @@ func TestAccMinioConfig_webhookNotification(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -132,7 +132,7 @@ func testAccCheckMinioConfigExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("no config ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testMustGetMinioClient()
 		configKey := rs.Primary.ID
 
 		// Try to get the config

@@ -16,7 +16,7 @@ func TestAccMinioIAMGroupPolicyAttachment_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyAttachmentConfig(groupName, policyName),
@@ -55,7 +55,7 @@ func TestAccMinioIAMUserPolicyAttachment_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMUserPolicyAttachmentConfig(userName, policyName),
@@ -94,7 +94,7 @@ func TestAccMinioIAMGroupUserAttachment_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupUserAttachmentConfig(groupName, userName),
@@ -132,7 +132,7 @@ func TestAccMinioIAMUserPolicyAttachment_detach(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMUserPolicyAttachmentConfig(userName, policyName),
@@ -157,7 +157,7 @@ func TestAccMinioIAMGroupPolicyAttachment_detach(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMGroupPolicyAttachmentConfig(groupName, policyName),
@@ -183,7 +183,7 @@ func TestAccMinioIAMUserPolicyAttachment_multiplePolicies(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccIAMUserMultiplePoliciesConfig(userName, policy1, policy2),

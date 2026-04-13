@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -18,6 +19,27 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/minio/madmin-go/v3"
 )
+
+func processServiceAccountPolicy(policy string) []byte {
+	if len(policy) == 0 {
+		emptyPolicy := "{\n\"Version\": \"\",\n\"Statement\": null\n}"
+		return []byte(emptyPolicy)
+	}
+	return []byte(policy)
+}
+
+func parseUserFromParentUser(parentUser string) string {
+	user := parentUser
+
+	for _, ldapSection := range strings.Split(parentUser, ",") {
+		splitSection := strings.Split(ldapSection, "=")
+		if len(splitSection) == 2 && strings.ToLower(strings.TrimSpace(splitSection[0])) == "cn" {
+			return strings.TrimSpace(splitSection[1])
+		}
+	}
+
+	return user
+}
 
 // Ensure provider defined types fully satisfy framework interfaces
 var (
@@ -49,7 +71,7 @@ type serviceAccountResourceModel struct {
 }
 
 func (r *serviceAccountResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_service_account"
+	resp.TypeName = req.ProviderTypeName + "_iam_service_account"
 }
 
 func (r *serviceAccountResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {

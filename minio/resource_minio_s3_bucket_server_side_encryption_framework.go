@@ -37,7 +37,7 @@ type bucketEncryptionResourceModel struct {
 }
 
 func (r *bucketEncryptionResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_s3_bucket_server_side_encryption_configuration"
+	resp.TypeName = req.ProviderTypeName + "_s3_bucket_server_side_encryption"
 }
 
 func (r *bucketEncryptionResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {

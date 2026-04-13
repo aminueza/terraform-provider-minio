@@ -13,7 +13,7 @@ func TestAccMinioPrometheusBearerToken_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioPrometheusBearerTokenBasic("cluster"),
@@ -44,7 +44,7 @@ func TestAccMinioPrometheusBearerToken_allMetricTypes(t *testing.T) {
 
 			resource.ParallelTest(t, resource.TestCase{
 				PreCheck:          func() { testAccPreCheck(t) },
-				ProviderFactories: testAccProviders,
+				ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 				Steps: []resource.TestStep{
 					{
 						Config: testAccMinioPrometheusBearerTokenBasic(metricType),
@@ -65,7 +65,7 @@ func TestAccMinioPrometheusBearerToken_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioPrometheusBearerTokenBasic("cluster"),

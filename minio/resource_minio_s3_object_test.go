@@ -17,7 +17,7 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -48,7 +48,7 @@ func TestAccMinioS3Object_withACL(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -68,7 +68,7 @@ func TestAccMinioS3Object_withACLUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -95,7 +95,7 @@ func TestAccMinioS3Object_withContentType(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -110,7 +110,7 @@ func TestAccMinioS3Object_withContentType(t *testing.T) {
 }
 
 func testAccCheckMinioS3ObjectDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+	conn := testMustGetMinioClient().S3Client
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_object" {
@@ -140,7 +140,7 @@ func testAccCheckMinioS3ObjectExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+		conn := testMustGetMinioClient().S3Client
 		bucketName := rs.Primary.Attributes["bucket_name"]
 		objectName := rs.Primary.Attributes["object_name"]
 
@@ -190,7 +190,7 @@ func TestAccMinioS3Object_withMetadata(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -215,7 +215,7 @@ func TestAccMinioS3Object_withMetadataUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{

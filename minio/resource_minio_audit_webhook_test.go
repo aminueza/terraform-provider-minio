@@ -110,7 +110,7 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -138,7 +138,7 @@ func TestAccMinioAuditWebhook_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -174,7 +174,7 @@ func testAccCheckMinioAuditWebhookExists(resourceName string) resource.TestCheck
 			return fmt.Errorf("no audit webhook ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testMustGetMinioClient()
 		configKey := auditWebhookConfigKey(rs.Primary.ID)
 		_, err := minioC.S3Admin.GetConfigKV(context.Background(), configKey)
 		if err != nil {

@@ -39,7 +39,7 @@ func TestAccMinioIAMIdpOpenId_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -71,7 +71,7 @@ func TestAccMinioIAMIdpOpenId_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -103,7 +103,7 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -132,7 +132,7 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret_transition(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -169,7 +169,7 @@ func testAccCheckMinioIAMIdpOpenIdExists(resourceName string) resource.TestCheck
 			return fmt.Errorf("no OIDC IDP configuration ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testMustGetMinioClient()
 		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.OpenidIDPCfg, rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("OIDC IDP configuration %s not found: %w", rs.Primary.ID, err)
@@ -180,7 +180,7 @@ func testAccCheckMinioIAMIdpOpenIdExists(resourceName string) resource.TestCheck
 }
 
 func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient)
+	minioC := testMustGetMinioClient()
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_idp_openid" {

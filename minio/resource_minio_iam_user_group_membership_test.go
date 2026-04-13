@@ -14,7 +14,7 @@ func TestAccMinioIAMUserGroupMembership_basic(t *testing.T) {
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckIAMUserGroupMembershipDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -43,7 +43,7 @@ func testAccCheckIAMUserGroupMembershipExists(name string) resource.TestCheckFun
 			return fmt.Errorf("no ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		conn := testMustGetMinioClient().S3Admin
 		userInfo, err := conn.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error getting user info: %w", err)
@@ -59,7 +59,7 @@ func testAccCheckIAMUserGroupMembershipExists(name string) resource.TestCheckFun
 }
 
 func testAccCheckIAMUserGroupMembershipDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	conn := testMustGetMinioClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_user_group_membership" {

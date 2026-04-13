@@ -2,9 +2,18 @@ package minio
 
 import (
 	"fmt"
+	"log"
+	"math"
+	"reflect"
+	"strings"
+	"time"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7/pkg/notification"
+	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
 // ConfigError represents an error that occurred during configuration
@@ -23,6 +32,219 @@ func getOptionalField(d *schema.ResourceData, field string, defaultValue interfa
 		return v
 	}
 	return defaultValue
+}
+
+// getBucketVersioningConfig parses versioning configuration from Terraform schema
+func getBucketVersioningConfig(v []interface{}) *S3MinioBucketVersioningConfiguration {
+	if len(v) == 0 || v[0] == nil {
+		return nil
+	}
+
+	tfMap, ok := v[0].(map[string]interface{})
+	if !ok {
+		return nil
+	}
+
+	result := &S3MinioBucketVersioningConfiguration{}
+
+	if status, ok := tfMap["status"].(string); ok && status != "" {
+		result.Status = status
+	}
+
+	if excludedPrefixes, ok := tfMap["excluded_prefixes"].([]interface{}); ok {
+		for _, prefix := range excludedPrefixes {
+			if v, ok := prefix.(string); ok {
+				result.ExcludedPrefixes = append(result.ExcludedPrefixes, v)
+			}
+		}
+	}
+
+	if excludeFolders, ok := tfMap["exclude_folders"].(bool); ok {
+		result.ExcludeFolders = excludeFolders
+	}
+
+	return result
+}
+
+// getBucketReplicationConfig parses replication configuration from Terraform schema
+func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result []S3MinioBucketReplicationRule, errs diag.Diagnostics) {
+	if len(v) == 0 || v[0] == nil {
+		return
+	}
+
+	result = make([]S3MinioBucketReplicationRule, len(v))
+	for i, rule := range v {
+		var ok bool
+		tfMap, ok := rule.(map[string]interface{})
+		if !ok {
+			errs = append(errs, diag.Errorf("Unable to extract the rule %d", i)...)
+			continue
+		}
+		log.Printf("[DEBUG] rule[%d] contains %v", i, tfMap)
+
+		result[i].Arn, _ = tfMap["arn"].(string)
+		result[i].Id, _ = tfMap["id"].(string)
+
+		if result[i].Enabled, ok = tfMap["enabled"].(bool); !ok {
+			log.Printf("[DEBUG] rule[%d].enabled omitted. Defaulting to true", i)
+			result[i].Enabled = true
+		}
+
+		if result[i].Priority, ok = tfMap["priority"].(int); !ok || result[i].Priority == 0 {
+			result[i].Priority = -len(v) + i
+			log.Printf("[DEBUG] rule[%d].priority omitted. Defaulting to index (%d)", i, -result[i].Priority)
+		}
+
+		result[i].Prefix, _ = tfMap["prefix"].(string)
+
+		if tags, ok := tfMap["tags"].(map[string]interface{}); ok {
+			log.Printf("[DEBUG] rule[%d].tags map contains: %v", i, tags)
+			tagMap := map[string]string{}
+			for k, val := range tags {
+				var valOk bool
+				tagMap[k], valOk = val.(string)
+				if !valOk {
+					errs = append(errs, diag.Errorf("rule[%d].tags[%s] value must be a string, not a %s", i, k, reflect.TypeOf(val))...)
+				}
+			}
+			result[i].Tags = tagMap
+		} else {
+			errs = append(errs, diag.Errorf("unable to extract rule[%d].tags of type %s", i, reflect.TypeOf(tfMap["tags"]))...)
+		}
+
+		log.Printf("[DEBUG] rule[%d].tags are: %v", i, result[i].Tags)
+
+		result[i].DeleteReplication, ok = tfMap["delete_replication"].(bool)
+		result[i].DeleteReplication = result[i].DeleteReplication && ok
+		result[i].DeleteMarkerReplication, ok = tfMap["delete_marker_replication"].(bool)
+		result[i].DeleteMarkerReplication = result[i].DeleteMarkerReplication && ok
+		result[i].ExistingObjectReplication, ok = tfMap["existing_object_replication"].(bool)
+		result[i].ExistingObjectReplication = result[i].ExistingObjectReplication && ok
+		result[i].MetadataSync, ok = tfMap["metadata_sync"].(bool)
+		result[i].MetadataSync = result[i].MetadataSync && ok
+
+		var targets []interface{}
+		if targets, ok = tfMap["target"].([]interface{}); !ok || len(targets) != 1 {
+			errs = append(errs, diag.Errorf("Unexpected value type for rule[%d].target. Exactly one target configuration is expected", i)...)
+			continue
+		}
+		var target map[string]interface{}
+		if target, ok = targets[0].(map[string]interface{}); !ok {
+			errs = append(errs, diag.Errorf("Unexpected value type for rule[%d].target. Unable to convert to a usable type", i)...)
+			continue
+		}
+
+		if result[i].Target.Bucket, ok = target["bucket"].(string); !ok {
+			errs = append(errs, diag.Errorf("rule[%d].target.bucket cannot be omitted", i)...)
+		}
+
+		result[i].Target.StorageClass, _ = target["storage_class"].(string)
+
+		if result[i].Target.Host, ok = target["host"].(string); !ok {
+			errs = append(errs, diag.Errorf("rule[%d].target.host cannot be omitted", i)...)
+		}
+
+		result[i].Target.Path, _ = target["path"].(string)
+		result[i].Target.Region, _ = target["region"].(string)
+
+		if result[i].Target.AccessKey, ok = target["access_key"].(string); !ok {
+			errs = append(errs, diag.Errorf("rule[%d].target.access_key cannot be omitted", i)...)
+		}
+
+		if result[i].Target.SecretKey, ok = target["secret_key"].(string); !ok {
+			errs = append(errs, diag.Errorf("rule[%d].target.secret_key cannot be omitted", i)...)
+		}
+
+		if result[i].Target.Secure, ok = target["secure"].(bool); !result[i].Target.Secure || !ok {
+			errs = append(errs, diag.Diagnostic{
+				Severity: diag.Warning,
+				Summary:  fmt.Sprintf("rule[%d].target.secure is false. It is unsafe to use bucket replication over HTTP", i),
+			})
+		}
+
+		rawConfig := d.GetRawConfig()
+		syncConfigured := false
+		if !rawConfig.IsNull() {
+			rulesAttr := rawConfig.GetAttr("rule")
+			if !rulesAttr.IsNull() && rulesAttr.IsKnown() && rulesAttr.LengthInt() > i {
+				ruleVal := rulesAttr.Index(cty.NumberIntVal(int64(i)))
+				if !ruleVal.IsNull() && ruleVal.IsKnown() {
+					targetAttr := ruleVal.GetAttr("target")
+					if !targetAttr.IsNull() && targetAttr.IsKnown() && targetAttr.LengthInt() > 0 {
+						targetVal := targetAttr.Index(cty.NumberIntVal(0))
+						if !targetVal.IsNull() && targetVal.IsKnown() {
+							syncAttr := targetVal.GetAttr("synchronous")
+							if !syncAttr.IsNull() && syncAttr.IsKnown() {
+								result[i].Target.Synchronous = syncAttr.True()
+								syncConfigured = true
+							} else {
+								syncronousAttr := targetVal.GetAttr("syncronous")
+								if !syncronousAttr.IsNull() && syncronousAttr.IsKnown() {
+									result[i].Target.Synchronous = syncronousAttr.True()
+									syncConfigured = true
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		if !syncConfigured {
+			if v, ok := target["synchronous"].(bool); ok {
+				result[i].Target.Synchronous = v
+			} else if v, ok := target["syncronous"].(bool); ok {
+				result[i].Target.Synchronous = v
+			}
+		}
+		result[i].Target.DisableProxy, ok = target["disable_proxy"].(bool)
+		result[i].Target.DisableProxy = result[i].Target.DisableProxy && ok
+
+		var bandwidth uint64
+		var err error
+		bandwidth, ok, parseDiags := ParseBandwidthLimit(target)
+		if len(parseDiags) > 0 {
+			errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as prefix only", i)...)
+		}
+
+		if ok {
+			var bwLimit int64
+			if bandwidth > uint64(math.MaxInt64) {
+				log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64))
+				bwLimit = math.MaxInt64
+			} else {
+				bwLimit = int64(bandwidth)
+			}
+			result[i].Target.BandwidthLimit = bwLimit
+		}
+
+		var healthcheckDuration string
+		if healthcheckDuration, ok = target["health_check_period"].(string); ok {
+			result[i].Target.HealthCheckPeriod, err = time.ParseDuration(healthcheckDuration)
+			if err != nil {
+				log.Printf("[WARN] invalid healthcheck value %q: %v", result[i].Target.HealthCheckPeriod, err)
+				errs = append(errs, diag.Errorf("rule[%d].target.health_check_period is invalid. Make sure to use a valid golang time duration notation", i)...)
+			}
+		}
+
+		var pathstyle string
+		pathstyle, _ = target["path_style"].(string)
+		switch strings.TrimSpace(strings.ToLower(pathstyle)) {
+		case "on":
+			result[i].Target.PathStyle = S3PathStyleOn
+		case "off":
+			result[i].Target.PathStyle = S3PathStyleOff
+		default:
+			if pathstyle != "auto" && pathstyle != "" {
+				errs = append(errs, diag.Diagnostic{
+					Severity: diag.Warning,
+					Summary:  fmt.Sprintf("rule[%d].target.path_style must be \"on\", \"off\" or \"auto\". Defaulting to \"auto\"", i),
+				})
+			}
+			result[i].Target.PathStyle = S3PathStyleAuto
+		}
+
+	}
+	return
 }
 
 // BucketConfig creates a new configuration for MinIO buckets.
@@ -77,6 +299,58 @@ func BucketReplicationConfig(d *schema.ResourceData, meta interface{}) (*S3Minio
 	}, nil
 }
 
+// getNotificationConfiguration parses notification configuration from Terraform schema
+func getNotificationConfiguration(d *schema.ResourceData) notification.Configuration {
+	var config notification.Configuration
+	queueConfigs := getNotificationQueueConfigs(d)
+
+	for _, c := range queueConfigs {
+		config.AddQueue(c)
+	}
+
+	return config
+}
+
+func getNotificationQueueConfigs(d *schema.ResourceData) []notification.Config {
+	queueFunctionNotifications := d.Get("queue").([]interface{})
+	configs := make([]notification.Config, 0, len(queueFunctionNotifications))
+
+	for i, c := range queueFunctionNotifications {
+		config := notification.Config{Filter: &notification.Filter{}}
+		c := c.(map[string]interface{})
+
+		if queueArnStr, ok := c["queue_arn"].(string); ok {
+			queueArn, err := notification.NewArnFromString(queueArnStr)
+			if err != nil {
+				continue
+			}
+			config.Arn = queueArn
+		}
+
+		if val, ok := c["id"].(string); ok && val != "" {
+			config.ID = val
+		} else {
+			config.ID = id.PrefixedUniqueId("tf-s3-queue-")
+		}
+
+		events := d.Get(fmt.Sprintf("queue.%d.events", i)).(*schema.Set).List()
+		for _, e := range events {
+			config.AddEvents(notification.EventType(e.(string)))
+		}
+
+		if val, ok := c["filter_prefix"].(string); ok && val != "" {
+			config.AddFilterPrefix(val)
+		}
+		if val, ok := c["filter_suffix"].(string); ok && val != "" {
+			config.AddFilterSuffix(val)
+		}
+
+		configs = append(configs, config)
+	}
+
+	return configs
+}
+
 // BucketNotificationConfig creates configuration for managing MinIO bucket notifications.
 // It sets up event notifications for bucket operations.
 func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketNotification {
@@ -97,6 +371,18 @@ func BucketCorsConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketCo
 		MinioClient: m.S3Client,
 		MinioBucket: getOptionalField(d, "bucket", "").(string),
 	}
+}
+
+// getBucketServerSideEncryptionConfig parses encryption configuration from Terraform schema
+func getBucketServerSideEncryptionConfig(d *schema.ResourceData) *sse.Configuration {
+	encryptionType := d.Get("encryption_type").(string)
+
+	if encryptionType == "AES256" {
+		return sse.NewConfigurationSSES3()
+	}
+
+	keyID, _ := d.Get("kms_key_id").(string)
+	return sse.NewConfigurationSSEKMS(keyID)
 }
 
 // BucketServerSideEncryptionConfig creates configuration for managing MinIO bucket server-side encryption.
@@ -422,4 +708,36 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 		ClientCert: getOptionalField(d, "client_cert", "").(string),
 		ClientKey:  getOptionalField(d, "client_key", "").(string),
 	}
+}
+
+// parseConfigParams parses a config string like "key1=value1 key2=value2" into a map
+func parseConfigParams(configStr string) map[string]string {
+	result := make(map[string]string)
+	if configStr == "" {
+		return result
+	}
+
+	pairs := strings.Fields(configStr)
+	for _, pair := range pairs {
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) == 2 {
+			result[parts[0]] = parts[1]
+		}
+	}
+	return result
+}
+
+// parseInt parses a string into an integer
+func parseInt(s string) (int, error) {
+	var n int
+	_, err := fmt.Sscanf(s, "%d", &n)
+	return n, err
+}
+
+// toEnableFlag converts a boolean to "enable"/"disable" string
+func toEnableFlag(b bool) string {
+	if b {
+		return "enable"
+	}
+	return "disable"
 }

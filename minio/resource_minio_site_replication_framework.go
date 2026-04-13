@@ -48,6 +48,11 @@ type siteReplicationSiteModel struct {
 	SecretKeyWOVersion types.Int64  `tfsdk:"secret_key_wo_version"`
 }
 
+type siteDiff struct {
+	toAdd    []madmin.PeerSite
+	toRemove []string
+}
+
 func newSiteReplicationResource() resource.Resource {
 	return &siteReplicationResource{}
 }

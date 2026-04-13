@@ -114,3 +114,13 @@ func isBucketTaggingUnexpectedResponse(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "expected element type <Tagging>") && strings.Contains(msg, "<ListBucketResult>")
 }
+
+func convertToStringMap(input map[string]any) map[string]string {
+	result := make(map[string]string, len(input))
+	for k, v := range input {
+		if str, ok := v.(string); ok {
+			result[k] = str
+		}
+	}
+	return result
+}

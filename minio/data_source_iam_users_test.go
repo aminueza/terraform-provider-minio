@@ -16,7 +16,7 @@ func TestAccDataSourceMinioIAMUsers_listAndFilter(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceIAMUsersConfig(prefix, userName1, secret1, userName2, secret2),

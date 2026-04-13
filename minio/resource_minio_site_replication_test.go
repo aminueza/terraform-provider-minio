@@ -160,7 +160,7 @@ func TestAccMinioSiteReplication_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -215,7 +215,7 @@ func TestAccMinioSiteReplication_threeSites(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -256,7 +256,7 @@ func TestAccMinioSiteReplication_writeOnlyCredentials(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -294,7 +294,7 @@ func TestAccMinioSiteReplication_writeOnlyCredentials_transition(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -371,7 +371,7 @@ resource "minio_site_replication" "basic" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -403,7 +403,7 @@ func testAccCheckSiteReplicationExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		provider := testAccProvider.Meta().(*S3MinioClient)
+		provider := testMustGetMinioClient()
 		minioadm := provider.S3Admin
 
 		info, err := minioadm.SiteReplicationInfo(context.Background())
@@ -444,7 +444,7 @@ func testAccCheckImportSiteReplicationExists(n string, expectedName string) reso
 			}
 		}
 
-		provider := testAccProvider.Meta().(*S3MinioClient)
+		provider := testMustGetMinioClient()
 		minioadm := provider.S3Admin
 
 		info, err := minioadm.SiteReplicationInfo(context.Background())
@@ -461,7 +461,7 @@ func testAccCheckImportSiteReplicationExists(n string, expectedName string) reso
 }
 
 func testAccCheckMinioSiteReplicationDestroy(s *terraform.State) error {
-	provider := testAccProvider.Meta().(*S3MinioClient)
+	provider := testMustGetMinioClient()
 	minioadm := provider.S3Admin
 
 	info, err := minioadm.SiteReplicationInfo(context.Background())
@@ -512,7 +512,7 @@ func TestAccMinioSiteReplication_errorConditions(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -541,7 +541,7 @@ resource "minio_site_replication" "error_test" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -569,7 +569,7 @@ resource "minio_site_replication" "connectivity_test" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`

@@ -16,7 +16,7 @@ func TestAccMinioS3BucketTags_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketTagsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -60,7 +60,7 @@ func testAccCheckMinioS3BucketTagsExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioBucketTagsDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient)
+	client := testMustGetMinioClient()
 	ctx := context.Background()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_tags" {
@@ -81,7 +81,7 @@ func TestAccMinioS3BucketTags_deletedBucket(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioS3BucketTagsConfig(bucketName),
@@ -91,7 +91,7 @@ func TestAccMinioS3BucketTags_deletedBucket(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					client := testAccProvider.Meta().(*S3MinioClient)
+					client := testMustGetMinioClient()
 					_ = client.S3Client.RemoveBucket(context.Background(), bucketName)
 				},
 				Config:             testAccMinioS3BucketTagsConfig(bucketName),

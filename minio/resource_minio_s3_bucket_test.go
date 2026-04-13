@@ -24,7 +24,7 @@ func TestAccMinioS3Bucket_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -63,7 +63,7 @@ func TestAccMinioS3Bucket_migrateBucketToBucketPrefix_incompatibleForcesReplacem
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -131,7 +131,7 @@ resource "minio_s3_bucket" "bucket" {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -159,7 +159,7 @@ func TestAccMinioS3Bucket_objectLocking(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -194,7 +194,7 @@ func TestAccMinioS3Bucket_Bucket_EmptyString(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -220,7 +220,7 @@ func TestAccMinioS3Bucket_namePrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -247,7 +247,7 @@ func TestAccMinioS3Bucket_generatedName(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -274,7 +274,7 @@ func TestAccMinioS3Bucket_migrateBucketToBucketPrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -309,7 +309,7 @@ func TestAccMinioS3Bucket_migrateBucketToBucketPrefix_fromExactBucketName(t *tes
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -338,7 +338,7 @@ func TestAccMinioS3Bucket_migrateBucketPrefixToBucket(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -369,7 +369,7 @@ func TestAccMinioS3Bucket_UpdateAcl(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -413,7 +413,7 @@ func TestAccMinioS3Bucket_UpdateAclToPrivate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -442,7 +442,7 @@ func TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -471,7 +471,7 @@ func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -493,7 +493,7 @@ func TestAccMinioS3Bucket_forceDestroy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -515,7 +515,7 @@ func TestAccMinioS3Bucket_forceDestroyEmpty(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -536,7 +536,7 @@ func TestAccMinioS3Bucket_forceDestroyWithManyObjects(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -557,7 +557,7 @@ func TestAccMinioS3Bucket_forceDestroyFalseWithObjects(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioS3BucketConfigNoForceDestroy(bucketName),
@@ -586,7 +586,7 @@ func TestAccMinioS3Bucket_forceDestroyObjectLockWithObjects(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -606,7 +606,7 @@ func TestAccMinioS3Bucket_forceDestroyVersionedWithDeleteMarkers(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -627,7 +627,7 @@ func TestAccMinioS3Bucket_forceDestroyVersionedNoObjectLock(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -647,7 +647,7 @@ func TestAccMinioS3Bucket_forceDestroyVersionedMultipleVersions(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -670,7 +670,7 @@ func TestAccMinioS3Bucket_forceDestroyFalseObjectLockWithObjects(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioS3BucketConfigObjectLockNoForceDestroy(bucketName),
@@ -698,7 +698,7 @@ func TestAccMinioS3Bucket_forceDestroyFalseVersionedWithDeleteMarkers(t *testing
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioS3BucketConfigVersionedNoForceDestroy(bucketName),
@@ -728,7 +728,7 @@ func TestAccMinioS3Bucket_PrivateBucketUnreadable(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -780,34 +780,34 @@ func TestMinioS3BucketName(t *testing.T) {
 
 func testAccCheckMinioS3BucketDestroy(s *terraform.State) (err error) {
 
-	err = providerMinioS3BucketDestroy(testAccProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testMustGetMinioClient().S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccSecondProvider.Meta() == nil {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccSecondProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testMustGetMinioClientWithPrefix("SECOND_").S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccThirdProvider.Meta() == nil {
+	if os.Getenv("THIRD_MINIO_ENDPOINT") == "" {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccThirdProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testMustGetMinioClientWithPrefix("THIRD_").S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccFourthProvider.Meta() == nil {
+	if os.Getenv("FOURTH_MINIO_ENDPOINT") == "" {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccFourthProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testMustGetMinioClientWithPrefix("FOURTH_").S3Client, s)
 	return
 }
 
@@ -845,7 +845,7 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 
 		maxRetries := 6
 		for i := 0; i < maxRetries; i++ {
@@ -887,7 +887,7 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no S3 Bucket ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+		conn := testMustGetMinioClient().S3Client
 		err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
@@ -1051,7 +1051,7 @@ func testAccCheckMinioS3BucketAddObjects(resourceName string, objects ...string)
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testMustGetMinioClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for _, obj := range objects {
@@ -1079,7 +1079,7 @@ func testAccCheckMinioS3BucketAddManyObjects(resourceName string, count int) res
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testMustGetMinioClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for i := 0; i < count; i++ {
@@ -1108,7 +1108,7 @@ func testAccCheckMinioS3BucketDeleteObjects(resourceName string, objects ...stri
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testMustGetMinioClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for _, obj := range objects {
@@ -1183,7 +1183,7 @@ func TestAccMinioS3Bucket_tags(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -1256,7 +1256,7 @@ func testAccCheckMinioS3BucketTagsRemoved(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testMustGetMinioClient().S3Client
 		tags, err := minioC.GetBucketTagging(context.Background(), rs.Primary.ID)
 		if err != nil {
 			var minioErr minio.ErrorResponse
@@ -1422,7 +1422,7 @@ func TestAccMinioS3Bucket_withPolicyAndVersioning(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -1562,7 +1562,7 @@ func TestAccMinioS3Bucket_SkipBucketTagging(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

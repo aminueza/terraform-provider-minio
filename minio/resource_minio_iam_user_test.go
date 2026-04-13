@@ -64,7 +64,7 @@ func TestAccAWSUser_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -94,7 +94,7 @@ func TestAccAWSUser_UpdateName(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -121,7 +121,7 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -144,7 +144,7 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -175,7 +175,7 @@ func TestAccAWSUser_SettingAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -198,7 +198,7 @@ func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -230,7 +230,7 @@ func TestAccAWSUser_RecreateMissing(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -266,7 +266,7 @@ func TestAccAWSUser_WriteOnlySecret_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -289,7 +289,7 @@ func TestAccAWSUser_WriteOnlySecret_transition(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -423,7 +423,7 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 			return fmt.Errorf("no User name is set")
 		}
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -443,7 +443,7 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 			return fmt.Errorf("not found: %s %s", n, s)
 		}
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -475,7 +475,7 @@ func testAccCheckMinioUserAttributes(n string, name string, status string) resou
 }
 
 func testAccCheckMinioUserDestroy(s *terraform.State) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testMustGetMinioClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_user" {
@@ -493,7 +493,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 }
 
 func testAccCheckMinioUserDeleteExternally(username string) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testMustGetMinioClient().S3Admin
 
 	if err := minioIam.RemoveUser(context.Background(), username); err != nil {
 		return fmt.Errorf("user could not be deleted: %w", err)
@@ -516,7 +516,7 @@ func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources[n]
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		conn := testMustGetMinioClient().S3Admin
 
 		userName := rs.Primary.Attributes["name"]
 

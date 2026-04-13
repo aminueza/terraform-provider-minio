@@ -16,7 +16,7 @@ func TestAccMinioBucketRetention_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -44,7 +44,7 @@ func TestAccMinioBucketRetention_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -75,7 +75,7 @@ func TestAccMinioBucketRetention_disappears(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -101,7 +101,7 @@ func testAccCheckMinioBucketRetentionExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("No ID is set")
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testMustGetMinioClient().S3Client
 		mode, validity, unit, err := client.GetBucketObjectLockConfig(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error getting bucket retention: %w", err)
@@ -116,7 +116,7 @@ func testAccCheckMinioBucketRetentionExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioBucketRetentionDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient).S3Client
+	client := testMustGetMinioClient().S3Client
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_retention" {
@@ -140,7 +140,7 @@ func testAccCheckMinioBucketRetentionDisappears(n string) resource.TestCheckFunc
 			return fmt.Errorf("Not found: %s", n)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testMustGetMinioClient().S3Client
 
 		// Clear the retention configuration
 		err := client.SetBucketObjectLockConfig(context.Background(), rs.Primary.ID, nil, nil, nil)

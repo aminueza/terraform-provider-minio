@@ -9,7 +9,7 @@ import (
 func TestAccDataSourceMinioILMTiers_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `data "minio_ilm_tiers" "all" {}`,

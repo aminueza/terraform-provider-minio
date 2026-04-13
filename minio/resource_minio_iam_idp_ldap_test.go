@@ -31,7 +31,7 @@ func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -58,7 +58,7 @@ func TestAccMinioIAMIdpLdap_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -90,7 +90,7 @@ func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFu
 			return fmt.Errorf("no LDAP IDP configuration ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testMustGetMinioClient()
 		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.LDAPIDPCfg, madmin.Default)
 		if err != nil {
 			return fmt.Errorf("LDAP IDP configuration not found: %w", err)
@@ -101,7 +101,7 @@ func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFu
 }
 
 func testAccCheckMinioIAMIdpLdapDestroy(s *terraform.State) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient)
+	minioC := testMustGetMinioClient()
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_idp_ldap" {

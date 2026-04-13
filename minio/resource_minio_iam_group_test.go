@@ -64,7 +64,7 @@ func TestAccAWSGroup_Basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -119,7 +119,7 @@ func testAccCheckMinioGroupExists(n string, res *madmin.GroupDesc) resource.Test
 			return fmt.Errorf("no Group name is set")
 		}
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		resp, err := minioIam.GetGroupDescription(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -149,7 +149,7 @@ func testAccCheckMinioGroupAttributes(group *madmin.GroupDesc, name string, stat
 
 func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		if group.Name != name {
 			return fmt.Errorf("bad name: %s", group.Name)

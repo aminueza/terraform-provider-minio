@@ -1,14 +1,20 @@
 package minio
 
 import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"crypto/hmac"
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/madmin-go/v3"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
@@ -16,6 +22,76 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio-go/v7/pkg/sse"
 )
+
+var (
+	// IAM user name patterns
+	LDAPUserDistinguishedNamePattern = regexp.MustCompile(`^(?:((?:CN|cn)=([^,]*)),)+(?:((?:(?:CN|cn|OU|ou)=[^,]+,?)+),)+((?:(?:DC|dc)=[^,]+,?)+)$`)
+	StaticUserNamePattern            = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
+)
+
+// emptyFilterSentinel forces lifecycle.Filter.IsNull() to return false so that
+// MarshalXML emits <Filter><Prefix></Prefix></Filter> for rules with no
+// prefix or tags. MarshalXML only emits ObjectSizeGreaterThan when > 0, so
+// the sentinel never leaks into the XML.
+const emptyFilterSentinel int64 = -1
+
+// RetryConfig defines retry settings for bucket operations
+type RetryConfig struct {
+	MaxRetries  int
+	MaxBackoff  time.Duration
+	BackoffBase float64
+}
+
+// getRetryConfig returns the default retry configuration
+func getRetryConfig() RetryConfig {
+	return RetryConfig{
+		MaxRetries:  6,
+		MaxBackoff:  20 * time.Second,
+		BackoffBase: 2.0,
+	}
+}
+
+// diagnoseMissingBucket verifies bucket existence by checking location
+func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, bucket string) (bool, diag.Diagnostics) {
+	location, err := bucketConfig.MinioClient.GetBucketLocation(ctx, bucket)
+	if err == nil {
+		log.Printf("[DEBUG] Bucket [%s] location %q confirmed after existence check failure", bucket, location)
+		return true, nil
+	}
+
+	errResp := minio.ToErrorResponse(err)
+
+	if isCredentialError(errResp) {
+		log.Printf("%s", NewResourceErrorStr("access denied while verifying bucket", bucket, err))
+		return false, NewResourceError("access denied while verifying bucket", bucket, err)
+	}
+
+	if errResp.Code == "NoSuchBucket" || errResp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	return false, NewResourceError("error verifying bucket existence", bucket, err)
+}
+
+// isCredentialError checks if the error is due to invalid credentials
+func isCredentialError(errResp minio.ErrorResponse) bool {
+	return errResp.Code == "InvalidAccessKeyId" || errResp.Code == "SignatureDoesNotMatch"
+}
+
+// isNoSuchBucketError checks if the error indicates the bucket does not exist
+func isNoSuchBucketError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errResp := minio.ToErrorResponse(err)
+	if errResp.Code == "NoSuchBucket" || errResp.StatusCode == http.StatusNotFound {
+		return true
+	}
+
+	errStr := err.Error()
+	return strings.Contains(errStr, "NoSuchBucket") || strings.Contains(errStr, "does not exist")
+}
 
 // S3MinioConfig defines variable for minio
 type S3MinioConfig struct {

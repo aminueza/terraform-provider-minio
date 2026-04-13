@@ -412,7 +412,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -481,7 +481,7 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -522,7 +522,7 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -767,7 +767,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -892,7 +892,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -1059,7 +1059,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProviderFactories: testAccProviders,
+		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -1638,13 +1638,13 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 		var provider *S3MinioClient
 		switch rs.Provider {
 		case "registry.terraform.io/hashicorp/minio":
-			provider = testAccProvider.Meta().(*S3MinioClient)
+			provider = testMustGetMinioClient()
 		case "registry.terraform.io/hashicorp/secondminio":
-			provider = testAccSecondProvider.Meta().(*S3MinioClient)
+			provider = testMustGetMinioClientWithPrefix("SECOND_")
 		case "registry.terraform.io/hashicorp/thirdminio":
-			provider = testAccThirdProvider.Meta().(*S3MinioClient)
+			provider = testMustGetMinioClientWithPrefix("THIRD_")
 		case "registry.terraform.io/hashicorp/fourthminio":
-			provider = testAccFourthProvider.Meta().(*S3MinioClient)
+			provider = testMustGetMinioClientWithPrefix("FOURTH_")
 		default:
 			return fmt.Errorf("Provider %q unknown", rs.Provider)
 		}

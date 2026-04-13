@@ -21,6 +21,11 @@ provider "minio" {
   minio_api_version = "..."
   minio_ssl         = "..."
   skip_bucket_tagging = "..."
+
+  // timeout/retry settings
+  request_timeout_seconds = 30
+  max_retries             = 6
+  retry_delay_ms          = 1000
 }
 ```
 
@@ -101,6 +106,12 @@ The following arguments are supported in the `provider` block:
 * `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
 * `s3_compat_mode` - (Optional) Enable S3 compatibility mode for non-MinIO backends. Gracefully handles unsupported features instead of erroring (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
+
+* `request_timeout_seconds` - (Optional) Global HTTP request timeout in seconds for all MinIO API calls (default: `30`). Can be sourced from `MINIO_REQUEST_TIMEOUT_SECONDS`.
+
+* `max_retries` - (Optional) Maximum number of retries for failed operations (default: `6`). Can be sourced from `MINIO_MAX_RETRIES`.
+
+* `retry_delay_ms` - (Optional) Base delay in milliseconds between retries, used with exponential backoff (default: `1000`). Can be sourced from `MINIO_RETRY_DELAY_MS`.
 
 * `assume_role` - (Optional) Configuration block for STS AssumeRole. See [Assume Role](#assume-role) below.
 

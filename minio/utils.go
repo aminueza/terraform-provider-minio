@@ -265,3 +265,15 @@ func isS3CompatNotSupported(client *S3MinioClient, err error) bool {
 		strings.Contains(errStr, "501") ||
 		strings.Contains(errStr, "405")
 }
+
+// isNotFoundError returns true if the error indicates a resource was not found.
+func isNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "The lifecycle configuration does not exist") ||
+		strings.Contains(errStr, "NoSuchLifecycleConfiguration") ||
+		strings.Contains(errStr, "NoSuchKey") ||
+		strings.Contains(errStr, "NoSuchBucket")
+}

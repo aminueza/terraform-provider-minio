@@ -243,6 +243,11 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newBucketCorsResource,
 		newBucketRetentionResource,
 		newBucketNotificationResource,
+		newILMPolicyResource,
+		newILMTierResource,
+		newIAMGroupPolicyResource,
+		newIAMUserGroupMembershipResource,
+		newKMSKeyResource,
 	}
 }
 

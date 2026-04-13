@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -783,8 +782,4 @@ func convertToStringMap(v interface{}) map[string]string {
 		}
 	}
 	return result
-}
-
-func isNotFoundError(err error) bool {
-	return strings.Contains(err.Error(), "The lifecycle configuration does not exist") || strings.Contains(err.Error(), "NoSuchLifecycleConfiguration")
 }

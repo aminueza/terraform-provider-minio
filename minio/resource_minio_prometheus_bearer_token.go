@@ -2,11 +2,6 @@ package minio
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha512"
-	"encoding/base64"
-	"encoding/json"
-	"fmt"
 	"log"
 	"regexp"
 	"time"
@@ -15,8 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
-
-const prometheusIssuer = "prometheus"
 
 func resourceMinioPrometheusBearerToken() *schema.Resource {
 	return &schema.Resource{
@@ -183,59 +176,4 @@ func minioDeletePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 	d.SetId("")
 
 	return nil
-}
-
-func generatePrometheusToken(accessKey, secretKey string, expiry time.Duration, limit int) (string, error) {
-	if expiry.Hours() > float64(limit) {
-		expiry = time.Duration(limit) * time.Hour
-	}
-
-	token, err := generateJWTToken(accessKey, secretKey, expiry)
-	if err != nil {
-		return "", fmt.Errorf("error generating Prometheus token: %w", err)
-	}
-
-	return token, nil
-}
-
-func generateJWTToken(accessKey, secretKey string, expiry time.Duration) (string, error) {
-	jwt := &jwtClaim{
-		Subject:   accessKey,
-		Issuer:    prometheusIssuer,
-		ExpiresAt: time.Now().Add(expiry).UTC().Unix(),
-	}
-
-	token, err := jwt.sign(secretKey)
-	if err != nil {
-		return "", err
-	}
-
-	return token, nil
-}
-
-type jwtClaim struct {
-	Subject   string `json:"sub"`
-	Issuer    string `json:"iss"`
-	ExpiresAt int64  `json:"exp,omitempty"`
-}
-
-func (c *jwtClaim) sign(secretKey string) (string, error) {
-	header := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9"
-	payloadBytes, err := json.Marshal(c)
-	if err != nil {
-		return "", fmt.Errorf("error marshaling JWT payload: %w", err)
-	}
-
-	encodedPayload := base64URLEncode(payloadBytes)
-	data := header + "." + encodedPayload
-
-	h := hmac.New(sha512.New, []byte(secretKey))
-	h.Write([]byte(data))
-	signature := h.Sum(nil)
-
-	return header + "." + encodedPayload + "." + base64URLEncode(signature), nil
-}
-
-func base64URLEncode(data []byte) string {
-	return base64.RawURLEncoding.EncodeToString(data)
 }

@@ -3,6 +3,12 @@ package minio
 import (
 	"time"
 
+	"crypto/hmac"
+	"crypto/sha512"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+
 	"github.com/minio/madmin-go/v3"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
@@ -422,4 +428,61 @@ type S3MinioAuditWebhook struct {
 	BatchSize  int
 	ClientCert string
 	ClientKey  string
+}
+
+const prometheusBearerTokenIssuer = "prometheus"
+
+type prometheusJwtClaim struct {
+	Subject   string `json:"sub"`
+	Issuer    string `json:"iss"`
+	ExpiresAt int64  `json:"exp,omitempty"`
+}
+
+func (c *prometheusJwtClaim) sign(secretKey string) (string, error) {
+	header := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9"
+	payloadBytes, err := json.Marshal(c)
+	if err != nil {
+		return "", fmt.Errorf("error marshaling JWT payload: %w", err)
+	}
+
+	encodedPayload := prometheusBase64URLEncode(payloadBytes)
+	data := header + "." + encodedPayload
+
+	h := hmac.New(sha512.New, []byte(secretKey))
+	h.Write([]byte(data))
+	signature := h.Sum(nil)
+
+	return header + "." + encodedPayload + "." + prometheusBase64URLEncode(signature), nil
+}
+
+func generatePrometheusToken(accessKey, secretKey string, expiry time.Duration, limit int) (string, error) {
+	if expiry.Hours() > float64(limit) {
+		expiry = time.Duration(limit) * time.Hour
+	}
+
+	token, err := generatePrometheusJWTToken(accessKey, secretKey, expiry)
+	if err != nil {
+		return "", fmt.Errorf("error generating Prometheus token: %w", err)
+	}
+
+	return token, nil
+}
+
+func generatePrometheusJWTToken(accessKey, secretKey string, expiry time.Duration) (string, error) {
+	jwt := &prometheusJwtClaim{
+		Subject:   accessKey,
+		Issuer:    prometheusBearerTokenIssuer,
+		ExpiresAt: time.Now().Add(expiry).UTC().Unix(),
+	}
+
+	token, err := jwt.sign(secretKey)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+func prometheusBase64URLEncode(data []byte) string {
+	return base64.RawURLEncoding.EncodeToString(data)
 }

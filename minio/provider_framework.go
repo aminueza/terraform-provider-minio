@@ -226,6 +226,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newIAMGroupResource,
 		newIAMGroupMembershipResource,
 		newS3ObjectResource,
+		newIAMUserPolicyAttachmentResource,
 		newBucketPolicyResource,
 		newBucketVersioningResource,
 		newBucketEncryptionResource,

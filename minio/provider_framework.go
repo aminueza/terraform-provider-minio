@@ -260,6 +260,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newIAMIdpLdapResource,
 		newS3BucketAnonymousAccessResource,
 		newSiteReplicationResource,
+		newBucketReplicationResource(),
 		resourceMinioNotifyWebhookFramework,
 		resourceMinioAuditWebhookFramework,
 		resourceMinioAuditKafkaFramework,

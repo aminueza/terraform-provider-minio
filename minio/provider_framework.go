@@ -229,6 +229,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newBucketObjectLockConfigurationResource,
 		newBucketQuotaResource,
 		newBucketTagsResource,
+		newBucketCorsResource,
 	}
 }
 

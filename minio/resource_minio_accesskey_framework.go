@@ -113,6 +113,7 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 			"status": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "The status of the access key (enabled/disabled).",
 				Default:     stringdefault.StaticString("enabled"),
 			},

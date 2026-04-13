@@ -219,11 +219,12 @@ func getBoolOrDefault(v types.Bool, defaultVal bool) bool {
 }
 
 // Resources returns the list of resources
-// Note: Resources with nested attributes or timeouts are excluded due to
-// terraform-plugin-mux v1 limitations with protocol v5. These continue to
-// work via the SDK provider once SDK resources are restored.
+// Note: Resources with ListNestedAttribute/MapNestedAttribute are temporarily
+// excluded due to terraform-plugin-framework limitations with protocol v5.
+// minio_s3_bucket is included as it's required by many tests.
 func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
+		newS3BucketResource,
 		newIAMUserResource,
 		newIAMPolicyResource,
 		newServiceAccountResource,
@@ -253,7 +254,7 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 }
 
 // DataSources returns the list of data sources
-// Note: minio_s3_bucket is excluded to avoid duplication with SDK provider
+// Note: All data sources are provided by the SDK provider to avoid conflicts
 func (p *minioFrameworkProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{}
 }

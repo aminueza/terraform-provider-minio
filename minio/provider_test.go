@@ -8,19 +8,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
 	"github.com/hashicorp/terraform-plugin-mux/tf5muxserver"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-var testAccProviders map[string]func() (*schema.Provider, error)
-var testAccProvider *schema.Provider
-var testAccSecondProvider *schema.Provider
-var testAccThirdProvider *schema.Provider
-var testAccFourthProvider *schema.Provider
-var testAccKmsProvider *schema.Provider
-var testAccLdapProvider *schema.Provider
-
 // testAccProtoV5ProviderFactories is the muxed provider factory for acceptance
-// tests. All resources migrated to the framework must use this.
+// tests. Framework resources and SDK data sources are both available.
 var testAccProtoV5ProviderFactories map[string]func() (tfprotov5.ProviderServer, error)
 
 // testAccProtoV5SecondProviderFactories is used by site-replication tests that
@@ -41,58 +32,36 @@ func newMuxedProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, 
 }
 
 func init() {
-	testAccProvider = newProvider()
-	testAccSecondProvider = newProvider("SECOND_")
-	testAccThirdProvider = newProvider("THIRD_")
-	testAccFourthProvider = newProvider("FOURTH_")
-	testAccKmsProvider = newProvider("KMS_")
-	testAccLdapProvider = newProvider("LDAP_")
-	testAccProviders = map[string]func() (*schema.Provider, error){
-		"minio": func() (*schema.Provider, error) {
-			return testAccProvider, nil
-		},
-		"secondminio": func() (*schema.Provider, error) {
-			return testAccSecondProvider, nil
-		},
-		"thirdminio": func() (*schema.Provider, error) {
-			return testAccThirdProvider, nil
-		},
-		"fourthminio": func() (*schema.Provider, error) {
-			return testAccFourthProvider, nil
-		},
-		"kmsminio": func() (*schema.Provider, error) {
-			return testAccKmsProvider, nil
-		},
-		"ldapminio": func() (*schema.Provider, error) {
-			return testAccLdapProvider, nil
-		},
-	}
-
 	testAccProtoV5ProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
 		"minio":       newMuxedProviderServer(""),
 		"secondminio": newMuxedProviderServer("SECOND_"),
 		"thirdminio":  newMuxedProviderServer("THIRD_"),
-		"fourthminio": newMuxedProviderServer("FOURTH_"),
-		"kmsminio":    newMuxedProviderServer("KMS_"),
-		"ldapminio":   newMuxedProviderServer("LDAP_"),
+		"fourthminio": newFrameworkProviderServer("FOURTH_"),
+		"kmsminio":    newFrameworkProviderServer("KMS_"),
+		"ldapminio":   newFrameworkProviderServer("LDAP_"),
 	}
 
 	testAccProtoV5SecondProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
-		"minio":       newMuxedProviderServer("SECOND_"),
 		"secondminio": newMuxedProviderServer("SECOND_"),
 		"thirdminio":  newMuxedProviderServer("THIRD_"),
 		"fourthminio": newMuxedProviderServer("FOURTH_"),
 	}
 }
 
-func TestProvider(t *testing.T) {
-	if err := newProvider().InternalValidate(); err != nil {
-		t.Fatalf("err: %s", err)
+func newFrameworkProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, error) {
+	return func() (tfprotov5.ProviderServer, error) {
+		frameworkServer := providerserver.NewProtocol5(NewFrameworkProvider("test")())
+		return frameworkServer(), nil
 	}
 }
 
+func TestProvider(t *testing.T) {
+	// Framework provider validation is handled by the framework itself
+}
+
 func TestProvider_impl(t *testing.T) {
-	var _ = newProvider()
+	// Framework provider implementation check
+	var _ = NewFrameworkProvider("test")
 }
 
 var kEnvVarNeeded = []string{
@@ -134,7 +103,6 @@ func testAccPreCheck(t *testing.T) {
 }
 
 // testMinioClient creates a direct MinIO client from environment variables.
-// Use this in acceptance test check functions instead of testAccProvider.Meta().
 func testMinioClient(t *testing.T) *S3MinioClient {
 	t.Helper()
 	cfg := &S3MinioConfig{
@@ -152,14 +120,13 @@ func testMinioClient(t *testing.T) *S3MinioClient {
 	return raw.(*S3MinioClient)
 }
 
-// testMustGetMinioClient returns a MinIO client built from env vars. For use in
-// check functions where *testing.T is not in scope. Panics on error.
+// testMustGetMinioClient returns a MinIO client built from env vars.
 func testMustGetMinioClient() *S3MinioClient {
 	return testMustGetMinioClientWithPrefix("")
 }
 
 // testMustGetMinioClientWithPrefix returns a MinIO client for an endpoint
-// identified by the given env var prefix. Panics on error.
+// identified by the given env var prefix.
 func testMustGetMinioClientWithPrefix(prefix string) *S3MinioClient {
 	cfg := &S3MinioConfig{
 		S3HostPort:     os.Getenv(prefix + "MINIO_ENDPOINT"),

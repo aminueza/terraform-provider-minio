@@ -31,7 +31,7 @@ func TestServiceAccount_basic(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfig(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountAttributes(resourceName, targetUser, status),
 					resource.TestCheckResourceAttr(resourceName, "target_user", targetUser),
 				),
@@ -67,8 +67,8 @@ func TestServiceAccount_Disable(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigDisabled(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(provider, resourceName, &serviceAccount),
-					testAccCheckMinioServiceAccountDisabled(provider, resourceName),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountDisabled( resourceName),
 				),
 			},
 		},
@@ -90,7 +90,7 @@ func TestServiceAccount_RotateAccessKey(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigWithoutSecret(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountExfiltrateAccessKey(resourceName, &oldAccessKey),
 					testAccCheckMinioServiceAccountCanLogIn(resourceName),
 				),
@@ -98,7 +98,7 @@ func TestServiceAccount_RotateAccessKey(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigUpdateSecret(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountRotatesAccessKey(resourceName, &oldAccessKey),
 					testAccCheckMinioServiceAccountCanLogIn(resourceName),
 				),
@@ -126,7 +126,7 @@ func TestServiceAccount_Policy(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigPolicy(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountExfiltrateAccessKey(resourceName, &oldAccessKey),
 					testAccCheckMinioServiceAccountCanLogIn(resourceName),
 					testAccCheckMinioServiceAccountPolicy(resourceName, policy1),
@@ -135,7 +135,7 @@ func TestServiceAccount_Policy(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigUpdatePolicy(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountRotatesAccessKey(resourceName, &oldAccessKey),
 					testAccCheckMinioServiceAccountCanLogIn(resourceName),
 					testAccCheckMinioServiceAccountPolicy(resourceName, policy2),
@@ -144,7 +144,7 @@ func TestServiceAccount_Policy(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountWithUserPolicy(targetUser2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName2, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName2, &serviceAccount),
 				),
 			},
 			{
@@ -179,13 +179,13 @@ func TestServiceAccount_NameDesc(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfig(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 				),
 			},
 			{
 				Config: testAccMinioServiceAccountConfigUpdateNameDesc(targetUser, name, description),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountNameDesc(resourceName, name, description),
 				),
 			},
@@ -208,14 +208,14 @@ func TestServiceAccount_Expiration(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfig(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountExpiration(resourceName, ""),
 				),
 			},
 			{
 				Config: testAccMinioServiceAccountConfigUpdateExpiration(targetUser, expiration),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					testAccCheckMinioServiceAccountExpiration(resourceName, expiration),
 				),
 			},
@@ -237,7 +237,7 @@ func TestServiceAccount_WriteOnlySecret_basic(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigWriteOnlySecret(targetUser, "serviceaccountsecret123", 1),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
 				),
@@ -260,14 +260,14 @@ func TestServiceAccount_WriteOnlySecret_transition(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigWriteOnlyBase(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					resource.TestCheckResourceAttrSet(resourceName, "secret_key"),
 				),
 			},
 			{
 				Config: testAccMinioServiceAccountConfigWriteOnlyTransition(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
 					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
 				),
@@ -275,7 +275,7 @@ func TestServiceAccount_WriteOnlySecret_transition(t *testing.T) {
 			{
 				Config: testAccMinioServiceAccountConfigWriteOnlyBack(targetUser),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioServiceAccountExists(testAccProvider, resourceName, &serviceAccount),
+					testAccCheckMinioServiceAccountExists( resourceName, &serviceAccount),
 					resource.TestCheckResourceAttrSet(resourceName, "secret_key"),
 				),
 			},
@@ -420,7 +420,7 @@ resource "minio_iam_service_account" "test_wo_transition" {
 `, rName)
 }
 
-func testAccCheckMinioServiceAccountExists(provider *schema.Provider, n string, res *madmin.InfoServiceAccountResp) resource.TestCheckFunc {
+func testAccCheckMinioServiceAccountExists( n string, res *madmin.InfoServiceAccountResp) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -431,7 +431,7 @@ func testAccCheckMinioServiceAccountExists(provider *schema.Provider, n string, 
 			return fmt.Errorf("no access_key is set")
 		}
 
-		minioIam := provider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		resp, err := minioIam.InfoServiceAccount(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -444,14 +444,14 @@ func testAccCheckMinioServiceAccountExists(provider *schema.Provider, n string, 
 	}
 }
 
-func testAccCheckMinioServiceAccountDisabled(provider *schema.Provider, n string) resource.TestCheckFunc {
+func testAccCheckMinioServiceAccountDisabled(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
 			return fmt.Errorf("not found: %s %s", n, s)
 		}
 
-		minioIam := provider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		resp, err := minioIam.InfoServiceAccount(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -499,7 +499,7 @@ func testAccCheckMinioServiceAccountDestroy(s *terraform.State) error {
 
 func testAccCheckMinioServiceAccountDestroyWithProvider(provider *schema.Provider) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		minioIam := provider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testMustGetMinioClient().S3Admin
 
 		for _, rs := range s.RootModule().Resources {
 			if rs.Type != "minio_iam_service_account" {

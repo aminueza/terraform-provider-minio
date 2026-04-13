@@ -32,10 +32,20 @@ type RetryConfig struct {
 	BackoffBase float64
 }
 
-func getRetryConfig() RetryConfig {
+func getRetryConfig(client *S3MinioClient) RetryConfig {
+	maxRetries := 6
+	backoffBaseMs := 1000
+	if client != nil {
+		if client.MaxRetries > 0 {
+			maxRetries = client.MaxRetries
+		}
+		if client.RetryDelayMs > 0 {
+			backoffBaseMs = client.RetryDelayMs
+		}
+	}
 	return RetryConfig{
-		MaxRetries:  6,
-		MaxBackoff:  20 * time.Second,
+		MaxRetries:  maxRetries,
+		MaxBackoff:  time.Duration(backoffBaseMs*20) * time.Millisecond,
 		BackoffBase: 2.0,
 	}
 }
@@ -273,7 +283,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// where b = random number between 0 and 1; r = 2; MAX_BACKOFF = 20 seconds for most SDKs
 	var found bool
 	var err error
-	retryConfig := getRetryConfig()
+	retryConfig := getRetryConfig(meta.(*S3MinioClient))
 
 	for i := 0; i < retryConfig.MaxRetries; i++ {
 		if ctx.Err() != nil {

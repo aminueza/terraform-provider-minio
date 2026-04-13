@@ -220,6 +220,8 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		newS3BucketResource,
+		newIAMUserResource,
+		newIAMPolicyResource,
 	}
 }
 

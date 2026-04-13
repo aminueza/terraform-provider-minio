@@ -197,8 +197,8 @@ func TestAccMinioS3Object_withMetadata(t *testing.T) {
 				Config: testAccMinioS3ObjectConfigWithMetadata(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3ObjectExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "test"),
-					resource.TestCheckResourceAttr(resourceName, "metadata.team", "platform"),
+					resource.TestCheckResourceAttr(resourceName, "metadata.Environment", "test"),
+					resource.TestCheckResourceAttr(resourceName, "metadata.Team", "platform"),
 					resource.TestCheckResourceAttr(resourceName, "cache_control", "max-age=3600"),
 					resource.TestCheckResourceAttr(resourceName, "content_disposition", "attachment"),
 					resource.TestCheckResourceAttr(resourceName, "content_encoding", "identity"),
@@ -222,14 +222,14 @@ func TestAccMinioS3Object_withMetadataUpdate(t *testing.T) {
 				Config: testAccMinioS3ObjectConfigWithMetadata(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3ObjectExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "test"),
+					resource.TestCheckResourceAttr(resourceName, "metadata.Environment", "test"),
 				),
 			},
 			{
 				Config: testAccMinioS3ObjectConfigWithMetadataUpdated(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3ObjectExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "metadata.environment", "production"),
+					resource.TestCheckResourceAttr(resourceName, "metadata.Environment", "production"),
 					resource.TestCheckResourceAttr(resourceName, "cache_control", "no-cache"),
 				),
 			},

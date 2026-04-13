@@ -5,10 +5,12 @@ Migration from terraform-plugin-sdk/v2 to terraform-plugin-framework using terra
 
 ## Status
 
-### Completed (3 resources, 1 data source)
+### Completed (5 resources, 1 data source)
 - ✅ `minio_s3_bucket` - Bucket management
 - ✅ `minio_iam_user` - IAM user management with secret rotation
 - ✅ `minio_iam_policy` - IAM policy management
+- ✅ `minio_service_account` - Service account management with full features
+- ✅ `minio_s3_bucket_policy` - Bucket policy with retry logic
 - ✅ `minio_s3_bucket` (data source) - Bucket data source
 
 ### Remaining Resources (57)

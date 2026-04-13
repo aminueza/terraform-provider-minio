@@ -1,0 +1,364 @@
+package minio
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+)
+
+// Ensure provider defined types fully satisfy framework interfaces
+var (
+	_ resource.Resource                = &minioConfigResource{}
+	_ resource.ResourceWithConfigure   = &minioConfigResource{}
+	_ resource.ResourceWithImportState = &minioConfigResource{}
+)
+
+// minioConfigResource defines the resource implementation
+type minioConfigResource struct {
+	client *S3MinioClient
+}
+
+// minioConfigResourceModel describes the resource data model
+type minioConfigResourceModel struct {
+	ID              types.String   `tfsdk:"id"`
+	Key             types.String   `tfsdk:"key"`
+	Value           types.String   `tfsdk:"value"`
+	RestartRequired types.Bool     `tfsdk:"restart_required"`
+	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+}
+
+func newConfigResource() resource.Resource {
+	return &minioConfigResource{}
+}
+
+func (r *minioConfigResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_config"
+}
+
+func (r *minioConfigResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
+	client, ok := req.ProviderData.(*S3MinioClient)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
+	r.client = client
+}
+
+func (r *minioConfigResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages MinIO server configuration key-value pairs. Use this resource to configure MinIO server settings such as API limits, notification targets, audit targets, and other subsystem configurations.",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed:    true,
+				Description: "The configuration key identifier",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+			},
+			"key": schema.StringAttribute{
+				Required:    true,
+				Description: "The configuration key (e.g., 'api', 'notify_webhook:1', 'region')",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"value": schema.StringAttribute{
+				Required:    true,
+				Description: "The configuration value in key=value format (e.g., 'requests_max=1000'). For multiple settings, separate with spaces.",
+			},
+			"restart_required": schema.BoolAttribute{
+				Computed:    true,
+				Description: "Indicates whether a server restart is required for the configuration to take effect",
+				Default:     booldefault.StaticBool(false),
+			},
+			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
+				Create: true,
+				Read:   true,
+				Update: true,
+				Delete: true,
+			}),
+		},
+	}
+}
+
+func (r *minioConfigResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var plan minioConfigResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key := plan.Key.ValueString()
+	value := plan.Value.ValueString()
+
+	tflog.Info(ctx, fmt.Sprintf("Creating MinIO config: %s", key))
+
+	timeout, diags := plan.Timeouts.Create(ctx, 5*time.Minute)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	var restartRequired bool
+	var err error
+
+	configString := fmt.Sprintf("%s %s", key, value)
+	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
+		if err != nil {
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+				return retry.RetryableError(fmt.Errorf("transient error setting config %s: %w", key, err))
+			}
+			return retry.NonRetryableError(fmt.Errorf("failed to set config: %w", err))
+		}
+		if restart {
+			restartRequired = true
+		}
+		return nil
+	})
+
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to set config %s after retries: %s", key, err))
+		resp.Diagnostics.AddError("Setting config", fmt.Sprintf("Failed to set config %s: %s", key, err))
+		return
+	}
+
+	plan.ID = types.StringValue(key)
+	plan.RestartRequired = types.BoolValue(restartRequired)
+
+	if restartRequired {
+		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
+	}
+
+	// Verify the config was set by reading it back inline
+	configData, err := r.client.S3Admin.GetConfigKV(ctx, key)
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to verify config %s: %s", key, err))
+		resp.Diagnostics.AddError("Verifying config", fmt.Sprintf("Failed to verify config %s: %s", key, err))
+		return
+	}
+
+	configStr := strings.TrimSpace(string(configData))
+	if strings.HasPrefix(configStr, key+" ") {
+		parts := strings.SplitN(configStr, " ", 2)
+		if len(parts) == 2 {
+			plan.Value = types.StringValue(strings.TrimSpace(parts[1]))
+		}
+	} else {
+		plan.Value = types.StringValue(configStr)
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *minioConfigResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var state minioConfigResourceModel
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key := state.ID.ValueString()
+
+	tflog.Info(ctx, fmt.Sprintf("Reading MinIO config: %s", key))
+
+	timeout, diags := state.Timeouts.Read(ctx, 2*time.Minute)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	var configData []byte
+	var err error
+
+	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		configData, err = r.client.S3Admin.GetConfigKV(ctx, key)
+		if err != nil {
+			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
+				tflog.Warn(ctx, fmt.Sprintf("Config %s no longer exists", key))
+				state.ID = types.StringNull()
+				return nil
+			}
+
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+				return retry.RetryableError(fmt.Errorf("error reading config %s: %w", key, err))
+			}
+
+			return retry.NonRetryableError(fmt.Errorf("failed to get config: %w", err))
+		}
+		return nil
+	})
+
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to read config %s after retries: %s", key, err))
+		resp.Diagnostics.AddError("Reading config", fmt.Sprintf("Failed to read config %s: %s", key, err))
+		return
+	}
+
+	// If the resource was removed
+	if state.ID.IsNull() {
+		return
+	}
+
+	// Parse the config data to extract the value
+	configStr := strings.TrimSpace(string(configData))
+	tflog.Debug(ctx, fmt.Sprintf("Raw config data for key %s: %s", key, configStr))
+
+	// Handle different config formats
+	if strings.HasPrefix(configStr, key+" ") {
+		parts := strings.SplitN(configStr, " ", 2)
+		if len(parts) == 2 {
+			fullValue := strings.TrimSpace(parts[1])
+			tflog.Debug(ctx, fmt.Sprintf("Setting full value from MinIO: %s", fullValue))
+			state.Value = types.StringValue(fullValue)
+		}
+	} else {
+		state.Value = types.StringValue(configStr)
+	}
+
+	state.Key = types.StringValue(key)
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *minioConfigResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan minioConfigResourceModel
+	var state minioConfigResourceModel
+
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key := plan.Key.ValueString()
+	value := plan.Value.ValueString()
+
+	tflog.Info(ctx, fmt.Sprintf("Updating MinIO config: %s", key))
+
+	timeout, diags := plan.Timeouts.Update(ctx, 5*time.Minute)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	var restartRequired bool
+	var err error
+
+	configString := fmt.Sprintf("%s %s", key, value)
+	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
+		if err != nil {
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+				return retry.RetryableError(fmt.Errorf("transient error updating config %s: %w", key, err))
+			}
+			return retry.NonRetryableError(fmt.Errorf("failed to set config: %w", err))
+		}
+		if restart {
+			restartRequired = true
+		}
+		return nil
+	})
+
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to update config %s after retries: %s", key, err))
+		resp.Diagnostics.AddError("Updating config", fmt.Sprintf("Failed to update config %s: %s", key, err))
+		return
+	}
+
+	plan.ID = state.ID
+	plan.RestartRequired = types.BoolValue(restartRequired)
+
+	if restartRequired {
+		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+}
+
+func (r *minioConfigResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state minioConfigResourceModel
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	key := state.ID.ValueString()
+
+	tflog.Info(ctx, fmt.Sprintf("Deleting MinIO config: %s", key))
+
+	// Check if config exists before attempting deletion
+	_, err := r.client.S3Admin.GetConfigKV(ctx, key)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
+			tflog.Warn(ctx, fmt.Sprintf("Config %s no longer exists, removing from state", key))
+			return
+		}
+		resp.Diagnostics.AddError("Checking config before deletion", fmt.Sprintf("Failed to check config %s: %s", key, err))
+		return
+	}
+
+	timeout, diags := state.Timeouts.Delete(ctx, 5*time.Minute)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	var restart bool
+
+	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		restart, err = r.client.S3Admin.DelConfigKV(ctx, key)
+		if err != nil {
+			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
+				return retry.RetryableError(fmt.Errorf("transient error deleting config %s: %w", key, err))
+			}
+
+			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
+				return nil
+			}
+
+			return retry.NonRetryableError(fmt.Errorf("failed to delete config: %w", err))
+		}
+		return nil
+	})
+
+	if err != nil {
+		tflog.Error(ctx, fmt.Sprintf("Failed to delete config %s after retries: %s", key, err))
+		resp.Diagnostics.AddError("Deleting config", fmt.Sprintf("Failed to delete config %s: %s", key, err))
+		return
+	}
+
+	if restart {
+		tflog.Warn(ctx, fmt.Sprintf("Config deletion for %s requires MinIO server restart to take effect", key))
+	}
+
+	state.ID = types.StringNull()
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+func (r *minioConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}

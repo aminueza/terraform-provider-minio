@@ -248,6 +248,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newIAMGroupPolicyResource,
 		newIAMUserGroupMembershipResource,
 		newKMSKeyResource,
+		newConfigResource,
 	}
 }
 

@@ -222,6 +222,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newS3BucketResource,
 		newIAMUserResource,
 		newIAMPolicyResource,
+		newServiceAccountResource,
 	}
 }
 

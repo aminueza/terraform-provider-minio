@@ -110,10 +110,9 @@ jobs:
           cache: true
 
       - name: Run govulncheck
-        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./... || echo "govulncheck found potential issues but will continue"
+          govulncheck ./...
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/golang@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0

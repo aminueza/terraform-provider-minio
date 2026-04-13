@@ -96,27 +96,10 @@ func resourceMinioObject() *schema.Resource {
 				}, false),
 			},
 			"metadata": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
-				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
-					// MinIO normalizes metadata keys to different cases;
-					// suppress diffs that only differ by key casing.
-					if k == "metadata.%" {
-						return oldValue == newValue
-					}
-					old, _ := d.GetChange("metadata")
-					if old == nil {
-						return false
-					}
-					oldMap := old.(map[string]interface{})
-					for ok, ov := range oldMap {
-						if strings.EqualFold(ok, strings.TrimPrefix(k, "metadata.")) {
-							return ov.(string) == newValue
-						}
-					}
-					return false
-				},
+				Type:             schema.TypeMap,
+				Optional:         true,
+				Elem:             &schema.Schema{Type: schema.TypeString},
+				DiffSuppressFunc: suppressCaseInsensitiveMapDiff("metadata"),
 			},
 			"cache_control": {
 				Type:     schema.TypeString,

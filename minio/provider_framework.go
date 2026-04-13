@@ -259,6 +259,7 @@ func (p *minioFrameworkProvider) Resources(ctx context.Context) []func() resourc
 		newPrometheusBearerTokenResource,
 		newIAMIdpLdapResource,
 		newS3BucketAnonymousAccessResource,
+		newSiteReplicationResource,
 		resourceMinioNotifyWebhookFramework,
 		resourceMinioAuditWebhookFramework,
 		resourceMinioAuditKafkaFramework,

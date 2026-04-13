@@ -89,6 +89,7 @@ duration from creation time.`,
 			},
 			"expires_in": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Token expiry duration in whole hours only (e.g., 24h, 87600h). Go time.Duration formats like 24h30m or units such as m/s are not supported. Default: 87600h (10 years)",
 				Default:     stringdefault.StaticString("87600h"),
 			},

@@ -135,6 +135,7 @@ func (r *ilmTierResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"force_new_credentials": schema.BoolAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Force credential update even when the server returns REDACTED values.",
 				Default:     booldefault.StaticBool(false),
 			},

@@ -111,6 +111,7 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 			},
 			"resync_version": schema.Int64Attribute{
 				Optional:    true,
+				Computed:    true,
 				Default:     int64default.StaticInt64(0),
 				Description: "Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.",
 			},
@@ -133,6 +134,7 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 						},
 						"enabled": schema.BoolAttribute{
 							Optional:    true,
+							Computed:    true,
 							Default:     booldefault.StaticBool(true),
 							Description: "Whether or not this rule is enabled",
 						},
@@ -192,11 +194,13 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 									},
 									"secure": schema.BoolAttribute{
 										Optional:    true,
+										Computed:    true,
 										Default:     booldefault.StaticBool(true),
 										Description: "Whether to use HTTPS with this target",
 									},
 									"path_style": schema.StringAttribute{
 										Optional: true,
+										Computed: true,
 										Default:  stringdefault.StaticString("auto"),
 										Validators: []validator.String{
 											stringvalidator.OneOf("on", "off", "auto"),
@@ -214,11 +218,13 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 									},
 									"disable_proxy": schema.BoolAttribute{
 										Optional:    true,
+										Computed:    true,
 										Default:     booldefault.StaticBool(false),
 										Description: "Disable proxy for this target",
 									},
 									"health_check_period": schema.StringAttribute{
 										Optional: true,
+										Computed: true,
 										Default:  stringdefault.StaticString("30s"),
 										Validators: []validator.String{
 											stringvalidator.RegexMatches(regexp.MustCompile(`^[0-9]+\s?[s|m|h]$`), "must be a valid golang duration"),
@@ -227,6 +233,7 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 									},
 									"bandwidth_limit": schema.StringAttribute{
 										Optional:    true,
+										Computed:    true,
 										Default:     stringdefault.StaticString("0"),
 										Description: "Maximum bandwidth in bytes per second that MinIO can use when synchronizing this target. Minimum is 100MB",
 									},

@@ -34,7 +34,7 @@ func (p *minioFrameworkProvider) Schema(_ context.Context, _ provider.SchemaRequ
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"minio_server": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Description: "MinIO server endpoint in the format host:port",
 			},
 			"minio_region": schema.StringAttribute{

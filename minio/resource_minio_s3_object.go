@@ -99,6 +99,24 @@ func resourceMinioObject() *schema.Resource {
 				Type:     schema.TypeMap,
 				Optional: true,
 				Elem:     &schema.Schema{Type: schema.TypeString},
+				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
+					// MinIO normalizes metadata keys to different cases;
+					// suppress diffs that only differ by key casing.
+					if k == "metadata.%" {
+						return oldValue == newValue
+					}
+					old, _ := d.GetChange("metadata")
+					if old == nil {
+						return false
+					}
+					oldMap := old.(map[string]interface{})
+					for ok, ov := range oldMap {
+						if strings.EqualFold(ok, strings.TrimPrefix(k, "metadata.")) {
+							return ov.(string) == newValue
+						}
+					}
+					return false
+				},
 			},
 			"cache_control": {
 				Type:     schema.TypeString,
@@ -196,7 +214,7 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 	if v, ok := d.GetOk("metadata"); ok {
 		metadata := make(map[string]string)
 		for k, val := range v.(map[string]interface{}) {
-			metadata[strings.ToLower(k)] = val.(string)
+			metadata[k] = val.(string)
 		}
 		options.UserMetadata = metadata
 	}

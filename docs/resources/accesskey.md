@@ -2,12 +2,12 @@
 page_title: "minio_accesskey Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages MinIO access keys (service accounts) for users. Access keys provide temporary, rotatable credentials for users without exposing their primary secret key.
 ---
 
 # minio_accesskey (Resource)
 
-
+Manages MinIO access keys (service accounts) for users. Access keys provide temporary, rotatable credentials for users without exposing their primary secret key.
 
 ## Example Usage
 
@@ -90,31 +90,18 @@ The `policy` argument expects a JSON policy document. Use `jsonencode({...})` to
 
 ### Optional
 
-> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
-
 - `access_key` (String) The access key. If provided, must be between 8 and 20 characters.
 - `description` (String) Description for the access key (max 256 characters).
 - `policy` (String) Policy to attach to the access key (policy name or JSON document).
 - `secret_key` (String, Sensitive) The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.
-- `secret_key_version` (String) Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.
-- `secret_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the access key.
+- `secret_key_version` (String) Version identifier for the secret key. Change this value to trigger a secret key rotation.
+- `secret_key_wo` (String, Sensitive) Write-only secret key for the access key.
 - `secret_key_wo_version` (Number) Version identifier for secret_key_wo. Increment this integer to trigger rotation when using secret_key_wo.
 - `status` (String) The status of the access key (enabled/disabled).
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String)
-- `delete` (String)
-- `read` (String)
-- `update` (String)
+- `id` (String) The access key identifier
 
 ## Import
 

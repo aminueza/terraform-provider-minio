@@ -45,7 +45,6 @@ resource "minio_notify_elasticsearch" "events" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

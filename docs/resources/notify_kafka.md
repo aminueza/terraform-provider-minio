@@ -39,13 +39,13 @@ resource "minio_notify_kafka" "events" {
 
 - `batch_size` (Number) Number of messages to batch before sending to Kafka.
 - `client_tls_cert` (String) Path to the client TLS certificate for mTLS authentication.
-- `client_tls_key` (String, Sensitive) Path to the client TLS private key. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_tls_key` (String, Sensitive) Path to the client TLS private key. MinIO does not return this value on read.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 - `sasl_mechanism` (String) SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'.
-- `sasl_password` (String, Sensitive) SASL password for Kafka authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `sasl_password` (String, Sensitive) SASL password for Kafka authentication. MinIO does not return this value on read.
 - `sasl_username` (String) SASL username for Kafka authentication.
 - `tls` (Boolean) Whether to enable TLS for the Kafka connection.
 - `tls_client_auth` (Number) TLS client authentication type (0=NoClientCert, 1=RequestClientCert, etc.).
@@ -54,7 +54,6 @@ resource "minio_notify_kafka" "events" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

@@ -45,16 +45,15 @@ resource "minio_audit_webhook" "backup" {
 
 ### Optional
 
-- `auth_token` (String, Sensitive) Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `auth_token` (String, Sensitive) Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read.
 - `batch_size` (Number) Number of audit events to send in a single batch to the endpoint.
 - `client_cert` (String) Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.
-- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.
 - `enable` (Boolean) Whether this audit webhook target is enabled.
-- `queue_size` (Number) Maximum number of audit events to queue before dropping. Defaults to MinIO server default if not set.
+- `queue_size` (Number) Maximum number of audit events to queue before dropping.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required for the configuration to take effect.
 
 ## Import

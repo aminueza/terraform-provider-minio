@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_policy Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Provides a MinIO S3 Bucket Policy resource.
 ---
 
 # minio_s3_bucket_policy (Resource)
 
-
+Provides a MinIO S3 Bucket Policy resource.
 
 ## Example Usage
 
@@ -41,26 +41,12 @@ resource "minio_s3_bucket_policy" "example" {
 
 ### Required
 
-- `bucket` (String) Name of the bucket
-- `policy` (String) Policy JSON string
-
-### Optional
-
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
+- `bucket` (String) Name of the bucket.
+- `policy` (String) Policy JSON string.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String)
-- `delete` (String)
-- `read` (String)
-- `update` (String)
+- `id` (String) Bucket name.
 
 ## Import
 

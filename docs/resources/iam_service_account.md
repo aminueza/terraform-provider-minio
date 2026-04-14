@@ -2,12 +2,12 @@
 page_title: "minio_iam_service_account Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Provides a MinIO Service Account resource.
 ---
 
 # minio_iam_service_account (Resource)
 
-
+Provides a MinIO Service Account resource.
 
 ## Example Usage
 
@@ -54,27 +54,25 @@ Use `secret_key_wo` with `secret_key_wo_version` to rotate service account secre
 
 ### Required
 
-- `target_user` (String) User the service account will be created for
+- `target_user` (String) User the service account will be created for.
 
 ### Optional
 
-> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
-
-- `description` (String) Description of service account (256 bytes max), can't be cleared once set
-- `disable_user` (Boolean) Disable service account
+- `description` (String) Description of service account (256 bytes max), can't be cleared once set.
+- `disable_user` (Boolean) Disable service account.
 - `expiration` (String) Expiration of service account in RFC3339 format. Must be between NOW+15min & NOW+365d. If not set, the service account will not expire.
-- `name` (String) Name of service account (32 bytes max), can't be cleared once set
-- `policy` (String) policy of service account as encoded JSON string
-- `secret_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) write-only secret key of service account
+- `name` (String) Name of service account (32 bytes max), can't be cleared once set.
+- `policy` (String) Policy of service account as encoded JSON string.
+- `secret_key_wo` (String, Sensitive) Write-only secret key of service account.
 - `secret_key_wo_version` (Number) Version identifier for secret_key_wo. Change this value to trigger secret key rotation when using secret_key_wo.
-- `update_secret` (Boolean) rotate secret key
+- `update_secret` (Boolean) Rotate secret key.
 
 ### Read-Only
 
-- `access_key` (String) access key of service account
-- `id` (String) The ID of this resource.
-- `secret_key` (String, Sensitive) secret key of service account
-- `status` (String)
+- `access_key` (String) Access key of service account.
+- `id` (String) Access key of the service account.
+- `secret_key` (String, Sensitive) Secret key of service account.
+- `status` (String) Status of the service account (on/off).
 
 ## Import
 

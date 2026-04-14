@@ -2,12 +2,12 @@
 page_title: "minio_config Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages MinIO server configuration key-value pairs. Use this resource to configure MinIO server settings such as API limits, notification targets, audit targets, and other subsystem configurations.
 ---
 
 # minio_config (Resource)
 
-
+Manages MinIO server configuration key-value pairs. Use this resource to configure MinIO server settings such as API limits, notification targets, audit targets, and other subsystem configurations.
 
 ## Example Usage
 
@@ -60,24 +60,10 @@ mc admin config set myminio/ api
 - `key` (String) The configuration key (e.g., 'api', 'notify_webhook:1', 'region')
 - `value` (String) The configuration value in key=value format (e.g., 'requests_max=1000'). For multiple settings, separate with spaces.
 
-### Optional
-
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The configuration key identifier
 - `restart_required` (Boolean) Indicates whether a server restart is required for the configuration to take effect
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String)
-- `delete` (String)
-- `read` (String)
-- `update` (String)
 
 ## Import
 

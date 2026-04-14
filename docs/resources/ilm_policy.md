@@ -162,75 +162,63 @@ The following attributes within a `rule` block are **mutually exclusive** per Mi
 ### Required
 
 - `bucket` (String) Name of the bucket.
-- `rule` (Block List, Min: 1) List of lifecycle rules. (see [below for nested schema](#nestedblock--rule))
+- `rule` (List of Object) List of lifecycle rules. (see [below for nested schema](#nestedatt--rule))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
-<a id="nestedblock--rule"></a>
+<a id="nestedatt--rule"></a>
 ### Nested Schema for `rule`
 
 Required:
 
-- `id` (String) Unique identifier for the rule.
+- `abort_incomplete_multipart_upload` (List of Object) (see [below for nested schema](#nestedobjatt--rule--abort_incomplete_multipart_upload))
+- `expiration` (String)
+- `expired_object_delete_marker` (Boolean)
+- `filter` (String)
+- `id` (String)
+- `noncurrent_expiration` (List of Object) (see [below for nested schema](#nestedobjatt--rule--noncurrent_expiration))
+- `noncurrent_transition` (List of Object) (see [below for nested schema](#nestedobjatt--rule--noncurrent_transition))
+- `status` (String)
+- `tags` (Map of String)
+- `transition` (List of Object) (see [below for nested schema](#nestedobjatt--rule--transition))
 
-Optional:
-
-- `abort_incomplete_multipart_upload` (Block List, Max: 1) Configuration for aborting incomplete multipart uploads. (see [below for nested schema](#nestedblock--rule--abort_incomplete_multipart_upload))
-- `expiration` (String) Value may be duration (5d) or date (1970-01-01) to expire objects
-- `expired_object_delete_marker` (Boolean) Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).
-- `filter` (String) Object key prefix to filter which objects the rule applies to.
-- `noncurrent_expiration` (Block List, Max: 1) Expiration configuration for noncurrent object versions. (see [below for nested schema](#nestedblock--rule--noncurrent_expiration))
-- `noncurrent_transition` (Block List, Max: 1) Transition configuration for noncurrent object versions. (see [below for nested schema](#nestedblock--rule--noncurrent_transition))
-- `status` (String) Status of the rule. Can be either 'Enabled' or 'Disabled'. Defaults to 'Enabled'.
-- `tags` (Map of String) Key-value map of object tags to filter which objects the rule applies to.
-- `transition` (Block List, Max: 1) Transition configuration for current object versions. (see [below for nested schema](#nestedblock--rule--transition))
-
-<a id="nestedblock--rule--abort_incomplete_multipart_upload"></a>
+<a id="nestedobjatt--rule--abort_incomplete_multipart_upload"></a>
 ### Nested Schema for `rule.abort_incomplete_multipart_upload`
 
 Required:
 
-- `days_after_initiation` (String) Number of days after which incomplete multipart uploads should be aborted, in format 'Nd'.
+- `days_after_initiation` (String)
 
 
-<a id="nestedblock--rule--noncurrent_expiration"></a>
+<a id="nestedobjatt--rule--noncurrent_expiration"></a>
 ### Nested Schema for `rule.noncurrent_expiration`
 
 Required:
 
-- `days` (String) Number of days after becoming noncurrent to expire, in format 'Nd'.
-
-Optional:
-
-- `newer_versions` (Number) Number of newer versions to retain.
+- `days` (String)
+- `newer_versions` (Number)
 
 
-<a id="nestedblock--rule--noncurrent_transition"></a>
+<a id="nestedobjatt--rule--noncurrent_transition"></a>
 ### Nested Schema for `rule.noncurrent_transition`
 
 Required:
 
-- `days` (String) Number of days after becoming noncurrent to transition, in format 'Nd'.
-- `storage_class` (String) Target storage class for noncurrent version transition.
-
-Optional:
-
-- `newer_versions` (Number) Number of newer versions to retain.
+- `days` (String)
+- `newer_versions` (Number)
+- `storage_class` (String)
 
 
-<a id="nestedblock--rule--transition"></a>
+<a id="nestedobjatt--rule--transition"></a>
 ### Nested Schema for `rule.transition`
 
 Required:
 
-- `storage_class` (String) Target storage class for the transition.
-
-Optional:
-
-- `date` (String) Date after which objects are transitioned, in format 'YYYY-MM-DD'.
-- `days` (String) Number of days after object creation to transition, in format 'Nd'.
+- `date` (String)
+- `days` (String)
+- `storage_class` (String)
 
 ## Import
 

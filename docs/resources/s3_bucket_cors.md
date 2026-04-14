@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_cors Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages Cross-Origin Resource Sharing (CORS) configuration for S3 buckets in MinIO.
 ---
 
 # minio_s3_bucket_cors (Resource)
 
-
+Manages Cross-Origin Resource Sharing (CORS) configuration for S3 buckets in MinIO.
 
 ## Example Usage
 
@@ -83,26 +83,23 @@ resource "minio_s3_bucket_cors" "dev" {
 ### Required
 
 - `bucket` (String) Name of the bucket to apply CORS configuration
-- `cors_rule` (Block List, Min: 1) List of CORS rules (see [below for nested schema](#nestedblock--cors_rule))
+- `cors_rule` (List of Object) List of CORS rules (see [below for nested schema](#nestedatt--cors_rule))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
-<a id="nestedblock--cors_rule"></a>
+<a id="nestedatt--cors_rule"></a>
 ### Nested Schema for `cors_rule`
 
 Required:
 
-- `allowed_methods` (List of String) HTTP methods that the origin is allowed to execute (GET, PUT, POST, DELETE, HEAD)
-- `allowed_origins` (List of String) Origins that are allowed to access the bucket
-
-Optional:
-
-- `allowed_headers` (List of String) Headers that are allowed in a preflight OPTIONS request
-- `expose_headers` (List of String) Headers in the response that customers are able to access from their applications
-- `id` (String) Unique identifier for the rule
-- `max_age_seconds` (Number) Time in seconds that browser can cache the response for a preflight request
+- `allowed_headers` (List of String)
+- `allowed_methods` (List of String)
+- `allowed_origins` (List of String)
+- `expose_headers` (List of String)
+- `id` (String)
+- `max_age_seconds` (Number)
 
 ## Import
 

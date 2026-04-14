@@ -51,7 +51,7 @@ resource "minio_iam_ldap_group_policy_attachment" "admins" {
 
 ### Required
 
-- `group_dn` (String) The distinguished name (dn) of group to attach policy to
+- `group_dn` (String) The distinguished name (DN) of group to attach policy to
 - `policy_name` (String) Name of policy to attach to group
 
 ### Read-Only

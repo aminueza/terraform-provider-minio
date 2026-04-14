@@ -38,7 +38,7 @@ resource "minio_server_config_api" "main" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The API configuration identifier
 - `restart_required` (Boolean) Whether a MinIO server restart is required.
 
 ## Import

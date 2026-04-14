@@ -55,7 +55,7 @@ resource "minio_s3_bucket_notification" "events" {
 ### Required
 
 - `endpoint` (String) HTTP(S) endpoint URL to send bucket event notifications to.
-- `name` (String) Target name identifier.
+- `name` (String) Unique name for the webhook notification target.
 
 ### Optional
 
@@ -65,11 +65,10 @@ resource "minio_s3_bucket_notification" "events" {
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
-- `queue_limit` (Number) Maximum number of undelivered messages to queue.
+- `queue_limit` (Number) Maximum size of the queue for outgoing messages.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

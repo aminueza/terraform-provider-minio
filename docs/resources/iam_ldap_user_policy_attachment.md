@@ -52,7 +52,7 @@ resource "minio_iam_ldap_user_policy_attachment" "admins" {
 ### Required
 
 - `policy_name` (String) Name of policy to attach to user
-- `user_dn` (String) The dn of user to attach policy to
+- `user_dn` (String) The DN of user to attach policy to
 
 ### Read-Only
 

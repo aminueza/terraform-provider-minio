@@ -7,7 +7,7 @@ description: |-
 
 # minio_s3_bucket_anonymous_access (Resource)
 
-
+Manages anonymous access policies for MinIO buckets. This resource allows you to configure bucket policies for public access using either custom JSON policies or canned access types.
 
 Use this resource when you want to expose part (or all) of a bucket to anonymous clients. It builds on the standard bucket policy primitives while adding conveniences for canned policies and importable state.
 
@@ -57,21 +57,7 @@ resource "minio_s3_bucket_anonymous_access" "custom" {
 
 - `access_type` (String) Canned access type for anonymous access
 - `policy` (String) Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
-
-### Read-Only
-
-- `id` (String) The ID of this resource.
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String)
-- `delete` (String)
-- `read` (String)
-- `update` (String)
+- `skip_bucket_tagging` (Boolean) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging.
 
 ## Import
 

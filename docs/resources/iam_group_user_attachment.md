@@ -2,12 +2,12 @@
 page_title: "minio_iam_group_user_attachment Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM group user attachment in MinIO. Adds a user to a group.
 ---
 
 # minio_iam_group_user_attachment (Resource)
 
-
+Manages an IAM group user attachment in MinIO. Adds a user to a group.
 
 ## Example Usage
 
@@ -42,8 +42,8 @@ output "minio_group" {
 
 ### Required
 
-- `group_name` (String) Name of group to attach user to
-- `user_name` (String) Name of user
+- `group_name` (String) Name of group to add user to
+- `user_name` (String) Name of user to add to group
 
 ### Read-Only
 

@@ -2,12 +2,12 @@
 page_title: "minio_iam_group_policy Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM policy attached to a group. This resource creates a standalone policy that can be attached to a group.
 ---
 
 # minio_iam_group_policy (Resource)
 
-
+Manages an IAM policy attached to a group. This resource creates a standalone policy that can be attached to a group.
 
 ## Example Usage
 
@@ -54,7 +54,7 @@ output "minio_group" {
 ### Required
 
 - `group` (String) Name of group the policy belongs to.
-- `policy` (String) Policy JSON string
+- `policy` (String) Policy JSON string.
 
 ### Optional
 
@@ -63,7 +63,7 @@ output "minio_group" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) ID of the group policy (format: <group-name>:<policy-name>).
 
 ## Import
 

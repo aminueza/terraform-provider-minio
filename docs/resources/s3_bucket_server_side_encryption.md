@@ -33,8 +33,8 @@ resource "minio_s3_bucket_server_side_encryption" "sse_kms" {
 
 ### Required
 
-- `bucket` (String) Name of the bucket on which to setup server side encryption
-- `encryption_type` (String) Server side encryption type: `AES256` for SSE-S3 or `aws:kms` for SSE-KMS
+- `bucket` (String) Name of the bucket on which to setup server side encryption.
+- `encryption_type` (String) Server side encryption type: `AES256` for SSE-S3 or `aws:kms` for SSE-KMS.
 
 ### Optional
 
@@ -42,7 +42,7 @@ resource "minio_s3_bucket_server_side_encryption" "sse_kms" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
 ## Import
 

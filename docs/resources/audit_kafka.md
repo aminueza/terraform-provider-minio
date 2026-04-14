@@ -29,15 +29,15 @@ resource "minio_audit_kafka" "compliance" {
 ### Required
 
 - `brokers` (String) Comma-separated list of Kafka broker addresses.
-- `name` (String) Target name identifier.
+- `name` (String) Unique name for the Kafka audit target.
 - `topic` (String) Kafka topic for audit events.
 
 ### Optional
 
 - `client_tls_cert` (String) Path to client TLS certificate.
 - `client_tls_key` (String, Sensitive) Path to client TLS private key.
-- `comment` (String) Comment or description for this notification target.
-- `enable` (Boolean) Whether this notification target is enabled.
+- `comment` (String) Comment or description for this Kafka target.
+- `enable` (Boolean) Whether this Kafka audit target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 - `sasl_mechanism` (String) SASL mechanism (plain, scram-sha-256, scram-sha-512).
@@ -49,7 +49,6 @@ resource "minio_audit_kafka" "compliance" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

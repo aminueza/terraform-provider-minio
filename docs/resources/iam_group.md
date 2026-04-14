@@ -2,12 +2,12 @@
 page_title: "minio_iam_group Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM group in MinIO.
 ---
 
 # minio_iam_group (Resource)
 
-
+Manages an IAM group in MinIO.
 
 ## Example Usage
 
@@ -36,7 +36,7 @@ output "minio_user_group" {
 ### Read-Only
 
 - `group_name` (String) The name of the group.
-- `id` (String) The ID of this resource.
+- `id` (String) Group name.
 
 ## Import
 

@@ -26,12 +26,11 @@ output "versioning_enabled" {
 
 ### Required
 
-- `bucket` (String)
+- `bucket` (String) Name of the bucket
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `object_lock_enabled` (Boolean)
-- `policy` (String)
-- `region` (String)
-- `versioning_enabled` (Boolean)
+- `object_lock_enabled` (Boolean) Whether object locking is enabled for the bucket
+- `policy` (String) Bucket policy in JSON format
+- `region` (String) Region of the bucket
+- `versioning_enabled` (Boolean) Whether versioning is enabled for the bucket

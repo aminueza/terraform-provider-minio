@@ -2,12 +2,12 @@
 page_title: "minio_server_config_region Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Manages MinIO server region/site name configuration.
+  Manages MinIO server region/site name configuration. Use this resource to configure the region or site name for MinIO distributed deployments.
 ---
 
 # minio_server_config_region (Resource)
 
-Manages MinIO server region/site name configuration.
+Manages MinIO server region/site name configuration. Use this resource to configure the region or site name for MinIO distributed deployments.
 
 ## Example Usage
 
@@ -30,7 +30,7 @@ resource "minio_server_config_region" "main" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The region configuration identifier
 - `restart_required` (Boolean) Whether a MinIO server restart is required.
 
 ## Import

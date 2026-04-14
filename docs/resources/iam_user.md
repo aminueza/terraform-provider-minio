@@ -2,12 +2,12 @@
 page_title: "minio_iam_user Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Provides a MinIO IAM User resource.
 ---
 
 # minio_iam_user (Resource)
 
-
+Provides a MinIO IAM User resource.
 
 ## Example Usage
 
@@ -54,23 +54,21 @@ Use `secret_wo` with `secret_wo_version` when you do not want the provided secre
 
 ### Required
 
-- `name` (String) Name of the user
+- `name` (String) Name of the user.
 
 ### Optional
 
-> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
-
-- `disable_user` (Boolean) Disable user
-- `force_destroy` (Boolean) Delete user even if it has non-Terraform-managed IAM access keys
+- `disable_user` (Boolean) Disable user.
+- `force_destroy` (Boolean) Delete user even if it has non-Terraform-managed IAM access keys.
 - `secret` (String, Sensitive) Secret key for the IAM user.
-- `secret_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the IAM user.
+- `secret_wo` (String, Sensitive) Write-only secret key for the IAM user.
 - `secret_wo_version` (Number) Version identifier for secret_wo. Change this value to trigger rotation when using secret_wo.
-- `tags` (Map of String)
-- `update_secret` (Boolean) Rotate Minio User Secret Key
+- `tags` (Map of String) A map of tags to assign to the user.
+- `update_secret` (Boolean) Rotate Minio User Secret Key.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Name of the user.
 - `status` (String) Status of the IAM user.
 
 ## Import

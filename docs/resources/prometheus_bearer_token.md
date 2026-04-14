@@ -86,7 +86,7 @@ output "prometheus_scrape_config" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The metric type identifier
 - `token` (String, Sensitive) Generated JWT bearer token for the metrics endpoint
 - `token_expiry` (String) Expiry timestamp of the token in RFC3339 format
 

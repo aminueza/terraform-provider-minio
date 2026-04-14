@@ -2,12 +2,12 @@
 page_title: "minio_iam_user_group_membership Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages IAM user group membership. This resource attaches a user to multiple groups and ensures the user is removed from any groups not specified in the configuration.
 ---
 
 # minio_iam_user_group_membership (Resource)
 
-
+Manages IAM user group membership. This resource attaches a user to multiple groups and ensures the user is removed from any groups not specified in the configuration.
 
 Attaches a single MinIO IAM user to one or more IAM groups. This resource ensures the user is a member of **exactly** the groups specified—any groups not listed will be removed.
 
@@ -42,12 +42,12 @@ resource "minio_iam_user_group_membership" "example" {
 
 ### Required
 
-- `groups` (Set of String) A list of IAM groups to add the user to
-- `user` (String) The name of the IAM user
+- `groups` (Set of String) A list of IAM groups to add the user to.
+- `user` (String) The name of the IAM user.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) User name.
 
 ## Import
 

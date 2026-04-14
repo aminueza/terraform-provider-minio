@@ -33,7 +33,7 @@ resource "minio_s3_bucket_quota" "example" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
 ## Import
 

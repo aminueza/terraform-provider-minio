@@ -2,12 +2,12 @@
 page_title: "minio_iam_group_membership Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM group membership in MinIO. Adds users to a group.
 ---
 
 # minio_iam_group_membership (Resource)
 
-
+Manages an IAM group membership in MinIO. Adds users to a group.
 
 ## Example Usage
 

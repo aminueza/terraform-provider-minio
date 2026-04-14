@@ -2,12 +2,12 @@
 page_title: "minio_s3_object Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an S3 object (file) in a MinIO bucket.
 ---
 
 # minio_s3_object (Resource)
 
-
+Manages an S3 object (file) in a MinIO bucket.
 
 ## Example Usage
 
@@ -67,17 +67,17 @@ output "minio_id" {
 ### Optional
 
 - `acl` (String) The canned ACL to apply to the object. Valid values: private, public-read, public-read-write, authenticated-read
-- `cache_control` (String)
+- `cache_control` (String) Cache control header
 - `content` (String) Content of the object as a string. Use only one of content, content_base64, or source
 - `content_base64` (String) Base64-encoded content of the object. Use only one of content, content_base64, or source
-- `content_disposition` (String)
-- `content_encoding` (String)
+- `content_disposition` (String) Content disposition header
+- `content_encoding` (String) Content encoding header
 - `content_type` (String) Content type of the object, in the form of a MIME type
 - `etag` (String) ETag of the object
-- `expires` (String)
-- `metadata` (Map of String)
+- `expires` (String) Expires header in RFC3339 format
+- `metadata` (Map of String) Metadata to store with the object
 - `source` (String) Path to the file that will be uploaded. Use only one of content, content_base64, or source
-- `storage_class` (String)
+- `storage_class` (String) Storage class: STANDARD, REDUCED_REDUNDANCY, ONEZONE_IA, INTELLIGENT_TIERING
 - `version_id` (String) Version ID of the object
 
 ### Read-Only

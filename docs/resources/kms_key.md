@@ -2,12 +2,12 @@
 page_title: "minio_kms_key Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages a KMS key for MinIO. KMS keys are used for encryption and decryption operations.
 ---
 
 # minio_kms_key (Resource)
 
-
+Manages a KMS key for MinIO. KMS keys are used for encryption and decryption operations.
 
 ## Example Usage
 
@@ -23,11 +23,11 @@ resource "minio_kms_key" "example" {
 
 ### Required
 
-- `key_id` (String) KMS key ID
+- `key_id` (String) KMS key ID.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) KMS key ID.
 
 ## Import
 

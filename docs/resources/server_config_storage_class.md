@@ -29,7 +29,7 @@ resource "minio_server_config_storage_class" "main" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The storage class configuration identifier
 - `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration.
 
 ## Import

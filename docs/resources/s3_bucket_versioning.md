@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_versioning Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Provides a MinIO S3 Bucket Versioning resource.
 ---
 
 # minio_s3_bucket_versioning (Resource)
 
-
+Provides a MinIO S3 Bucket Versioning resource.
 
 ## Example Usage
 
@@ -27,18 +27,14 @@ resource "minio_s3_bucket_versioning" "example" {
 
 ### Required
 
-- `bucket` (String) Name of the bucket
-- `versioning_configuration` (Block List, Min: 1, Max: 1) Versioning configuration for the bucket. (see [below for nested schema](#nestedblock--versioning_configuration))
-
-### Optional
-
-- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
+- `bucket` (String) Name of the bucket.
+- `versioning_configuration` (Attributes) Versioning configuration for the bucket. (see [below for nested schema](#nestedatt--versioning_configuration))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
-<a id="nestedblock--versioning_configuration"></a>
+<a id="nestedatt--versioning_configuration"></a>
 ### Nested Schema for `versioning_configuration`
 
 Required:
@@ -49,17 +45,6 @@ Optional:
 
 - `exclude_folders` (Boolean) Whether to exclude folders from versioning.
 - `excluded_prefixes` (List of String) List of object key prefixes to exclude from versioning.
-
-
-<a id="nestedblock--timeouts"></a>
-### Nested Schema for `timeouts`
-
-Optional:
-
-- `create` (String)
-- `delete` (String)
-- `read` (String)
-- `update` (String)
 
 ## Import
 

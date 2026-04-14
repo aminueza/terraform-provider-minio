@@ -2,12 +2,12 @@
 page_title: "minio_iam_group_policy_attachment Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM group policy attachment in MinIO. Attaches a policy to a group.
 ---
 
 # minio_iam_group_policy_attachment (Resource)
 
-
+Manages an IAM group policy attachment in MinIO. Attaches a policy to a group.
 
 ## Example Usage
 

@@ -35,25 +35,22 @@ resource "minio_s3_bucket_notification" "example" {
 
 ### Optional
 
-- `queue` (Block List) List of queue notification configurations. (see [below for nested schema](#nestedblock--queue))
+- `queue` (List of Object) List of queue notification configurations. (see [below for nested schema](#nestedatt--queue))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
-<a id="nestedblock--queue"></a>
+<a id="nestedatt--queue"></a>
 ### Nested Schema for `queue`
-
-Required:
-
-- `events` (Set of String) Set of event types to listen for (e.g., s3:ObjectCreated:*).
-- `queue_arn` (String) ARN of the queue target.
 
 Optional:
 
-- `filter_prefix` (String) Object key name prefix to filter notifications.
-- `filter_suffix` (String) Object key name suffix to filter notifications.
-- `id` (String) Unique identifier for the queue notification.
+- `events` (Set of String)
+- `filter_prefix` (String)
+- `filter_suffix` (String)
+- `id` (String)
+- `queue_arn` (String)
 
 ## Import
 

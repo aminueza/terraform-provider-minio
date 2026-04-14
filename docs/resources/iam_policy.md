@@ -2,12 +2,12 @@
 page_title: "minio_iam_policy Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Provides a MinIO IAM Policy resource.
 ---
 
 # minio_iam_policy (Resource)
 
-
+Provides a MinIO IAM Policy resource.
 
 ## Example Usage
 
@@ -44,16 +44,16 @@ output "minio_policy" {
 
 ### Required
 
-- `policy` (String) Policy JSON string
+- `policy` (String) Policy JSON string.
 
 ### Optional
 
-- `name` (String) Name of the policy. Conflicts with `name_prefix`.
-- `name_prefix` (String) Prefix to the generated policy name. Do not use with `name`.
+- `name` (String) Name of the policy. Conflicts with name_prefix.
+- `name_prefix` (String) Prefix to the generated policy name. Do not use with name.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Name of the policy.
 
 ## Import
 

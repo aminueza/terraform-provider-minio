@@ -35,7 +35,7 @@ resource "minio_server_config_etcd" "federation" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) The etcd configuration identifier
 - `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration.
 
 ## Import

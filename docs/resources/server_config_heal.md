@@ -31,8 +31,8 @@ resource "minio_server_config_heal" "main" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
-- `restart_required` (Boolean)
+- `id` (String) The heal configuration identifier
+- `restart_required` (Boolean) Whether a MinIO server restart is required.
 
 ## Import
 

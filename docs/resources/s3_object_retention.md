@@ -25,15 +25,15 @@ resource "minio_s3_object_retention" "compliance" {
 
 ### Required
 
-- `bucket` (String) Name of the bucket.
-- `key` (String) Object key.
-- `mode` (String) Retention mode: GOVERNANCE or COMPLIANCE.
-- `retain_until_date` (String) Date until which the object is retained (RFC3339 format).
+- `bucket` (String) Name of the bucket
+- `key` (String) Object key
+- `mode` (String) Retention mode: GOVERNANCE or COMPLIANCE
+- `retain_until_date` (String) Date until which the object is retained (RFC3339 format)
 
 ### Optional
 
-- `governance_bypass` (Boolean) Allow bypassing governance mode retention.
-- `version_id` (String) Version ID of the object.
+- `governance_bypass` (Boolean) Allow bypassing governance mode retention
+- `version_id` (String) Version ID of the object
 
 ### Read-Only
 

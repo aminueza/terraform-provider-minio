@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages a MinIO S3 bucket.
 ---
 
 # minio_s3_bucket (Resource)
 
-
+Manages a MinIO S3 bucket.
 
 ## Example Usage
 
@@ -67,7 +67,7 @@ resource "minio_s3_bucket" "data_lake" {
 - `acl` (String) Bucket's Access Control List (default: private)
 - `bucket` (String) Name of the bucket
 - `bucket_prefix` (String) Prefix of the bucket. Only used during bucket creation; ignored for existing resources.
-- `force_destroy` (Boolean) A boolean that indicates all objects (including locked objects) should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable.
+- `force_destroy` (Boolean) A boolean that indicates all objects should be deleted from the bucket so that the bucket can be destroyed without error.
 - `object_locking` (Boolean) Enable object locking for the bucket (default: false)
 - `quota` (Number) Quota of the bucket
 - `tags` (Map of String) A map of tags to assign to the bucket

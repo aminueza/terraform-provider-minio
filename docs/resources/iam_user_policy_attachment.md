@@ -2,12 +2,12 @@
 page_title: "minio_iam_user_policy_attachment Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Manages an IAM user policy attachment in MinIO. Attaches a policy to a user.
 ---
 
 # minio_iam_user_policy_attachment (Resource)
 
-
+Manages an IAM user policy attachment in MinIO. Attaches a policy to a user.
 
 ## Example Usage
 

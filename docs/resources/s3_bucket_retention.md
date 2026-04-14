@@ -43,14 +43,14 @@ If a bucket has lifecycle rules configured, the retention settings take preceden
 
 - `bucket` (String) Name of the bucket to configure object locking. The bucket must be created with object locking enabled.
 - `mode` (String) Retention mode for the bucket. Valid values are:
-                - GOVERNANCE: Prevents object modification by non-privileged users. Users with s3:BypassGovernanceRetention permission can modify objects.
-                - COMPLIANCE: Prevents any object modification by all users, including the root user, until retention period expires.
+- GOVERNANCE: Prevents object modification by non-privileged users. Users with s3:BypassGovernanceRetention permission can modify objects.
+- COMPLIANCE: Prevents any object modification by all users, including the root user, until retention period expires.
 - `unit` (String) Time unit for the validity period. Valid values are DAYS or YEARS.
 - `validity_period` (Number) Duration for which objects should be retained under WORM lock, in the specified unit. Must be a positive integer.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
 ## Import
 

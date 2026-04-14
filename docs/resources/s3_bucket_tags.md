@@ -34,7 +34,7 @@ resource "minio_s3_bucket_tags" "example" {
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Bucket name.
 
 ## Notes
 

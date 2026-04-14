@@ -85,55 +85,55 @@ resource "minio_ilm_tier" "gcs" {
 
 ### Optional
 
-- `azure_config` (Block List, Max: 1) Configuration for Azure Blob Storage remote tier. Required when type is azure. (see [below for nested schema](#nestedblock--azure_config))
+- `azure_config` (List of Object) Configuration for Azure Blob Storage remote tier. Required when type is azure. (see [below for nested schema](#nestedatt--azure_config))
 - `endpoint` (String) Endpoint URL for the remote storage. Required for s3 and minio types.
 - `force_new_credentials` (Boolean) Force credential update even when the server returns REDACTED values.
-- `gcs_config` (Block List, Max: 1) Configuration for Google Cloud Storage remote tier. Required when type is gcs. (see [below for nested schema](#nestedblock--gcs_config))
-- `minio_config` (Block List, Max: 1) Configuration for MinIO remote tier. Required when type is minio. (see [below for nested schema](#nestedblock--minio_config))
+- `gcs_config` (List of Object) Configuration for Google Cloud Storage remote tier. Required when type is gcs. (see [below for nested schema](#nestedatt--gcs_config))
+- `minio_config` (List of Object) Configuration for MinIO remote tier. Required when type is minio. (see [below for nested schema](#nestedatt--minio_config))
 - `prefix` (String) Object name prefix to use on the remote tier bucket.
 - `region` (String) Region of the remote storage bucket.
-- `s3_config` (Block List, Max: 1) Configuration for S3 remote tier. Required when type is s3. (see [below for nested schema](#nestedblock--s3_config))
+- `s3_config` (List of Object) Configuration for S3 remote tier. Required when type is s3. (see [below for nested schema](#nestedatt--s3_config))
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Tier name.
 
-<a id="nestedblock--azure_config"></a>
+<a id="nestedatt--azure_config"></a>
 ### Nested Schema for `azure_config`
 
 Optional:
 
-- `account_key` (String, Sensitive) Azure storage account key.
-- `account_name` (String) Azure storage account name.
-- `storage_class` (String) Azure storage tier (e.g., Hot, Cool, Archive).
+- `account_key` (String)
+- `account_name` (String)
+- `storage_class` (String)
 
 
-<a id="nestedblock--gcs_config"></a>
+<a id="nestedatt--gcs_config"></a>
 ### Nested Schema for `gcs_config`
 
 Optional:
 
-- `credentials` (String, Sensitive) GCS service account credentials JSON.
-- `storage_class` (String) GCS storage class (e.g., NEARLINE, COLDLINE, ARCHIVE).
+- `credentials` (String)
+- `storage_class` (String)
 
 
-<a id="nestedblock--minio_config"></a>
+<a id="nestedatt--minio_config"></a>
 ### Nested Schema for `minio_config`
 
 Optional:
 
-- `access_key` (String) Access key for the remote MinIO instance.
-- `secret_key` (String, Sensitive) Secret key for the remote MinIO instance.
+- `access_key` (String)
+- `secret_key` (String)
 
 
-<a id="nestedblock--s3_config"></a>
+<a id="nestedatt--s3_config"></a>
 ### Nested Schema for `s3_config`
 
 Optional:
 
-- `access_key` (String) AWS access key ID.
-- `secret_key` (String, Sensitive) AWS secret access key.
-- `storage_class` (String) S3 storage class (e.g., STANDARD_IA, GLACIER, DEEP_ARCHIVE).
+- `access_key` (String)
+- `secret_key` (String)
+- `storage_class` (String)
 
 ## Import
 

@@ -26,7 +26,7 @@ resource "minio_logger_webhook" "splunk" {
 ### Required
 
 - `endpoint` (String) HTTP(S) endpoint URL to send log events to.
-- `name` (String) Target name identifier.
+- `name` (String) Unique name for the logger webhook target.
 
 ### Optional
 
@@ -34,15 +34,14 @@ resource "minio_logger_webhook" "splunk" {
 - `batch_size` (Number) Number of log events per batch.
 - `client_cert` (String) Path to X.509 client certificate for mTLS.
 - `client_key` (String, Sensitive) Path to X.509 private key for mTLS.
-- `comment` (String) Comment or description for this notification target.
-- `enable` (Boolean) Whether this notification target is enabled.
+- `comment` (String) Comment or description for this logger webhook target.
+- `enable` (Boolean) Whether this logger webhook target is enabled.
 - `proxy` (String) Proxy URL for the webhook endpoint.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

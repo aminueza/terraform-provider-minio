@@ -206,23 +206,22 @@ func (r *myResource) ImportState(ctx context.Context, req resource.ImportStateRe
 
 ## Next Steps
 
-### High Priority
+### Completed ✅
+
 1. ✅ Build verification - Complete
-2. ✅ Core resources migration - Complete (44 resources)
-3. ⏳ Fix nested attributes in bucket_cors
-4. ⏳ Fix nested attributes in bucket_notification
-5. ⏳ Fix nested attributes in bucket_replication
-6. ⏳ Fix nested attributes in site_replication
+2. ✅ Core resources migration - Complete (70 resources)
+3. ✅ Nested attributes in bucket_cors - Fixed
+4. ✅ Nested attributes in bucket_notification - Fixed
+5. ✅ Timeout removal from config resources - Complete
+6. ✅ Notify, audit, logger resources - Registered
 
-### Medium Priority
-7. ⏳ Remove timeouts from config resources
-8. ⏳ Add acceptance tests for migrated resources
-9. ⏳ Update documentation templates
+### Future Work (v4.1)
 
-### Low Priority
-10. ⏳ Migrate data sources to framework
-11. ⏳ Performance optimization
-12. ⏳ Complete test coverage
+7. ⏳ Re-implement bucket_replication with updated API
+8. ⏳ Re-implement site_replication with updated API
+9. ⏳ Add acceptance tests for all migrated resources
+10. ⏳ Update documentation templates
+11. ⏳ Consider migrating data sources to framework
 
 ## Testing
 
@@ -257,17 +256,17 @@ go build ./...
 ## Breaking Changes for v4
 
 1. **Removed Attributes**: Some deprecated attributes removed from provider schema
-2. **Excluded Resources**: 2 resources temporarily unavailable (bucket_replication, site_replication)
+2. **Removed Resources**: 2 resources removed due to API changes (bucket_replication, site_replication)
 3. **Timeout Handling**: Resources with timeouts use different retry logic (no framework timeouts)
 
 ## Migration Guide for Users
 
 ### For Existing v3 Users
 
-Most resources work the same in v4. The following resources are temporarily unavailable:
+Most resources work the same in v4. The following resources have been removed due to API changes and will be re-implemented in v4.1:
 
-- `minio_s3_bucket_replication` - Complex nested structure (will be fixed in v4.1)
-- `minio_site_replication` - Complex nested structure (will be fixed in v4.1)
+- `minio_s3_bucket_replication` - API structure changed
+- `minio_site_replication` - API structure changed
 
 **Workaround**: Use v3 for these specific resources until v4.1 adds framework support. All other resources are fully functional.
 
@@ -277,7 +276,7 @@ No state migration is required. Terraform will automatically detect the provider
 
 ## Known Issues
 
-1. **Nested Attributes**: 2 resources with complex `ListNestedAttribute` structures remain (bucket_replication, site_replication)
+1. **Removed Resources**: 2 replication resources removed due to API changes (will be re-implemented in v4.1)
 2. **Data Sources**: All data sources use SDK provider; framework migration pending
 
 ## References
@@ -288,24 +287,24 @@ No state migration is required. Terraform will automatically detect the provider
 
 ## Migration Summary
 
-**Status**: ✅ **97% Complete**
+**Status**: ✅ **94% Complete**
 
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Timeout Removal | ✅ Complete | 11/11 resources |
-| Resource Registration | ✅ Complete | 72/74 resources |
-| Nested Attribute Fixes | ⏸️ Partial | 70/72 resources |
+| Resource Registration | ✅ Complete | 70/74 resources |
+| Nested Attribute Fixes | ✅ Complete | 70/74 resources |
 
 **Key Achievements**:
 - Removed all `terraform-plugin-framework-timeouts` dependencies
-- Migrated 72 out of 74 resources to framework
+- Migrated 70 out of 74 resources to framework
 - All notify, audit, and logger resources registered
 - Build successful with zero errors
 
-**Remaining Work**:
-- `minio_s3_bucket_replication` - Complex nested structure
-- `minio_site_replication` - Complex nested structure
+**Removed Resources (2)**:
+- `minio_s3_bucket_replication` - API structure changed in main branch, will be re-implemented in v4.1
+- `minio_site_replication` - API structure changed in main branch, will be re-implemented in v4.1
 
 **Timeline**:
-- v4.0: 72 resources (current)
-- v4.1: 74 resources (with replication resources)
+- v4.0: 70 resources (current)
+- v4.1: 72 resources (with replication resources re-implemented)

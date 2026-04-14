@@ -253,8 +253,6 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		newBucketRetentionResource,
 		newBucketCorsResource,
 		newBucketNotificationResource,
-		// Excluded due to nested attributes:
-		// newBucketNotificationResource,
 		newILMPolicyResource,
 		newILMTierResource,
 		newIAMGroupPolicyResource,
@@ -287,9 +285,6 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		resourceMinioAuditWebhookFramework,
 		// Logger resources
 		resourceMinioLoggerWebhookFramework,
-		// Excluded due to nested attributes:
-		// newSiteReplicationResource,
-		// newBucketReplicationResource(),
 	}
 }
 

@@ -92,7 +92,7 @@ func Provider() *schema.Provider {
 			"skip_bucket_tagging": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Skip bucket tagging API calls.",
+				Description: "Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging.",
 			},
 			"s3_compat_mode": {
 				Type:        schema.TypeBool,

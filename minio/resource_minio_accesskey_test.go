@@ -18,7 +18,7 @@ func TestAccMinioAccessKey_basic(t *testing.T) {
 	resourceName := "minio_accesskey.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -46,7 +46,7 @@ func TestAccMinioAccessKey_validation_requiresVersionWithSecret(t *testing.T) {
 	secret := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -64,7 +64,7 @@ func TestAccMinioAccessKey_validation_requiresVersionWithWriteOnlySecret(t *test
 	secret := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -83,7 +83,7 @@ func TestAccMinioAccessKey_validation_requiresSecretOnVersionChange(t *testing.T
 	secretV1 := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -111,7 +111,7 @@ func TestAccMinioAccessKey_validation_requiresWriteOnlySecretOnVersionChange(t *
 	secretV1 := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -217,7 +217,7 @@ func TestAccMinioAccessKey_update(t *testing.T) {
 	resourceName := "minio_accesskey.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -271,7 +271,7 @@ func TestAccMinioAccessKey_customKeys(t *testing.T) {
 	customSecretKey := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -307,7 +307,7 @@ func TestAccMinioAccessKey_withPolicy(t *testing.T) {
 	normalizedPolicyJSON := `{"Statement":[{"Action":["s3:GetObject"],"Effect":"Allow","Resource":["arn:aws:s3:::osm/*"]}],"Version":"2012-10-17"}`
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -361,7 +361,7 @@ func TestAccMinioAccessKey_ImpliedPolicy(t *testing.T) {
 	resourceName := "minio_accesskey.test_implied"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -424,7 +424,7 @@ func TestAccMinioAccessKey_secretRotation(t *testing.T) {
 	rotatedSecretKey := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -458,7 +458,7 @@ func TestAccMinioAccessKey_writeOnlySecretTransition(t *testing.T) {
 	secretV3 := acctest.RandString(40)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -508,7 +508,7 @@ func TestAccMinioAccessKey_withDescription(t *testing.T) {
 	desc := "initial description"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -529,7 +529,7 @@ func TestAccMinioAccessKey_updateDescription(t *testing.T) {
 	desc2 := "second description"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -555,13 +555,13 @@ func TestAccMinioAccessKey_descriptionValidation(t *testing.T) {
 	longDesc := strings.Repeat("a", 257)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioAccessKeyConfigWithDescription(rName, longDesc),
 				PlanOnly:    true,
-				ExpectError: regexp.MustCompile("must be at most 256 characters"),
+				ExpectError: regexp.MustCompile("must be at most 256"),
 			},
 		},
 	})

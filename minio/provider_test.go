@@ -1,43 +1,62 @@
 package minio
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/hashicorp/terraform-plugin-mux/tf5to6server"
+	"github.com/hashicorp/terraform-plugin-mux/tf6muxserver"
 )
 
-// testAccProtoV6ProviderFactories is the framework provider factory for acceptance
-// tests. All resources use this.
+// testAccProtoV6ProviderFactories is the mux provider factory for acceptance
+// tests. It combines the SDK provider (data sources) with the framework provider (resources).
 var testAccProtoV6ProviderFactories map[string]func() (tfprotov6.ProviderServer, error)
 
 // testAccProtoV6SecondProviderFactories is used by site-replication tests that
 // spin up multiple independent MinIO endpoints.
 var testAccProtoV6SecondProviderFactories map[string]func() (tfprotov6.ProviderServer, error)
 
-func newFrameworkProviderServer(envPrefix string) func() (tfprotov6.ProviderServer, error) {
+func newMuxProviderServer(envPrefix string) func() (tfprotov6.ProviderServer, error) {
 	return func() (tfprotov6.ProviderServer, error) {
-		frameworkServer := providerserver.NewProtocol6(NewFrameworkProvider("test")())
-		return frameworkServer(), nil
+		ctx := context.Background()
+
+		upgradedSdkProvider, err := tf5to6server.UpgradeServer(
+			ctx,
+			Provider().GRPCProvider,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		muxServer, err := tf6muxserver.NewMuxServer(ctx,
+			func() tfprotov6.ProviderServer { return upgradedSdkProvider },
+			providerserver.NewProtocol6(NewFrameworkProvider("test")()),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return muxServer.ProviderServer(), nil
 	}
 }
 
 func init() {
-	// Framework provider factories
 	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-		"minio":       newFrameworkProviderServer(""),
-		"secondminio": newFrameworkProviderServer("SECOND_"),
-		"thirdminio":  newFrameworkProviderServer("THIRD_"),
-		"fourthminio": newFrameworkProviderServer("FOURTH_"),
-		"kmsminio":    newFrameworkProviderServer("KMS_"),
-		"ldapminio":   newFrameworkProviderServer("LDAP_"),
+		"minio":       newMuxProviderServer(""),
+		"secondminio": newMuxProviderServer("SECOND_"),
+		"thirdminio":  newMuxProviderServer("THIRD_"),
+		"fourthminio": newMuxProviderServer("FOURTH_"),
+		"kmsminio":    newMuxProviderServer("KMS_"),
+		"ldapminio":   newMuxProviderServer("LDAP_"),
 	}
 
 	testAccProtoV6SecondProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-		"secondminio": newFrameworkProviderServer("SECOND_"),
-		"thirdminio":  newFrameworkProviderServer("THIRD_"),
-		"fourthminio": newFrameworkProviderServer("FOURTH_"),
+		"secondminio": newMuxProviderServer("SECOND_"),
+		"thirdminio":  newMuxProviderServer("THIRD_"),
+		"fourthminio": newMuxProviderServer("FOURTH_"),
 	}
 }
 
@@ -110,4 +129,3 @@ func testMustGetMinioClientWithPrefix(prefix string) *S3MinioClient {
 	}
 	return raw.(*S3MinioClient)
 }
-

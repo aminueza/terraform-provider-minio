@@ -11,6 +11,22 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+// assumeRoleModel represents the assume_role block in provider config.
+type assumeRoleModel struct {
+	RoleARN         types.String `tfsdk:"role_arn"`
+	SessionName     types.String `tfsdk:"session_name"`
+	DurationSeconds types.Int64  `tfsdk:"duration_seconds"`
+	Policy          types.String `tfsdk:"policy"`
+	ExternalID      types.String `tfsdk:"external_id"`
+}
+
+// webIdentityModel represents the assume_role_with_web_identity block in provider config.
+type webIdentityModel struct {
+	WebIdentityToken     types.String `tfsdk:"web_identity_token"`
+	WebIdentityTokenFile types.String `tfsdk:"web_identity_token_file"`
+	DurationSeconds      types.Int64  `tfsdk:"duration_seconds"`
+}
+
 // minioFrameworkProvider defines the provider implementation
 type minioFrameworkProvider struct {
 	version string
@@ -94,6 +110,67 @@ func (p *minioFrameworkProvider) Schema(_ context.Context, _ provider.SchemaRequ
 				Optional:    true,
 				Description: "Enable S3 compatibility mode for non-MinIO backends (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces). Gracefully handles unsupported S3 features instead of erroring.",
 			},
+			"request_timeout_seconds": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Global HTTP request timeout in seconds for all MinIO API calls (default: 30)",
+			},
+			"max_retries": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Maximum number of retries for failed operations (default: 6)",
+			},
+			"retry_delay_ms": schema.Int64Attribute{
+				Optional:    true,
+				Description: "Base delay in milliseconds between retries, used with exponential backoff (default: 1000)",
+			},
+			"assume_role": schema.ListNestedAttribute{
+				Optional:    true,
+				Description: "Use STS AssumeRole to obtain temporary credentials.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"role_arn": schema.StringAttribute{
+							Optional:    true,
+							Description: "ARN of the role to assume.",
+						},
+						"session_name": schema.StringAttribute{
+							Optional:    true,
+							Description: "Session name for the assumed role.",
+						},
+						"duration_seconds": schema.Int64Attribute{
+							Optional:    true,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+						"policy": schema.StringAttribute{
+							Optional:    true,
+							Description: "IAM policy in JSON format to scope down the assumed role permissions.",
+						},
+						"external_id": schema.StringAttribute{
+							Optional:    true,
+							Description: "External ID for cross-account role assumption.",
+						},
+					},
+				},
+			},
+			"assume_role_with_web_identity": schema.ListNestedAttribute{
+				Optional:    true,
+				Description: "Use STS AssumeRoleWithWebIdentity to obtain credentials from an OIDC token.",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"web_identity_token": schema.StringAttribute{
+							Optional:    true,
+							Sensitive:   true,
+							Description: "OIDC/JWT token for web identity authentication.",
+						},
+						"web_identity_token_file": schema.StringAttribute{
+							Optional:    true,
+							Description: "Path to a file containing the OIDC/JWT token.",
+						},
+						"duration_seconds": schema.Int64Attribute{
+							Optional:    true,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -154,22 +231,53 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 		}
 	}
 
+	requestTimeoutSeconds := int(getInt64OrDefault(data.RequestTimeoutSeconds, 30))
+	maxRetries := int(getInt64OrDefault(data.MaxRetries, 6))
+	retryDelayMs := int(getInt64OrDefault(data.RetryDelayMs, 1000))
+
 	// Build S3MinioConfig from framework data
 	cfg := &S3MinioConfig{
-		S3HostPort:        minioServer,
-		S3Region:          minioRegion,
-		S3UserAccess:      minioUser,
-		S3UserSecret:      minioPassword,
-		S3SessionToken:    minioSessionToken,
-		S3APISignature:    minioAPIVersion,
-		S3SSL:             minioSSL,
-		S3SSLCACertFile:   minioCACertFile,
-		S3SSLCertFile:     minioCertFile,
-		S3SSLKeyFile:      minioKeyFile,
-		S3SSLSkipVerify:   minioInsecure,
-		S3Debug:           minioDebug,
-		SkipBucketTagging: skipBucketTagging,
-		S3CompatMode:      s3CompatMode,
+		S3HostPort:            minioServer,
+		S3Region:              minioRegion,
+		S3UserAccess:          minioUser,
+		S3UserSecret:          minioPassword,
+		S3SessionToken:        minioSessionToken,
+		S3APISignature:        minioAPIVersion,
+		S3SSL:                 minioSSL,
+		S3SSLCACertFile:       minioCACertFile,
+		S3SSLCertFile:         minioCertFile,
+		S3SSLKeyFile:          minioKeyFile,
+		S3SSLSkipVerify:       minioInsecure,
+		S3Debug:               minioDebug,
+		SkipBucketTagging:     skipBucketTagging,
+		S3CompatMode:          s3CompatMode,
+		RequestTimeoutSeconds: requestTimeoutSeconds,
+		MaxRetries:            maxRetries,
+		RetryDelayMs:          retryDelayMs,
+	}
+
+	// Decode assume_role block
+	if !data.AssumeRole.IsNull() && !data.AssumeRole.IsUnknown() {
+		var roles []assumeRoleModel
+		if diag := data.AssumeRole.ElementsAs(ctx, &roles, false); !diag.HasError() && len(roles) > 0 {
+			ar := roles[0]
+			cfg.AssumeRoleARN = getStringOrDefault(ar.RoleARN, "")
+			cfg.AssumeRoleSessionName = getStringOrDefault(ar.SessionName, "terraform")
+			cfg.AssumeRoleDuration = int(getInt64OrDefault(ar.DurationSeconds, 3600))
+			cfg.AssumeRolePolicy = getStringOrDefault(ar.Policy, "")
+			cfg.AssumeRoleExternalID = getStringOrDefault(ar.ExternalID, "")
+		}
+	}
+
+	// Decode assume_role_with_web_identity block
+	if !data.AssumeRoleWithWebIdentity.IsNull() && !data.AssumeRoleWithWebIdentity.IsUnknown() {
+		var wis []webIdentityModel
+		if diag := data.AssumeRoleWithWebIdentity.ElementsAs(ctx, &wis, false); !diag.HasError() && len(wis) > 0 {
+			wi := wis[0]
+			cfg.WebIdentityToken = getStringOrDefault(wi.WebIdentityToken, "")
+			cfg.WebIdentityTokenFile = getStringOrDefault(wi.WebIdentityTokenFile, "")
+			cfg.WebIdentityDuration = int(getInt64OrDefault(wi.DurationSeconds, 3600))
+		}
 	}
 
 	// Create MinIO client
@@ -188,20 +296,25 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 
 // providerModel represents the provider configuration data
 type providerModel struct {
-	MinioServer       types.String `tfsdk:"minio_server"`
-	MinioRegion       types.String `tfsdk:"minio_region"`
-	MinioUser         types.String `tfsdk:"minio_user"`
-	MinioPassword     types.String `tfsdk:"minio_password"`
-	MinioSessionToken types.String `tfsdk:"minio_session_token"`
-	MinioAPIVersion   types.String `tfsdk:"minio_api_version"`
-	MinioSSL          types.Bool   `tfsdk:"minio_ssl"`
-	MinioInsecure     types.Bool   `tfsdk:"minio_insecure"`
-	MinioCACertFile   types.String `tfsdk:"minio_cacert_file"`
-	MinioCertFile     types.String `tfsdk:"minio_cert_file"`
-	MinioKeyFile      types.String `tfsdk:"minio_key_file"`
-	MinioDebug        types.Bool   `tfsdk:"minio_debug"`
-	SkipBucketTagging types.Bool   `tfsdk:"skip_bucket_tagging"`
-	S3CompatMode      types.Bool   `tfsdk:"s3_compat_mode"`
+	MinioServer                  types.String `tfsdk:"minio_server"`
+	MinioRegion                  types.String `tfsdk:"minio_region"`
+	MinioUser                    types.String `tfsdk:"minio_user"`
+	MinioPassword                types.String `tfsdk:"minio_password"`
+	MinioSessionToken            types.String `tfsdk:"minio_session_token"`
+	MinioAPIVersion              types.String `tfsdk:"minio_api_version"`
+	MinioSSL                     types.Bool   `tfsdk:"minio_ssl"`
+	MinioInsecure                types.Bool   `tfsdk:"minio_insecure"`
+	MinioCACertFile              types.String `tfsdk:"minio_cacert_file"`
+	MinioCertFile                types.String `tfsdk:"minio_cert_file"`
+	MinioKeyFile                 types.String `tfsdk:"minio_key_file"`
+	MinioDebug                   types.Bool   `tfsdk:"minio_debug"`
+	SkipBucketTagging            types.Bool   `tfsdk:"skip_bucket_tagging"`
+	S3CompatMode                 types.Bool   `tfsdk:"s3_compat_mode"`
+	RequestTimeoutSeconds        types.Int64  `tfsdk:"request_timeout_seconds"`
+	MaxRetries                   types.Int64  `tfsdk:"max_retries"`
+	RetryDelayMs                 types.Int64  `tfsdk:"retry_delay_ms"`
+	AssumeRole                   types.List   `tfsdk:"assume_role"`
+	AssumeRoleWithWebIdentity    types.List   `tfsdk:"assume_role_with_web_identity"`
 }
 
 // Helper functions for converting framework types to Go types
@@ -217,6 +330,13 @@ func getBoolOrDefault(v types.Bool, defaultVal bool) bool {
 		return defaultVal
 	}
 	return v.ValueBool()
+}
+
+func getInt64OrDefault(v types.Int64, defaultVal int64) int64 {
+	if v.IsNull() || v.IsUnknown() {
+		return defaultVal
+	}
+	return v.ValueInt64()
 }
 
 // Resources returns the list of resources

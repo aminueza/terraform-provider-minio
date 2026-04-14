@@ -96,9 +96,10 @@ func resourceMinioObject() *schema.Resource {
 				}, false),
 			},
 			"metadata": {
-				Type:     schema.TypeMap,
-				Optional: true,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+				Type:             schema.TypeMap,
+				Optional:         true,
+				Elem:             &schema.Schema{Type: schema.TypeString},
+				DiffSuppressFunc: suppressCaseInsensitiveMapDiff("metadata"),
 			},
 			"cache_control": {
 				Type:     schema.TypeString,
@@ -257,7 +258,11 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	if err := d.Set("content_encoding", objInfo.ContentEncoding); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
-	if err := d.Set("storage_class", objInfo.StorageClass); err != nil {
+	storageClass := objInfo.StorageClass
+	if storageClass == "" {
+		storageClass = "STANDARD"
+	}
+	if err := d.Set("storage_class", storageClass); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
 	}
 
@@ -277,7 +282,7 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 		if lower == "x-amz-acl" || lower == "content-type" {
 			continue
 		}
-		userMeta[k] = v
+		userMeta[lower] = v
 	}
 	if len(userMeta) > 0 {
 		_ = d.Set("metadata", userMeta)

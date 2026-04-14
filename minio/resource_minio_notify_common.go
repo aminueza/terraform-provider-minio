@@ -61,12 +61,17 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 		log.Printf("[DEBUG] Raw config data for %s %s: %s", nrc.subsystem, name, configStr)
 
 		var valueStr string
-		if strings.HasPrefix(configStr, configKey+" ") {
-			parts := strings.SplitN(configStr, " ", 2)
-			if len(parts) == 2 {
-				valueStr = strings.TrimSpace(parts[1])
+		for _, line := range strings.Split(configStr, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, configKey+" ") {
+				parts := strings.SplitN(line, " ", 2)
+				if len(parts) == 2 {
+					valueStr = strings.TrimSpace(parts[1])
+				}
+				break
 			}
-		} else {
+		}
+		if valueStr == "" && !strings.Contains(configStr, "\n") {
 			valueStr = configStr
 		}
 

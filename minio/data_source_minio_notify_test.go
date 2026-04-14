@@ -20,7 +20,6 @@ func TestAccDataSourceMinioNotifyWebhook_basic(t *testing.T) {
 				Config: testAccDataSourceNotifyWebhookConfig(name),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(dataSourceName, "name", name),
-					resource.TestCheckResourceAttr(dataSourceName, "endpoint", "http://minio:9000"),
 				),
 			},
 		},

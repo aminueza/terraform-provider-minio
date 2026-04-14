@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -35,9 +35,9 @@ type bucketVersioningResource struct {
 
 // bucketVersioningResourceModel describes the resource data model
 type bucketVersioningResourceModel struct {
-	ID     types.String                         `tfsdk:"id"`
-	Bucket types.String                         `tfsdk:"bucket"`
-	Config []bucketVersioningConfigurationModel `tfsdk:"versioning_configuration"`
+	ID     types.String                        `tfsdk:"id"`
+	Bucket types.String                        `tfsdk:"bucket"`
+	Config *bucketVersioningConfigurationModel `tfsdk:"versioning_configuration"`
 }
 
 // bucketVersioningConfigurationModel describes the versioning configuration model
@@ -69,31 +69,29 @@ func (r *bucketVersioningResource) Schema(ctx context.Context, req resource.Sche
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"versioning_configuration": schema.ListNestedAttribute{
+			"versioning_configuration": schema.SingleNestedAttribute{
 				Description: "Versioning configuration for the bucket.",
 				Required:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"status": schema.StringAttribute{
-							Description: "Versioning status: Enabled or Suspended.",
-							Required:    true,
-							Validators: []validator.String{
-								stringvalidator.OneOf(minio.Enabled, minio.Suspended),
-							},
-						},
-						"excluded_prefixes": schema.ListAttribute{
-							Description: "List of object key prefixes to exclude from versioning.",
-							Optional:    true,
-							ElementType: types.StringType,
-						},
-						"exclude_folders": schema.BoolAttribute{
-							Description: "Whether to exclude folders from versioning.",
-							Optional:    true,
+				Attributes: map[string]schema.Attribute{
+					"status": schema.StringAttribute{
+						Description: "Versioning status: Enabled or Suspended.",
+						Required:    true,
+						Validators: []validator.String{
+							stringvalidator.OneOf(minio.Enabled, minio.Suspended),
 						},
 					},
+					"excluded_prefixes": schema.ListAttribute{
+						Description: "List of object key prefixes to exclude from versioning.",
+						Optional:    true,
+						ElementType: types.StringType,
+					},
+					"exclude_folders": schema.BoolAttribute{
+						Description: "Whether to exclude folders from versioning.",
+						Optional:    true,
+					},
 				},
-				PlanModifiers: []planmodifier.List{
-					listplanmodifier.UseStateForUnknown(),
+				PlanModifiers: []planmodifier.Object{
+					objectplanmodifier.UseStateForUnknown(),
 				},
 			},
 		},
@@ -186,9 +184,8 @@ func (r *bucketVersioningResource) Delete(ctx context.Context, req resource.Dele
 	}
 
 	// Check if already suspended
-	if len(data.Config) > 0 {
-		config := data.Config[0]
-		if config.Status.ValueString() == minio.Suspended {
+	if data.Config != nil && !data.Config.Status.IsNull() {
+		if data.Config.Status.ValueString() == minio.Suspended {
 			return
 		}
 	}
@@ -220,12 +217,11 @@ func (r *bucketVersioningResource) ImportState(ctx context.Context, req resource
 func (r *bucketVersioningResource) putVersioning(ctx context.Context, data *bucketVersioningResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	if len(data.Config) == 0 {
+	if data.Config == nil {
 		return diags
 	}
 
-	config := data.Config[0]
-	versioningConfig := convertFrameworkVersioningConfig(&config)
+	versioningConfig := convertFrameworkVersioningConfig(data.Config)
 
 	// Wait for bucket to be ready
 	timeout := 5 * time.Minute
@@ -367,7 +363,7 @@ func (r *bucketVersioningResource) read(ctx context.Context, data *bucketVersion
 		ExcludeFolders:   types.BoolValue(versioningConfig.ExcludeFolders),
 	}
 
-	data.Config = []bucketVersioningConfigurationModel{newConfig}
+	data.Config = &newConfig
 	if data.ID.IsNull() {
 		data.ID = data.Bucket
 	}
@@ -377,6 +373,9 @@ func (r *bucketVersioningResource) read(ctx context.Context, data *bucketVersion
 
 // convertFrameworkVersioningConfig converts framework config to minio config
 func convertFrameworkVersioningConfig(c *bucketVersioningConfigurationModel) minio.BucketVersioningConfiguration {
+	if c == nil {
+		return minio.BucketVersioningConfiguration{}
+	}
 	conf := minio.BucketVersioningConfiguration{
 		Status:         c.Status.ValueString(),
 		ExcludeFolders: c.ExcludeFolders.ValueBool(),

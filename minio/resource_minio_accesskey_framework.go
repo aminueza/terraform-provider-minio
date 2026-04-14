@@ -393,10 +393,10 @@ func (r *accessKeyResource) readAccessKey(ctx context.Context, model *accessKeyR
 				model.Policy = types.StringValue(normalized)
 			}
 		} else {
-			model.Policy = types.StringNull()
+			model.Policy = types.StringValue("")
 		}
 	} else {
-		model.Policy = types.StringNull()
+		model.Policy = types.StringValue("")
 	}
 
 	return diags

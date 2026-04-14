@@ -236,6 +236,15 @@ func resourceMinioBucketReplication() *schema.Resource {
 											return
 										},
 									},
+									"bandwidth_limt": {
+										// Deprecated misspelling of bandwidth_limit. Kept in the schema so
+										// existing configs do not error at plan time; the legacy value is read
+										// via ParseBandwidthLimit in utils.go. Remove in the next major version.
+										Type:        schema.TypeString,
+										Description: "Deprecated: use 'bandwidth_limit' instead. Will be removed in a future major version.",
+										Optional:    true,
+										Deprecated:  "Use 'bandwidth_limit' instead. This attribute will be removed in a future major version.",
+									},
 									"region": {
 										Type:        schema.TypeString,
 										Description: "Region of the target MinIO. This will be used to generate the target ARN",

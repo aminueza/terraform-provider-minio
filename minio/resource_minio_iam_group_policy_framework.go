@@ -54,6 +54,9 @@ func (r *iamGroupPolicyResource) Schema(ctx context.Context, req resource.Schema
 			"policy": schema.StringAttribute{
 				Required:    true,
 				Description: "Policy JSON string.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,

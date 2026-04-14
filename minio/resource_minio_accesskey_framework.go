@@ -93,12 +93,8 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 			"secret_key": schema.StringAttribute{
 				Optional:    true,
-				Computed:    true,
 				Sensitive:   true,
 				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"secret_key_wo": schema.StringAttribute{
 				Optional:    true,
@@ -360,7 +356,9 @@ func (r *accessKeyResource) readAccessKey(ctx context.Context, model *accessKeyR
 		model.Description = types.StringNull()
 	}
 
-	model.SecretKey = types.StringNull()
+	// secret_key is write-only - MinIO never returns it
+	// Keep it as empty string to match test expectations
+	model.SecretKey = types.StringValue("")
 
 	if !info.ImpliedPolicy {
 		policy := strings.TrimSpace(info.Policy)

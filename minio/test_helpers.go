@@ -115,12 +115,37 @@ func createLifecycleRule(ruleData map[string]interface{}) (minio.Rule, error) {
 		return minio.Rule{}, err
 	}
 
-	rule := minio.Rule{
-		ID:     id,
-		Status: status,
+	// Build filter
+	var filter minio.Filter
+	prefix, _ := getStringValue(ruleData, "filter")
+	rawTags, _ := ruleData["tags"].(map[string]interface{})
+	if len(rawTags) > 0 {
+		filter.And.Prefix = prefix
+		for k, v := range rawTags {
+			filter.And.Tags = append(filter.And.Tags, minio.Tag{Key: k, Value: fmt.Sprintf("%v", v)})
+		}
+	} else {
+		filter.Prefix = prefix
+	}
+	if filter.IsNull() {
+		filter.ObjectSizeGreaterThan = emptyFilterSentinel
 	}
 
-	return rule, nil
+	// Build expiration
+	var expiration minio.Expiration
+	if expStr, ok := getStringValue(ruleData, "expiration"); ok && expStr != "" {
+		var days int
+		if _, err := fmt.Sscanf(expStr, "%dd", &days); err == nil {
+			expiration = minio.Expiration{Days: minio.ExpirationDays(days)}
+		}
+	}
+
+	return minio.Rule{
+		ID:         id,
+		Status:     status,
+		RuleFilter: filter,
+		Expiration: expiration,
+	}, nil
 }
 
 func getStringValue(data map[string]interface{}, key string) (string, bool) {

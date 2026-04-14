@@ -500,13 +500,19 @@ func TestAccMinioSiteReplication_errorConditions(t *testing.T) {
 		t.Skip("MINIO_USER or MINIO_PASSWORD not set for acceptance test")
 	}
 
+	// Error-path test: fail fast instead of burning the default 6-retry exponential
+	// backoff (~63s per admin call) against unreachable endpoints.
+	t.Setenv("MINIO_MAX_RETRIES", "0")
+	t.Setenv("MINIO_REQUEST_TIMEOUT_SECONDS", "5")
+	t.Setenv("MINIO_RETRY_DELAY_MS", "100")
+
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-error")
 
 	primaryMinioEndpoint := "http://minio:9000"
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	invalidEndpoint := "http://nonexistent:9000"
+	invalidEndpoint := "http://127.0.0.1:1"
 	invalidUser := "invalid"
 	invalidPassword := "invalid"
 
@@ -557,7 +563,7 @@ resource "minio_site_replication" "connectivity_test" {
 
   site {
     name       = "site2"
-    endpoint   = "http://192.0.2.1:9000"  # Reserved IP for documentation/test purposes
+    endpoint   = "http://127.0.0.1:1"  # Connection-refused for fast failure
     access_key = "test"
     secret_key = "test"
   }

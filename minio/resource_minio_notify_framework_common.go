@@ -129,13 +129,21 @@ func notifyFrameworkRead(ctx context.Context, client *madmin.AdminClient, config
 	configStr := strings.TrimSpace(string(configData))
 	tflog.Debug(ctx, fmt.Sprintf("Raw config data for %s %s: %s", config.Subsystem, name, configStr))
 
+	// Iterate line-by-line to find the exact config key line.
+	// GetConfigKV may return the default subsystem line alongside named targets,
+	// so a simple HasPrefix on the full response could match the wrong line.
 	var valueStr string
-	if strings.HasPrefix(configStr, configKey+" ") {
-		parts := strings.SplitN(configStr, " ", 2)
-		if len(parts) == 2 {
-			valueStr = strings.TrimSpace(parts[1])
+	for _, line := range strings.Split(configStr, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, configKey+" ") {
+			parts := strings.SplitN(line, " ", 2)
+			if len(parts) == 2 {
+				valueStr = strings.TrimSpace(parts[1])
+			}
+			break
 		}
-	} else {
+	}
+	if valueStr == "" && !strings.Contains(configStr, "\n") {
 		valueStr = configStr
 	}
 

@@ -35,9 +35,13 @@ var (
 // the sentinel never leaks into the XML.
 const emptyFilterSentinel int64 = -1
 
-// isCredentialError checks if the error is due to invalid credentials
+// isCredentialError checks if the error is due to invalid or expired credentials
 func isCredentialError(errResp minio.ErrorResponse) bool {
-	return errResp.Code == "InvalidAccessKeyId" || errResp.Code == "SignatureDoesNotMatch"
+	switch errResp.Code {
+	case "InvalidAccessKeyId", "SignatureDoesNotMatch", "AccessDenied", "ExpiredToken":
+		return true
+	}
+	return errResp.StatusCode == http.StatusForbidden
 }
 
 // isNoSuchBucketError checks if the error indicates the bucket does not exist

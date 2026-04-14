@@ -125,8 +125,16 @@ func (r *iamGroupPolicyResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
+	// Normalize the policy JSON to prevent drift
+	normalizedPolicy, err := NormalizeAndCompareJSONPolicies("", policy)
+	if err != nil {
+		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
+		return
+	}
+
 	data.ID = types.StringValue(fmt.Sprintf("%s:%s", data.Group.ValueString(), name))
 	data.Name = types.StringValue(name)
+	data.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -155,8 +163,16 @@ func (r *iamGroupPolicyResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 
 	data.Name = types.StringValue(policyName)
-	data.Policy = types.StringValue(strings.TrimSpace(string(info.Policy)))
 	data.Group = types.StringValue(groupName)
+
+	// Normalize the policy JSON to prevent drift from MinIO's formatting
+	actualPolicy := strings.TrimSpace(string(info.Policy))
+	normalizedPolicy, err := NormalizeAndCompareJSONPolicies(data.Policy.ValueString(), actualPolicy)
+	if err != nil {
+		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
+		return
+	}
+	data.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -187,6 +203,21 @@ func (r *iamGroupPolicyResource) Update(ctx context.Context, req resource.Update
 		)
 		return
 	}
+
+	// Re-read to get normalized policy
+	info, err := r.client.S3Admin.InfoCannedPolicyV2(ctx, policyName)
+	if err != nil {
+		resp.Diagnostics.AddError("Reading updated policy", err.Error())
+		return
+	}
+
+	actualPolicy := strings.TrimSpace(string(info.Policy))
+	normalizedPolicy, err := NormalizeAndCompareJSONPolicies(data.Policy.ValueString(), actualPolicy)
+	if err != nil {
+		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
+		return
+	}
+	data.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

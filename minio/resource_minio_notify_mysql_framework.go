@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/minio/madmin-go/v3"
 )
 
 var (
@@ -24,7 +23,7 @@ var (
 )
 
 type minioNotifyMysqlResource struct {
-	client *madmin.AdminClient
+	client *S3MinioClient
 }
 
 type minioNotifyMysqlResourceModel struct {
@@ -53,11 +52,11 @@ func (r *minioNotifyMysqlResource) Configure(ctx context.Context, req resource.C
 		return
 	}
 
-	client, ok := req.ProviderData.(*madmin.AdminClient)
+	client, ok := req.ProviderData.(*S3MinioClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			"Expected *madmin.AdminClient",
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}

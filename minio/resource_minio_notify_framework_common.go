@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/minio/madmin-go/v3"
 )
 
 // notifyFrameworkConfig holds the type-specific configuration for a notification resource in framework.
@@ -90,7 +89,7 @@ func notifyFrameworkConfigKey(subsystem, name string) string {
 	return fmt.Sprintf("%s:%s", subsystem, name)
 }
 
-func notifyFrameworkCreate(ctx context.Context, client *madmin.AdminClient, config notifyFrameworkConfig, plan *notifyFrameworkResourceData) diag.Diagnostics {
+func notifyFrameworkCreate(ctx context.Context, client *S3MinioClient, config notifyFrameworkConfig, plan *notifyFrameworkResourceData) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	name := plan.Name.ValueString()
@@ -99,7 +98,7 @@ func notifyFrameworkCreate(ctx context.Context, client *madmin.AdminClient, conf
 
 	cfgData := config.BuildCfg(plan)
 	configString := fmt.Sprintf("%s %s", notifyFrameworkConfigKey(config.Subsystem, name), cfgData)
-	restart, err := client.SetConfigKV(ctx, configString)
+	restart, err := client.S3Admin.SetConfigKV(ctx, configString)
 	if err != nil {
 		diags.AddError(fmt.Sprintf("creating %s target", config.Subsystem), fmt.Sprintf("Failed to create %s: %s", config.Subsystem, err))
 		return diags
@@ -112,7 +111,7 @@ func notifyFrameworkCreate(ctx context.Context, client *madmin.AdminClient, conf
 	return diags
 }
 
-func notifyFrameworkRead(ctx context.Context, client *madmin.AdminClient, config notifyFrameworkConfig, state *notifyFrameworkResourceData) diag.Diagnostics {
+func notifyFrameworkRead(ctx context.Context, client *S3MinioClient, config notifyFrameworkConfig, state *notifyFrameworkResourceData) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	name := state.Name.ValueString()
@@ -120,7 +119,7 @@ func notifyFrameworkRead(ctx context.Context, client *madmin.AdminClient, config
 	tflog.Info(ctx, fmt.Sprintf("Reading %s: %s", config.Subsystem, name))
 
 	configKey := notifyFrameworkConfigKey(config.Subsystem, name)
-	configData, err := client.GetConfigKV(ctx, configKey)
+	configData, err := client.S3Admin.GetConfigKV(ctx, configKey)
 	if err != nil {
 		diags.Append(handleNotifyFrameworkReadError(ctx, err, config.Subsystem, name, state)...)
 		return diags
@@ -161,7 +160,7 @@ func notifyFrameworkRead(ctx context.Context, client *madmin.AdminClient, config
 	return diags
 }
 
-func notifyFrameworkUpdate(ctx context.Context, client *madmin.AdminClient, config notifyFrameworkConfig, plan *notifyFrameworkResourceData) diag.Diagnostics {
+func notifyFrameworkUpdate(ctx context.Context, client *S3MinioClient, config notifyFrameworkConfig, plan *notifyFrameworkResourceData) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	name := plan.Name.ValueString()
@@ -170,7 +169,7 @@ func notifyFrameworkUpdate(ctx context.Context, client *madmin.AdminClient, conf
 
 	cfgData := config.BuildCfg(plan)
 	configString := fmt.Sprintf("%s %s", notifyFrameworkConfigKey(config.Subsystem, name), cfgData)
-	restart, err := client.SetConfigKV(ctx, configString)
+	restart, err := client.S3Admin.SetConfigKV(ctx, configString)
 	if err != nil {
 		diags.AddError(fmt.Sprintf("updating %s target", config.Subsystem), fmt.Sprintf("Failed to update %s: %s", config.Subsystem, err))
 		return diags
@@ -183,13 +182,13 @@ func notifyFrameworkUpdate(ctx context.Context, client *madmin.AdminClient, conf
 	return diags
 }
 
-func notifyFrameworkDelete(ctx context.Context, client *madmin.AdminClient, subsystem, name string, state *notifyFrameworkResourceData) diag.Diagnostics {
+func notifyFrameworkDelete(ctx context.Context, client *S3MinioClient, subsystem, name string, state *notifyFrameworkResourceData) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	tflog.Info(ctx, fmt.Sprintf("Deleting %s: %s", subsystem, name))
 
 	configKey := notifyFrameworkConfigKey(subsystem, name)
-	_, err := client.DelConfigKV(ctx, configKey)
+	_, err := client.S3Admin.DelConfigKV(ctx, configKey)
 	if err != nil {
 		errMsg := strings.ToLower(err.Error())
 		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") ||
@@ -282,4 +281,3 @@ func notifyFrameworkBuildCommonCfg(parts *[]string, data *notifyFrameworkResourc
 		notifyFrameworkBuildCfgAddBool(parts, "enable", data.Enable.ValueBool())
 	}
 }
-

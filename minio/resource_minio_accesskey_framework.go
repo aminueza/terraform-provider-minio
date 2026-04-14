@@ -93,8 +93,12 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 			"secret_key": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Sensitive:   true,
 				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"secret_key_wo": schema.StringAttribute{
 				Optional:    true,
@@ -349,7 +353,12 @@ func (r *accessKeyResource) readAccessKey(ctx context.Context, model *accessKeyR
 	}
 	model.Status = types.StringValue(status)
 	model.AccessKey = types.StringValue(accessKeyID)
-	model.Description = types.StringValue(info.Description)
+
+	if info.Description != "" {
+		model.Description = types.StringValue(info.Description)
+	} else if model.Description.IsUnknown() {
+		model.Description = types.StringNull()
+	}
 
 	model.SecretKey = types.StringNull()
 

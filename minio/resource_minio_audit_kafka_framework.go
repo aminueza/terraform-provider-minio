@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/minio/madmin-go/v3"
 )
 
 var (
@@ -24,7 +23,7 @@ var (
 )
 
 type minioAuditKafkaResource struct {
-	client *madmin.AdminClient
+	client *S3MinioClient
 }
 
 type minioAuditKafkaResourceModel struct {
@@ -58,9 +57,9 @@ func (r *minioAuditKafkaResource) Configure(ctx context.Context, req resource.Co
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*madmin.AdminClient)
+	client, ok := req.ProviderData.(*S3MinioClient)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *madmin.AdminClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData))
 		return
 	}
 	r.client = client

@@ -132,14 +132,26 @@ func (r *iamLDAPUserPolicyAttachmentResource) Read(ctx context.Context, req reso
 }
 
 func (r *iamLDAPUserPolicyAttachmentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var data iamLDAPUserPolicyAttachmentResourceModel
+	var plan iamLDAPUserPolicyAttachmentResourceModel
 
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+	// Verify the resource still exists
+	resp.Diagnostics.Append(r.read(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if plan.ID.IsNull() {
+		// Resource no longer exists, remove from state
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *iamLDAPUserPolicyAttachmentResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -188,17 +200,26 @@ func (r *iamLDAPUserPolicyAttachmentResource) ImportState(ctx context.Context, r
 func (r *iamLDAPUserPolicyAttachmentResource) read(ctx context.Context, data *iamLDAPUserPolicyAttachmentResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
+	// Query for policy entities with both policy and user specified
 	per, err := r.client.S3Admin.GetLDAPPolicyEntities(ctx, madmin.PolicyEntitiesQuery{
 		Policy: []string{data.PolicyName.ValueString()},
 		Users:  []string{data.UserDN.ValueString()},
 	})
 
 	if err != nil {
+		errMsg := err.Error()
+		// Check for LDAP not configured error
+		if strings.Contains(errMsg, "LDAP") || strings.Contains(errMsg, "not configured") || strings.Contains(errMsg, "there is no target") {
+			// LDAP not configured - remove resource from state
+			data.ID = types.StringNull()
+			return diags
+		}
 		diags.AddError(fmt.Sprintf("Failed to query for user policy '%s'", data.PolicyName.ValueString()), err.Error())
 		return diags
 	}
 
 	if len(per.PolicyMappings) == 0 {
+		// Policy not found for user - remove from state
 		data.ID = types.StringNull()
 		return diags
 	}
@@ -218,16 +239,24 @@ func (r *iamLDAPUserPolicyAttachmentResource) readLDAPUserPolicies(ctx context.C
 	})
 
 	if err != nil {
-		diags.AddError("Failed to load user info", err.Error())
+		errMsg := err.Error()
+		// Check for LDAP not configured error
+		if strings.Contains(errMsg, "LDAP") || strings.Contains(errMsg, "not configured") || strings.Contains(errMsg, "there is no target") {
+			// LDAP not configured - return empty slice, not error
+			return []string{}, diags
+		}
+		diags.AddError("Failed to load LDAP user policies", err.Error())
 		return nil, diags
 	}
 
 	if len(policyEntities.UserMappings) == 0 {
-		return nil, nil
+		// User has no policies - return empty slice
+		return []string{}, diags
 	}
 
 	if len(policyEntities.UserMappings) > 1 {
-		diags.AddError("Failed to load user info", "more than one user returned when getting LDAP policies for single user")
+		diags.AddError("Failed to load user policies",
+			fmt.Sprintf("more than one user mapping returned for DN %s", userDN))
 		return nil, diags
 	}
 

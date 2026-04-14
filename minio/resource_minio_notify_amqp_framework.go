@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/minio/madmin-go/v3"
 )
 
 var (
@@ -26,7 +25,7 @@ var (
 )
 
 type minioNotifyAmqpResource struct {
-	client *madmin.AdminClient
+	client *S3MinioClient
 }
 
 type minioNotifyAmqpResourceModel struct {
@@ -61,11 +60,11 @@ func (r *minioNotifyAmqpResource) Configure(ctx context.Context, req resource.Co
 		return
 	}
 
-	client, ok := req.ProviderData.(*madmin.AdminClient)
+	client, ok := req.ProviderData.(*S3MinioClient)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			"Expected *madmin.AdminClient",
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}

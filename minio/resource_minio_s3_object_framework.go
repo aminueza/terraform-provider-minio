@@ -84,6 +84,9 @@ func (r *s3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "Content type of the object, in the form of a MIME type",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"source": schema.StringAttribute{
 				Description:   "Path to the file that will be uploaded. Use only one of content, content_base64, or source",
@@ -114,6 +117,9 @@ func (r *s3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "The canned ACL to apply to the object. Valid values: private, public-read, public-read-write, authenticated-read",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"metadata": schema.MapAttribute{
 				Description: "Metadata to store with the object",
@@ -132,6 +138,9 @@ func (r *s3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "Content encoding header",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"expires": schema.StringAttribute{
 				Description: "Expires header in RFC3339 format",
@@ -141,6 +150,9 @@ func (r *s3ObjectResource) Schema(ctx context.Context, req resource.SchemaReques
 				Description: "Storage class: STANDARD, REDUCED_REDUNDANCY, ONEZONE_IA, INTELLIGENT_TIERING",
 				Optional:    true,
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -369,11 +381,17 @@ func (r *s3ObjectResource) read(ctx context.Context, data *s3ObjectResourceModel
 	data.VersionID = types.StringValue(objInfo.VersionID)
 	data.ContentType = types.StringValue(objInfo.ContentType)
 
+	// Always set these fields to avoid unknown state
 	if objInfo.ContentEncoding != "" {
 		data.ContentEncoding = types.StringValue(objInfo.ContentEncoding)
+	} else if data.ContentEncoding.IsUnknown() {
+		data.ContentEncoding = types.StringNull()
 	}
+
 	if objInfo.StorageClass != "" {
 		data.StorageClass = types.StringValue(objInfo.StorageClass)
+	} else if data.StorageClass.IsUnknown() {
+		data.StorageClass = types.StringNull()
 	}
 
 	if v := objInfo.Metadata.Get("Cache-Control"); v != "" {
@@ -401,6 +419,12 @@ func (r *s3ObjectResource) read(ctx context.Context, data *s3ObjectResourceModel
 			return diags
 		}
 		data.Metadata = metadata
+	}
+
+	// ACL handling - MinIO may not return x-amz-acl in UserMetadata
+	// If ACL is unknown but was set in state, preserve it
+	if data.ACL.IsUnknown() && !data.ACL.IsNull() {
+		data.ACL = types.StringNull()
 	}
 
 	return diags

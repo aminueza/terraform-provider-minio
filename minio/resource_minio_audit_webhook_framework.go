@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/minio/madmin-go/v3"
 )
 
 var (
@@ -25,7 +24,7 @@ var (
 )
 
 type minioAuditWebhookResource struct {
-	client *madmin.AdminClient
+	client *S3MinioClient
 }
 
 type minioAuditWebhookResourceModel struct {
@@ -52,9 +51,9 @@ func (r *minioAuditWebhookResource) Configure(ctx context.Context, req resource.
 	if req.ProviderData == nil {
 		return
 	}
-	client, ok := req.ProviderData.(*madmin.AdminClient)
+	client, ok := req.ProviderData.(*S3MinioClient)
 	if !ok {
-		resp.Diagnostics.AddError("Unexpected Resource Configure Type", "Expected *madmin.AdminClient")
+		resp.Diagnostics.AddError("Unexpected Resource Configure Type", fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData))
 		return
 	}
 	r.client = client
@@ -104,7 +103,11 @@ func (r *minioAuditWebhookResource) Create(ctx context.Context, req resource.Cre
 			data.SetStringField("endpoint", types.StringValue(v))
 		}
 		if v, ok := cfgMap["client_cert"]; ok {
-			data.SetStringField("client_cert", types.StringValue(v))
+			if v != "" {
+				data.SetStringField("client_cert", types.StringValue(v))
+			} else if !data.GetStringField("client_cert").IsUnknown() {
+				data.SetStringField("client_cert", types.StringNull())
+			}
 		}
 		if v, ok := cfgMap["queue_size"]; ok {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -174,7 +177,11 @@ func (r *minioAuditWebhookResource) Read(ctx context.Context, req resource.ReadR
 			data.SetStringField("endpoint", types.StringValue(v))
 		}
 		if v, ok := cfgMap["client_cert"]; ok {
-			data.SetStringField("client_cert", types.StringValue(v))
+			if v != "" {
+				data.SetStringField("client_cert", types.StringValue(v))
+			} else if !data.GetStringField("client_cert").IsUnknown() {
+				data.SetStringField("client_cert", types.StringNull())
+			}
 		}
 		if v, ok := cfgMap["queue_size"]; ok {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -243,7 +250,11 @@ func (r *minioAuditWebhookResource) Update(ctx context.Context, req resource.Upd
 			data.SetStringField("endpoint", types.StringValue(v))
 		}
 		if v, ok := cfgMap["client_cert"]; ok {
-			data.SetStringField("client_cert", types.StringValue(v))
+			if v != "" {
+				data.SetStringField("client_cert", types.StringValue(v))
+			} else if !data.GetStringField("client_cert").IsUnknown() {
+				data.SetStringField("client_cert", types.StringNull())
+			}
 		}
 		if v, ok := cfgMap["queue_size"]; ok {
 			if n, err := strconv.Atoi(v); err == nil {

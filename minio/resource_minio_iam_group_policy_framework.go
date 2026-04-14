@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
 
 var (
@@ -55,9 +54,6 @@ func (r *iamGroupPolicyResource) Schema(ctx context.Context, req resource.Schema
 			"policy": schema.StringAttribute{
 				Required:    true,
 				Description: "Policy JSON string.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"name": schema.StringAttribute{
 				Optional:    true,
@@ -161,15 +157,7 @@ func (r *iamGroupPolicyResource) Read(ctx context.Context, req resource.ReadRequ
 
 	data.Name = types.StringValue(policyName)
 	data.Group = types.StringValue(groupName)
-
-	// Always use the normalized policy from the API
-	actualPolicy := strings.TrimSpace(string(info.Policy))
-	normalizedPolicy, err := structure.NormalizeJsonString(actualPolicy)
-	if err != nil {
-		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
-		return
-	}
-	data.Policy = types.StringValue(normalizedPolicy)
+	data.Policy = types.StringValue(strings.TrimSpace(string(info.Policy)))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

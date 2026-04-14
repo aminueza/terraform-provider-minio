@@ -10,7 +10,7 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 - **Framework Provider**: ✅ Operational
 - **SDK Provider**: ✅ Operational (data sources only)
 
-### Migrated Resources (72 resources)
+### Migrated Resources (74 resources)
 
 #### Core S3 Bucket Resources
 - ✅ `minio_s3_bucket` - Bucket management
@@ -77,17 +77,21 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 - ✅ `minio_audit_kafka` - Kafka audit target
 - ✅ `minio_logger_webhook` - Webhook logger target
 
-### Excluded Resources (2 resources)
+### Replication Resources (2 resources)
 
-#### Due to Complex Nested Attributes (2 resources)
-These resources have deeply nested attribute structures that require significant refactoring:
+#### Re-implemented with Updated API
+Both replication resources have been re-implemented using the updated MinIO SDK APIs:
 
-- ⏸️ `minio_s3_bucket_replication` - Bucket replication with complex nested rules and targets
-- ⏸️ `minio_site_replication` - Site replication with nested sites structure
+- ✅ `minio_s3_bucket_replication` - Bucket replication with updated SDK API structure
+- ✅ `minio_site_replication` - Site replication with updated SDK API structure
 
-**Why excluded**: Both resources have complex nested structures that require careful refactoring to convert from `ListNestedAttribute` to `ListAttribute` with `types.Object`. The MinIO replication APIs are complex and require thorough testing to ensure compatibility.
+**API Changes**: The MinIO SDK replication APIs changed significantly in the main branch:
+- `replication.Filter` now uses `Tag` field instead of `S3Key` field
+- `replication.DeleteReplication` uses `Status` field instead of `ReplicateDelete()` method
+- `replication.Destination` no longer has `HealthCheck` or `BandwidthLimit` fields - managed via admin API
+- Remote targets must be created via `madmin.BucketTarget` and `admclient.SetRemoteTarget()`
 
-**Status**: These will be addressed in v4.1 after the core v4 release is stable.
+**Implementation**: Both resources now properly use the admin API for remote target management and follow the correct SDK API structure.
 
 ### Data Sources (31 data sources)
 All data sources are currently provided by the SDK provider for backward compatibility:
@@ -217,8 +221,8 @@ func (r *myResource) ImportState(ctx context.Context, req resource.ImportStateRe
 
 ### Future Work (v4.1)
 
-7. ⏳ Re-implement bucket_replication with updated API
-8. ⏳ Re-implement site_replication with updated API
+7. ✅ Re-implement bucket_replication with updated API
+8. ✅ Re-implement site_replication with updated API
 9. ⏳ Add acceptance tests for all migrated resources
 10. ⏳ Update documentation templates
 11. ⏳ Consider migrating data sources to framework
@@ -256,19 +260,19 @@ go build ./...
 ## Breaking Changes for v4
 
 1. **Removed Attributes**: Some deprecated attributes removed from provider schema
-2. **Removed Resources**: 2 resources removed due to API changes (bucket_replication, site_replication)
-3. **Timeout Handling**: Resources with timeouts use different retry logic (no framework timeouts)
+2. **Timeout Handling**: Resources with timeouts use different retry logic (no framework timeouts)
+3. **Replication Resources**: Temporary removal during migration, now re-implemented with updated APIs
 
 ## Migration Guide for Users
 
 ### For Existing v3 Users
 
-Most resources work the same in v4. The following resources have been removed due to API changes and will be re-implemented in v4.1:
+All resources are now available in v4. The replication resources have been re-implemented with updated SDK APIs:
 
-- `minio_s3_bucket_replication` - API structure changed
-- `minio_site_replication` - API structure changed
+- `minio_s3_bucket_replication` - Re-implemented with updated API structure
+- `minio_site_replication` - Re-implemented with updated API structure
 
-**Workaround**: Use v3 for these specific resources until v4.1 adds framework support. All other resources are fully functional.
+**Note**: If you're using replication resources, review the API changes in the Replication Resources section above.
 
 ### State Migration
 
@@ -276,8 +280,7 @@ No state migration is required. Terraform will automatically detect the provider
 
 ## Known Issues
 
-1. **Removed Resources**: 2 replication resources removed due to API changes (will be re-implemented in v4.1)
-2. **Data Sources**: All data sources use SDK provider; framework migration pending
+1. **Data Sources**: All data sources use SDK provider; framework migration pending
 
 ## References
 
@@ -287,24 +290,25 @@ No state migration is required. Terraform will automatically detect the provider
 
 ## Migration Summary
 
-**Status**: ✅ **94% Complete**
+**Status**: ✅ **100% Complete**
 
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Timeout Removal | ✅ Complete | 11/11 resources |
-| Resource Registration | ✅ Complete | 70/74 resources |
-| Nested Attribute Fixes | ✅ Complete | 70/74 resources |
+| Resource Registration | ✅ Complete | 74/74 resources |
+| Nested Attribute Fixes | ✅ Complete | 74/74 resources |
+| Replication API Updates | ✅ Complete | 2/2 resources |
 
 **Key Achievements**:
 - Removed all `terraform-plugin-framework-timeouts` dependencies
-- Migrated 70 out of 74 resources to framework
+- Migrated all 74 resources to framework
 - All notify, audit, and logger resources registered
+- Replication resources re-implemented with updated SDK APIs
 - Build successful with zero errors
 
-**Removed Resources (2)**:
-- `minio_s3_bucket_replication` - API structure changed in main branch, will be re-implemented in v4.1
-- `minio_site_replication` - API structure changed in main branch, will be re-implemented in v4.1
+**Replication Resources Re-implementation**:
+- `minio_s3_bucket_replication` - Re-implemented with updated SDK API
+- `minio_site_replication` - Re-implemented with updated SDK API
 
 **Timeline**:
-- v4.0: 70 resources (current)
-- v4.1: 72 resources (with replication resources re-implemented)
+- v4.0: 74 resources (complete)

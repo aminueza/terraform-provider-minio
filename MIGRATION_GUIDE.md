@@ -13,16 +13,20 @@ Version 4.0 is a major release that migrates the provider from `terraform-plugin
 
 ## Breaking Changes
 
-### Removed Resources
+### Replication Resources Re-implemented
 
-The following resources have been removed in v4.0 and will be re-implemented in v4.1:
+The following resources have been re-implemented in v4.0 with updated MinIO SDK APIs:
 
 - `minio_s3_bucket_replication` - Bucket replication configuration
 - `minio_site_replication` - Site replication configuration
 
-**Reason**: These resources rely on MinIO SDK APIs that have changed significantly. They will be re-implemented in v4.1 with updated API support.
+**API Changes**:
+- Bucket replication now properly uses remote targets via admin API
+- Filter structure changed: `S3Key` replaced with `Tag` and `And` fields
+- Delete replication uses `Status` field instead of `ReplicateDelete()` method
+- Destination `HealthCheck` and `BandwidthLimit` fields removed (managed via admin API)
 
-**Workaround**: Use v3 for these specific resources until v4.1 is released.
+**Migration**: If you're using these resources, review the updated API structure. Existing configurations may need minor adjustments to work with the new implementation.
 
 ### No Other Breaking Changes
 
@@ -45,24 +49,14 @@ terraform {
 }
 ```
 
-### 2. Review Removed Resources
+### 2. Review Replication Resources
 
 If you use `minio_s3_bucket_replication` or `minio_site_replication`:
 
-**Option A**: Continue using v3 for these resources
-```hcl
-# Keep using v3 for replication resources
-terraform {
-  required_providers {
-    minio = {
-      source  = "aminueza/minio"
-      version = "~> 3.0"
-    }
-  }
-}
-```
-
-**Option B**: Remove replication configurations temporarily and re-add in v4.1
+**Review API Changes**: The replication resources have been re-implemented with updated SDK APIs. Check the documentation for:
+- Updated filter structure for bucket replication
+- Proper remote target configuration
+- Bandwidth limit and health check settings via admin API
 
 ### 3. Run Terraform Plan
 
@@ -71,8 +65,8 @@ terraform plan
 ```
 
 Verify that:
-- No resources show as requiring replacement
-- Only the removed replication resources show as needing to be handled
+- All resources are properly managed
+- Replication resources show any necessary changes due to API updates
 
 ### 4. Apply Changes
 

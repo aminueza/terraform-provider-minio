@@ -37,7 +37,7 @@ The Terraform Provider for MinIO enables infrastructure as code management for M
 
 ### Key Features
 
-- **Complete MinIO API Coverage** - 70+ resources and 25+ data sources covering buckets, IAM, ILM, encryption, notifications, and server configuration
+- **Complete MinIO API Coverage** - 74 resources and 25+ data sources covering buckets, IAM, ILM, encryption, notifications, and server configuration
 - **Terraform Plugin Framework** - Modern v4 provider built on terraform-plugin-framework
 - **S3 Compatible** - Use with any S3-compatible backend via `s3_compat_mode`
 - **Security First** - STS AssumeRole, OIDC Web Identity, mTLS, and session token authentication

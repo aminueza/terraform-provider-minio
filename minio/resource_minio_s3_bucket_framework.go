@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -196,6 +197,16 @@ func (r *minioS3BucketResource) Create(ctx context.Context, req resource.CreateR
 	// Set ID
 	data.ID = types.StringValue(bucket)
 	data.Bucket = types.StringValue(bucket)
+
+	// Ensure bucket_prefix has a value (it's Computed)
+	if data.BucketPrefix.IsNull() || data.BucketPrefix.IsUnknown() {
+		// Extract prefix from generated bucket name if possible
+		if strings.HasPrefix(bucket, "tf-") {
+			data.BucketPrefix = types.StringValue("tf-")
+		} else {
+			data.BucketPrefix = types.StringValue("")
+		}
+	}
 
 	// Wait for bucket to be ready
 	timeout := 30 * time.Second

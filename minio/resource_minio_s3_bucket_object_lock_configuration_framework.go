@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
@@ -34,11 +34,11 @@ type bucketObjectLockConfigurationResourceModel struct {
 	ID                types.String `tfsdk:"id"`
 	Bucket            types.String `tfsdk:"bucket"`
 	ObjectLockEnabled types.String `tfsdk:"object_lock_enabled"`
-	Rule              []ruleModel  `tfsdk:"rule"`
+	Rule              *ruleModel   `tfsdk:"rule"`
 }
 
 type ruleModel struct {
-	DefaultRetention []defaultRetentionModel `tfsdk:"default_retention"`
+	DefaultRetention *defaultRetentionModel `tfsdk:"default_retention"`
 }
 
 type defaultRetentionModel struct {
@@ -85,32 +85,30 @@ Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 				Optional:    true,
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"default_retention": schema.ListNestedAttribute{
+						"default_retention": schema.SingleNestedAttribute{
 							Description: "Default retention applied to all new objects",
-							Required:    true,
-							NestedObject: schema.NestedAttributeObject{
-								Attributes: map[string]schema.Attribute{
-									"mode": schema.StringAttribute{
-										Description: "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides).",
-										Required:    true,
-										Validators: []validator.String{
-											stringvalidator.OneOf("GOVERNANCE", "COMPLIANCE"),
-										},
-									},
-									"days": schema.Int64Attribute{
-										Description: "Retention period in days. Mutually exclusive with years.",
-										Optional:    true,
-										Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("years"))},
-									},
-									"years": schema.Int64Attribute{
-										Description: "Retention period in years. Mutually exclusive with days.",
-										Optional:    true,
-										Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("days"))},
+							Optional:    true,
+							Attributes: map[string]schema.Attribute{
+								"mode": schema.StringAttribute{
+									Description: "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides).",
+									Required:    true,
+									Validators: []validator.String{
+										stringvalidator.OneOf("GOVERNANCE", "COMPLIANCE"),
 									},
 								},
+								"days": schema.Int64Attribute{
+									Description: "Retention period in days. Mutually exclusive with years.",
+									Optional:    true,
+									Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("years"))},
+								},
+								"years": schema.Int64Attribute{
+									Description: "Retention period in years. Mutually exclusive with days.",
+									Optional:    true,
+									Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("days"))},
+								},
 							},
-							PlanModifiers: []planmodifier.List{
-								listplanmodifier.RequiresReplace(),
+							PlanModifiers: []planmodifier.Object{
+								objectplanmodifier.RequiresReplace(),
 							},
 						},
 					},
@@ -297,7 +295,7 @@ func (r *bucketObjectLockConfigurationResource) validatePrerequisites(ctx contex
 func (r *bucketObjectLockConfigurationResource) applyConfiguration(ctx context.Context, data *bucketObjectLockConfigurationResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	if len(data.Rule) == 0 {
+	if data.Rule == nil {
 		err := r.client.S3Client.SetBucketObjectLockConfig(ctx, data.Bucket.ValueString(), nil, nil, nil)
 		if err != nil {
 			diags.AddError(
@@ -309,8 +307,7 @@ func (r *bucketObjectLockConfigurationResource) applyConfiguration(ctx context.C
 		return diags
 	}
 
-	rule := data.Rule[0]
-	if len(rule.DefaultRetention) == 0 {
+	if data.Rule.DefaultRetention == nil {
 		err := r.client.S3Client.SetBucketObjectLockConfig(ctx, data.Bucket.ValueString(), nil, nil, nil)
 		if err != nil {
 			diags.AddError(
@@ -322,7 +319,7 @@ func (r *bucketObjectLockConfigurationResource) applyConfiguration(ctx context.C
 		return diags
 	}
 
-	retention := rule.DefaultRetention[0]
+	retention := data.Rule.DefaultRetention
 	mode := minio.RetentionMode(retention.Mode.ValueString())
 
 	var validity uint
@@ -422,11 +419,10 @@ func (r *bucketObjectLockConfigurationResource) read(ctx context.Context, data *
 			defaultRetention.Years = types.Int64Value(validityInt)
 		}
 
-		data.Rule = []ruleModel{
-			{
-				DefaultRetention: []defaultRetentionModel{defaultRetention},
-			},
+		rule := &ruleModel{
+			DefaultRetention: &defaultRetention,
 		}
+		data.Rule = rule
 	}
 
 	if data.ID.IsNull() {

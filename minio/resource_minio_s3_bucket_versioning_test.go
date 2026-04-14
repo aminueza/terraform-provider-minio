@@ -17,7 +17,7 @@ func TestAccS3BucketVersioning_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -48,7 +48,7 @@ func TestAccS3BucketVersioning_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -93,7 +93,7 @@ func TestAccS3BucketVersioning_forceDestroy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -195,7 +195,7 @@ func TestAccS3BucketVersioning_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -226,7 +226,7 @@ func TestAccS3BucketVersioning_survivesPolicyChange(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

@@ -33,7 +33,7 @@ func TestS3BucketNotification_queue(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -142,7 +142,7 @@ func TestAccMinioS3BucketNotification_disappearsBucket(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

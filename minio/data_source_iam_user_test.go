@@ -13,7 +13,7 @@ func TestAccDataSourceMinioIAMUser_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceIAMUserConfig(userName, userSecret),
@@ -33,7 +33,7 @@ func TestAccDataSourceMinioIAMUser_disabled(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceIAMUserDisabledConfig(userName, userSecret),
@@ -54,7 +54,7 @@ func TestAccDataSourceMinioIAMUser_withPolicyAndGroup(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceIAMUserWithPolicyAndGroupConfig(userName, userSecret, groupName, policyName),

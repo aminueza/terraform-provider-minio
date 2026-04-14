@@ -12,7 +12,7 @@ func TestAccDataSourceMinioS3BucketVersioning_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `
@@ -31,7 +31,7 @@ func TestAccDataSourceMinioS3BucketEncryption_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `
@@ -50,7 +50,7 @@ func TestAccDataSourceMinioS3BucketCorsConfig_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `
@@ -69,7 +69,7 @@ func TestAccDataSourceMinioILMPolicy_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `

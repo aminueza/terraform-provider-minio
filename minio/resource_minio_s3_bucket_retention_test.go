@@ -16,7 +16,7 @@ func TestAccMinioBucketRetention_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -44,7 +44,7 @@ func TestAccMinioBucketRetention_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -75,7 +75,7 @@ func TestAccMinioBucketRetention_disappears(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketRetentionDestroy,
 		Steps: []resource.TestStep{
 			{

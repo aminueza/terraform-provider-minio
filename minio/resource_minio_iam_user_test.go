@@ -64,7 +64,7 @@ func TestAccAWSUser_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -94,7 +94,7 @@ func TestAccAWSUser_UpdateName(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -121,7 +121,7 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -144,7 +144,7 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -175,7 +175,7 @@ func TestAccAWSUser_SettingAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -198,7 +198,7 @@ func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -230,7 +230,7 @@ func TestAccAWSUser_RecreateMissing(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -266,7 +266,7 @@ func TestAccAWSUser_WriteOnlySecret_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -289,7 +289,7 @@ func TestAccAWSUser_WriteOnlySecret_transition(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{

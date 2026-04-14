@@ -21,7 +21,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -65,7 +65,7 @@ func TestAccMinioIAMPolicy_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -86,7 +86,7 @@ func TestAccMinioIAMPolicy_recreate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -120,7 +120,7 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -167,7 +167,7 @@ func TestAccMinioIAMPolicy_policy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -336,7 +336,7 @@ func TestAccMinioIAMPolicy_jsonencode(t *testing.T) {
 	// Run the test in multiple phases to verify the policy remains unchanged
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			// Apply the policy for the first time

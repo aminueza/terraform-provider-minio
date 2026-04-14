@@ -19,7 +19,7 @@ func TestAccMinioS3ObjectLegalHold_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -55,7 +55,7 @@ func TestAccMinioS3ObjectLegalHold_off(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
 		Steps: []resource.TestStep{
 			{

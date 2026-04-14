@@ -31,7 +31,7 @@ func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -58,7 +58,7 @@ func TestAccMinioIAMIdpLdap_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapDestroy,
 		Steps: []resource.TestStep{
 			{

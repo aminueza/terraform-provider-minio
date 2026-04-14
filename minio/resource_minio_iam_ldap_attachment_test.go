@@ -35,7 +35,7 @@ func TestAccMinioIAMLDAPUserPolicyAttachment_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPAttachmentPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckLDAPUserPolicyAttachmentDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -55,7 +55,7 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccLDAPAttachmentPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckLDAPGroupPolicyAttachmentDestroy,
 		Steps: []resource.TestStep{
 			{

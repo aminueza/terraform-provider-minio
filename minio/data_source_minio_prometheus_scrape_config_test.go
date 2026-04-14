@@ -13,7 +13,7 @@ func TestAccMinioPrometheusScrapeConfig_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      nil,
 		Steps: []resource.TestStep{
 			{
@@ -40,7 +40,7 @@ func TestAccMinioPrometheusScrapeConfig_allMetricTypes(t *testing.T) {
 
 			resource.ParallelTest(t, resource.TestCase{
 				PreCheck:          func() { testAccPreCheck(t) },
-				ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+				ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 				CheckDestroy:      nil,
 				Steps: []resource.TestStep{
 					{
@@ -62,7 +62,7 @@ func TestAccMinioPrometheusScrapeConfig_v2(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      nil,
 		Steps: []resource.TestStep{
 			{
@@ -83,7 +83,7 @@ func TestAccMinioPrometheusScrapeConfig_customAlias(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      nil,
 		Steps: []resource.TestStep{
 			{

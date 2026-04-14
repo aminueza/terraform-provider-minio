@@ -412,7 +412,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -481,7 +481,7 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -522,7 +522,7 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -767,7 +767,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -892,7 +892,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -1080,7 +1080,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

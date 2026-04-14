@@ -5,27 +5,27 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
-	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 )
 
-// testAccProtoV5ProviderFactories is the framework provider factory for acceptance
+// testAccProtoV6ProviderFactories is the framework provider factory for acceptance
 // tests. All resources use this.
-var testAccProtoV5ProviderFactories map[string]func() (tfprotov5.ProviderServer, error)
+var testAccProtoV6ProviderFactories map[string]func() (tfprotov6.ProviderServer, error)
 
-// testAccProtoV5SecondProviderFactories is used by site-replication tests that
+// testAccProtoV6SecondProviderFactories is used by site-replication tests that
 // spin up multiple independent MinIO endpoints.
-var testAccProtoV5SecondProviderFactories map[string]func() (tfprotov5.ProviderServer, error)
+var testAccProtoV6SecondProviderFactories map[string]func() (tfprotov6.ProviderServer, error)
 
-func newFrameworkProviderServer(envPrefix string) func() (tfprotov5.ProviderServer, error) {
-	return func() (tfprotov5.ProviderServer, error) {
-		frameworkServer := providerserver.NewProtocol5(NewFrameworkProvider("test")())
+func newFrameworkProviderServer(envPrefix string) func() (tfprotov6.ProviderServer, error) {
+	return func() (tfprotov6.ProviderServer, error) {
+		frameworkServer := providerserver.NewProtocol6(NewFrameworkProvider("test")())
 		return frameworkServer(), nil
 	}
 }
 
 func init() {
 	// Framework provider factories
-	testAccProtoV5ProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
+	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 		"minio":       newFrameworkProviderServer(""),
 		"secondminio": newFrameworkProviderServer("SECOND_"),
 		"thirdminio":  newFrameworkProviderServer("THIRD_"),
@@ -34,7 +34,7 @@ func init() {
 		"ldapminio":   newFrameworkProviderServer("LDAP_"),
 	}
 
-	testAccProtoV5SecondProviderFactories = map[string]func() (tfprotov5.ProviderServer, error){
+	testAccProtoV6SecondProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 		"secondminio": newFrameworkProviderServer("SECOND_"),
 		"thirdminio":  newFrameworkProviderServer("THIRD_"),
 		"fourthminio": newFrameworkProviderServer("FOURTH_"),

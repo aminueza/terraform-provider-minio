@@ -17,7 +17,7 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -48,7 +48,7 @@ func TestAccMinioS3Object_withACL(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -68,7 +68,7 @@ func TestAccMinioS3Object_withACLUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -95,7 +95,7 @@ func TestAccMinioS3Object_withContentType(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -190,7 +190,7 @@ func TestAccMinioS3Object_withMetadata(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -215,7 +215,7 @@ func TestAccMinioS3Object_withMetadataUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
 		Steps: []resource.TestStep{
 			{

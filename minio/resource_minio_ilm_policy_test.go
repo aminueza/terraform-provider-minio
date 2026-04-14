@@ -22,7 +22,7 @@ func TestAccILMPolicy_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -68,7 +68,7 @@ func TestAccILMPolicy_abortOnlyNoExpiration(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -89,7 +89,7 @@ func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -117,7 +117,7 @@ func TestAccILMPolicy_filterTags(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -145,7 +145,7 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -178,7 +178,7 @@ func TestAccILMPolicy_transition(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -226,7 +226,7 @@ func TestAccILMPolicy_ruleStatus(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -265,7 +265,7 @@ func TestAccILMPolicy_abortIncompleteMultipartUpload(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -579,7 +579,7 @@ func TestAccILMPolicy_expiredObjectDeleteMarker(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -620,7 +620,7 @@ func TestAccILMPolicy_mutuallyExclusiveExpirationAttributes(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -654,7 +654,7 @@ func TestAccILMPolicy_mutuallyExclusiveDeleteMarkerTags(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -802,7 +802,7 @@ func TestAccILMPolicy_expirationNoFilter(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{

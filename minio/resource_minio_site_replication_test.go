@@ -160,7 +160,7 @@ func TestAccMinioSiteReplication_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -215,7 +215,7 @@ func TestAccMinioSiteReplication_threeSites(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -256,7 +256,7 @@ func TestAccMinioSiteReplication_writeOnlyCredentials(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -294,7 +294,7 @@ func TestAccMinioSiteReplication_writeOnlyCredentials_transition(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -371,7 +371,7 @@ resource "minio_site_replication" "basic" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioSiteReplicationDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -518,7 +518,7 @@ func TestAccMinioSiteReplication_errorConditions(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -547,7 +547,7 @@ resource "minio_site_replication" "error_test" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -575,7 +575,7 @@ resource "minio_site_replication" "connectivity_test" {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSiteReplication(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`

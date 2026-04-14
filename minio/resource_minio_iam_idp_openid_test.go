@@ -39,7 +39,7 @@ func TestAccMinioIAMIdpOpenId_basic(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -71,7 +71,7 @@ func TestAccMinioIAMIdpOpenId_update(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -103,7 +103,7 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -132,7 +132,7 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret_transition(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccOIDCPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
 		Steps: []resource.TestStep{
 			{

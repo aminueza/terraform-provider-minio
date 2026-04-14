@@ -9,7 +9,7 @@ import (
 func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `data "minio_account_info" "test" {}`,
@@ -27,7 +27,7 @@ func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
 func TestAccDataSourceMinioStorageInfo_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `data "minio_storage_info" "test" {}`,
@@ -46,7 +46,7 @@ func TestAccDataSourceMinioStorageInfo_basic(t *testing.T) {
 func TestAccDataSourceMinioDataUsage_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `data "minio_data_usage" "test" {}`,
@@ -64,7 +64,7 @@ func TestAccDataSourceMinioDataUsage_basic(t *testing.T) {
 func TestAccDataSourceMinioILMTierStats_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `data "minio_ilm_tier_stats" "test" {}`,

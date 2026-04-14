@@ -23,7 +23,7 @@ func TestAccS3BucketCors_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -55,7 +55,7 @@ func TestAccS3BucketCors_multipleRules(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -86,7 +86,7 @@ func TestAccS3BucketCors_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -122,7 +122,7 @@ func TestAccS3BucketCors_allHeaders(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -146,7 +146,7 @@ func TestAccS3BucketCors_import(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckCORS(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioS3BucketCorsDestroy,
 		Steps: []resource.TestStep{
 			{

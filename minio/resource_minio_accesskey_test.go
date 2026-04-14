@@ -19,7 +19,7 @@ func TestAccMinioAccessKey_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfig(rName),
@@ -47,7 +47,7 @@ func TestAccMinioAccessKey_validation_requiresVersionWithSecret(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioAccessKeyConfigSecretOnly(rName, customAccessKey, secret),
@@ -65,7 +65,7 @@ func TestAccMinioAccessKey_validation_requiresVersionWithWriteOnlySecret(t *test
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioAccessKeyConfigWriteOnlySecretOnly(rName, customAccessKey, secret),
@@ -84,7 +84,7 @@ func TestAccMinioAccessKey_validation_requiresSecretOnVersionChange(t *testing.T
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV1, "v1"),
@@ -112,7 +112,7 @@ func TestAccMinioAccessKey_validation_requiresWriteOnlySecretOnVersionChange(t *
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, customAccessKey, secretV1, 1),
@@ -218,7 +218,7 @@ func TestAccMinioAccessKey_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfig(rName),
@@ -272,7 +272,7 @@ func TestAccMinioAccessKey_customKeys(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigCustomKeys(rName, customAccessKey, customSecretKey),
@@ -308,7 +308,7 @@ func TestAccMinioAccessKey_withPolicy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithPolicy(rName, normalizedPolicyJSON),
@@ -362,7 +362,7 @@ func TestAccMinioAccessKey_ImpliedPolicy(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithImpliedPolicy(rName),
@@ -425,7 +425,7 @@ func TestAccMinioAccessKey_secretRotation(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, initialSecretKey, "v1"),
@@ -459,7 +459,7 @@ func TestAccMinioAccessKey_writeOnlySecretTransition(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithVersion(rName, customAccessKey, secretV1, "v1"),
@@ -509,7 +509,7 @@ func TestAccMinioAccessKey_withDescription(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithDescription(rName, desc),
@@ -530,7 +530,7 @@ func TestAccMinioAccessKey_updateDescription(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAccessKeyConfigWithDescription(rName, desc1),
@@ -556,7 +556,7 @@ func TestAccMinioAccessKey_descriptionValidation(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioAccessKeyConfigWithDescription(rName, longDesc),

@@ -24,7 +24,7 @@ func TestAccMinioBucketServerSideEncryption_sseS3(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -46,7 +46,7 @@ func TestAccMinioBucketServerSideEncryption_sseKMS(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -68,7 +68,7 @@ func TestAccMinioBucketServerSideEncryption_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -96,7 +96,7 @@ func TestAccMinioBucketServerSideEncryption_import(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -120,7 +120,7 @@ func TestAccMinioBucketServerSideEncryption_updateKMStoS3(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -149,7 +149,7 @@ func TestAccMinioBucketServerSideEncryption_importKMS(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -174,7 +174,7 @@ func TestAccMinioBucketServerSideEncryption_invalidType(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -201,7 +201,7 @@ func TestAccMinioBucketServerSideEncryption_kmsWithoutKeyID(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{

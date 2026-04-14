@@ -110,7 +110,7 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -138,7 +138,7 @@ func TestAccMinioAuditWebhook_update(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
 		Steps: []resource.TestStep{
 			{

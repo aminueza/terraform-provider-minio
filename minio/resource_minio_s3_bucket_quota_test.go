@@ -16,7 +16,7 @@ func TestAccMinioS3BucketQuota_basic(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckMinioBucketQuotaDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -84,7 +84,7 @@ func TestAccMinioS3BucketQuota_deletedBucket(t *testing.T) {
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioS3BucketQuotaConfig(bucketName, 1048576),

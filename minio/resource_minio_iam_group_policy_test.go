@@ -17,7 +17,7 @@ func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -61,7 +61,7 @@ func TestAccMinioIAMGroupPolicy_disappears(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -87,7 +87,7 @@ func TestAccMinioIAMGroupPolicy_policyContentUpdate(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -140,7 +140,7 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
@@ -169,7 +169,7 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 	rInt := acctest.RandInt()
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
 		Steps: []resource.TestStep{
 			{

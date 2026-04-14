@@ -9,7 +9,7 @@ import (
 func TestAccDataSourceMinioHealthStatus_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceMinioHealthStatusConfig(),
@@ -37,7 +37,7 @@ func TestAccDataSourceMinioHealthStatus_basic(t *testing.T) {
 func TestAccDataSourceMinioHealthStatus_multipleReads(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceMinioHealthStatusConfigMultiple(),
@@ -66,7 +66,7 @@ func TestAccDataSourceMinioHealthStatus_multipleReads(t *testing.T) {
 func TestAccDataSourceMinioHealthStatus_withOutputs(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceMinioHealthStatusConfigWithOutputs(),

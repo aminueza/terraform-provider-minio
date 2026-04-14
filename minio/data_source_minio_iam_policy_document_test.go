@@ -13,7 +13,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 	// some Minio API calls, and so this needs valid Minio credentials to work.
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfig,
@@ -32,7 +32,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_NotPrincipal_SpecificARN(
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementNotPrincipalSpecificARN,
@@ -47,7 +47,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_NotPrincipal_SpecificARN(
 func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_AndNotPrincipal_Conflict(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioIAMPolicyDocumentConfigStatementPrincipalAndNotPrincipalConflict,
@@ -60,7 +60,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_AndNotPrincipal
 func TestAccDataSourceMinioIAMPolicyDocument_notResources(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccDataSourceMinioIAMPolicyDocumentNotResourcesConfig,
@@ -76,7 +76,7 @@ func TestAccDataSourceMinioIAMPolicyDocument_notResources(t *testing.T) {
 func TestAccDataSourceMinioIAMPolicyDocument_resourcesAndNotResourcesConflict(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: `
@@ -97,7 +97,7 @@ data "minio_iam_policy_document" "test" {
 func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentSourceConfig,
@@ -122,7 +122,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_source(t *testing.T) {
 func TestAccMinioDataSourceIAMPolicyDocument_sourceConflicting(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentSourceConflictingConfig,
@@ -139,7 +139,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_sourceConflicting(t *testing.T) {
 func TestAccMinioDataSourceIAMPolicyDocument_override(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentOverrideConfig,
@@ -156,7 +156,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_override(t *testing.T) {
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentNoStatementMergeConfig,
@@ -173,7 +173,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementMerge(t *testing.T) {
 func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentNoStatementOverrideConfig,
@@ -190,7 +190,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_noStatementOverride(t *testing.T) {
 func TestAccMinioDataSourceIAMPolicyDocument_duplicateSid(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioIAMPolicyDocumentDuplicateSidConfig,
@@ -213,7 +213,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Str
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalIdentifiersStringAndSlice,
@@ -230,7 +230,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_Identifiers_Mul
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalIdentifiersMultiplePrincipals,
@@ -247,7 +247,7 @@ func TestAccMinioDataSourceIAMPolicyDocument_Statement_Principal_SpecificARN(t *
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
-		ProtoV5ProviderFactories: testAccProtoV5ProviderFactories,
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioIAMPolicyDocumentConfigStatementPrincipalSpecificARN,

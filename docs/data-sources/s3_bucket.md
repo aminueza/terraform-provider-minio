@@ -30,6 +30,7 @@ output "versioning_enabled" {
 
 ### Read-Only
 
+- `id` (String) Bucket name (same as bucket field)
 - `object_lock_enabled` (Boolean) Whether object locking is enabled for the bucket
 - `policy` (String) Bucket policy in JSON format
 - `region` (String) Region of the bucket

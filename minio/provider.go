@@ -208,7 +208,6 @@ func Provider() *schema.Provider {
 			"minio_iam_service_accounts":                dataSourceIAMServiceAccounts(),
 			"minio_license_info":                        dataSourceMinioLicenseInfo(),
 			"minio_s3_bucket_tags":                      dataSourceMinioS3BucketTags(),
-			"minio_s3_bucket":                           dataSourceMinioS3Bucket(),
 			"minio_s3_bucket_replication_status":        dataSourceMinioS3BucketReplicationStatus(),
 			"minio_s3_bucket_versioning":                dataSourceMinioS3BucketVersioning(),
 			"minio_s3_bucket_encryption":                dataSourceMinioS3BucketEncryption(),

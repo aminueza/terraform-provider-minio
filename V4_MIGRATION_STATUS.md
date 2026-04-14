@@ -79,16 +79,15 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 
 ### Excluded Resources (2 resources)
 
-#### Due to Nested Attributes (2 resources)
-These resources use `ListNestedAttribute` or `MapNestedAttribute` which are not compatible with protocol v5:
+#### Due to Complex Nested Attributes (2 resources)
+These resources have deeply nested attribute structures that require significant refactoring:
 
-- ⏸️ `minio_s3_bucket_replication` - Bucket replication (complex nested structure with rules and targets)
-- ⏸️ `minio_site_replication` - Site replication (complex nested structure with sites)
+- ⏸️ `minio_s3_bucket_replication` - Bucket replication with complex nested rules and targets
+- ⏸️ `minio_site_replication` - Site replication with nested sites structure
 
-**Fix Required**: Convert `ListNestedAttribute` to `ListAttribute` with `types.Object`
+**Why excluded**: Both resources have complex nested structures that require careful refactoring to convert from `ListNestedAttribute` to `ListAttribute` with `types.Object`. The MinIO replication APIs are complex and require thorough testing to ensure compatibility.
 
-#### Due to Timeouts
-No remaining resources with timeouts! ✅ All timeout-related resources have been fixed.
+**Status**: These will be addressed in v4.1 after the core v4 release is stable.
 
 ### Data Sources (31 data sources)
 All data sources are currently provided by the SDK provider for backward compatibility:
@@ -286,3 +285,27 @@ No state migration is required. Terraform will automatically detect the provider
 - [Terraform Plugin Framework Documentation](https://developer.hashicorp.com/terraform/plugin/framework)
 - [Protocol Version Compatibility](https://developer.hashicorp.com/terraform/plugin/grpc-protocol)
 - [Migration Guide](https://developer.hashicorp.com/terraform/plugin/migrate/sdk-to-framework)
+
+## Migration Summary
+
+**Status**: ✅ **97% Complete**
+
+| Phase | Status | Progress |
+|-------|--------|----------|
+| Timeout Removal | ✅ Complete | 11/11 resources |
+| Resource Registration | ✅ Complete | 72/74 resources |
+| Nested Attribute Fixes | ⏸️ Partial | 70/72 resources |
+
+**Key Achievements**:
+- Removed all `terraform-plugin-framework-timeouts` dependencies
+- Migrated 72 out of 74 resources to framework
+- All notify, audit, and logger resources registered
+- Build successful with zero errors
+
+**Remaining Work**:
+- `minio_s3_bucket_replication` - Complex nested structure
+- `minio_site_replication` - Complex nested structure
+
+**Timeline**:
+- v4.0: 72 resources (current)
+- v4.1: 74 resources (with replication resources)

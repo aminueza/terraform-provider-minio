@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -32,17 +31,16 @@ type accessKeyResource struct {
 }
 
 type accessKeyResourceModel struct {
-	ID                 types.String   `tfsdk:"id"`
-	User               types.String   `tfsdk:"user"`
-	AccessKey          types.String   `tfsdk:"access_key"`
-	SecretKey          types.String   `tfsdk:"secret_key"`
-	SecretKeyWO        types.String   `tfsdk:"secret_key_wo"`
-	SecretKeyVersion   types.String   `tfsdk:"secret_key_version"`
-	SecretKeyWOVersion types.Int64    `tfsdk:"secret_key_wo_version"`
-	Status             types.String   `tfsdk:"status"`
-	Policy             types.String   `tfsdk:"policy"`
-	Description        types.String   `tfsdk:"description"`
-	Timeouts           timeouts.Value `tfsdk:"timeouts"`
+	ID                 types.String `tfsdk:"id"`
+	User               types.String `tfsdk:"user"`
+	AccessKey          types.String `tfsdk:"access_key"`
+	SecretKey          types.String `tfsdk:"secret_key"`
+	SecretKeyWO        types.String `tfsdk:"secret_key_wo"`
+	SecretKeyVersion   types.String `tfsdk:"secret_key_version"`
+	SecretKeyWOVersion types.Int64  `tfsdk:"secret_key_wo_version"`
+	Status             types.String `tfsdk:"status"`
+	Policy             types.String `tfsdk:"policy"`
+	Description        types.String `tfsdk:"description"`
 }
 
 func newAccessKeyResource() resource.Resource {
@@ -62,7 +60,7 @@ func (r *accessKeyResource) Configure(ctx context.Context, req resource.Configur
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -125,12 +123,6 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 				Optional:    true,
 				Description: "Description for the access key (max 256 characters).",
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -171,13 +163,7 @@ func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateReque
 	plan.ID = types.StringValue(creds.AccessKey)
 	plan.AccessKey = types.StringValue(creds.AccessKey)
 
-	timeout, d := plan.Timeouts.Create(ctx, 5*time.Minute)
-	if d.HasError() {
-		resp.Diagnostics.Append(d...)
-		return
-	}
-
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		_, err := r.client.S3Admin.InfoServiceAccount(ctx, creds.AccessKey)
 		if err != nil {
 			return retry.RetryableError(
@@ -274,13 +260,7 @@ func (r *accessKeyResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	timeout, d := state.Timeouts.Delete(ctx, 5*time.Minute)
-	if d.HasError() {
-		resp.Diagnostics.Append(d...)
-		return
-	}
-
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		err := r.client.S3Admin.DeleteServiceAccount(ctx, accessKeyID)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -332,16 +312,10 @@ func (r *accessKeyResource) readAccessKey(ctx context.Context, model *accessKeyR
 
 	accessKeyID := model.ID.ValueString()
 
-	timeout, d := model.Timeouts.Read(ctx, 2*time.Minute)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	var info madmin.InfoServiceAccountResp
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 2*time.Minute, func() *retry.RetryError {
 		info, err = r.client.S3Admin.InfoServiceAccount(ctx, accessKeyID)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "service account does not exist") {
@@ -427,12 +401,6 @@ func (r *accessKeyResource) updateAccessKey(ctx context.Context, model *accessKe
 
 	tflog.Info(ctx, fmt.Sprintf("Updating accesskey %s", accessKeyID))
 
-	timeout, d := model.Timeouts.Update(ctx, 5*time.Minute)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	if model.Status.IsUnknown() || model.Status.IsNull() {
 		return diags
 	}
@@ -442,7 +410,7 @@ func (r *accessKeyResource) updateAccessKey(ctx context.Context, model *accessKe
 		newStatus = "off"
 	}
 
-	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err := retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		err := r.client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus})
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -483,7 +451,7 @@ func (r *accessKeyResource) updateAccessKey(ctx context.Context, model *accessKe
 	}
 
 	if policy != "" {
-		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		err := retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 			err := r.client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewPolicy: []byte(policy)})
 			if err != nil {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -501,7 +469,7 @@ func (r *accessKeyResource) updateAccessKey(ctx context.Context, model *accessKe
 	}
 
 	if !model.Description.IsNull() && !model.Description.IsUnknown() {
-		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+		err := retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 			err := r.client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewDescription: description})
 			if err != nil {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

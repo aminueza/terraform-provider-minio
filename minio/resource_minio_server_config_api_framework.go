@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,18 +29,17 @@ type serverConfigApiResource struct {
 }
 
 type serverConfigApiResourceModel struct {
-	ID                          types.String   `tfsdk:"id"`
-	RequestsMax                 types.String   `tfsdk:"requests_max"`
-	CorsAllowOrigin             types.String   `tfsdk:"cors_allow_origin"`
-	TransitionWorkers           types.String   `tfsdk:"transition_workers"`
-	StaleUploadsExpiry          types.String   `tfsdk:"stale_uploads_expiry"`
-	StaleUploadsCleanupInterval types.String   `tfsdk:"stale_uploads_cleanup_interval"`
-	ClusterDeadline             types.String   `tfsdk:"cluster_deadline"`
-	RemoteTransportDeadline     types.String   `tfsdk:"remote_transport_deadline"`
-	RootAccess                  types.Bool     `tfsdk:"root_access"`
-	SyncEvents                  types.Bool     `tfsdk:"sync_events"`
-	RestartRequired             types.Bool     `tfsdk:"restart_required"`
-	Timeouts                    timeouts.Value `tfsdk:"timeouts"`
+	ID                          types.String `tfsdk:"id"`
+	RequestsMax                 types.String `tfsdk:"requests_max"`
+	CorsAllowOrigin             types.String `tfsdk:"cors_allow_origin"`
+	TransitionWorkers           types.String `tfsdk:"transition_workers"`
+	StaleUploadsExpiry          types.String `tfsdk:"stale_uploads_expiry"`
+	StaleUploadsCleanupInterval types.String `tfsdk:"stale_uploads_cleanup_interval"`
+	ClusterDeadline             types.String `tfsdk:"cluster_deadline"`
+	RemoteTransportDeadline     types.String `tfsdk:"remote_transport_deadline"`
+	RootAccess                  types.Bool   `tfsdk:"root_access"`
+	SyncEvents                  types.Bool   `tfsdk:"sync_events"`
+	RestartRequired             types.Bool   `tfsdk:"restart_required"`
 }
 
 func newServerConfigApiResource() resource.Resource {
@@ -60,7 +59,7 @@ func (r *serverConfigApiResource) Configure(ctx context.Context, req resource.Co
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -129,12 +128,6 @@ func (r *serverConfigApiResource) Schema(ctx context.Context, req resource.Schem
 				Description: "Whether a MinIO server restart is required.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -266,16 +259,10 @@ func (r *serverConfigApiResource) applyApiConfig(ctx context.Context, model *ser
 
 	configString := "api " + strings.Join(parts, " ")
 
-	timeout, d := model.Timeouts.Create(ctx, 0)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

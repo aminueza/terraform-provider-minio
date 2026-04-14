@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -18,25 +18,21 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 )
 
-// Ensure provider defined types fully satisfy framework interfaces
 var (
 	_ resource.Resource                = &serverConfigRegionResource{}
 	_ resource.ResourceWithConfigure   = &serverConfigRegionResource{}
 	_ resource.ResourceWithImportState = &serverConfigRegionResource{}
 )
 
-// serverConfigRegionResource defines the resource implementation
 type serverConfigRegionResource struct {
 	client *S3MinioClient
 }
 
-// serverConfigRegionResourceModel describes the resource data model
 type serverConfigRegionResourceModel struct {
-	ID              types.String   `tfsdk:"id"`
-	Name            types.String   `tfsdk:"name"`
-	Comment         types.String   `tfsdk:"comment"`
-	RestartRequired types.Bool     `tfsdk:"restart_required"`
-	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String `tfsdk:"id"`
+	Name            types.String `tfsdk:"name"`
+	Comment         types.String `tfsdk:"comment"`
+	RestartRequired types.Bool   `tfsdk:"restart_required"`
 }
 
 func newServerConfigRegionResource() resource.Resource {
@@ -56,7 +52,7 @@ func (r *serverConfigRegionResource) Configure(ctx context.Context, req resource
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -89,12 +85,6 @@ func (r *serverConfigRegionResource) Schema(ctx context.Context, req resource.Sc
 				Description: "Whether a MinIO server restart is required.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -122,16 +112,10 @@ func (r *serverConfigRegionResource) Create(ctx context.Context, req resource.Cr
 
 	configString := "region " + strings.Join(parts, " ")
 
-	timeout, diags := plan.Timeouts.Create(ctx, 0)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
@@ -242,16 +226,10 @@ func (r *serverConfigRegionResource) Update(ctx context.Context, req resource.Up
 
 	configString := "region " + strings.Join(parts, " ")
 
-	timeout, diags := plan.Timeouts.Update(ctx, 0)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

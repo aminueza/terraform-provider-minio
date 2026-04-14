@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -26,18 +27,29 @@ type bucketCorsResource struct {
 }
 
 type bucketCorsResourceModel struct {
-	ID       types.String    `tfsdk:"id"`
-	Bucket   types.String    `tfsdk:"bucket"`
-	CorsRule []corsRuleModel `tfsdk:"cors_rule"`
+	ID       types.String `tfsdk:"id"`
+	Bucket   types.String `tfsdk:"bucket"`
+	CorsRule types.List   `tfsdk:"cors_rule"`
 }
 
 type corsRuleModel struct {
-	ID             types.String   `tfsdk:"id"`
-	AllowedHeaders []types.String `tfsdk:"allowed_headers"`
-	AllowedMethods []types.String `tfsdk:"allowed_methods"`
-	AllowedOrigins []types.String `tfsdk:"allowed_origins"`
-	ExposeHeaders  []types.String `tfsdk:"expose_headers"`
-	MaxAgeSeconds  types.Int64    `tfsdk:"max_age_seconds"`
+	ID             types.String `tfsdk:"id"`
+	AllowedHeaders types.List   `tfsdk:"allowed_headers"`
+	AllowedMethods types.List   `tfsdk:"allowed_methods"`
+	AllowedOrigins types.List   `tfsdk:"allowed_origins"`
+	ExposeHeaders  types.List   `tfsdk:"expose_headers"`
+	MaxAgeSeconds  types.Int64  `tfsdk:"max_age_seconds"`
+}
+
+var corsRuleObjectType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"id":              types.StringType,
+		"allowed_headers": types.ListType{ElemType: types.StringType},
+		"allowed_methods": types.ListType{ElemType: types.StringType},
+		"allowed_origins": types.ListType{ElemType: types.StringType},
+		"expose_headers":  types.ListType{ElemType: types.StringType},
+		"max_age_seconds": types.Int64Type,
+	},
 }
 
 func (r *bucketCorsResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -62,41 +74,10 @@ func (r *bucketCorsResource) Schema(ctx context.Context, req resource.SchemaRequ
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"cors_rule": schema.ListNestedAttribute{
+			"cors_rule": schema.ListAttribute{
 				Description: "List of CORS rules",
 				Required:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Description: "Unique identifier for the rule",
-							Optional:    true,
-						},
-						"allowed_headers": schema.ListAttribute{
-							Description: "Headers that are allowed in a preflight OPTIONS request",
-							Optional:    true,
-							ElementType: types.StringType,
-						},
-						"allowed_methods": schema.ListAttribute{
-							Description: "HTTP methods that the origin is allowed to execute (GET, PUT, POST, DELETE, HEAD)",
-							Required:    true,
-							ElementType: types.StringType,
-						},
-						"allowed_origins": schema.ListAttribute{
-							Description: "Origins that are allowed to access the bucket",
-							Required:    true,
-							ElementType: types.StringType,
-						},
-						"expose_headers": schema.ListAttribute{
-							Description: "Headers in the response that customers are able to access from their applications",
-							Optional:    true,
-							ElementType: types.StringType,
-						},
-						"max_age_seconds": schema.Int64Attribute{
-							Description: "Time in seconds that browser can cache the response for a preflight request",
-							Optional:    true,
-						},
-					},
-				},
+				ElementType: corsRuleObjectType,
 			},
 		},
 	}
@@ -211,7 +192,10 @@ func (r *bucketCorsResource) ImportState(ctx context.Context, req resource.Impor
 func (r *bucketCorsResource) setCors(ctx context.Context, data *bucketCorsResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	corsConfig := r.buildCorsConfig(data)
+	corsConfig := r.buildCorsConfig(ctx, data, &diags)
+	if diags.HasError() {
+		return diags
+	}
 
 	err := r.client.S3Client.SetBucketCors(ctx, data.Bucket.ValueString(), corsConfig)
 	if err != nil {
@@ -255,7 +239,11 @@ func (r *bucketCorsResource) read(ctx context.Context, data *bucketCorsResourceM
 		return diags
 	}
 
-	data.CorsRule = r.flattenCorsRules(corsConfig.CORSRules)
+	rules, diags := r.flattenCorsRules(ctx, corsConfig.CORSRules)
+	if diags.HasError() {
+		return diags
+	}
+	data.CorsRule = rules
 
 	if data.ID.IsNull() {
 		data.ID = data.Bucket
@@ -264,50 +252,56 @@ func (r *bucketCorsResource) read(ctx context.Context, data *bucketCorsResourceM
 	return diags
 }
 
-func (r *bucketCorsResource) buildCorsConfig(data *bucketCorsResourceModel) *cors.Config {
-	rules := make([]cors.Rule, 0, len(data.CorsRule))
+func (r *bucketCorsResource) buildCorsConfig(ctx context.Context, data *bucketCorsResourceModel, diags *diag.Diagnostics) *cors.Config {
+	var rules []cors.Rule
 
-	for _, ruleModel := range data.CorsRule {
+	var corsRuleList []corsRuleModel
+	diags.Append(data.CorsRule.ElementsAs(ctx, &corsRuleList, false)...)
+	if diags.HasError() {
+		return nil
+	}
+
+	for _, ruleModel := range corsRuleList {
 		rule := cors.Rule{}
 
 		if !ruleModel.ID.IsNull() {
 			rule.ID = ruleModel.ID.ValueString()
 		}
 
-		if len(ruleModel.AllowedHeaders) > 0 {
-			rule.AllowedHeader = make([]string, len(ruleModel.AllowedHeaders))
-			for i, h := range ruleModel.AllowedHeaders {
-				if !h.IsNull() {
-					rule.AllowedHeader[i] = h.ValueString()
-				}
+		if !ruleModel.AllowedHeaders.IsNull() {
+			var headers []string
+			diags.Append(ruleModel.AllowedHeaders.ElementsAs(ctx, &headers, false)...)
+			if diags.HasError() {
+				return nil
 			}
+			rule.AllowedHeader = headers
 		}
 
-		if len(ruleModel.AllowedMethods) > 0 {
-			rule.AllowedMethod = make([]string, len(ruleModel.AllowedMethods))
-			for i, m := range ruleModel.AllowedMethods {
-				if !m.IsNull() {
-					rule.AllowedMethod[i] = m.ValueString()
-				}
+		if !ruleModel.AllowedMethods.IsNull() {
+			var methods []string
+			diags.Append(ruleModel.AllowedMethods.ElementsAs(ctx, &methods, false)...)
+			if diags.HasError() {
+				return nil
 			}
+			rule.AllowedMethod = methods
 		}
 
-		if len(ruleModel.AllowedOrigins) > 0 {
-			rule.AllowedOrigin = make([]string, len(ruleModel.AllowedOrigins))
-			for i, o := range ruleModel.AllowedOrigins {
-				if !o.IsNull() {
-					rule.AllowedOrigin[i] = o.ValueString()
-				}
+		if !ruleModel.AllowedOrigins.IsNull() {
+			var origins []string
+			diags.Append(ruleModel.AllowedOrigins.ElementsAs(ctx, &origins, false)...)
+			if diags.HasError() {
+				return nil
 			}
+			rule.AllowedOrigin = origins
 		}
 
-		if len(ruleModel.ExposeHeaders) > 0 {
-			rule.ExposeHeader = make([]string, len(ruleModel.ExposeHeaders))
-			for i, h := range ruleModel.ExposeHeaders {
-				if !h.IsNull() {
-					rule.ExposeHeader[i] = h.ValueString()
-				}
+		if !ruleModel.ExposeHeaders.IsNull() {
+			var exposeHeaders []string
+			diags.Append(ruleModel.ExposeHeaders.ElementsAs(ctx, &exposeHeaders, false)...)
+			if diags.HasError() {
+				return nil
 			}
+			rule.ExposeHeader = exposeHeaders
 		}
 
 		if !ruleModel.MaxAgeSeconds.IsNull() {
@@ -322,8 +316,9 @@ func (r *bucketCorsResource) buildCorsConfig(data *bucketCorsResourceModel) *cor
 	}
 }
 
-func (r *bucketCorsResource) flattenCorsRules(rules []cors.Rule) []corsRuleModel {
-	result := make([]corsRuleModel, 0, len(rules))
+func (r *bucketCorsResource) flattenCorsRules(ctx context.Context, rules []cors.Rule) (types.List, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	result := make([]attr.Value, 0, len(rules))
 
 	for _, rule := range rules {
 		ruleModel := corsRuleModel{}
@@ -333,41 +328,57 @@ func (r *bucketCorsResource) flattenCorsRules(rules []cors.Rule) []corsRuleModel
 		}
 
 		if len(rule.AllowedHeader) > 0 {
-			ruleModel.AllowedHeaders = make([]types.String, len(rule.AllowedHeader))
+			headers := make([]attr.Value, len(rule.AllowedHeader))
 			for i, h := range rule.AllowedHeader {
-				ruleModel.AllowedHeaders[i] = types.StringValue(h)
+				headers[i] = types.StringValue(h)
 			}
+			ruleModel.AllowedHeaders = types.ListValueMust(types.StringType, headers)
 		}
 
 		if len(rule.AllowedMethod) > 0 {
-			ruleModel.AllowedMethods = make([]types.String, len(rule.AllowedMethod))
+			methods := make([]attr.Value, len(rule.AllowedMethod))
 			for i, m := range rule.AllowedMethod {
-				ruleModel.AllowedMethods[i] = types.StringValue(m)
+				methods[i] = types.StringValue(m)
 			}
+			ruleModel.AllowedMethods = types.ListValueMust(types.StringType, methods)
 		}
 
 		if len(rule.AllowedOrigin) > 0 {
-			ruleModel.AllowedOrigins = make([]types.String, len(rule.AllowedOrigin))
+			origins := make([]attr.Value, len(rule.AllowedOrigin))
 			for i, o := range rule.AllowedOrigin {
-				ruleModel.AllowedOrigins[i] = types.StringValue(o)
+				origins[i] = types.StringValue(o)
 			}
+			ruleModel.AllowedOrigins = types.ListValueMust(types.StringType, origins)
 		}
 
 		if len(rule.ExposeHeader) > 0 {
-			ruleModel.ExposeHeaders = make([]types.String, len(rule.ExposeHeader))
+			exposeHeaders := make([]attr.Value, len(rule.ExposeHeader))
 			for i, h := range rule.ExposeHeader {
-				ruleModel.ExposeHeaders[i] = types.StringValue(h)
+				exposeHeaders[i] = types.StringValue(h)
 			}
+			ruleModel.ExposeHeaders = types.ListValueMust(types.StringType, exposeHeaders)
 		}
 
 		if rule.MaxAgeSeconds > 0 {
 			ruleModel.MaxAgeSeconds = types.Int64Value(int64(rule.MaxAgeSeconds))
 		}
 
-		result = append(result, ruleModel)
+		obj, d := types.ObjectValue(corsRuleObjectType.AttrTypes, map[string]attr.Value{
+			"id":              ruleModel.ID,
+			"allowed_headers": ruleModel.AllowedHeaders,
+			"allowed_methods": ruleModel.AllowedMethods,
+			"allowed_origins": ruleModel.AllowedOrigins,
+			"expose_headers":  ruleModel.ExposeHeaders,
+			"max_age_seconds": ruleModel.MaxAgeSeconds,
+		})
+		diags.Append(d...)
+		if diags.HasError() {
+			return types.ListNull(corsRuleObjectType), diags
+		}
+		result = append(result, obj)
 	}
 
-	return result
+	return types.ListValue(corsRuleObjectType, result)
 }
 
 func newBucketCorsResource() resource.Resource {

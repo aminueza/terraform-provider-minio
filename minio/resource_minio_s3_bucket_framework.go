@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -32,17 +31,16 @@ type minioS3BucketResource struct {
 
 // minioS3BucketResourceModel describes the resource data model
 type minioS3BucketResourceModel struct {
-	ID               types.String   `tfsdk:"id"`
-	Bucket           types.String   `tfsdk:"bucket"`
-	BucketPrefix     types.String   `tfsdk:"bucket_prefix"`
-	ForceDestroy     types.Bool     `tfsdk:"force_destroy"`
-	ACL              types.String   `tfsdk:"acl"`
-	ARN              types.String   `tfsdk:"arn"`
-	BucketDomainName types.String   `tfsdk:"bucket_domain_name"`
-	Quota            types.Int64    `tfsdk:"quota"`
-	ObjectLocking    types.Bool     `tfsdk:"object_locking"`
-	Tags             types.Map      `tfsdk:"tags"`
-	Timeouts         timeouts.Value `tfsdk:"timeouts"`
+	ID               types.String `tfsdk:"id"`
+	Bucket           types.String `tfsdk:"bucket"`
+	BucketPrefix     types.String `tfsdk:"bucket_prefix"`
+	ForceDestroy     types.Bool   `tfsdk:"force_destroy"`
+	ACL              types.String `tfsdk:"acl"`
+	ARN              types.String `tfsdk:"arn"`
+	BucketDomainName types.String `tfsdk:"bucket_domain_name"`
+	Quota            types.Int64  `tfsdk:"quota"`
+	ObjectLocking    types.Bool   `tfsdk:"object_locking"`
+	Tags             types.Map    `tfsdk:"tags"`
 }
 
 func newS3BucketResource() resource.Resource {
@@ -115,12 +113,6 @@ func (r *minioS3BucketResource) Schema(ctx context.Context, req resource.SchemaR
 				Optional:    true,
 				ElementType: types.StringType,
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }

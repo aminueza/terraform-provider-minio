@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -31,15 +31,14 @@ type serverConfigScannerResource struct {
 }
 
 type serverConfigScannerResourceModel struct {
-	ID              types.String   `tfsdk:"id"`
-	Speed           types.String   `tfsdk:"speed"`
-	Delay           types.String   `tfsdk:"delay"`
-	MaxWait         types.String   `tfsdk:"max_wait"`
-	Cycle           types.String   `tfsdk:"cycle"`
-	ExcessVersions  types.String   `tfsdk:"excess_versions"`
-	ExcessFolders   types.String   `tfsdk:"excess_folders"`
-	RestartRequired types.Bool     `tfsdk:"restart_required"`
-	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String `tfsdk:"id"`
+	Speed           types.String `tfsdk:"speed"`
+	Delay           types.String `tfsdk:"delay"`
+	MaxWait         types.String `tfsdk:"max_wait"`
+	Cycle           types.String `tfsdk:"cycle"`
+	ExcessVersions  types.String `tfsdk:"excess_versions"`
+	ExcessFolders   types.String `tfsdk:"excess_folders"`
+	RestartRequired types.Bool   `tfsdk:"restart_required"`
 }
 
 func newServerConfigScannerResource() resource.Resource {
@@ -59,7 +58,7 @@ func (r *serverConfigScannerResource) Configure(ctx context.Context, req resourc
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -116,12 +115,6 @@ func (r *serverConfigScannerResource) Schema(ctx context.Context, req resource.S
 				Description: "Whether a MinIO server restart is required.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -253,16 +246,10 @@ func (r *serverConfigScannerResource) applyScannerConfig(ctx context.Context, mo
 
 	configString := "scanner " + strings.Join(parts, " ")
 
-	timeout, d := model.Timeouts.Create(ctx, 0)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

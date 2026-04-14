@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,15 +29,14 @@ type serverConfigEtcdResource struct {
 }
 
 type serverConfigEtcdResourceModel struct {
-	ID              types.String   `tfsdk:"id"`
-	Endpoints       types.String   `tfsdk:"endpoints"`
-	PathPrefix      types.String   `tfsdk:"path_prefix"`
-	CorednsPath     types.String   `tfsdk:"coredns_path"`
-	ClientCert      types.String   `tfsdk:"client_cert"`
-	ClientCertKey   types.String   `tfsdk:"client_cert_key"`
-	Comment         types.String   `tfsdk:"comment"`
-	RestartRequired types.Bool     `tfsdk:"restart_required"`
-	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String `tfsdk:"id"`
+	Endpoints       types.String `tfsdk:"endpoints"`
+	PathPrefix      types.String `tfsdk:"path_prefix"`
+	CorednsPath     types.String `tfsdk:"coredns_path"`
+	ClientCert      types.String `tfsdk:"client_cert"`
+	ClientCertKey   types.String `tfsdk:"client_cert_key"`
+	Comment         types.String `tfsdk:"comment"`
+	RestartRequired types.Bool   `tfsdk:"restart_required"`
 }
 
 func newServerConfigEtcdResource() resource.Resource {
@@ -57,7 +56,7 @@ func (r *serverConfigEtcdResource) Configure(ctx context.Context, req resource.C
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -109,12 +108,6 @@ func (r *serverConfigEtcdResource) Schema(ctx context.Context, req resource.Sche
 				Description: "Whether a MinIO server restart is required to apply the configuration.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -235,16 +228,10 @@ func (r *serverConfigEtcdResource) applyEtcdConfig(ctx context.Context, model *s
 
 	configString := "etcd " + strings.Join(parts, " ")
 
-	timeout, d := model.Timeouts.Create(ctx, 0)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

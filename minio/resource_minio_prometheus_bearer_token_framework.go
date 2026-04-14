@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -27,13 +26,12 @@ type prometheusBearerTokenResource struct {
 }
 
 type prometheusBearerTokenResourceModel struct {
-	ID          types.String   `tfsdk:"id"`
-	MetricType  types.String   `tfsdk:"metric_type"`
-	ExpiresIn   types.String   `tfsdk:"expires_in"`
-	Limit       types.Int64    `tfsdk:"limit"`
-	Token       types.String   `tfsdk:"token"`
-	TokenExpiry types.String   `tfsdk:"token_expiry"`
-	Timeouts    timeouts.Value `tfsdk:"timeouts"`
+	ID          types.String `tfsdk:"id"`
+	MetricType  types.String `tfsdk:"metric_type"`
+	ExpiresIn   types.String `tfsdk:"expires_in"`
+	Limit       types.Int64  `tfsdk:"limit"`
+	Token       types.String `tfsdk:"token"`
+	TokenExpiry types.String `tfsdk:"token_expiry"`
 }
 
 func newPrometheusBearerTokenResource() resource.Resource {
@@ -53,7 +51,7 @@ func (r *prometheusBearerTokenResource) Configure(ctx context.Context, req resou
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -107,12 +105,6 @@ duration from creation time.`,
 				Computed:    true,
 				Description: "Expiry timestamp of the token in RFC3339 format",
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }

@@ -80,36 +80,34 @@ Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 					stringvalidator.OneOf("Enabled"),
 				},
 			},
-			"rule": schema.ListNestedAttribute{
+			"rule": schema.SingleNestedAttribute{
 				Description: "Retention rule configuration",
 				Optional:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"default_retention": schema.SingleNestedAttribute{
-							Description: "Default retention applied to all new objects",
-							Optional:    true,
-							Attributes: map[string]schema.Attribute{
-								"mode": schema.StringAttribute{
-									Description: "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides).",
-									Required:    true,
-									Validators: []validator.String{
-										stringvalidator.OneOf("GOVERNANCE", "COMPLIANCE"),
-									},
-								},
-								"days": schema.Int64Attribute{
-									Description: "Retention period in days. Mutually exclusive with years.",
-									Optional:    true,
-									Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("years"))},
-								},
-								"years": schema.Int64Attribute{
-									Description: "Retention period in years. Mutually exclusive with days.",
-									Optional:    true,
-									Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("days"))},
+				Attributes: map[string]schema.Attribute{
+					"default_retention": schema.SingleNestedAttribute{
+						Description: "Default retention applied to all new objects",
+						Optional:    true,
+						Attributes: map[string]schema.Attribute{
+							"mode": schema.StringAttribute{
+								Description: "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides).",
+								Required:    true,
+								Validators: []validator.String{
+									stringvalidator.OneOf("GOVERNANCE", "COMPLIANCE"),
 								},
 							},
-							PlanModifiers: []planmodifier.Object{
-								objectplanmodifier.RequiresReplace(),
+							"days": schema.Int64Attribute{
+								Description: "Retention period in days. Mutually exclusive with years.",
+								Optional:    true,
+								Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("years"))},
 							},
+							"years": schema.Int64Attribute{
+								Description: "Retention period in years. Mutually exclusive with days.",
+								Optional:    true,
+								Validators:  []validator.Int64{int64validator.AtLeast(1), int64validator.ConflictsWith(path.MatchRelative().AtParent().AtName("days"))},
+							},
+						},
+						PlanModifiers: []planmodifier.Object{
+							objectplanmodifier.RequiresReplace(),
 						},
 					},
 				},

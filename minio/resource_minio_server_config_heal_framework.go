@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
-	"github.com/hashicorp/terraform-plugin-framework-timeouts/resource/timeouts"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -29,13 +29,12 @@ type serverConfigHealResource struct {
 }
 
 type serverConfigHealResourceModel struct {
-	ID              types.String   `tfsdk:"id"`
-	Bitrotscan      types.String   `tfsdk:"bitrotscan"`
-	MaxSleep        types.String   `tfsdk:"max_sleep"`
-	MaxIO           types.String   `tfsdk:"max_io"`
-	DriveWorkers    types.String   `tfsdk:"drive_workers"`
-	RestartRequired types.Bool     `tfsdk:"restart_required"`
-	Timeouts        timeouts.Value `tfsdk:"timeouts"`
+	ID              types.String `tfsdk:"id"`
+	Bitrotscan      types.String `tfsdk:"bitrotscan"`
+	MaxSleep        types.String `tfsdk:"max_sleep"`
+	MaxIO           types.String `tfsdk:"max_io"`
+	DriveWorkers    types.String `tfsdk:"drive_workers"`
+	RestartRequired types.Bool   `tfsdk:"restart_required"`
 }
 
 func newServerConfigHealResource() resource.Resource {
@@ -55,7 +54,7 @@ func (r *serverConfigHealResource) Configure(ctx context.Context, req resource.C
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *S3MinioClient, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *S3MinioClient, got: %T", req.ProviderData),
 		)
 		return
 	}
@@ -99,12 +98,6 @@ func (r *serverConfigHealResource) Schema(ctx context.Context, req resource.Sche
 				Description: "Whether a MinIO server restart is required.",
 				Default:     booldefault.StaticBool(false),
 			},
-			"timeouts": timeouts.Attributes(ctx, timeouts.Opts{
-				Create: true,
-				Read:   true,
-				Update: true,
-				Delete: true,
-			}),
 		},
 	}
 }
@@ -227,16 +220,10 @@ func (r *serverConfigHealResource) applyHealConfig(ctx context.Context, model *s
 
 	configString := "heal " + strings.Join(parts, " ")
 
-	timeout, d := model.Timeouts.Create(ctx, 0)
-	if d.HasError() {
-		diags.Append(d...)
-		return diags
-	}
-
 	var restartRequired bool
 	var err error
 
-	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
+	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

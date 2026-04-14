@@ -28,9 +28,9 @@ type bucketNotificationResource struct {
 }
 
 type bucketNotificationResourceModel struct {
-	ID     types.String             `tfsdk:"id"`
-	Bucket types.String             `tfsdk:"bucket"`
-	Queue  []queueNotificationModel `tfsdk:"queue"`
+	ID     types.String `tfsdk:"id"`
+	Bucket types.String `tfsdk:"bucket"`
+	Queue  types.List   `tfsdk:"queue"`
 }
 
 type queueNotificationModel struct {
@@ -39,6 +39,16 @@ type queueNotificationModel struct {
 	FilterSuffix types.String `tfsdk:"filter_suffix"`
 	QueueARN     types.String `tfsdk:"queue_arn"`
 	Events       types.Set    `tfsdk:"events"`
+}
+
+var queueNotificationObjectType = types.ObjectType{
+	AttrTypes: map[string]attr.Type{
+		"id":            types.StringType,
+		"filter_prefix": types.StringType,
+		"filter_suffix": types.StringType,
+		"queue_arn":     types.StringType,
+		"events":        types.SetType{ElemType: types.StringType},
+	},
 }
 
 func (r *bucketNotificationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -63,38 +73,10 @@ func (r *bucketNotificationResource) Schema(ctx context.Context, req resource.Sc
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"queue": schema.ListNestedAttribute{
+			"queue": schema.ListAttribute{
 				Description: "List of queue notification configurations.",
 				Optional:    true,
-				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"id": schema.StringAttribute{
-							Description: "Unique identifier for the queue notification.",
-							Optional:    true,
-							Computed:    true,
-						},
-						"filter_prefix": schema.StringAttribute{
-							Description: "Object key name prefix to filter notifications.",
-							Optional:    true,
-						},
-						"filter_suffix": schema.StringAttribute{
-							Description: "Object key name suffix to filter notifications.",
-							Optional:    true,
-						},
-						"queue_arn": schema.StringAttribute{
-							Description: "ARN of the queue target.",
-							Required:    true,
-							Validators: []validator.String{
-								NewMinioARNValidator(),
-							},
-						},
-						"events": schema.SetAttribute{
-							Description: "Set of event types to listen for (e.g., s3:ObjectCreated:*).",
-							Required:    true,
-							ElementType: types.StringType,
-						},
-					},
-				},
+				ElementType: queueNotificationObjectType,
 			},
 		},
 	}
@@ -195,7 +177,10 @@ func (r *bucketNotificationResource) ImportState(ctx context.Context, req resour
 func (r *bucketNotificationResource) setNotification(ctx context.Context, data *bucketNotificationResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
-	config := r.buildNotificationConfig(data)
+	config := r.buildNotificationConfig(ctx, data, &diags)
+	if diags.HasError() {
+		return diags
+	}
 
 	err := r.client.S3Client.SetBucketNotification(ctx, data.Bucket.ValueString(), config)
 	if err != nil {
@@ -223,7 +208,12 @@ func (r *bucketNotificationResource) read(ctx context.Context, data *bucketNotif
 		return diags
 	}
 
-	data.Queue = r.flattenQueueNotificationConfiguration(notificationConfig.QueueConfigs)
+	queueList, d := r.flattenQueueNotificationConfiguration(ctx, notificationConfig.QueueConfigs)
+	diags.Append(d...)
+	if diags.HasError() {
+		return diags
+	}
+	data.Queue = queueList
 
 	if data.ID.IsNull() {
 		data.ID = data.Bucket
@@ -232,10 +222,20 @@ func (r *bucketNotificationResource) read(ctx context.Context, data *bucketNotif
 	return diags
 }
 
-func (r *bucketNotificationResource) buildNotificationConfig(data *bucketNotificationResourceModel) notification.Configuration {
+func (r *bucketNotificationResource) buildNotificationConfig(ctx context.Context, data *bucketNotificationResourceModel, diags *diag.Diagnostics) notification.Configuration {
 	var config notification.Configuration
 
-	for _, queueModel := range data.Queue {
+	if data.Queue.IsNull() || data.Queue.IsUnknown() {
+		return config
+	}
+
+	var queueList []queueNotificationModel
+	diags.Append(data.Queue.ElementsAs(ctx, &queueList, false)...)
+	if diags.HasError() {
+		return config
+	}
+
+	for _, queueModel := range queueList {
 		queueConfig := notification.Config{Filter: &notification.Filter{}}
 
 		if !queueModel.QueueARN.IsNull() {
@@ -248,9 +248,12 @@ func (r *bucketNotificationResource) buildNotificationConfig(data *bucketNotific
 			queueConfig.ID = queueModel.ID.ValueString()
 		}
 
-		var events []string
-		diag := queueModel.Events.ElementsAs(context.Background(), &events, false)
-		if !diag.HasError() {
+		if !queueModel.Events.IsNull() {
+			var events []string
+			diags.Append(queueModel.Events.ElementsAs(ctx, &events, false)...)
+			if diags.HasError() {
+				return config
+			}
 			for _, event := range events {
 				queueConfig.AddEvents(notification.EventType(event))
 			}
@@ -269,8 +272,9 @@ func (r *bucketNotificationResource) buildNotificationConfig(data *bucketNotific
 	return config
 }
 
-func (r *bucketNotificationResource) flattenQueueNotificationConfiguration(configs []notification.QueueConfig) []queueNotificationModel {
-	result := make([]queueNotificationModel, 0, len(configs))
+func (r *bucketNotificationResource) flattenQueueNotificationConfiguration(ctx context.Context, configs []notification.QueueConfig) (types.List, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	result := make([]attr.Value, 0, len(configs))
 
 	for _, config := range configs {
 		queueModel := queueNotificationModel{}
@@ -294,18 +298,29 @@ func (r *bucketNotificationResource) flattenQueueNotificationConfiguration(confi
 			}
 		}
 
-		events := make([]attr.Value, 0, len(config.Events))
-		for _, event := range config.Events {
-			events = append(events, types.StringValue(string(event)))
-		}
-		if len(events) > 0 {
+		if len(config.Events) > 0 {
+			events := make([]attr.Value, 0, len(config.Events))
+			for _, event := range config.Events {
+				events = append(events, types.StringValue(string(event)))
+			}
 			queueModel.Events = types.SetValueMust(types.StringType, events)
 		}
 
-		result = append(result, queueModel)
+		obj, d := types.ObjectValue(queueNotificationObjectType.AttrTypes, map[string]attr.Value{
+			"id":            queueModel.ID,
+			"filter_prefix": queueModel.FilterPrefix,
+			"filter_suffix": queueModel.FilterSuffix,
+			"queue_arn":     queueModel.QueueARN,
+			"events":        queueModel.Events,
+		})
+		diags.Append(d...)
+		if diags.HasError() {
+			return types.ListNull(queueNotificationObjectType), diags
+		}
+		result = append(result, obj)
 	}
 
-	return result
+	return types.ListValue(queueNotificationObjectType, result)
 }
 
 func NewMinioARNValidator() validator.String {

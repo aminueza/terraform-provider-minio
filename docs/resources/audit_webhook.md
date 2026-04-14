@@ -54,6 +54,7 @@ resource "minio_audit_webhook" "backup" {
 
 ### Read-Only
 
+- `id` (String) Identifier of the audit webhook (same as name).
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required for the configuration to take effect.
 
 ## Import

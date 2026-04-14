@@ -1041,6 +1041,27 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				t.Errorf("Expected bandwidth to be %d, got %d", expectedBandwidth, bandwidth)
 			}
 		}
+
+		// Regression: the Terraform SDK materializes every declared schema
+		// field into the target map, so "bandwidth_limt" is always present as
+		// "" for users who only set the canonical "bandwidth_limit". An empty
+		// legacy value must not shadow the canonical one.
+		{
+			target := map[string]interface{}{
+				"bandwidth_limt":  "",
+				"bandwidth_limit": "400M",
+			}
+
+			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			if !ok {
+				t.Fatalf("Expected bandwidth to be parsed successfully")
+			}
+
+			expectedBandwidth := uint64(400000000) // 400M (from bandwidth_limit)
+			if bandwidth != expectedBandwidth {
+				t.Errorf("Expected bandwidth to be %d, got %d", expectedBandwidth, bandwidth)
+			}
+		}
 	})
 }
 

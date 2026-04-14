@@ -225,8 +225,14 @@ func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics)
 	var limitValue string
 	var errs diag.Diagnostics
 
-	// Check for legacy attribute first (with typo)
-	if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok {
+	// Prefer the legacy attribute only when it is explicitly set to a non-empty
+	// value. Since "bandwidth_limt" is now declared in the schema (to surface a
+	// deprecation warning instead of an "Unsupported argument" error), the
+	// Terraform SDK materializes it as "" for users who never set it. Treating
+	// empty-string as "unset" lets the canonical "bandwidth_limit" field take
+	// effect in that common case, while still honouring an explicitly-set
+	// legacy value for backward compatibility.
+	if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok && legacyLimitValue != "" {
 		bandwidthStr = legacyLimitValue
 	} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
 		bandwidthStr = limitValue

@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
 
 var (
@@ -128,16 +129,9 @@ func (r *iamGroupPolicyResource) Create(ctx context.Context, req resource.Create
 		return
 	}
 
-	// Normalize the policy JSON to prevent drift
-	normalizedPolicy, err := NormalizeAndCompareJSONPolicies("", policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
-		return
-	}
-
 	data.ID = types.StringValue(fmt.Sprintf("%s:%s", data.Group.ValueString(), name))
 	data.Name = types.StringValue(name)
-	data.Policy = types.StringValue(normalizedPolicy)
+	// Don't set Policy here - let Read handle it with normalization
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -168,9 +162,9 @@ func (r *iamGroupPolicyResource) Read(ctx context.Context, req resource.ReadRequ
 	data.Name = types.StringValue(policyName)
 	data.Group = types.StringValue(groupName)
 
-	// Normalize the policy JSON to prevent drift from MinIO's formatting
+	// Always use the normalized policy from the API
 	actualPolicy := strings.TrimSpace(string(info.Policy))
-	normalizedPolicy, err := NormalizeAndCompareJSONPolicies(data.Policy.ValueString(), actualPolicy)
+	normalizedPolicy, err := structure.NormalizeJsonString(actualPolicy)
 	if err != nil {
 		resp.Diagnostics.AddError("Normalizing policy JSON", err.Error())
 		return

@@ -177,7 +177,7 @@ func (r *bucketTagsResource) setTags(ctx context.Context, data *bucketTagsResour
 		return diags
 	}
 
-	if data.Tags.IsNull() || data.Tags.IsNull() {
+	if data.Tags.IsNull() || data.Tags.IsUnknown() {
 		return diags
 	}
 

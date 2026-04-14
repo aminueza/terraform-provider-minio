@@ -243,7 +243,12 @@ func (r *bucketRetentionResource) setRetention(ctx context.Context, data *bucket
 
 	mode := minio.RetentionMode(data.Mode.ValueString())
 	unit := minio.ValidityUnit(data.Unit.ValueString())
-	validity := uint(data.ValidityPeriod.ValueInt64())
+	period := data.ValidityPeriod.ValueInt64()
+	if period < 0 {
+		diags.AddError("Invalid validity period", "validity_period must be non-negative")
+		return diags
+	}
+	validity := uint(period) // #nosec G115 -- bounds checked above
 
 	err := r.client.S3Client.SetBucketObjectLockConfig(ctx, data.Bucket.ValueString(), &mode, &validity, &unit)
 	if err != nil {
@@ -284,7 +289,7 @@ func (r *bucketRetentionResource) read(ctx context.Context, data *bucketRetentio
 
 	data.Mode = types.StringValue(mode.String())
 	data.Unit = types.StringValue(unit.String())
-	data.ValidityPeriod = types.Int64Value(int64(*validity))
+	data.ValidityPeriod = types.Int64Value(int64(*validity)) // #nosec G115 -- validity from MinIO API is always small
 
 	if data.ID.IsNull() {
 		data.ID = data.Bucket

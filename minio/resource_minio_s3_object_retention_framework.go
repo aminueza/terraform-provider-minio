@@ -168,7 +168,6 @@ func (r *s3ObjectRetentionResource) Update(ctx context.Context, req resource.Upd
 
 func (r *s3ObjectRetentionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	// Retention is cleared by setting the resource to not exist
-	return
 }
 
 func (r *s3ObjectRetentionResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {

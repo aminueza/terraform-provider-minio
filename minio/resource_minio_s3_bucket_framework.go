@@ -346,3 +346,7 @@ func waitForBucketReadyFramework(ctx context.Context, client *minio.Client, buck
 		return retry.NonRetryableError(err)
 	})
 }
+
+func bucketArn(bucket string) string {
+	return fmt.Sprintf("arn:aws:s3:::%s", bucket)
+}

@@ -25,10 +25,18 @@ jobs:
         run: |
           MISSING=0
 
-          # Extract resource and data source names from ResourcesMap and DataSourcesMap only
-          # Uses sed to isolate the map blocks, then greps for "minio_*" keys
-          RESOURCES=$(sed -n '/ResourcesMap:/,/^[[:space:]]*},$/p' minio/provider.go | grep -oP '"minio_\K[^"]+')
-          DATASOURCES=$(sed -n '/DataSourcesMap:/,/^[[:space:]]*},$/p' minio/provider.go | grep -oP '"minio_\K[^"]+')
+          # Extract resource type names from framework resource files (v4 uses terraform-plugin-framework)
+          # Matches: resp.TypeName = req.ProviderTypeName + "_<name>" and strips the leading "_"
+          RESOURCES=$(grep -rh 'resp\.TypeName = req\.ProviderTypeName + "_' minio/resource_*_framework.go \
+            | grep -oP '"_\K[^"]+' || true)
+
+          # Extract data source type names from framework data source files
+          DATASOURCES=$(grep -rh 'resp\.TypeName = req\.ProviderTypeName + "_' minio/data_source_*_framework.go \
+            | grep -oP '"_\K[^"]+' || true)
+
+          # Also check legacy SDK data sources still registered in provider.go
+          SDK_DATASOURCES=$(sed -n '/DataSourcesMap:/,/^[[:space:]]*},$/p' minio/provider.go \
+            | grep -oP '"minio_\K[^"]+' || true)
 
           for name in $RESOURCES; do
             if [ ! -f "templates/resources/${name}.md.tmpl" ]; then
@@ -37,7 +45,7 @@ jobs:
             fi
           done
 
-          for name in $DATASOURCES; do
+          for name in $DATASOURCES $SDK_DATASOURCES; do
             if [ ! -f "templates/data-sources/${name}.md.tmpl" ]; then
               echo "::error::Missing doc template for data source 'minio_${name}'. Create templates/data-sources/${name}.md.tmpl"
               MISSING=$((MISSING + 1))

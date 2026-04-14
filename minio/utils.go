@@ -14,20 +14,12 @@ import (
 	"github.com/dustin/go-humanize"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
 
 const (
 	minioSecretIDLength = 40
 )
-
-func tagsSchema() *schema.Schema {
-	return &schema.Schema{
-		Type:     schema.TypeMap,
-		Optional: true,
-	}
-}
 
 // generateSecretAccessKey - generate random base64 numeric value from a random seed.
 func generateSecretAccessKey() (string, error) {
@@ -257,23 +249,6 @@ func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics)
 	return bandwidth, true, nil
 }
 
-func suppressCaseInsensitiveMapDiff(prefix string) schema.SchemaDiffSuppressFunc {
-	return func(k, oldValue, newValue string, d *schema.ResourceData) bool {
-		if k == prefix+".%" {
-			return oldValue == newValue
-		}
-		old, _ := d.GetChange(prefix)
-		if old == nil {
-			return false
-		}
-		for ok, ov := range old.(map[string]interface{}) {
-			if strings.EqualFold(ok, strings.TrimPrefix(k, prefix+".")) {
-				return ov.(string) == newValue
-			}
-		}
-		return false
-	}
-}
 
 // isS3CompatNotSupported returns true if the error indicates an unsupported
 // S3 feature and S3 compat mode is enabled on the client.

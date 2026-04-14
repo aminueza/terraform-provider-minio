@@ -325,25 +325,25 @@ func (r *bucketObjectLockConfigurationResource) applyConfiguration(ctx context.C
 
 	if !retention.Days.IsNull() {
 		days := retention.Days.ValueInt64()
-		if days > math.MaxInt {
+		if days < 0 || days > math.MaxInt {
 			diags.AddError(
 				"Invalid days value",
-				fmt.Sprintf("days value %d exceeds maximum integer", days),
+				fmt.Sprintf("days value %d is out of valid range", days),
 			)
 			return diags
 		}
-		validity = uint(days)
+		validity = uint(days) // #nosec G115 -- bounds checked above
 		unit = minio.Days
 	} else if !retention.Years.IsNull() {
 		years := retention.Years.ValueInt64()
-		if years > math.MaxInt {
+		if years < 0 || years > math.MaxInt {
 			diags.AddError(
 				"Invalid years value",
-				fmt.Sprintf("years value %d exceeds maximum integer", years),
+				fmt.Sprintf("years value %d is out of valid range", years),
 			)
 			return diags
 		}
-		validity = uint(years)
+		validity = uint(years) // #nosec G115 -- bounds checked above
 		unit = minio.Years
 	} else {
 		diags.AddError(

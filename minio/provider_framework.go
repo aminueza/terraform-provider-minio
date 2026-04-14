@@ -167,6 +167,7 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 		S3SSLCertFile:     minioCertFile,
 		S3SSLKeyFile:      minioKeyFile,
 		S3SSLSkipVerify:   minioInsecure,
+		S3Debug:           minioDebug,
 		SkipBucketTagging: skipBucketTagging,
 		S3CompatMode:      s3CompatMode,
 	}
@@ -242,6 +243,9 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		newBucketRetentionResource,
 		newBucketCorsResource,
 		newBucketNotificationResource,
+		newBucketObjectLockConfigurationResource,
+		newBucketEncryptionResource,
+		newBucketVersioningResource,
 		newILMPolicyResource,
 		newILMTierResource,
 		newIAMGroupPolicyResource,
@@ -280,7 +284,8 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 }
 
 // DataSources returns the list of data sources
-// Note: All data sources are provided by the SDK provider to avoid conflicts
 func (p *minioFrameworkProvider) DataSources(_ context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		newS3BucketDataSource,
+	}
 }

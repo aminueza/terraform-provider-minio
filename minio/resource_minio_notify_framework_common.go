@@ -275,22 +275,3 @@ func notifyFrameworkBuildCommonCfg(parts *[]string, data *notifyFrameworkResourc
 	}
 }
 
-// notifyFrameworkBuildExtraCfg appends extra fields from ExtraFields map.
-func notifyFrameworkBuildExtraCfg(parts *[]string, data *notifyFrameworkResourceData) {
-	for key, val := range data.ExtraFields {
-		switch v := val.(type) {
-		case types.String:
-			if !v.IsNull() && !v.IsUnknown() {
-				notifyFrameworkBuildCfgAddParam(parts, key, v.ValueString())
-			}
-		case types.Bool:
-			if !v.IsNull() && !v.IsUnknown() {
-				notifyFrameworkBuildCfgAddBool(parts, key, v.ValueBool())
-			}
-		case types.Int64:
-			if !v.IsNull() && !v.IsUnknown() && v.ValueInt64() > 0 {
-				notifyFrameworkBuildCfgAddInt(parts, key, v.ValueInt64())
-			}
-		}
-	}
-}

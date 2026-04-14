@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -21,9 +20,6 @@ var (
 	_ resource.Resource                = &iamGroupResource{}
 	_ resource.ResourceWithConfigure   = &iamGroupResource{}
 	_ resource.ResourceWithImportState = &iamGroupResource{}
-
-	ldapGroupDNPattern     = regexp.MustCompile(`^(?:((?:(?:CN|cn|OU|ou)=[^,]+,?)+),)+((?:(?:DC|dc)=[^,]+,?)+)$`)
-	staticGroupNamePattern = regexp.MustCompile(`^[0-9A-Za-z=,.@\-_+]+$`)
 )
 
 type iamGroupResource struct {

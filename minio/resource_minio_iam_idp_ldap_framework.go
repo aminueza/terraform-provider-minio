@@ -328,3 +328,13 @@ func (m *iamIdpLdapResourceModel) SetBoolValue(fieldName string, value bool) {
 		m.StartTLS = types.BoolValue(value)
 	}
 }
+
+func idpCfgInfoToMap(info []madmin.IDPCfgInfo) map[string]string {
+	m := make(map[string]string, len(info))
+	for _, item := range info {
+		if item.IsCfg {
+			m[item.Key] = item.Value
+		}
+	}
+	return m
+}

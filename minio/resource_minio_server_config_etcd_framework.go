@@ -229,9 +229,7 @@ func (r *serverConfigEtcdResource) applyEtcdConfig(ctx context.Context, model *s
 	configString := "etcd " + strings.Join(parts, " ")
 
 	var restartRequired bool
-	var err error
-
-	err = retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
+	err := retry.RetryContext(ctx, 5*time.Minute, func() *retry.RetryError {
 		restart, err := r.client.S3Admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {

@@ -273,7 +273,7 @@ func (r *s3ObjectResource) putObject(ctx context.Context, data *s3ObjectResource
 		if err != nil {
 			return fmt.Errorf("opening S3 object source (%s): %w", path, err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		body = file
 	} else if !data.Content.IsNull() && !data.Content.IsUnknown() {

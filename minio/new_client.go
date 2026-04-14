@@ -105,6 +105,9 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create S3 client: %w", err)
 	}
+	if config.S3Debug {
+		minioClient.TraceOn(os.Stderr)
+	}
 
 	// Initialize admin client
 	minioAdmin, err := madmin.NewWithOptions(config.S3HostPort, &madmin.Options{
@@ -115,6 +118,9 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		return nil, fmt.Errorf("failed to create admin client: %w", err)
 	}
 	minioAdmin.SetCustomTransport(tr)
+	if config.S3Debug {
+		minioAdmin.TraceOn(os.Stderr)
+	}
 
 	return &S3MinioClient{
 		S3UserAccess:          config.S3UserAccess,

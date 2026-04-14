@@ -547,7 +547,7 @@ func (r *bucketReplicationResource) applyReplication(ctx context.Context, model 
 func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, model *replicationRuleModel, index int) (replication.Rule, madmin.BucketTarget, error) {
 	rule := replication.Rule{
 		ID:          model.ID.ValueString(),
-		Priority:    int(index + 1),
+		Priority:    index + 1,
 		Status:      "Enabled",
 		Filter:      replication.Filter{},
 		Destination: replication.Destination{},
@@ -648,7 +648,7 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 			bandwidthLimit := int64(0)
 			if !t.BandwidthLimit.IsNull() && !t.BandwidthLimit.IsUnknown() && t.BandwidthLimit.ValueString() != "0" {
 				if bw, err := humanize.ParseBytes(t.BandwidthLimit.ValueString()); err == nil {
-					bandwidthLimit = int64(bw)
+					bandwidthLimit = int64(bw) // #nosec G115 -- bandwidth values from user config are within int64 range
 				}
 			}
 

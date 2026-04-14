@@ -88,24 +88,6 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-// testMinioClient creates a direct MinIO client from environment variables.
-func testMinioClient(t *testing.T) *S3MinioClient {
-	t.Helper()
-	cfg := &S3MinioConfig{
-		S3HostPort:     os.Getenv("MINIO_ENDPOINT"),
-		S3UserAccess:   os.Getenv("MINIO_USER"),
-		S3UserSecret:   os.Getenv("MINIO_PASSWORD"),
-		S3Region:       "us-east-1",
-		S3APISignature: "v4",
-		S3SSL:          os.Getenv("MINIO_ENABLE_HTTPS") == "true" || os.Getenv("MINIO_ENABLE_HTTPS") == "1",
-	}
-	raw, err := cfg.NewClient()
-	if err != nil {
-		t.Fatalf("failed to create test MinIO client: %s", err)
-	}
-	return raw.(*S3MinioClient)
-}
-
 // testMustGetMinioClient returns a MinIO client built from env vars.
 func testMustGetMinioClient() *S3MinioClient {
 	return testMustGetMinioClientWithPrefix("")
@@ -129,21 +111,3 @@ func testMustGetMinioClientWithPrefix(prefix string) *S3MinioClient {
 	return raw.(*S3MinioClient)
 }
 
-// testMinioClientWithPrefix creates a MinIO client for a secondary endpoint
-// identified by the given env var prefix (e.g. "SECOND_").
-func testMinioClientWithPrefix(t *testing.T, prefix string) *S3MinioClient {
-	t.Helper()
-	cfg := &S3MinioConfig{
-		S3HostPort:     os.Getenv(prefix + "MINIO_ENDPOINT"),
-		S3UserAccess:   os.Getenv(prefix + "MINIO_USER"),
-		S3UserSecret:   os.Getenv(prefix + "MINIO_PASSWORD"),
-		S3Region:       "us-east-1",
-		S3APISignature: "v4",
-		S3SSL:          os.Getenv(prefix+"MINIO_ENABLE_HTTPS") == "true" || os.Getenv(prefix+"MINIO_ENABLE_HTTPS") == "1",
-	}
-	raw, err := cfg.NewClient()
-	if err != nil {
-		t.Fatalf("failed to create test MinIO client (prefix=%s): %s", prefix, err)
-	}
-	return raw.(*S3MinioClient)
-}

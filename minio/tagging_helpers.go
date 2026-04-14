@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7"
 )
 
@@ -17,35 +16,6 @@ func shouldSkipBucketTagging(cfg *S3MinioBucket) bool {
 	}
 
 	return cfg.SkipBucketTagging || cfg.S3CompatMode
-}
-
-// preserveBucketTagsState ensures Terraform state retains the last known set of
-// tags even when we skip remote API calls.
-func preserveBucketTagsState(d *schema.ResourceData) {
-	if d == nil {
-		return
-	}
-
-	if v, ok := d.GetOk("tags"); ok {
-		switch tags := v.(type) {
-		case map[string]string:
-			if len(tags) > 0 {
-				_ = d.Set("tags", tags)
-			} else {
-				_ = d.Set("tags", map[string]string{})
-			}
-		case map[string]any:
-			if len(tags) > 0 {
-				_ = d.Set("tags", convertToStringMap(tags))
-			} else {
-				_ = d.Set("tags", map[string]string{})
-			}
-		default:
-			// ignore unexpected types; Terraform will maintain existing state
-		}
-	} else {
-		_ = d.Set("tags", map[string]string{})
-	}
 }
 
 // IsS3TaggingNotImplemented attempts to detect when bucket tagging operations
@@ -115,12 +85,3 @@ func isBucketTaggingUnexpectedResponse(err error) bool {
 	return strings.Contains(msg, "expected element type <Tagging>") && strings.Contains(msg, "<ListBucketResult>")
 }
 
-func convertToStringMap(input map[string]any) map[string]string {
-	result := make(map[string]string, len(input))
-	for k, v := range input {
-		if str, ok := v.(string); ok {
-			result[k] = str
-		}
-	}
-	return result
-}

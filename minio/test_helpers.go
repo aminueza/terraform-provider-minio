@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
 	minio "github.com/minio/minio-go/v7/pkg/lifecycle"
 )
@@ -149,27 +148,6 @@ func validateILMRuleConflicts(ruleData map[string]interface{}) error {
 	}
 
 	return nil
-}
-
-func validateILMDays(days string, daysFromNow *int) error {
-	if days == "" {
-		return nil
-	}
-	if !strings.Contains(days, "days") && !strings.Contains(days, "date") {
-		return fmt.Errorf("days must be in format 'N days' or 'date'")
-	}
-	return nil
-}
-
-func getStringSet(set *schema.Set) []string {
-	list := set.List()
-	result := make([]string, len(list))
-	for i, v := range list {
-		if s, ok := v.(string); ok {
-			result[i] = s
-		}
-	}
-	return result
 }
 
 func marshalPolicy(policy interface{}) (string, error) {

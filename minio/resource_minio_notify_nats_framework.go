@@ -182,11 +182,6 @@ func (r *minioNotifyNatsResource) Create(ctx context.Context, req resource.Creat
 	resp.Diagnostics.Append(diags...)
 }
 
-func commonReadNats(ctx context.Context, r *minioNotifyNatsResource, notifyData *notifyFrameworkResourceData, config notifyFrameworkConfig) diag.Diagnostics {
-	diags := notifyFrameworkRead(ctx, r.client, config, notifyData)
-	return diags
-}
-
 func (r *minioNotifyNatsResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state minioNotifyNatsResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)

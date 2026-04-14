@@ -737,14 +737,6 @@ func parseInt(s string) (int, error) {
 	return n, err
 }
 
-// toEnableFlag converts a boolean to "enable"/"disable" string
-func toEnableFlag(b bool) string {
-	if b {
-		return "enable"
-	}
-	return "disable"
-}
-
 // validateMinioIamGroupName validates IAM group names
 func validateMinioIamGroupName(v interface{}, k string) (ws []string, errors []error) {
 	value := v.(string)

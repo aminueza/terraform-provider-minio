@@ -19,6 +19,7 @@ type minioS3BucketDataSource struct {
 
 // minioS3BucketDataSourceModel describes the data source data model
 type minioS3BucketDataSourceModel struct {
+	ID                types.String `tfsdk:"id"`
 	Bucket            types.String `tfsdk:"bucket"`
 	Region            types.String `tfsdk:"region"`
 	VersioningEnabled types.Bool   `tfsdk:"versioning_enabled"`
@@ -40,6 +41,10 @@ func (d *minioS3BucketDataSource) Schema(ctx context.Context, req datasource.Sch
 	resp.Schema = schema.Schema{
 		Description: "Reads properties of an existing S3 bucket including versioning, region, and object lock status.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Bucket name (same as bucket field)",
+				Computed:    true,
+			},
 			"bucket": schema.StringAttribute{
 				Description: "Name of the bucket",
 				Required:    true,
@@ -94,7 +99,8 @@ func (d *minioS3BucketDataSource) Read(ctx context.Context, req datasource.ReadR
 
 	bucket := data.Bucket.ValueString()
 
-	// Set ID
+	// Set ID and bucket
+	data.ID = types.StringValue(bucket)
 	data.Bucket = types.StringValue(bucket)
 
 	// Get region

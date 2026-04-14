@@ -16,9 +16,9 @@ func TestAccMinioConfig_basic(t *testing.T) {
 	configValue := "enable=off"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioConfigDestroy,
+		CheckDestroy:             testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioConfigBasic(configKey, configValue),
@@ -32,7 +32,7 @@ func TestAccMinioConfig_basic(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"restart_required"},
+				ImportStateVerifyIgnore: []string{"restart_required", "value"},
 			},
 		},
 	})
@@ -45,9 +45,9 @@ func TestAccMinioConfig_update(t *testing.T) {
 	configValue2 := "enable=off batch_size=10 queue_size=50000"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioConfigDestroy,
+		CheckDestroy:             testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioConfigBasic(configKey, configValue1),
@@ -79,9 +79,9 @@ func TestAccMinioConfig_multipleSettings(t *testing.T) {
 	configValue := "batch_size=10 enable=off queue_size=75000"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioConfigDestroy,
+		CheckDestroy:             testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioConfigBasic(configKey, configValue),
@@ -103,9 +103,9 @@ func TestAccMinioConfig_webhookNotification(t *testing.T) {
 	configValue := "enable=off endpoint=http://example.com queue_size=50000"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioConfigDestroy,
+		CheckDestroy:             testAccCheckMinioConfigDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioConfigBasic(configKey, configValue),

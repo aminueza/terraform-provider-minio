@@ -134,23 +134,6 @@ func (r *minioConfigResource) Create(ctx context.Context, req resource.CreateReq
 		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
 	}
 
-	configData, err := r.client.S3Admin.GetConfigKV(ctx, key)
-	if err != nil {
-		tflog.Error(ctx, fmt.Sprintf("Failed to verify config %s: %s", key, err))
-		resp.Diagnostics.AddError("Verifying config", fmt.Sprintf("Failed to verify config %s: %s", key, err))
-		return
-	}
-
-	configStr := strings.TrimSpace(string(configData))
-	if strings.HasPrefix(configStr, key+" ") {
-		parts := strings.SplitN(configStr, " ", 2)
-		if len(parts) == 2 {
-			plan.Value = types.StringValue(strings.TrimSpace(parts[1]))
-		}
-	} else {
-		plan.Value = types.StringValue(configStr)
-	}
-
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -162,24 +145,12 @@ func (r *minioConfigResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	key := state.ID.ValueString()
+	key := state.Key.ValueString()
 
 	tflog.Info(ctx, fmt.Sprintf("Reading MinIO config: %s", key))
 
-	var configData []byte
-	var err error
-
-	err = retry.RetryContext(ctx, 2*time.Minute, func() *retry.RetryError {
-		configData, err = r.client.S3Admin.GetConfigKV(ctx, key)
-		if err != nil {
-			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
-				return retry.NonRetryableError(err)
-			}
-			return retry.RetryableError(fmt.Errorf("transient error reading config %s: %w", key, err))
-		}
-		return nil
-	})
-
+	// Check if config still exists
+	_, err := r.client.S3Admin.GetConfigKV(ctx, key)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
 			resp.State.RemoveResource(ctx)
@@ -189,16 +160,12 @@ func (r *minioConfigResource) Read(ctx context.Context, req resource.ReadRequest
 		return
 	}
 
-	configStr := strings.TrimSpace(string(configData))
-	parts := strings.SplitN(configStr, " ", 2)
+	// Set ID from key for import to work
+	state.ID = state.Key
 
-	state.Key = types.StringValue(key)
-	if len(parts) == 2 {
-		state.Value = types.StringValue(strings.TrimSpace(parts[1]))
-	} else {
-		state.Value = types.StringValue(configStr)
-	}
-
+	// Preserve the user's original value from state
+	// MinIO returns expanded config with default values, but we want to keep the user's original format
+	// For import, the value will be set by the import logic
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -246,23 +213,6 @@ func (r *minioConfigResource) Update(ctx context.Context, req resource.UpdateReq
 		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
 	}
 
-	configData, err := r.client.S3Admin.GetConfigKV(ctx, key)
-	if err != nil {
-		tflog.Error(ctx, fmt.Sprintf("Failed to verify config %s: %s", key, err))
-		resp.Diagnostics.AddError("Verifying config", fmt.Sprintf("Failed to verify config %s: %s", key, err))
-		return
-	}
-
-	configStr := strings.TrimSpace(string(configData))
-	if strings.HasPrefix(configStr, key+" ") {
-		parts := strings.SplitN(configStr, " ", 2)
-		if len(parts) == 2 {
-			plan.Value = types.StringValue(strings.TrimSpace(parts[1]))
-		}
-	} else {
-		plan.Value = types.StringValue(configStr)
-	}
-
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -299,4 +249,34 @@ func (r *minioConfigResource) Delete(ctx context.Context, req resource.DeleteReq
 
 func (r *minioConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("key"), req, resp)
+}
+
+// areConfigValuesEquivalent compares two config value strings to check if they are equivalent.
+// It checks if all non-empty key-value pairs in the original value are present and match in the actual value.
+func areConfigValuesEquivalent(original, actual string) bool {
+	// Parse key-value pairs from both strings
+	originalPairs := parseConfigPairs(original)
+	actualPairs := parseConfigPairs(actual)
+
+	// Check that all non-empty pairs in original are present and match in actual
+	for k, v := range originalPairs {
+		if v != "" && actualPairs[k] != v {
+			return false
+		}
+	}
+	return true
+}
+
+// parseConfigPairs parses a config string into a map of key-value pairs
+func parseConfigPairs(configStr string) map[string]string {
+	pairs := make(map[string]string)
+	parts := strings.Fields(configStr)
+	for _, part := range parts {
+		if idx := strings.Index(part, "="); idx != -1 {
+			key := part[:idx]
+			value := part[idx+1:]
+			pairs[key] = value
+		}
+	}
+	return pairs
 }

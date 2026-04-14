@@ -121,6 +121,10 @@ type S3MinioConfig struct {
 	WebIdentityToken     string
 	WebIdentityTokenFile string
 	WebIdentityDuration  int
+
+	RequestTimeoutSeconds int
+	MaxRetries            int
+	RetryDelayMs          int
 }
 
 // S3MinioClient defines default minio
@@ -134,6 +138,10 @@ type S3MinioClient struct {
 	S3SSL             bool
 	SkipBucketTagging bool
 	S3CompatMode      bool
+
+	RequestTimeoutSeconds int
+	MaxRetries            int
+	RetryDelayMs          int
 }
 
 // S3MinioBucket defines minio config

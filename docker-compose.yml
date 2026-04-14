@@ -138,7 +138,7 @@ services:
       retries: 6
       start_period: 10s
   test:
-    image: golang:1.25
+    image: golang:1.25.9
     volumes:
       - .:/app
       - go-modules:/go/pkg/mod

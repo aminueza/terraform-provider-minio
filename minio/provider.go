@@ -97,7 +97,98 @@ func Provider() *schema.Provider {
 			"s3_compat_mode": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Enable S3 compatibility mode for non-MinIO backends.",
+				Description: "Enable S3 compatibility mode for non-MinIO backends (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces). Gracefully handles unsupported S3 features instead of erroring.",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					prefix + "MINIO_S3_COMPAT_MODE",
+				}, false),
+			},
+			"request_timeout_seconds": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     30,
+				Description: "Global HTTP request timeout in seconds for all MinIO API calls (default: 30)",
+				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_REQUEST_TIMEOUT_SECONDS", 30),
+			},
+			"max_retries": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     6,
+				Description: "Maximum number of retries for failed operations (default: 6)",
+				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_MAX_RETRIES", 6),
+			},
+			"retry_delay_ms": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Default:     1000,
+				Description: "Base delay in milliseconds between retries, used with exponential backoff (default: 1000)",
+				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_RETRY_DELAY_MS", 1000),
+			},
+			"assume_role": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Use STS AssumeRole to obtain temporary credentials. When configured, the provider exchanges the static credentials for short-lived session credentials.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"role_arn": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "ARN of the role to assume.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_ASSUME_ROLE_ARN", ""),
+						},
+						"session_name": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Default:     "terraform",
+							Description: "Session name for the assumed role.",
+						},
+						"duration_seconds": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Default:     3600,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+						"policy": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "IAM policy in JSON format to scope down the assumed role permissions.",
+						},
+						"external_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "External ID for cross-account role assumption.",
+						},
+					},
+				},
+			},
+			"assume_role_with_web_identity": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				MaxItems:    1,
+				Description: "Use STS AssumeRoleWithWebIdentity to obtain credentials from an OIDC token (e.g., GitHub Actions, GitLab CI).",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"web_identity_token": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Sensitive:   true,
+							Description: "OIDC/JWT token for web identity authentication.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_WEB_IDENTITY_TOKEN", ""),
+						},
+						"web_identity_token_file": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "Path to a file containing the OIDC/JWT token.",
+							DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_WEB_IDENTITY_TOKEN_FILE", ""),
+						},
+						"duration_seconds": {
+							Type:        schema.TypeInt,
+							Optional:    true,
+							Default:     3600,
+							Description: "Duration in seconds for the session (default: 3600).",
+						},
+					},
+				},
 			},
 		},
 

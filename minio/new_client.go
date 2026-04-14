@@ -6,8 +6,10 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7"
@@ -115,15 +117,18 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 	minioAdmin.SetCustomTransport(tr)
 
 	return &S3MinioClient{
-		S3UserAccess:      config.S3UserAccess,
-		S3Region:          config.S3Region,
-		S3Client:          minioClient,
-		S3Admin:           minioAdmin,
-		S3Endpoint:        config.S3HostPort,
-		S3UserSecret:      config.S3UserSecret,
-		S3SSL:             config.S3SSL,
-		SkipBucketTagging: config.SkipBucketTagging,
-		S3CompatMode:      config.S3CompatMode,
+		S3UserAccess:          config.S3UserAccess,
+		S3Region:              config.S3Region,
+		S3Client:              minioClient,
+		S3Admin:               minioAdmin,
+		S3Endpoint:            config.S3HostPort,
+		S3UserSecret:          config.S3UserSecret,
+		S3SSL:                 config.S3SSL,
+		SkipBucketTagging:     config.SkipBucketTagging,
+		S3CompatMode:          config.S3CompatMode,
+		RequestTimeoutSeconds: config.RequestTimeoutSeconds,
+		MaxRetries:            config.MaxRetries,
+		RetryDelayMs:          config.RetryDelayMs,
 	}, nil
 }
 
@@ -140,9 +145,20 @@ func isValidCertificate(certBytes []byte) bool {
 // customTransport creates and configures an HTTP transport with SSL/TLS settings
 // It handles CA certificates, client certificates, and verification settings
 func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
-	// If SSL is disabled, return default transport
+	timeout := time.Duration(config.RequestTimeoutSeconds) * time.Second
+
+	// If SSL is disabled, return default transport with timeout settings
 	if !config.S3SSL {
-		return minio.DefaultTransport(config.S3SSL)
+		tr, err := minio.DefaultTransport(config.S3SSL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create default transport: %w", err)
+		}
+		tr.DialContext = (&net.Dialer{
+			Timeout:   timeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext
+		tr.ResponseHeaderTimeout = timeout
+		return tr, nil
 	}
 
 	// Initialize TLS config with minimum version
@@ -175,6 +191,14 @@ func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
 
 	// Set TLS config on transport
 	tr.TLSClientConfig = tlsConfig
+
+	// Apply timeout settings
+	tr.DialContext = (&net.Dialer{
+		Timeout:   timeout,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	tr.TLSHandshakeTimeout = timeout
+	tr.ResponseHeaderTimeout = timeout
 
 	log.Printf("[DEBUG] MinIO SSL client transport configured successfully")
 	return tr, nil

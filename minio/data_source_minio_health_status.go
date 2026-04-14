@@ -63,8 +63,12 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 
 	log.Printf("[DEBUG] Checking MinIO health at %s", baseURL)
 
+	timeout := 10 * time.Second
+	if m.RequestTimeoutSeconds > 0 {
+		timeout = time.Duration(m.RequestTimeoutSeconds) * time.Second
+	}
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: timeout,
 	}
 
 	live, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/live")

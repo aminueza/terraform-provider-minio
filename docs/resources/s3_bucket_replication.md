@@ -245,6 +245,7 @@ Required:
 Optional:
 
 - `bandwidth_limit` (String) Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB
+- `bandwidth_limt` (String, Deprecated) Deprecated: use 'bandwidth_limit' instead. Will be removed in a future major version.
 - `disable_proxy` (Boolean) Disable proxy for this target
 - `health_check_period` (String) Period where the health of this target will be checked. This must be a valid duration, such as `5s` or `2m`
 - `path` (String) Path of the Minio endpoint. This is useful if MinIO API isn't served on at the root, e.g for `example.com/minio/`, the path would be `/minio/`

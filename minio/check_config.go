@@ -448,8 +448,11 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3SSLCertFile:     getOptionalField(d, "minio_cert_file", "").(string),
 		S3SSLKeyFile:      getOptionalField(d, "minio_key_file", "").(string),
 		S3SSLSkipVerify:   getOptionalField(d, "minio_insecure", false).(bool),
-		SkipBucketTagging: getOptionalField(d, "skip_bucket_tagging", false).(bool),
-		S3CompatMode:      getOptionalField(d, "s3_compat_mode", false).(bool),
+		SkipBucketTagging:     getOptionalField(d, "skip_bucket_tagging", false).(bool),
+		S3CompatMode:          getOptionalField(d, "s3_compat_mode", false).(bool),
+		RequestTimeoutSeconds: getOptionalField(d, "request_timeout_seconds", 30).(int),
+		MaxRetries:            getOptionalField(d, "max_retries", 6).(int),
+		RetryDelayMs:          getOptionalField(d, "retry_delay_ms", 1000).(int),
 	}
 
 	if v, ok := d.GetOk("assume_role"); ok {

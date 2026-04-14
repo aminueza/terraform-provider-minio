@@ -10,7 +10,7 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 - **Framework Provider**: ✅ Operational
 - **SDK Provider**: ✅ Operational (data sources only)
 
-### Migrated Resources (59 resources)
+### Migrated Resources (72 resources)
 
 #### Core S3 Bucket Resources
 - ✅ `minio_s3_bucket` - Bucket management
@@ -22,8 +22,8 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 - ✅ `minio_s3_bucket_tags` - Bucket tags
 - ✅ `minio_s3_bucket_retention` - Bucket retention
 - ✅ `minio_s3_bucket_anonymous_access` - Anonymous access control
-- ✅ `minio_s3_bucket_cors` - CORS configuration (NEW: fixed: converted to ListAttribute with types.Object)
-- ✅ `minio_s3_bucket_notification` - Bucket notifications (NEW: fixed: converted to ListAttribute with types.Object)
+- ✅ `minio_s3_bucket_cors` - CORS configuration (fixed: converted to ListAttribute with types.Object)
+- ✅ `minio_s3_bucket_notification` - Bucket notifications (fixed: converted to ListAttribute with types.Object)
 
 #### S3 Object Resources
 - ✅ `minio_s3_object` - Object management
@@ -52,24 +52,38 @@ This document tracks the migration from terraform-plugin-sdk/v2 to terraform-plu
 #### Other Resources
 - ✅ `minio_kms_key` - KMS key management
 - ✅ `minio_iam_idp_ldap` - LDAP identity provider
-- ✅ `minio_config` - Configuration key-value pairs (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_region` - Region configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_heal` - Heal configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_storage_class` - Storage class configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_scanner` - Scanner configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_api` - API configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_server_config_etcd` - etcd configuration (NEW: fixed: removed framework timeouts)
-- ✅ `minio_accesskey` - Access key management (NEW: fixed: removed framework timeouts)
-- ✅ `minio_prometheus_bearer_token` - Prometheus bearer token (NEW: fixed: removed framework timeouts)
+- ✅ `minio_config` - Configuration key-value pairs (fixed: removed framework timeouts)
+- ✅ `minio_server_config_region` - Region configuration (fixed: removed framework timeouts)
+- ✅ `minio_server_config_heal` - Heal configuration (fixed: removed framework timeouts)
+- ✅ `minio_server_config_storage_class` - Storage class configuration (fixed: removed framework timeouts)
+- ✅ `minio_server_config_scanner` - Scanner configuration (fixed: removed framework timeouts)
+- ✅ `minio_server_config_api` - API configuration (fixed: removed framework timeouts)
+- ✅ `minio_server_config_etcd` - etcd configuration (fixed: removed framework timeouts)
+- ✅ `minio_accesskey` - Access key management (fixed: removed framework timeouts)
+- ✅ `minio_prometheus_bearer_token` - Prometheus bearer token (fixed: removed framework timeouts)
 
-### Excluded Resources (3 resources + 10 notify_*)
+#### Notification Target Resources (13 resources)
+- ✅ `minio_notify_amqp` - AMQP notification target
+- ✅ `minio_notify_elasticsearch` - Elasticsearch notification target
+- ✅ `minio_notify_kafka` - Kafka notification target
+- ✅ `minio_notify_mqtt` - MQTT notification target
+- ✅ `minio_notify_mysql` - MySQL notification target
+- ✅ `minio_notify_nats` - NATS notification target
+- ✅ `minio_notify_nsq` - NSQ notification target
+- ✅ `minio_notify_postgres` - PostgreSQL notification target
+- ✅ `minio_notify_redis` - Redis notification target
+- ✅ `minio_notify_webhook` - Webhook notification target
+- ✅ `minio_audit_webhook` - Webhook audit target
+- ✅ `minio_audit_kafka` - Kafka audit target
+- ✅ `minio_logger_webhook` - Webhook logger target
 
-#### Due to Nested Attributes (3 resources)
+### Excluded Resources (2 resources)
+
+#### Due to Nested Attributes (2 resources)
 These resources use `ListNestedAttribute` or `MapNestedAttribute` which are not compatible with protocol v5:
 
 - ⏸️ `minio_s3_bucket_replication` - Bucket replication (complex nested structure with rules and targets)
 - ⏸️ `minio_site_replication` - Site replication (complex nested structure with sites)
-- ⏸️ `minio_notify_*` (10 notification target resources) - All use nested attributes
 
 **Fix Required**: Convert `ListNestedAttribute` to `ListAttribute` with `types.Object`
 
@@ -244,27 +258,19 @@ go build ./...
 ## Breaking Changes for v4
 
 1. **Removed Attributes**: Some deprecated attributes removed from provider schema
-2. **Excluded Resources**: 13 resources temporarily unavailable (see above)
-3. **Timeout Handling**: Resources with timeouts use different retry logic
+2. **Excluded Resources**: 2 resources temporarily unavailable (bucket_replication, site_replication)
+3. **Timeout Handling**: Resources with timeouts use different retry logic (no framework timeouts)
 
 ## Migration Guide for Users
 
 ### For Existing v3 Users
 
-Most resources work the same in v4. However, the following resources are temporarily unavailable:
+Most resources work the same in v4. The following resources are temporarily unavailable:
 
-- `minio_s3_bucket_cors`
-- `minio_s3_bucket_notification`
-- `minio_s3_bucket_replication`
-- `minio_site_replication`
-- `minio_config` and related server_config resources
-- `minio_accesskey`
-- `minio_notify_*` resources
-- `minio_audit_*` resources
-- `minio_logger_*` resources
-- `minio_prometheus_bearer_token`
+- `minio_s3_bucket_replication` - Complex nested structure (will be fixed in v4.1)
+- `minio_site_replication` - Complex nested structure (will be fixed in v4.1)
 
-**Workaround**: Use v3 for these resources until v4.1 adds framework support.
+**Workaround**: Use v3 for these specific resources until v4.1 adds framework support. All other resources are fully functional.
 
 ### State Migration
 
@@ -272,9 +278,8 @@ No state migration is required. Terraform will automatically detect the provider
 
 ## Known Issues
 
-1. **Nested Attributes**: Resources with `ListNestedAttribute` cannot be used in framework with protocol v5
-2. **Timeouts**: Framework timeout support is incompatible with protocol v5
-3. **Data Sources**: All data sources use SDK provider; framework migration pending
+1. **Nested Attributes**: 2 resources with complex `ListNestedAttribute` structures remain (bucket_replication, site_replication)
+2. **Data Sources**: All data sources use SDK provider; framework migration pending
 
 ## References
 

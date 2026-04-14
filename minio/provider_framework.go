@@ -271,6 +271,22 @@ func (p *minioFrameworkProvider) Resources(_ context.Context) []func() resource.
 		newPrometheusBearerTokenResource,
 		newIAMIdpLdapResource,
 		newS3BucketAnonymousAccessResource,
+		// Notify resources
+		resourceMinioNotifyAmqpFramework,
+		resourceMinioNotifyElasticsearchFramework,
+		resourceMinioNotifyKafkaFramework,
+		resourceMinioNotifyMqttFramework,
+		resourceMinioNotifyMysqlFramework,
+		resourceMinioNotifyNatsFramework,
+		resourceMinioNotifyNsqFramework,
+		resourceMinioNotifyPostgresFramework,
+		resourceMinioNotifyRedisFramework,
+		resourceMinioNotifyWebhookFramework,
+		// Audit resources
+		resourceMinioAuditKafkaFramework,
+		resourceMinioAuditWebhookFramework,
+		// Logger resources
+		resourceMinioLoggerWebhookFramework,
 		// Excluded due to nested attributes:
 		// newSiteReplicationResource,
 		// newBucketReplicationResource(),

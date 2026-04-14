@@ -121,7 +121,11 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 			},
 			"policy": schema.StringAttribute{
 				Optional:    true,
+				Computed:    true,
 				Description: "Policy to attach to the access key (policy name or JSON document).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"description": schema.StringAttribute{
 				Optional:    true,

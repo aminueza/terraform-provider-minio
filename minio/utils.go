@@ -174,12 +174,10 @@ func NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy string) (string, error
 	}
 
 	if equivalent {
-		// If policies are equivalent, prefer the existing one for state consistency
-		normalizedPolicy, err := structure.NormalizeJsonString(oldPolicy)
-		if err != nil {
-			return "", err
-		}
-		return normalizedPolicy, nil
+		// Return the old policy unchanged to preserve the exact format stored in
+		// state. Normalizing here would convert HEREDOC/whitespace configs to compact
+		// JSON and cause a perpetual diff against the original config value.
+		return oldPolicy, nil
 	}
 
 	// Policies are different, use the new one but normalize it

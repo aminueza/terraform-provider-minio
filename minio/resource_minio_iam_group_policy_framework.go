@@ -157,7 +157,13 @@ func (r *iamGroupPolicyResource) Read(ctx context.Context, req resource.ReadRequ
 
 	data.Name = types.StringValue(policyName)
 	data.Group = types.StringValue(groupName)
-	data.Policy = types.StringValue(strings.TrimSpace(string(info.Policy)))
+
+	rawPolicy := strings.TrimSpace(string(info.Policy))
+	normalizedPolicy, err := NormalizeAndCompareJSONPolicies(data.Policy.ValueString(), rawPolicy)
+	if err != nil {
+		normalizedPolicy = rawPolicy
+	}
+	data.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

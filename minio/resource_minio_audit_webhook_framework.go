@@ -28,6 +28,7 @@ type minioAuditWebhookResource struct {
 }
 
 type minioAuditWebhookResourceModel struct {
+	ID              types.String `tfsdk:"id"`
 	Name            types.String `tfsdk:"name"`
 	Enable          types.Bool   `tfsdk:"enable"`
 	QueueSize       types.Int64  `tfsdk:"queue_size"`
@@ -63,6 +64,7 @@ func (r *minioAuditWebhookResource) Schema(ctx context.Context, req resource.Sch
 	resp.Schema = schema.Schema{
 		Description: "Manages an audit webhook target for MinIO audit logging. Audit webhooks send detailed API audit events to HTTP endpoints for compliance, SIEM integration, and security monitoring.",
 		Attributes: map[string]schema.Attribute{
+			"id":               schema.StringAttribute{Computed: true, Description: "Identifier of the audit webhook (same as name).", PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"name":             schema.StringAttribute{Required: true, Description: "Target name for the audit webhook (e.g., 'splunk', 'elk'). Used as the identifier in the configuration key 'audit_webhook:<name>'.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"enable":           schema.BoolAttribute{Optional: true, Computed: true, Description: "Whether this audit webhook target is enabled.", Default: booldefault.StaticBool(true)},
 			"queue_size":       schema.Int64Attribute{Optional: true, Computed: true, Description: "Maximum number of audit events to queue before dropping."},
@@ -140,6 +142,7 @@ func (r *minioAuditWebhookResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 	plan.Name = notifyData.Name
+	plan.ID = plan.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueSize = notifyData.GetInt64Field("queue_size")
 	plan.BatchSize = notifyData.GetInt64Field("batch_size")
@@ -213,6 +216,7 @@ func (r *minioAuditWebhookResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 	state.Name = notifyData.Name
+	state.ID = state.Name
 	state.Enable = notifyData.Enable
 	state.QueueSize = notifyData.GetInt64Field("queue_size")
 	state.BatchSize = notifyData.GetInt64Field("batch_size")
@@ -287,6 +291,7 @@ func (r *minioAuditWebhookResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 	plan.Name = notifyData.Name
+	plan.ID = plan.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueSize = notifyData.GetInt64Field("queue_size")
 	plan.BatchSize = notifyData.GetInt64Field("batch_size")

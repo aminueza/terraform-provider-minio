@@ -240,9 +240,12 @@ func (r *iamLDAPUserPolicyAttachmentResource) readLDAPUserPolicies(ctx context.C
 
 	if err != nil {
 		errMsg := err.Error()
-		// Check for LDAP not configured error
-		if strings.Contains(errMsg, "LDAP") || strings.Contains(errMsg, "not configured") || strings.Contains(errMsg, "there is no target") {
-			// LDAP not configured - return empty slice, not error
+		// Treat errors indicating LDAP is not configured or the user has no MinIO
+		// record yet (e.g. never authenticated) as "no policies attached".
+		if strings.Contains(errMsg, "LDAP") ||
+			strings.Contains(errMsg, "not configured") ||
+			strings.Contains(errMsg, "there is no target") ||
+			strings.Contains(errMsg, "Specified IAM action is not allowed") {
 			return []string{}, diags
 		}
 		diags.AddError("Failed to load LDAP user policies", err.Error())

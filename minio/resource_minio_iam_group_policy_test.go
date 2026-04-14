@@ -31,9 +31,10 @@ func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      "minio_iam_group_policy.foo",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_iam_group_policy.foo",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
 			},
 			{
 				Config: testAccIAMGroupPolicyConfigUpdate(rInt),
@@ -47,9 +48,10 @@ func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      "minio_iam_group_policy.bar",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_iam_group_policy.bar",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
 			},
 		},
 	})
@@ -158,7 +160,7 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"name_prefix"},
+				ImportStateVerifyIgnore: []string{"name_prefix", "policy"},
 			},
 		},
 	})
@@ -184,9 +186,10 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      "minio_iam_group_policy.test",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_iam_group_policy.test",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
 			},
 		},
 	})

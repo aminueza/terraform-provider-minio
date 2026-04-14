@@ -26,6 +26,7 @@ var (
 	_ resource.Resource                = &accessKeyResource{}
 	_ resource.ResourceWithConfigure   = &accessKeyResource{}
 	_ resource.ResourceWithImportState = &accessKeyResource{}
+	_ resource.ResourceWithModifyPlan  = &accessKeyResource{}
 )
 
 type accessKeyResource struct {
@@ -93,19 +94,19 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 				Computed:    true,
 				Description: "The access key. If provided, must be between 8 and 20 characters.",
 			},
+			// secret_key is write-only: it is sent to MinIO during create/update but
+			// never stored in state. Use secret_key_version to trigger rotation.
 			"secret_key": schema.StringAttribute{
 				Optional:    true,
-				Computed:    true,
 				Sensitive:   true,
-				Description: "The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
+				WriteOnly:   true,
+				Description: "The secret key. If provided, must be at least 8 characters. Write-only: not stored in state.",
 			},
 			"secret_key_wo": schema.StringAttribute{
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Write-only secret key for the access key.",
+				WriteOnly:   true,
+				Description: "Write-only secret key for the access key. Never stored in state.",
 			},
 			"secret_key_version": schema.StringAttribute{
 				Optional:    true,
@@ -140,6 +141,89 @@ func (r *accessKeyResource) Schema(ctx context.Context, req resource.SchemaReque
 	}
 }
 
+// ModifyPlan validates secret key rotation constraints at plan time.
+func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Skip on destroy.
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
+	// Read plan values (non-WriteOnly attributes).
+	var plan accessKeyResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// WriteOnly attribute values must be read via GetAttribute from Config;
+	// they are null when read through Plan.Get even at plan time.
+	var planSecretKeyVal, planSecretKeyWOVal types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key"), &planSecretKeyVal)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key_wo"), &planSecretKeyWOVal)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	planSecretKey := planSecretKeyVal.ValueString()
+	planSecretKeyWO := planSecretKeyWOVal.ValueString()
+
+	// Static validation: if secret_key is set, secret_key_version must also be set.
+	if planSecretKey != "" {
+		if plan.SecretKeyVersion.IsNull() || plan.SecretKeyVersion.IsUnknown() || plan.SecretKeyVersion.ValueString() == "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key_version"),
+				"Missing secret_key_version",
+				"secret_key_version must be provided when secret_key is set",
+			)
+		}
+	}
+
+	// Static validation: if secret_key_wo is set, secret_key_wo_version must also be set.
+	if planSecretKeyWO != "" {
+		if plan.SecretKeyWOVersion.IsNull() || plan.SecretKeyWOVersion.IsUnknown() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key_wo_version"),
+				"Missing secret_key_wo_version",
+				"secret_key_wo_version must be provided when secret_key_wo is set",
+			)
+		}
+	}
+
+	// Dynamic validation requires state (update scenario only).
+	if req.State.Raw.IsNull() {
+		return
+	}
+
+	var state accessKeyResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// If secret_key_version is set in the plan and changed, secret_key must be provided.
+	if !plan.SecretKeyVersion.IsNull() && !plan.SecretKeyVersion.IsUnknown() &&
+		!plan.SecretKeyVersion.Equal(state.SecretKeyVersion) {
+		if planSecretKey == "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key"),
+				"Missing secret_key",
+				"secret_key must be provided when secret_key_version changes",
+			)
+		}
+	}
+
+	// If secret_key_wo_version is set in the plan and changed, secret_key_wo must be provided.
+	if !plan.SecretKeyWOVersion.IsNull() && !plan.SecretKeyWOVersion.IsUnknown() &&
+		!plan.SecretKeyWOVersion.Equal(state.SecretKeyWOVersion) {
+		if planSecretKeyWO == "" {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key_wo"),
+				"Missing secret_key_wo",
+				"secret_key_wo must be provided when secret_key_wo_version changes",
+			)
+		}
+	}
+}
+
 func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var plan accessKeyResourceModel
 
@@ -148,12 +232,24 @@ func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	// WriteOnly attribute values are null when read via Plan.Get during apply;
+	// they must be retrieved with GetAttribute from Config.
+	var secretKeyAttr, secretKeyWOAttr types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key"), &secretKeyAttr)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key_wo"), &secretKeyWOAttr)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	user := plan.User.ValueString()
 	accessKey := plan.AccessKey.ValueString()
-	secretKey := plan.SecretKey.ValueString()
-	if plan.SecretKeyWO.ValueString() != "" {
-		secretKey = plan.SecretKeyWO.ValueString()
+
+	// Prefer secret_key_wo over secret_key if both are set.
+	secretKey := secretKeyAttr.ValueString()
+	if secretKeyWOAttr.ValueString() != "" {
+		secretKey = secretKeyWOAttr.ValueString()
 	}
+
 	status := plan.Status.ValueString()
 	policy := plan.Policy.ValueString()
 	description := plan.Description.ValueString()
@@ -234,14 +330,55 @@ func (r *accessKeyResource) Read(ctx context.Context, req resource.ReadRequest, 
 }
 
 func (r *accessKeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan accessKeyResourceModel
+	var plan, state accessKeyResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	tflog.Info(ctx, fmt.Sprintf("Updating accesskey %s", plan.ID.ValueString()))
+	// WriteOnly attribute values are null when read via Plan.Get during apply;
+	// they must be retrieved with GetAttribute from Config.
+	var secretKeyAttr, secretKeyWOAttr types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key"), &secretKeyAttr)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key_wo"), &secretKeyWOAttr)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	accessKeyID := plan.ID.ValueString()
+	tflog.Info(ctx, fmt.Sprintf("Updating accesskey %s", accessKeyID))
+
+	// Handle secret_key rotation: triggered by secret_key_version change.
+	if !plan.SecretKeyVersion.IsNull() && !plan.SecretKeyVersion.IsUnknown() &&
+		!plan.SecretKeyVersion.Equal(state.SecretKeyVersion) {
+		newSecretKey := secretKeyAttr.ValueString()
+		if newSecretKey != "" {
+			err := r.client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{
+				NewSecretKey: newSecretKey,
+			})
+			if err != nil {
+				resp.Diagnostics.AddError("Rotating secret key", fmt.Sprintf("Failed to rotate secret key: %s", err))
+				return
+			}
+		}
+	}
+
+	// Handle secret_key_wo rotation: triggered by secret_key_wo_version change.
+	if !plan.SecretKeyWOVersion.IsNull() && !plan.SecretKeyWOVersion.IsUnknown() &&
+		!plan.SecretKeyWOVersion.Equal(state.SecretKeyWOVersion) {
+		newSecretKey := secretKeyWOAttr.ValueString()
+		if newSecretKey != "" {
+			err := r.client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{
+				NewSecretKey: newSecretKey,
+			})
+			if err != nil {
+				resp.Diagnostics.AddError("Rotating secret key (write-only)", fmt.Sprintf("Failed to rotate secret key: %s", err))
+				return
+			}
+		}
+	}
 
 	resp.Diagnostics.Append(r.updateAccessKey(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
@@ -369,9 +506,7 @@ func (r *accessKeyResource) readAccessKey(ctx context.Context, model *accessKeyR
 		model.Description = types.StringNull()
 	}
 
-	// secret_key is write-only - MinIO never returns it
-	// Keep it as empty string to match test expectations
-	model.SecretKey = types.StringValue("")
+	// secret_key and secret_key_wo are WriteOnly - never set in read responses.
 
 	if !info.ImpliedPolicy {
 		policy := strings.TrimSpace(info.Policy)

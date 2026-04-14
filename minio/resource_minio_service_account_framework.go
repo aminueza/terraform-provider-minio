@@ -532,16 +532,18 @@ func (r *serviceAccountResource) read(ctx context.Context, data *serviceAccountR
 		data.Policy = types.StringValue(output.Policy)
 	}
 
-	// Set name and description
-	data.Name = types.StringValue(output.Name)
-	data.Description = types.StringValue(output.Description)
-
-	// Set expiration
-	var expiration string
-	if output.Expiration != nil {
-		expiration = output.Expiration.Format(time.RFC3339)
+	// Set name and description (only if not empty)
+	if output.Name != "" {
+		data.Name = types.StringValue(output.Name)
 	}
-	data.Expiration = types.StringValue(expiration)
+	if output.Description != "" {
+		data.Description = types.StringValue(output.Description)
+	}
+
+	// Set expiration (only if not nil)
+	if output.Expiration != nil {
+		data.Expiration = types.StringValue(output.Expiration.Format(time.RFC3339))
+	}
 
 	return diags
 }

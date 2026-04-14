@@ -16,9 +16,9 @@ func TestAccS3BucketVersioning_basic(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketVersioningConfig(name, "Enabled", []string{"foo/", "bar/"}, true),
@@ -47,9 +47,9 @@ func TestAccS3BucketVersioning_update(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketVersioningConfig(name, "Enabled", []string{}, false),
@@ -92,9 +92,9 @@ func TestAccS3BucketVersioning_forceDestroy(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-version-force-destroy")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketVersioningObjectConfig(name, "Enabled"),
@@ -126,7 +126,7 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_s3_bucket_versioning" "bucket" {
   bucket = minio_s3_bucket.bucket.bucket
-  versioning_configuration {
+  versioning_configuration = {
     status = "%s"
 	excluded_prefixes = [%s]
 	exclude_folders = %v
@@ -144,7 +144,7 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_s3_bucket_versioning" "bucket" {
   bucket = minio_s3_bucket.bucket.bucket
-  versioning_configuration {
+  versioning_configuration = {
     status = "%s"
   }
 }
@@ -194,9 +194,9 @@ func TestAccS3BucketVersioning_disappears(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketVersioningObjectConfig(name, "Enabled"),
@@ -225,9 +225,9 @@ func TestAccS3BucketVersioning_survivesPolicyChange(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketVersioningConfig(name, "Enabled", nil, false),
@@ -264,7 +264,7 @@ resource "minio_s3_bucket" "bucket" {
 }
 resource "minio_s3_bucket_versioning" "bucket" {
   bucket = minio_s3_bucket.bucket.bucket
-  versioning_configuration {
+  versioning_configuration = {
     status = "Enabled"
   }
 }

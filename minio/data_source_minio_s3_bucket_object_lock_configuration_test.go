@@ -12,7 +12,7 @@ func TestAccDataSourceMinioS3BucketObjectLockConfiguration_basic(t *testing.T) {
 	bucketName := fmt.Sprintf("tf-test-objlock-%d", acctest.RandInt())
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -40,8 +40,8 @@ resource "minio_s3_bucket" "test" {
 resource "minio_s3_bucket_object_lock_configuration" "test" {
   bucket = minio_s3_bucket.test.bucket
 
-  rule {
-    default_retention {
+  rule = {
+    default_retention = {
       mode = "GOVERNANCE"
       days = 1
     }

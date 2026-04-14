@@ -12,6 +12,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -83,11 +87,21 @@ func (r *bucketVersioningResource) Schema(ctx context.Context, req resource.Sche
 					"excluded_prefixes": schema.ListAttribute{
 						Description: "List of object key prefixes to exclude from versioning.",
 						Optional:    true,
+						Computed:    true,
 						ElementType: types.StringType,
+						Default:     listdefault.StaticValue(types.ListNull(types.StringType)),
+						PlanModifiers: []planmodifier.List{
+							listplanmodifier.UseStateForUnknown(),
+						},
 					},
 					"exclude_folders": schema.BoolAttribute{
 						Description: "Whether to exclude folders from versioning.",
 						Optional:    true,
+						Computed:    true,
+						Default:     booldefault.StaticBool(false),
+						PlanModifiers: []planmodifier.Bool{
+							boolplanmodifier.UseStateForUnknown(),
+						},
 					},
 				},
 				PlanModifiers: []planmodifier.Object{

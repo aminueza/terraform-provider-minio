@@ -29,9 +29,9 @@ func TestAccS3BucketPolicy_basic(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfig(name),
@@ -104,9 +104,9 @@ func TestAccS3BucketPolicy_policyUpdate(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfig(name),
@@ -171,9 +171,9 @@ func TestAccS3BucketPolicy_order(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfigOrder(name),
@@ -273,9 +273,9 @@ func TestAccS3BucketPolicy_disappears(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfig(name),
@@ -300,9 +300,9 @@ func TestAccS3BucketPolicy_policyDeletedExternally(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfig(name),
@@ -338,9 +338,9 @@ func TestAccS3BucketPolicy_survivesVersioningChange(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketPolicyConfig(name),
@@ -392,7 +392,7 @@ EOF
 resource "minio_s3_bucket_versioning" "bucket" {
   depends_on = [minio_s3_bucket_policy.bucket]
   bucket     = minio_s3_bucket.bucket.bucket
-  versioning_configuration {
+  versioning_configuration = {
     status = "Enabled"
   }
 }

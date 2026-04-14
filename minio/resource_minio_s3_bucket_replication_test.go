@@ -411,9 +411,9 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
@@ -480,9 +480,9 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
@@ -521,9 +521,9 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
@@ -766,9 +766,9 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint, thirdMinioEndpoint, fourthMinioEndpoint) +
@@ -891,9 +891,9 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
@@ -1079,9 +1079,9 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint, thirdMinioEndpoint, fourthMinioEndpoint) +
@@ -1532,7 +1532,7 @@ resource "minio_s3_bucket_versioning" %q {
   provider = %s
   bucket     = %q
 
-  versioning_configuration {
+  versioning_configuration = {
     status = "Enabled"
   }
 

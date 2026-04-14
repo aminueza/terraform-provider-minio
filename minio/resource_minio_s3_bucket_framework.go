@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -90,6 +91,10 @@ func (r *minioS3BucketResource) Schema(ctx context.Context, req resource.SchemaR
 				Description: "Bucket's Access Control List (default: private)",
 				Optional:    true,
 				Computed:    true,
+				Default:     stringdefault.StaticString("private"),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"arn": schema.StringAttribute{
 				Description: "ARN of the bucket",
@@ -217,7 +222,7 @@ func (r *minioS3BucketResource) Create(ctx context.Context, req resource.CreateR
 
 	// Compute derived attributes
 	data.ARN = types.StringValue(bucketArn(bucket))
-	data.BucketDomainName = types.StringValue(bucket + "." + r.client.S3Endpoint)
+	data.BucketDomainName = types.StringValue(fmt.Sprintf("http://%s/%s", r.client.S3Endpoint, bucket))
 
 	// Save data
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -234,7 +239,8 @@ func (r *minioS3BucketResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	// Check if bucket exists
-	exists, err := r.client.S3Client.BucketExists(ctx, data.ID.ValueString())
+	bucket := data.ID.ValueString()
+	exists, err := r.client.S3Client.BucketExists(ctx, bucket)
 	if err != nil {
 		resp.Diagnostics.AddError("Error checking bucket existence", err.Error())
 		return
@@ -244,10 +250,14 @@ func (r *minioS3BucketResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
+	// Ensure bucket field is set
+	if data.Bucket.IsNull() || data.Bucket.IsUnknown() {
+		data.Bucket = types.StringValue(bucket)
+	}
+
 	// Compute derived attributes
-	bucket := data.ID.ValueString()
 	data.ARN = types.StringValue(bucketArn(bucket))
-	data.BucketDomainName = types.StringValue(bucket + "." + r.client.S3Endpoint)
+	data.BucketDomainName = types.StringValue(fmt.Sprintf("http://%s/%s", r.client.S3Endpoint, bucket))
 
 	// Save data
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

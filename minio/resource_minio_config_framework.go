@@ -250,33 +250,3 @@ func (r *minioConfigResource) Delete(ctx context.Context, req resource.DeleteReq
 func (r *minioConfigResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("key"), req, resp)
 }
-
-// areConfigValuesEquivalent compares two config value strings to check if they are equivalent.
-// It checks if all non-empty key-value pairs in the original value are present and match in the actual value.
-func areConfigValuesEquivalent(original, actual string) bool {
-	// Parse key-value pairs from both strings
-	originalPairs := parseConfigPairs(original)
-	actualPairs := parseConfigPairs(actual)
-
-	// Check that all non-empty pairs in original are present and match in actual
-	for k, v := range originalPairs {
-		if v != "" && actualPairs[k] != v {
-			return false
-		}
-	}
-	return true
-}
-
-// parseConfigPairs parses a config string into a map of key-value pairs
-func parseConfigPairs(configStr string) map[string]string {
-	pairs := make(map[string]string)
-	parts := strings.Fields(configStr)
-	for _, part := range parts {
-		if idx := strings.Index(part, "="); idx != -1 {
-			key := part[:idx]
-			value := part[idx+1:]
-			pairs[key] = value
-		}
-	}
-	return pairs
-}

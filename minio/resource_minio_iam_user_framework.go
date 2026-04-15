@@ -401,6 +401,8 @@ func (r *iamUserResource) read(ctx context.Context, data *iamUserResourceModel) 
 	}
 
 	data.Status = types.StringValue(string(output.Status))
+	// Clear write-only attributes
+	data.SecretWO = types.StringNull()
 
 	return diags
 }

@@ -103,6 +103,15 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 						"status": schema.StringAttribute{
 							Optional:    true,
 							Description: "Rule status (Enabled or Disabled).",
+							PlanModifiers: []planmodifier.String{
+								stringplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
+									// If status is null, default to "Enabled" in the plan
+									if req.PlanValue.IsNull() || req.PlanValue.IsUnknown() || req.PlanValue.ValueString() == "" {
+										req.PlanValue = types.StringValue("Enabled")
+									}
+									resp.RequiresReplace = false
+								}, "default status to Enabled", "Default status to Enabled when not set"),
+							},
 						},
 						"expiration": schema.StringAttribute{
 							Optional:    true,
@@ -224,13 +233,6 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
-	}
-
-	// Default status to "Enabled" if not set
-	for i := range data.Rules {
-		if data.Rules[i].Status.IsNull() || data.Rules[i].Status.IsUnknown() || data.Rules[i].Status.ValueString() == "" {
-			data.Rules[i].Status = types.StringValue("Enabled")
-		}
 	}
 
 	for i, rule := range data.Rules {

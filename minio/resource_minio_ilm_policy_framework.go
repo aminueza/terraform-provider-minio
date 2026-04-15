@@ -92,21 +92,104 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"rule": schema.ListAttribute{
+			"rule": schema.ListNestedAttribute{
 				Required:    true,
 				Description: "List of lifecycle rules.",
-				ElementType: types.ObjectType{
-					AttrTypes: map[string]attr.Type{
-						"id":                                types.StringType,
-						"status":                            types.StringType,
-						"expiration":                        types.StringType,
-						"expired_object_delete_marker":      types.BoolType,
-						"transition":                        types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{"days": types.StringType, "date": types.StringType, "storage_class": types.StringType}}},
-						"noncurrent_transition":             types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{"storage_class": types.StringType, "days": types.StringType, "newer_versions": types.Int64Type}}},
-						"noncurrent_expiration":             types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{"days": types.StringType, "newer_versions": types.Int64Type}}},
-						"abort_incomplete_multipart_upload": types.ListType{ElemType: types.ObjectType{AttrTypes: map[string]attr.Type{"days_after_initiation": types.StringType}}},
-						"filter":                            types.StringType,
-						"tags":                              types.MapType{ElemType: types.StringType},
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							Required:    true,
+							Description: "Unique identifier for the rule.",
+						},
+						"status": schema.StringAttribute{
+							Optional:    true,
+							Description: "Rule status (Enabled or Disabled).",
+						},
+						"expiration": schema.StringAttribute{
+							Optional:    true,
+							Description: "Expiration date or days (e.g., '2022-01-01' or '30d').",
+						},
+						"expired_object_delete_marker": schema.BoolAttribute{
+							Optional:    true,
+							Description: "Enable expired object delete marker.",
+						},
+						"transition": schema.ListNestedAttribute{
+							Optional:    true,
+							Description: "Transition configuration.",
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"days": schema.StringAttribute{
+										Optional:    true,
+										Description: "Days after which to transition objects.",
+									},
+									"date": schema.StringAttribute{
+										Optional:    true,
+										Description: "Date on which to transition objects.",
+									},
+									"storage_class": schema.StringAttribute{
+										Required:    true,
+										Description: "Storage class to transition to.",
+									},
+								},
+							},
+						},
+						"noncurrent_transition": schema.ListNestedAttribute{
+							Optional:    true,
+							Description: "Noncurrent version transition configuration.",
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"storage_class": schema.StringAttribute{
+										Required:    true,
+										Description: "Storage class to transition to.",
+									},
+									"days": schema.StringAttribute{
+										Optional:    true,
+										Description: "Days after which to transition noncurrent versions.",
+									},
+									"newer_versions": schema.Int64Attribute{
+										Optional:    true,
+										Description: "Keep this many newer versions.",
+									},
+								},
+							},
+						},
+						"noncurrent_expiration": schema.ListNestedAttribute{
+							Optional:    true,
+							Description: "Noncurrent version expiration configuration.",
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"days": schema.StringAttribute{
+										Optional:    true,
+										Description: "Days after which to expire noncurrent versions.",
+									},
+									"newer_versions": schema.Int64Attribute{
+										Optional:    true,
+										Description: "Keep this many newer versions.",
+									},
+								},
+							},
+						},
+						"abort_incomplete_multipart_upload": schema.ListNestedAttribute{
+							Optional:    true,
+							Description: "Abort incomplete multipart upload configuration.",
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"days_after_initiation": schema.StringAttribute{
+										Optional:    true,
+										Description: "Days after initiation to abort incomplete multipart uploads.",
+									},
+								},
+							},
+						},
+						"filter": schema.StringAttribute{
+							Optional:    true,
+							Description: "Filter prefix for the rule.",
+						},
+						"tags": schema.MapAttribute{
+							Optional:    true,
+							Description: "Tags for filtering objects.",
+							ElementType: types.StringType,
+						},
 					},
 				},
 				PlanModifiers: []planmodifier.List{

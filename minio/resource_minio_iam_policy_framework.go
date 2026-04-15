@@ -32,7 +32,7 @@ func (m policySemanticEqualityModifier) MarkdownDescription(ctx context.Context)
 	return "Suppresses plan changes when policy JSON is semantically equivalent"
 }
 
-func (m policySemanticEqualityModifier) Modify(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+func (m policySemanticEqualityModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
 	// If the policy is null or unknown, let it pass through
 	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
 		return

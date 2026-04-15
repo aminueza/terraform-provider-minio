@@ -130,6 +130,12 @@ func (r *bucketNotificationResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
+	// Handle external deletion - if ID is null after read, remove resource from state
+	if data.ID.IsNull() {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

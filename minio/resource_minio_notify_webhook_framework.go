@@ -27,6 +27,7 @@ type minioNotifyWebhookResource struct {
 }
 
 type minioNotifyWebhookResourceModel struct {
+	ID              types.String `tfsdk:"id"`
 	Name            types.String `tfsdk:"name"`
 	Enable          types.Bool   `tfsdk:"enable"`
 	QueueDir        types.String `tfsdk:"queue_dir"`
@@ -63,6 +64,7 @@ func (r *minioNotifyWebhookResource) Schema(ctx context.Context, req resource.Sc
 	resp.Schema = schema.Schema{
 		Description: "Manages a webhook notification target for MinIO bucket event notifications. Webhook targets receive bucket events (object created, deleted, etc.) via HTTP POST requests.",
 		Attributes: map[string]schema.Attribute{
+			"id":               schema.StringAttribute{Computed: true, Description: "Unique identifier for the resource (webhook name)."},
 			"name":             schema.StringAttribute{Required: true, Description: "Unique name for the webhook notification target.", PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 			"enable":           schema.BoolAttribute{Optional: true, Computed: true, Description: "Whether this notification target is enabled.", Default: booldefault.StaticBool(true)},
 			"queue_dir":        schema.StringAttribute{Optional: true, Description: "Directory path for persistent event store when the target is offline."},
@@ -121,6 +123,7 @@ func (r *minioNotifyWebhookResource) Create(ctx context.Context, req resource.Cr
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	plan.ID = notifyData.Name
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir
@@ -135,8 +138,7 @@ func (r *minioNotifyWebhookResource) Create(ctx context.Context, req resource.Cr
 	plan.AuthToken = notifyData.GetStringField("auth_token")
 	plan.ClientCert = notifyData.GetStringField("client_cert")
 	plan.ClientKey = notifyData.GetStringField("client_key")
-	diags = resp.State.Set(ctx, &plan)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *minioNotifyWebhookResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -180,6 +182,7 @@ func (r *minioNotifyWebhookResource) Read(ctx context.Context, req resource.Read
 		resp.State.RemoveResource(ctx)
 		return
 	}
+	state.ID = notifyData.Name
 	state.Name = notifyData.Name
 	state.Enable = notifyData.Enable
 	state.QueueDir = notifyData.QueueDir
@@ -240,6 +243,7 @@ func (r *minioNotifyWebhookResource) Update(ctx context.Context, req resource.Up
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	plan.ID = notifyData.Name
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir

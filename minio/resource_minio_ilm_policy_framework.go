@@ -409,7 +409,7 @@ func (r *ilmPolicyResource) applyILMPolicy(ctx context.Context, data *ilmPolicyR
 
 	data.ID = data.Bucket
 
-	return r.readILMPolicy(ctx, data)
+	return nil
 }
 
 func (r *ilmPolicyResource) createLifecycleRuleFromModel(model ilmPolicyRuleModel) (lifecycle.Rule, error) {

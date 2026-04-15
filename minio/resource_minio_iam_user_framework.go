@@ -121,10 +121,8 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"secret_wo": schema.StringAttribute{
 				Description: "Write-only secret key for the IAM user.",
 				Optional:    true,
+				Computed:    true,
 				Sensitive:   true,
-				PlanModifiers: []planmodifier.String{
-					useStateForWriteOnlyModifier{},
-				},
 				Validators: []validator.String{
 					stringvalidator.AlsoRequires(path.MatchRoot("secret_wo_version")),
 				},

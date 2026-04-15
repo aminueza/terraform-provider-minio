@@ -26,6 +26,23 @@ var (
 	_ resource.ResourceWithImportState = &iamUserResource{}
 )
 
+// useStateForWriteOnlyModifier always uses state value for write-only attribute
+type useStateForWriteOnlyModifier struct{}
+
+func (m useStateForWriteOnlyModifier) Description(ctx context.Context) string {
+	return "Always use state value for write-only secret"
+}
+
+func (m useStateForWriteOnlyModifier) MarkdownDescription(ctx context.Context) string {
+	return "Always use state value for write-only secret"
+}
+
+func (m useStateForWriteOnlyModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
+		resp.PlanValue = req.StateValue
+	}
+}
+
 // iamUserResource defines the resource implementation
 type iamUserResource struct {
 	client *S3MinioClient
@@ -106,11 +123,7 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
-						// Always use state value for write-only attribute
-						resp.PlanValue = req.StateValue
-						resp.RequiresReplace = false
-					}, "use-state-for-write-only", "Always use state value for write-only secret"),
+					useStateForWriteOnlyModifier{},
 				},
 				Validators: []validator.String{
 					stringvalidator.AlsoRequires(path.MatchRoot("secret_wo_version")),

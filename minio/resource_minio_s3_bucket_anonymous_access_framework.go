@@ -33,6 +33,7 @@ type minioS3BucketAnonymousAccessResource struct {
 }
 
 type minioS3BucketAnonymousAccessResourceModel struct {
+	ID                types.String `tfsdk:"id"`
 	Bucket            types.String `tfsdk:"bucket"`
 	Policy            types.String `tfsdk:"policy"`
 	AccessType        types.String `tfsdk:"access_type"`
@@ -63,6 +64,10 @@ func (r *minioS3BucketAnonymousAccessResource) Schema(ctx context.Context, req r
 	resp.Schema = schema.Schema{
 		Description: "Manages anonymous access policies for MinIO buckets. This resource allows you to configure bucket policies for public access using either custom JSON policies or canned access types.",
 		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Computed:    true,
+				Description: "Unique identifier for the resource (bucket name).",
+			},
 			"bucket": schema.StringAttribute{
 				Required: true,
 				PlanModifiers: []planmodifier.String{
@@ -140,6 +145,8 @@ func (r *minioS3BucketAnonymousAccessResource) Create(ctx context.Context, req r
 		return
 	}
 
+	plan.ID = types.StringValue(bucketName)
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
@@ -170,6 +177,13 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		return
 	}
 
+	// If accessType is empty, the anonymous access policy was likely deleted externally
+	if accessType == "" && !state.AccessType.IsNull() {
+		tflog.Warn(ctx, fmt.Sprintf("Anonymous access policy for bucket %s no longer exists, removing from state", bucketName))
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	if accessType != "" {
 		if !state.AccessType.IsNull() && state.AccessType.ValueString() == accessType {
 			canonical, err := r.canonicalPolicyForAccessType(accessType, bucketName)
@@ -183,6 +197,7 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		}
 	}
 
+	state.ID = types.StringValue(bucketName)
 	state.Policy = types.StringValue(policy)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
@@ -231,6 +246,8 @@ func (r *minioS3BucketAnonymousAccessResource) Update(ctx context.Context, req r
 		resp.Diagnostics.AddError("Setting bucket policy", err.Error())
 		return
 	}
+
+	plan.ID = types.StringValue(bucketName)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

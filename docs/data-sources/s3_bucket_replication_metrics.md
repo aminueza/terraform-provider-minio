@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_replication_metrics Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Reads replication health metrics for a bucket: pending, failed, replicated and queued sizes and counts. Useful for monitoring replication lag.
+  Reads replication health metrics for a bucket: pending, failed, replicated and queued sizes and counts. Useful for monitoring replication lag. Counts and sizes are returned as strings to represent uint64 values safely.
 ---
 
 # minio_s3_bucket_replication_metrics (Data Source)
 
-Reads replication health metrics for a bucket: pending, failed, replicated and queued sizes and counts. Useful for monitoring replication lag.
+Reads replication health metrics for a bucket: pending, failed, replicated and queued sizes and counts. Useful for monitoring replication lag. Counts and sizes are returned as strings to represent uint64 values safely.
 
 ## Example Usage
 
@@ -34,14 +34,14 @@ output "replication_failed_count" {
 
 ### Read-Only
 
-- `failed_count` (Number)
+- `failed_count` (String)
 - `failed_size` (String)
 - `id` (String) The ID of this resource.
-- `pending_count` (Number)
+- `pending_count` (String)
 - `pending_size` (String)
-- `queued_count` (Number)
+- `queued_count` (String)
 - `queued_size` (String)
-- `replica_count` (Number)
+- `replica_count` (String)
 - `replica_size` (String)
-- `replicated_count` (Number)
+- `replicated_count` (String)
 - `replicated_size` (String)

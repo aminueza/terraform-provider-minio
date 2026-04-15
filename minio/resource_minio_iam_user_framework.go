@@ -30,11 +30,11 @@ var (
 type secretWONullModifier struct{}
 
 func (m secretWONullModifier) Description(ctx context.Context) string {
-	return "Set secret_wo to null in plan when state has null"
+	return "Use state value for secret_wo when available to avoid diffs"
 }
 
 func (m secretWONullModifier) MarkdownDescription(ctx context.Context) string {
-	return "Set secret_wo to null in plan when state has null"
+	return "Use state value for secret_wo when available to avoid diffs"
 }
 
 func (m secretWONullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {

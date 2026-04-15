@@ -295,6 +295,17 @@ func (r *ilmPolicyResource) applyILMPolicy(ctx context.Context, data *ilmPolicyR
 	config := lifecycle.NewConfiguration()
 
 	for _, ruleModel := range data.Rules {
+		hasAbort := len(ruleModel.AbortIncompleteMultipartUpload) > 0
+		hasSupportedAction := !ruleModel.Expiration.IsNull() ||
+			len(ruleModel.Transition) > 0 ||
+			len(ruleModel.NoncurrentExpiration) > 0 ||
+			len(ruleModel.NoncurrentTransition) > 0 ||
+			!ruleModel.ExpiredObjectDeleteMarker.IsNull()
+
+		if hasAbort && !hasSupportedAction {
+			continue
+		}
+
 		rule, err := r.createLifecycleRuleFromModel(ruleModel)
 		if err != nil {
 			return fmt.Errorf("creating lifecycle rule: %w", err)

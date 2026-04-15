@@ -59,6 +59,10 @@ resource "minio_s3_bucket_anonymous_access" "custom" {
 - `policy` (String) Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.
 - `skip_bucket_tagging` (Boolean) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging.
 
+### Read-Only
+
+- `id` (String) Unique identifier for the resource (bucket name).
+
 ## Import
 
 Import is supported using the following syntax:

@@ -748,7 +748,7 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			NoncurrentExpiration:           noncurrentExpirationList,
 			NoncurrentTransition:           noncurrentTransitionList,
 			AbortIncompleteMultipartUpload: abortList,
-			Filter:                         getStringOrNull(prefix),
+			Filter:                         types.StringValue(prefix),
 			Tags:                           tagsValue,
 		}
 

@@ -26,19 +26,22 @@ var (
 	_ resource.ResourceWithImportState = &iamUserResource{}
 )
 
-// secretWONullModifier always sets plan value to null for write-only attribute
+// secretWONullModifier sets secret_wo to null in plan when state has null
 type secretWONullModifier struct{}
 
 func (m secretWONullModifier) Description(ctx context.Context) string {
-	return "Always set plan value to null for write-only secret"
+	return "Set secret_wo to null in plan when state has null"
 }
 
 func (m secretWONullModifier) MarkdownDescription(ctx context.Context) string {
-	return "Always set plan value to null for write-only secret"
+	return "Set secret_wo to null in plan when state has null"
 }
 
 func (m secretWONullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	resp.PlanValue = types.StringNull()
+	// If state is null (after first apply), set plan to null to avoid diff
+	if req.StateValue.IsNull() {
+		resp.PlanValue = types.StringNull()
+	}
 }
 
 // iamUserResource defines the resource implementation
@@ -119,7 +122,6 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"secret_wo": schema.StringAttribute{
 				Description: "Write-only secret key for the IAM user.",
 				Optional:    true,
-				Computed:    true,
 				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
 					secretWONullModifier{},

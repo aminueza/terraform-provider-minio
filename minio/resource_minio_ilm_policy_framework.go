@@ -21,6 +21,23 @@ var (
 	_ resource.ResourceWithImportState = &ilmPolicyResource{}
 )
 
+// defaultStatusModifier sets status to "Enabled" when null
+type defaultStatusModifier struct{}
+
+func (m defaultStatusModifier) Description(ctx context.Context) string {
+	return "Default status to Enabled when not set"
+}
+
+func (m defaultStatusModifier) MarkdownDescription(ctx context.Context) string {
+	return "Default status to Enabled when not set"
+}
+
+func (m defaultStatusModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if req.PlanValue.IsNull() || req.PlanValue.IsUnknown() || req.PlanValue.ValueString() == "" {
+		resp.PlanValue = types.StringValue("Enabled")
+	}
+}
+
 type ilmPolicyResource struct {
 	client *S3MinioClient
 }
@@ -104,13 +121,7 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 							Optional:    true,
 							Description: "Rule status (Enabled or Disabled).",
 							PlanModifiers: []planmodifier.String{
-								stringplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
-									// If status is null, default to "Enabled" in the plan
-									if req.PlanValue.IsNull() || req.PlanValue.IsUnknown() || req.PlanValue.ValueString() == "" {
-										req.PlanValue = types.StringValue("Enabled")
-									}
-									resp.RequiresReplace = false
-								}, "default status to Enabled", "Default status to Enabled when not set"),
+								defaultStatusModifier{},
 							},
 						},
 						"expiration": schema.StringAttribute{

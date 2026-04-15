@@ -485,25 +485,49 @@ func (r *ilmTierResource) readILMTier(ctx context.Context, data *ilmTierResource
 
 	switch tier.Type {
 	case madmin.MinIO:
+		secretKey := types.StringValue(tier.MinIO.SecretKey)
+		if tier.MinIO.SecretKey == "REDACTED" {
+			if len(data.MinioConfig) > 0 && !data.MinioConfig[0].SecretKey.IsNull() {
+				secretKey = data.MinioConfig[0].SecretKey
+			}
+		}
 		data.MinioConfig = []ilmTierMinioConfig{{
 			AccessKey: types.StringValue(tier.MinIO.AccessKey),
-			SecretKey: types.StringValue(tier.MinIO.SecretKey),
+			SecretKey: secretKey,
 		}}
 	case madmin.GCS:
+		creds := types.StringValue(tier.GCS.Creds)
+		if tier.GCS.Creds == "REDACTED" {
+			if len(data.GCSConfig) > 0 && !data.GCSConfig[0].Credentials.IsNull() {
+				creds = data.GCSConfig[0].Credentials
+			}
+		}
 		data.GCSConfig = []ilmTierGCSConfig{{
-			Credentials:  types.StringValue(tier.GCS.Creds),
+			Credentials:  creds,
 			StorageClass: getStringOrNull(tier.GCS.StorageClass),
 		}}
 	case madmin.Azure:
+		accountKey := types.StringValue(tier.Azure.AccountKey)
+		if tier.Azure.AccountKey == "REDACTED" {
+			if len(data.AzureConfig) > 0 && !data.AzureConfig[0].AccountKey.IsNull() {
+				accountKey = data.AzureConfig[0].AccountKey
+			}
+		}
 		data.AzureConfig = []ilmTierAzureConfig{{
 			AccountName:  types.StringValue(tier.Azure.AccountName),
-			AccountKey:   types.StringValue(tier.Azure.AccountKey),
+			AccountKey:   accountKey,
 			StorageClass: getStringOrNull(tier.Azure.StorageClass),
 		}}
 	case madmin.S3:
+		secretKey := types.StringValue(tier.S3.SecretKey)
+		if tier.S3.SecretKey == "REDACTED" {
+			if len(data.S3Config) > 0 && !data.S3Config[0].SecretKey.IsNull() {
+				secretKey = data.S3Config[0].SecretKey
+			}
+		}
 		data.S3Config = []ilmTierS3Config{{
 			AccessKey:    types.StringValue(tier.S3.AccessKey),
-			SecretKey:    types.StringValue(tier.S3.SecretKey),
+			SecretKey:    secretKey,
 			StorageClass: getStringOrNull(tier.S3.StorageClass),
 		}}
 	}

@@ -111,7 +111,6 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 				},
 				PlanModifiers: []planmodifier.List{
 					listplanmodifier.RequiresReplaceIf(func(ctx context.Context, sp planmodifier.ListRequest, rrifr *listplanmodifier.RequiresReplaceIfFuncResponse) {
-						// Rules can be updated in place
 						rrifr.RequiresReplace = false
 					}, "Update rules in place", "Rules can be updated without recreating the resource."),
 				},
@@ -163,6 +162,11 @@ func (r *ilmPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	// During import, ID is set but Bucket might not be
+	if data.Bucket.IsNull() || data.Bucket.ValueString() == "" {
+		data.Bucket = data.ID
 	}
 
 	if err := r.readILMPolicy(ctx, &data); err != nil {
@@ -486,6 +490,8 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 				expirationStr = fmt.Sprintf("%dd", rule.Expiration.Days)
 			} else if !rule.Expiration.Date.IsZero() {
 				expirationStr = rule.Expiration.Date.Format("2006-01-02")
+			} else {
+				expirationStr = "DeleteMarker"
 			}
 		} else if rule.Expiration.Days != 0 {
 			expirationStr = fmt.Sprintf("%dd", rule.Expiration.Days)
@@ -514,18 +520,26 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 
 		var noncurrentExpirationList []ilmNoncurrentExpirationModel
 		if rule.NoncurrentVersionExpiration.NoncurrentDays != 0 {
+			newerVersions := types.Int64Value(int64(rule.NoncurrentVersionExpiration.NewerNoncurrentVersions))
+			if rule.NoncurrentVersionExpiration.NewerNoncurrentVersions == 0 {
+				newerVersions = types.Int64Null()
+			}
 			noncurrentExpirationList = append(noncurrentExpirationList, ilmNoncurrentExpirationModel{
 				Days:          types.StringValue(fmt.Sprintf("%dd", rule.NoncurrentVersionExpiration.NoncurrentDays)),
-				NewerVersions: types.Int64Value(int64(rule.NoncurrentVersionExpiration.NewerNoncurrentVersions)),
+				NewerVersions: newerVersions,
 			})
 		}
 
 		var noncurrentTransitionList []ilmNoncurrentTransitionModel
 		if rule.NoncurrentVersionTransition.NoncurrentDays != 0 {
+			newerVersions := types.Int64Value(int64(rule.NoncurrentVersionTransition.NewerNoncurrentVersions))
+			if rule.NoncurrentVersionTransition.NewerNoncurrentVersions == 0 {
+				newerVersions = types.Int64Null()
+			}
 			noncurrentTransitionList = append(noncurrentTransitionList, ilmNoncurrentTransitionModel{
 				Days:          types.StringValue(fmt.Sprintf("%dd", rule.NoncurrentVersionTransition.NoncurrentDays)),
 				StorageClass:  types.StringValue(rule.NoncurrentVersionTransition.StorageClass),
-				NewerVersions: types.Int64Value(int64(rule.NoncurrentVersionTransition.NewerNoncurrentVersions)),
+				NewerVersions: newerVersions,
 			})
 		}
 
@@ -547,17 +561,35 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			prefix = rule.RuleFilter.Prefix
 		}
 
+		status := types.StringValue(rule.Status)
+		if rule.Status == "" || rule.Status == "Enabled" {
+			status = types.StringNull()
+		}
+
+		expiredObjectDeleteMarkerValue := types.BoolValue(expiredObjectDeleteMarker)
+		if !expiredObjectDeleteMarker && rule.Expiration.Days == 0 && !bool(rule.Expiration.DeleteMarker) {
+			expiredObjectDeleteMarkerValue = types.BoolNull()
+		}
+
+		var tagsValue map[string]types.String
+		if len(rule.RuleFilter.And.Tags) > 0 {
+			tagsValue = make(map[string]types.String)
+			for _, tag := range rule.RuleFilter.And.Tags {
+				tagsValue[tag.Key] = types.StringValue(tag.Value)
+			}
+		}
+
 		ruleModel := ilmPolicyRuleModel{
 			ID:                             types.StringValue(rule.ID),
-			Status:                         types.StringValue(rule.Status),
+			Status:                         status,
 			Expiration:                     getStringOrNull(expirationStr),
-			ExpiredObjectDeleteMarker:      types.BoolValue(expiredObjectDeleteMarker),
+			ExpiredObjectDeleteMarker:      expiredObjectDeleteMarkerValue,
 			Transition:                     transitionList,
 			NoncurrentExpiration:           noncurrentExpirationList,
 			NoncurrentTransition:           noncurrentTransitionList,
 			AbortIncompleteMultipartUpload: abortList,
 			Filter:                         getStringOrNull(prefix),
-			Tags:                           tags,
+			Tags:                           tagsValue,
 		}
 
 		rules = append(rules, ruleModel)

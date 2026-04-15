@@ -119,6 +119,12 @@ func (r *bucketPolicyResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
+	// Handle external deletion - if ID is null after read, remove resource from state
+	if data.ID.IsNull() {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

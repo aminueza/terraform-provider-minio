@@ -590,6 +590,16 @@ func (r *ilmPolicyResource) parseAbortIncomplete(abortList []ilmAbortIncompleteM
 func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyResourceModel) error {
 	c := r.client.S3Client
 
+	// Store user's abort_incomplete_multipart_upload values to preserve them
+	userAbortValues := make(map[string][]ilmAbortIncompleteModel)
+	if len(data.Rules) > 0 {
+		for _, rule := range data.Rules {
+			if len(rule.AbortIncompleteMultipartUpload) > 0 {
+				userAbortValues[rule.ID.ValueString()] = rule.AbortIncompleteMultipartUpload
+			}
+		}
+	}
+
 	config, err := c.GetBucketLifecycle(ctx, data.Bucket.ValueString())
 	if err != nil {
 		if isS3CompatNotSupported(r.client, err) {
@@ -681,7 +691,10 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 		}
 
 		var abortList []ilmAbortIncompleteModel
-		if rule.AbortIncompleteMultipartUpload.DaysAfterInitiation != 0 {
+		// Preserve user's abort_incomplete_multipart_upload values if they exist
+		if userAbort, ok := userAbortValues[rule.ID]; ok {
+			abortList = userAbort
+		} else if rule.AbortIncompleteMultipartUpload.DaysAfterInitiation != 0 {
 			abortList = append(abortList, ilmAbortIncompleteModel{
 				DaysAfterInitiation: types.StringValue(fmt.Sprintf("%dd", rule.AbortIncompleteMultipartUpload.DaysAfterInitiation)),
 			})

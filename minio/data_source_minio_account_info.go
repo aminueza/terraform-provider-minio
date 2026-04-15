@@ -26,7 +26,6 @@ func dataSourceMinioAccountInfo() *schema.Resource {
 						"name":    {Type: schema.TypeString, Computed: true},
 						"size":    {Type: schema.TypeString, Computed: true},
 						"objects": {Type: schema.TypeString, Computed: true},
-						"tags":    {Type: schema.TypeMap, Computed: true, Elem: &schema.Schema{Type: schema.TypeString}},
 					},
 				},
 			},
@@ -52,17 +51,10 @@ func dataSourceMinioAccountInfoRead(d *schema.ResourceData, meta interface{}) er
 	for _, b := range info.Buckets {
 		totalSize += b.Size
 		totalObjects += b.Objects
-		tagsMap := make(map[string]string)
-		if b.Details.Tags != nil {
-			for k, v := range b.Details.Tags {
-				tagsMap[k] = v
-			}
-		}
 		buckets = append(buckets, map[string]interface{}{
 			"name":    b.Name,
 			"size":    strconv.FormatUint(b.Size, 10),
 			"objects": strconv.FormatUint(b.Objects, 10),
-			"tags":    tagsMap,
 		})
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
@@ -434,6 +435,55 @@ func (r *minioS3BucketAnonymousAccessResource) getAccessTypeFromPolicy(policy, b
 }
 
 func publicPolicy(bucket string) BucketPolicy {
+	resources := []string{
+		fmt.Sprintf("arn:aws:s3:::%s", bucket),
+		fmt.Sprintf("arn:aws:s3:::%s/*", bucket),
+	}
+	sort.Strings(resources)
+
+	return BucketPolicy{
+		Version: "2012-10-17",
+		Statements: []policy.Statement{
+			{
+				Sid:       "AllowAllS3Actions",
+				Effect:    "Allow",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
+				Actions:   allBucketActions,
+				Resources: set.CreateStringSet(resources...),
+			},
+		},
+	}
+}
+
+func readOnlyPolicy(bucket string) BucketPolicy {
+	resources := []string{
+		fmt.Sprintf("arn:aws:s3:::%s", bucket),
+		fmt.Sprintf("arn:aws:s3:::%s/*", bucket),
+	}
+	sort.Strings(resources)
+
+	return BucketPolicy{
+		Version: "2012-10-17",
+		Statements: []policy.Statement{
+			{
+				Sid:       "ListAllBucket",
+				Effect:    "Allow",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
+				Actions:   readOnlyAllBucketsActions,
+				Resources: set.CreateStringSet([]string{fmt.Sprintf("arn:aws:s3:::*")}...),
+			},
+			{
+				Sid:       "AllObjectActionsMyBuckets",
+				Effect:    "Allow",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
+				Actions:   readListMyObjectActions,
+				Resources: set.CreateStringSet(resources...),
+			},
+		},
+	}
+}
+
+func readWritePolicy(bucket string) BucketPolicy {
 	bucketResource := fmt.Sprintf("arn:aws:s3:::%s", bucket)
 	objectResource := fmt.Sprintf("arn:aws:s3:::%s/*", bucket)
 
@@ -441,58 +491,17 @@ func publicPolicy(bucket string) BucketPolicy {
 		Version: "2012-10-17",
 		Statements: []policy.Statement{
 			{
-				Sid:       "PublicAccess",
+				Sid:       "ListObjectsInBucket",
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions: set.CreateStringSet(
-					"s3:GetBucketLocation",
-					"s3:ListBucket",
-					"s3:ListBucketMultipartUploads",
-				),
+				Actions:   readOnlyBucketActions,
 				Resources: set.CreateStringSet(bucketResource),
 			},
 			{
-				Sid:       "PublicAccess",
+				Sid:       "UploadObjectActions",
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions:   set.CreateStringSet("s3:GetObject"),
-				Resources: set.CreateStringSet(objectResource),
-			},
-		},
-	}
-}
-
-func readOnlyPolicy(bucket string) BucketPolicy {
-	objectResource := fmt.Sprintf("arn:aws:s3:::%s/*", bucket)
-
-	return BucketPolicy{
-		Version: "2012-10-17",
-		Statements: []policy.Statement{
-			{
-				Sid:       "PublicRead",
-				Effect:    "Allow",
-				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions:   set.CreateStringSet("s3:GetObject"),
-				Resources: set.CreateStringSet(objectResource),
-			},
-		},
-	}
-}
-
-func readWritePolicy(bucket string) BucketPolicy {
-	objectResource := fmt.Sprintf("arn:aws:s3:::%s/*", bucket)
-
-	return BucketPolicy{
-		Version: "2012-10-17",
-		Statements: []policy.Statement{
-			{
-				Sid:       "PublicReadWrite",
-				Effect:    "Allow",
-				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions: set.CreateStringSet(
-					"s3:GetObject",
-					"s3:PutObject",
-				),
+				Actions:   uploadObjectActions,
 				Resources: set.CreateStringSet(objectResource),
 			},
 		},
@@ -500,16 +509,24 @@ func readWritePolicy(bucket string) BucketPolicy {
 }
 
 func writeOnlyPolicy(bucket string) BucketPolicy {
+	bucketResource := fmt.Sprintf("arn:aws:s3:::%s", bucket)
 	objectResource := fmt.Sprintf("arn:aws:s3:::%s/*", bucket)
 
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []policy.Statement{
 			{
-				Sid:       "PublicWrite",
+				Sid:       "ListBucketAction",
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions:   set.CreateStringSet("s3:PutObject"),
+				Actions:   readOnlyBucketActions,
+				Resources: set.CreateStringSet(bucketResource),
+			},
+			{
+				Sid:       "AllObjectActionsMyBuckets",
+				Effect:    "Allow",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
+				Actions:   writeOnlyObjectActions,
 				Resources: set.CreateStringSet(objectResource),
 			},
 		},

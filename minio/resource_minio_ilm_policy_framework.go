@@ -336,6 +336,15 @@ func (r *ilmPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
+	// Read the policy back to get status from MinIO
+	if err := r.readILMPolicy(ctx, &data); err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading ILM policy after update",
+			err.Error(),
+		)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

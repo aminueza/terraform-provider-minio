@@ -77,18 +77,14 @@ func (r *minioS3BucketAnonymousAccessResource) Schema(ctx context.Context, req r
 				Description: "Name of the bucket",
 			},
 			"policy": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				Validators: []validator.String{
-					stringvalidator.ConflictsWith(path.MatchRoot("access_type")),
-				},
+				Optional:    true,
+				Computed:    true,
 				Description: "Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.",
 			},
 			"access_type": schema.StringAttribute{
 				Optional: true,
 				Validators: []validator.String{
 					stringvalidator.OneOf("public", "public-read", "public-read-write", "public-write"),
-					stringvalidator.ConflictsWith(path.MatchRoot("policy")),
 				},
 				Description: "Canned access type for anonymous access",
 			},

@@ -69,6 +69,7 @@ resource "minio_s3_bucket_notification" "events" {
 
 ### Read-Only
 
+- `id` (String) Unique identifier for the resource (webhook name).
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
 ## Import

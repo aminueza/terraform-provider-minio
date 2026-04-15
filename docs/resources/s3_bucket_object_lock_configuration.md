@@ -142,7 +142,7 @@ resource "minio_s3_bucket_object_lock_configuration" "new" {
 ### Optional
 
 - `object_lock_enabled` (String) Object lock status. Only valid value is 'Enabled'.
-- `rule` (Attributes) Retention rule configuration (see [below for nested schema](#nestedatt--rule))
+- `rule` (Attributes List) Retention rule configuration (see [below for nested schema](#nestedatt--rule))
 
 ### Read-Only
 
@@ -153,7 +153,7 @@ resource "minio_s3_bucket_object_lock_configuration" "new" {
 
 Optional:
 
-- `default_retention` (Attributes) Default retention applied to all new objects (see [below for nested schema](#nestedatt--rule--default_retention))
+- `default_retention` (Attributes List) Default retention applied to all new objects (see [below for nested schema](#nestedatt--rule--default_retention))
 
 <a id="nestedatt--rule--default_retention"></a>
 ### Nested Schema for `rule.default_retention`

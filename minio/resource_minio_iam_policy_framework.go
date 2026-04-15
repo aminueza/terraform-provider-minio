@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -17,7 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -46,12 +46,9 @@ func (m policySemanticEqualityModifier) PlanModifyString(ctx context.Context, re
 	planPolicy := req.PlanValue.ValueString()
 	statePolicy := req.StateValue.ValueString()
 
-	// Normalize both policies
-	planNormalized, err1 := structure.NormalizeJsonString(planPolicy)
-	stateNormalized, err2 := structure.NormalizeJsonString(statePolicy)
-
-	// If normalization succeeds and they match, suppress the diff
-	if err1 == nil && err2 == nil && planNormalized == stateNormalized {
+	// Use AWS policy equivalence checker which handles array reordering
+	equivalent, err := awspolicy.PoliciesAreEquivalent(planPolicy, statePolicy)
+	if err == nil && equivalent {
 		resp.PlanValue = req.StateValue
 	}
 }

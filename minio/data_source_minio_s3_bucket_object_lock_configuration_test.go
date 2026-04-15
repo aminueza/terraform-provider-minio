@@ -40,12 +40,12 @@ resource "minio_s3_bucket" "test" {
 resource "minio_s3_bucket_object_lock_configuration" "test" {
   bucket = minio_s3_bucket.test.bucket
 
-  rule = {
-    default_retention = {
+  rule = [{
+    default_retention = [{
       mode = "GOVERNANCE"
       days = 1
-    }
-  }
+    }]
+  }]
 }
 
 data "minio_s3_bucket_object_lock_configuration" "test" {

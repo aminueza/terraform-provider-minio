@@ -93,12 +93,12 @@ resource "minio_s3_bucket_object_lock_configuration" "test" {
   bucket              = minio_s3_bucket.test.bucket
   object_lock_enabled = "Enabled"
 
-  rule {
-    default_retention {
+  rule = [{
+    default_retention = [{
       mode = "GOVERNANCE"
       days = 30
-    }
-  }
+    }]
+  }]
 }
 `, bucketName)
 }
@@ -113,12 +113,12 @@ resource "minio_s3_bucket" "test" {
 resource "minio_s3_bucket_object_lock_configuration" "test" {
   bucket = minio_s3_bucket.test.bucket
 
-  rule {
-    default_retention {
+  rule = [{
+    default_retention = [{
       mode  = "COMPLIANCE"
       years = 7
-    }
-  }
+    }]
+  }]
 }
 `, bucketName)
 }
@@ -133,12 +133,12 @@ resource "minio_s3_bucket" "test" {
 resource "minio_s3_bucket_object_lock_configuration" "test" {
   bucket = minio_s3_bucket.test.bucket
 
-  rule {
-    default_retention {
+  rule = [{
+    default_retention = [{
       mode = "COMPLIANCE"
       days = 90
-    }
-  }
+    }]
+  }]
 }
 `, bucketName)
 }

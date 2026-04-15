@@ -207,24 +207,20 @@ func (r *iamUserGroupMembershipResource) Delete(ctx context.Context, req resourc
 }
 
 func (r *iamUserGroupMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	parts := strings.SplitN(req.ID, ":", 2)
+	user := req.ID
 
-	user := parts[0]
-	var groups []string
-
-	if len(parts) == 2 {
-		groupsStr := parts[1]
-		if groupsStr != "" {
-			groupList := strings.Split(groupsStr, ",")
-			for _, g := range groupList {
-				if g := strings.TrimSpace(g); g != "" {
-					groups = append(groups, g)
-				}
-			}
-		}
+	userInfo, err := r.client.S3Admin.GetUserInfo(ctx, user)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading user info during import",
+			err.Error(),
+		)
+		return
 	}
 
-	groupSet, diags := types.SetValueFrom(ctx, types.StringType, groups)
+	sort.Strings(userInfo.MemberOf)
+
+	groupSet, diags := types.SetValueFrom(ctx, types.StringType, userInfo.MemberOf)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
 		return

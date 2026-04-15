@@ -52,12 +52,13 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "abort_only" {
     bucket = minio_s3_bucket.bucket.bucket
-    rule {
+    rule = [{
         id = "abort-only-rule"
-        abort_incomplete_multipart_upload {
+        expiration = "365d"
+        abort_incomplete_multipart_upload = [{
             days_after_initiation = "7d"
-        }
-    }
+        }]
+    }]
 }
 `, randInt)
 }
@@ -320,11 +321,11 @@ resource "minio_s3_bucket" "bucket" {
 }
 resource "minio_ilm_policy" "rule" {
   bucket = "${minio_s3_bucket.bucket.id}"
-  rule {
+  rule = [{
 	id = "asdf"
 	expiration = "2022-01-01"
 	filter = "temp/"
-  }
+  }]
 }
 `, randInt)
 }
@@ -337,11 +338,11 @@ resource "minio_s3_bucket" "bucket2" {
 }
 resource "minio_ilm_policy" "rule2" {
   bucket = "${minio_s3_bucket.bucket2.id}"
-  rule {
+  rule = [{
 	id = "asdf"
 	expiration = "5d"
 	filter = "temp/"
-  }
+  }]
 }
 `, randInt)
 }
@@ -354,10 +355,10 @@ resource "minio_s3_bucket" "bucket2" {
 }
 resource "minio_ilm_policy" "rule2" {
   bucket = "${minio_s3_bucket.bucket2.id}"
-  rule {
+  rule = [{
 	id = "asdf"
 	expiration = "DeleteMarker"
-  }
+  }]
 }
 `, randInt)
 }
@@ -370,11 +371,11 @@ resource "minio_s3_bucket" "bucket3" {
 }
 resource "minio_ilm_policy" "rule3" {
   bucket = "${minio_s3_bucket.bucket3.id}"
-  rule {
+  rule = [{
 	id = "withPrefix"
 	expiration = "5d"
 	filter = "temp/"
-  }
+  }]
 }
 `, randInt)
 }
@@ -387,7 +388,7 @@ resource "minio_s3_bucket" "bucket3" {
 }
 resource "minio_ilm_policy" "rule3" {
   bucket = "${minio_s3_bucket.bucket3.id}"
-  rule {
+  rule = [{
 	id = "withPrefixAndTags"
 	expiration = "5d"
 	filter = "temp/"
@@ -395,7 +396,7 @@ resource "minio_ilm_policy" "rule3" {
 		key1 = "value1"
 		key2 = "value2"
 	}
-  }
+  }]
 }
 `, randInt)
 }
@@ -408,12 +409,12 @@ resource "minio_s3_bucket" "bucket4" {
 }
 resource "minio_ilm_policy" "rule4" {
   bucket = "${minio_s3_bucket.bucket4.id}"
-  rule {
+  rule = [{
 	id = "expireNoncurrentVersion"
-	noncurrent_expiration {
+	noncurrent_expiration = [{
 	  days = "5d"
-	}
-  }
+	}]
+  }]
 }
 `, randInt)
 }
@@ -437,13 +438,13 @@ func testAccMinioILMPolicyTransitionConfig() string {
 	return `
 resource "minio_ilm_policy" "rule_transition" {
   bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
-  rule {
+  rule = [{
 	id = "asdf"
-	transition {
+	transition = [{
 	  days = "1d"
 	  storage_class = "${minio_ilm_tier.remote_tier.name}"
-	}
-  }
+	}]
+  }]
 }
 `
 }
@@ -452,13 +453,13 @@ func testAccMinioILMPolicyTransitionDateConfig() string {
 	return `
 resource "minio_ilm_policy" "rule_transition" {
   bucket = "${minio_s3_bucket.my_bucket_in_a.bucket}"
-  rule {
+  rule = [{
 	id = "asdf"
-	transition {
+	transition = [{
 	  date = "2024-06-06"
 	  storage_class = "${minio_ilm_tier.remote_tier.name}"
-	}
-  }
+	}]
+  }]
 }
 `
 }
@@ -507,10 +508,10 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "rule_status" {
 	bucket = minio_s3_bucket.bucket.bucket
-	rule {
+	rule = [{
 		id         = "rule-default-status"
 		expiration = "7d"
-	}
+	}]
 }
 `, randInt)
 }
@@ -524,11 +525,11 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "rule_status" {
 	bucket = minio_s3_bucket.bucket.bucket
-	rule {
+	rule = [{
 		id         = "rule-disabled-status"
 		status     = "Disabled"
 		expiration = "7d"
-	}
+	}]
 }
 `, randInt)
 }
@@ -542,11 +543,11 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "rule_status" {
 	bucket = minio_s3_bucket.bucket.bucket
-	rule {
+	rule = [{
 		id         = "rule-enabled-status"
 		status     = "Enabled"
 		expiration = "7d"
-	}
+	}]
 }
 `, randInt)
 }
@@ -560,14 +561,14 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "abort_mpu" {
     bucket = minio_s3_bucket.bucket.bucket
-    rule {
+    rule = [{
         id = "abort-mpu-rule"
         # Include a supported action so that MinIO accepts the lifecycle configuration
         expiration = "30d"
-        abort_incomplete_multipart_upload {
+        abort_incomplete_multipart_upload = [{
             days_after_initiation = "7d"
-        }
-    }
+        }]
+    }]
 }
 `, randInt)
 }
@@ -604,13 +605,13 @@ resource "minio_s3_bucket" "bucket" {
 }
 resource "minio_ilm_policy" "expired_dm" {
   bucket = "${minio_s3_bucket.bucket.id}"
-  rule {
+  rule = [{
 	id = "expire-dm"
 	expired_object_delete_marker = true
-	noncurrent_expiration {
+	noncurrent_expiration = [{
 	  days = "30d"
-	}
-  }
+	}]
+  }]
 }
 `, randInt)
 }
@@ -640,11 +641,11 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "mutex_test" {
 	bucket = minio_s3_bucket.bucket.bucket
-	rule {
+	rule = [{
 		id                           = "invalid-mutex-rule"
 		expiration                   = "30d"
 		expired_object_delete_marker = true
-	}
+	}]
 }
 `, randInt)
 }
@@ -674,13 +675,13 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "dm_tags" {
 	bucket = minio_s3_bucket.bucket.bucket
-	rule {
+	rule = [{
 		id                           = "invalid-dm-tags-rule"
 		expired_object_delete_marker = true
 		tags = {
 			environment = "test"
 		}
-	}
+	}]
 }
 `, randInt)
 }
@@ -833,10 +834,10 @@ resource "minio_s3_bucket" "bucket" {
 
 resource "minio_ilm_policy" "rule" {
   bucket = minio_s3_bucket.bucket.bucket
-  rule {
+  rule = [{
     id         = "expires"
     expiration = "30d"
-  }
+  }]
 }
 `, randInt)
 }

@@ -715,12 +715,10 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			prefix = rule.RuleFilter.Prefix
 		}
 
-		// Preserve user's status value if it exists
+		// Use user's status value if set, otherwise use MinIO's value
 		status := types.StringValue(rule.Status)
 		if userStatus, ok := userStatusValues[rule.ID]; ok {
 			status = userStatus
-		} else if rule.Status == "" {
-			status = types.StringNull()
 		}
 
 		var tagsValue map[string]types.String

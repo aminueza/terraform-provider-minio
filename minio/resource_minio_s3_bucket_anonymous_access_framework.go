@@ -470,7 +470,7 @@ func readOnlyPolicy(bucket string) BucketPolicy {
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
 				Actions:   readOnlyAllBucketsActions,
-				Resources: set.CreateStringSet([]string{fmt.Sprintf("arn:aws:s3:::*")}...),
+				Resources: set.CreateStringSet("arn:aws:s3:::*"),
 			},
 			{
 				Sid:       "AllObjectActionsMyBuckets",

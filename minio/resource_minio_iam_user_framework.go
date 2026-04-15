@@ -38,9 +38,10 @@ func (m secretWONullModifier) MarkdownDescription(ctx context.Context) string {
 }
 
 func (m secretWONullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	// If state is null (after first apply), set plan to null to avoid diff
-	if req.StateValue.IsNull() {
-		resp.PlanValue = types.StringNull()
+	// If state has a value (after first apply), use state value to avoid diff
+	// During first apply, state is null, so use plan value (from config)
+	if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
+		resp.PlanValue = req.StateValue
 	}
 }
 

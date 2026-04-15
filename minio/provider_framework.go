@@ -11,16 +11,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-
 // minioFrameworkProvider defines the provider implementation
 type minioFrameworkProvider struct {
-	version string
+	version   string
+	envPrefix string
 }
 
 // NewFrameworkProvider creates a new framework provider instance
-func NewFrameworkProvider(version string) func() provider.Provider {
+func NewFrameworkProvider(version string, envPrefix ...string) func() provider.Provider {
 	return func() provider.Provider {
-		return &minioFrameworkProvider{version: version}
+		prefix := ""
+		if len(envPrefix) > 0 {
+			prefix = envPrefix[0]
+		}
+		return &minioFrameworkProvider{version: version, envPrefix: prefix}
 	}
 }
 
@@ -111,6 +115,14 @@ func (p *minioFrameworkProvider) Schema(_ context.Context, _ provider.SchemaRequ
 	}
 }
 
+// getEnvWithPrefix returns an environment variable with the given prefix, or empty string if prefix is empty
+func (p *minioFrameworkProvider) getEnvWithPrefix(baseName string) string {
+	if p.envPrefix == "" {
+		return os.Getenv(baseName)
+	}
+	return os.Getenv(p.envPrefix + baseName)
+}
+
 // Configure sets up the provider - reads config and creates MinIO client
 func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	var data providerModel
@@ -122,47 +134,47 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 	}
 
 	// Read environment variables as fallback
-	minioServer := getStringOrDefault(data.MinioServer, os.Getenv("MINIO_ENDPOINT"))
+	minioServer := getStringOrDefault(data.MinioServer, p.getEnvWithPrefix("MINIO_ENDPOINT"))
 	minioRegion := getStringOrDefault(data.MinioRegion, "us-east-1")
 	if minioRegion == "us-east-1" && data.MinioRegion.IsNull() {
-		if v := os.Getenv("MINIO_REGION"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_REGION"); v != "" {
 			minioRegion = v
 		}
 	}
-	minioUser := getStringOrDefault(data.MinioUser, os.Getenv("MINIO_USER"))
-	minioPassword := getStringOrDefault(data.MinioPassword, os.Getenv("MINIO_PASSWORD"))
-	minioSessionToken := getStringOrDefault(data.MinioSessionToken, os.Getenv("MINIO_SESSION_TOKEN"))
+	minioUser := getStringOrDefault(data.MinioUser, p.getEnvWithPrefix("MINIO_USER"))
+	minioPassword := getStringOrDefault(data.MinioPassword, p.getEnvWithPrefix("MINIO_PASSWORD"))
+	minioSessionToken := getStringOrDefault(data.MinioSessionToken, p.getEnvWithPrefix("MINIO_SESSION_TOKEN"))
 	minioAPIVersion := getStringOrDefault(data.MinioAPIVersion, "v4")
 	minioSSL := getBoolOrDefault(data.MinioSSL, false)
 	if !minioSSL && data.MinioSSL.IsNull() {
-		if v := os.Getenv("MINIO_ENABLE_HTTPS"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_ENABLE_HTTPS"); v != "" {
 			minioSSL = v == "true" || v == "1" || v == "on"
 		}
 	}
 	minioInsecure := getBoolOrDefault(data.MinioInsecure, false)
 	if !minioInsecure && data.MinioInsecure.IsNull() {
-		if v := os.Getenv("MINIO_INSECURE"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_INSECURE"); v != "" {
 			minioInsecure = v == "true" || v == "1" || v == "on"
 		}
 	}
-	minioCACertFile := getStringOrDefault(data.MinioCACertFile, os.Getenv("MINIO_CACERT_FILE"))
-	minioCertFile := getStringOrDefault(data.MinioCertFile, os.Getenv("MINIO_CERT_FILE"))
-	minioKeyFile := getStringOrDefault(data.MinioKeyFile, os.Getenv("MINIO_KEY_FILE"))
+	minioCACertFile := getStringOrDefault(data.MinioCACertFile, p.getEnvWithPrefix("MINIO_CACERT_FILE"))
+	minioCertFile := getStringOrDefault(data.MinioCertFile, p.getEnvWithPrefix("MINIO_CERT_FILE"))
+	minioKeyFile := getStringOrDefault(data.MinioKeyFile, p.getEnvWithPrefix("MINIO_KEY_FILE"))
 	minioDebug := getBoolOrDefault(data.MinioDebug, false)
 	if !minioDebug && data.MinioDebug.IsNull() {
-		if v := os.Getenv("MINIO_DEBUG"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_DEBUG"); v != "" {
 			minioDebug = v == "true" || v == "1" || v == "on"
 		}
 	}
 	skipBucketTagging := getBoolOrDefault(data.SkipBucketTagging, false)
 	if !skipBucketTagging && data.SkipBucketTagging.IsNull() {
-		if v := os.Getenv("MINIO_SKIP_BUCKET_TAGGING"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_SKIP_BUCKET_TAGGING"); v != "" {
 			skipBucketTagging = v == "true" || v == "1" || v == "on"
 		}
 	}
 	s3CompatMode := getBoolOrDefault(data.S3CompatMode, false)
 	if !s3CompatMode && data.S3CompatMode.IsNull() {
-		if v := os.Getenv("MINIO_S3_COMPAT_MODE"); v != "" {
+		if v := p.getEnvWithPrefix("MINIO_S3_COMPAT_MODE"); v != "" {
 			s3CompatMode = v == "true" || v == "1" || v == "on"
 		}
 	}
@@ -208,23 +220,23 @@ func (p *minioFrameworkProvider) Configure(ctx context.Context, req provider.Con
 
 // providerModel represents the provider configuration data
 type providerModel struct {
-	MinioServer                  types.String `tfsdk:"minio_server"`
-	MinioRegion                  types.String `tfsdk:"minio_region"`
-	MinioUser                    types.String `tfsdk:"minio_user"`
-	MinioPassword                types.String `tfsdk:"minio_password"`
-	MinioSessionToken            types.String `tfsdk:"minio_session_token"`
-	MinioAPIVersion              types.String `tfsdk:"minio_api_version"`
-	MinioSSL                     types.Bool   `tfsdk:"minio_ssl"`
-	MinioInsecure                types.Bool   `tfsdk:"minio_insecure"`
-	MinioCACertFile              types.String `tfsdk:"minio_cacert_file"`
-	MinioCertFile                types.String `tfsdk:"minio_cert_file"`
-	MinioKeyFile                 types.String `tfsdk:"minio_key_file"`
-	MinioDebug                   types.Bool   `tfsdk:"minio_debug"`
-	SkipBucketTagging            types.Bool   `tfsdk:"skip_bucket_tagging"`
-	S3CompatMode                 types.Bool   `tfsdk:"s3_compat_mode"`
-	RequestTimeoutSeconds types.Int64 `tfsdk:"request_timeout_seconds"`
-	MaxRetries            types.Int64 `tfsdk:"max_retries"`
-	RetryDelayMs          types.Int64 `tfsdk:"retry_delay_ms"`
+	MinioServer           types.String `tfsdk:"minio_server"`
+	MinioRegion           types.String `tfsdk:"minio_region"`
+	MinioUser             types.String `tfsdk:"minio_user"`
+	MinioPassword         types.String `tfsdk:"minio_password"`
+	MinioSessionToken     types.String `tfsdk:"minio_session_token"`
+	MinioAPIVersion       types.String `tfsdk:"minio_api_version"`
+	MinioSSL              types.Bool   `tfsdk:"minio_ssl"`
+	MinioInsecure         types.Bool   `tfsdk:"minio_insecure"`
+	MinioCACertFile       types.String `tfsdk:"minio_cacert_file"`
+	MinioCertFile         types.String `tfsdk:"minio_cert_file"`
+	MinioKeyFile          types.String `tfsdk:"minio_key_file"`
+	MinioDebug            types.Bool   `tfsdk:"minio_debug"`
+	SkipBucketTagging     types.Bool   `tfsdk:"skip_bucket_tagging"`
+	S3CompatMode          types.Bool   `tfsdk:"s3_compat_mode"`
+	RequestTimeoutSeconds types.Int64  `tfsdk:"request_timeout_seconds"`
+	MaxRetries            types.Int64  `tfsdk:"max_retries"`
+	RetryDelayMs          types.Int64  `tfsdk:"retry_delay_ms"`
 }
 
 // Helper functions for converting framework types to Go types

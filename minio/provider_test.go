@@ -33,7 +33,7 @@ func newMuxProviderServer(envPrefix string) func() (tfprotov6.ProviderServer, er
 
 		muxServer, err := tf6muxserver.NewMuxServer(ctx,
 			func() tfprotov6.ProviderServer { return upgradedSdkProvider },
-			providerserver.NewProtocol6(NewFrameworkProvider("test")()),
+			providerserver.NewProtocol6(NewFrameworkProvider("test", envPrefix)()),
 		)
 		if err != nil {
 			return nil, err

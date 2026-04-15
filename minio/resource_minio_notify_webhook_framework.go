@@ -124,8 +124,8 @@ func (r *minioNotifyWebhookResource) Create(ctx context.Context, req resource.Cr
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir
-	if notifyData.QueueLimit.IsUnknown() {
-		plan.QueueLimit = plan.QueueLimit
+	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
+		// Keep plan value if API doesn't return it
 	} else {
 		plan.QueueLimit = notifyData.QueueLimit
 	}
@@ -184,7 +184,7 @@ func (r *minioNotifyWebhookResource) Read(ctx context.Context, req resource.Read
 	state.Enable = notifyData.Enable
 	state.QueueDir = notifyData.QueueDir
 	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
-		state.QueueLimit = state.QueueLimit
+		// Keep state value if API doesn't return it
 	} else {
 		state.QueueLimit = notifyData.QueueLimit
 	}
@@ -243,8 +243,8 @@ func (r *minioNotifyWebhookResource) Update(ctx context.Context, req resource.Up
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir
-	if notifyData.QueueLimit.IsUnknown() {
-		plan.QueueLimit = plan.QueueLimit
+	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
+		// Keep plan value if API doesn't return it
 	} else {
 		plan.QueueLimit = notifyData.QueueLimit
 	}

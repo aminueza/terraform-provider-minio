@@ -102,6 +102,7 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 						},
 						"status": schema.StringAttribute{
 							Optional:    true,
+							Computed:    true,
 							Description: "Rule status (Enabled or Disabled).",
 						},
 						"expiration": schema.StringAttribute{

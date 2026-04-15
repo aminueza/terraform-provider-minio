@@ -21,23 +21,6 @@ var (
 	_ resource.ResourceWithImportState = &ilmPolicyResource{}
 )
 
-// defaultStatusModifier sets status to "Enabled" when null
-type defaultStatusModifier struct{}
-
-func (m defaultStatusModifier) Description(ctx context.Context) string {
-	return "Default status to Enabled when not set"
-}
-
-func (m defaultStatusModifier) MarkdownDescription(ctx context.Context) string {
-	return "Default status to Enabled when not set"
-}
-
-func (m defaultStatusModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.PlanValue.IsNull() || req.PlanValue.IsUnknown() || req.PlanValue.ValueString() == "" {
-		resp.PlanValue = types.StringValue("Enabled")
-	}
-}
-
 type ilmPolicyResource struct {
 	client *S3MinioClient
 }
@@ -120,9 +103,6 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 						"status": schema.StringAttribute{
 							Optional:    true,
 							Description: "Rule status (Enabled or Disabled).",
-							PlanModifiers: []planmodifier.String{
-								defaultStatusModifier{},
-							},
 						},
 						"expiration": schema.StringAttribute{
 							Optional:    true,
@@ -275,14 +255,16 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	// Default status to "Enabled" if not set in state
-	for i := range data.Rules {
-		if data.Rules[i].Status.IsNull() || data.Rules[i].Status.IsUnknown() || data.Rules[i].Status.ValueString() == "" {
-			data.Rules[i].Status = types.StringValue("Enabled")
-		}
-	}
-
 	data.ID = data.Bucket
+
+	// Read the policy back to get status from MinIO (which defaults to "Enabled")
+	if err := r.readILMPolicy(ctx, &data); err != nil {
+		resp.Diagnostics.AddError(
+			"Error reading ILM policy after create",
+			err.Error(),
+		)
+		return
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

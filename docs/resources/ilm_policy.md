@@ -162,7 +162,7 @@ The following attributes within a `rule` block are **mutually exclusive** per Mi
 ### Required
 
 - `bucket` (String) Name of the bucket.
-- `rule` (List of Object) List of lifecycle rules. (see [below for nested schema](#nestedatt--rule))
+- `rule` (Attributes List) List of lifecycle rules. (see [below for nested schema](#nestedatt--rule))
 
 ### Read-Only
 
@@ -173,52 +173,61 @@ The following attributes within a `rule` block are **mutually exclusive** per Mi
 
 Required:
 
-- `abort_incomplete_multipart_upload` (List of Object) (see [below for nested schema](#nestedobjatt--rule--abort_incomplete_multipart_upload))
-- `expiration` (String)
-- `expired_object_delete_marker` (Boolean)
-- `filter` (String)
-- `id` (String)
-- `noncurrent_expiration` (List of Object) (see [below for nested schema](#nestedobjatt--rule--noncurrent_expiration))
-- `noncurrent_transition` (List of Object) (see [below for nested schema](#nestedobjatt--rule--noncurrent_transition))
-- `status` (String)
-- `tags` (Map of String)
-- `transition` (List of Object) (see [below for nested schema](#nestedobjatt--rule--transition))
+- `id` (String) Unique identifier for the rule.
 
-<a id="nestedobjatt--rule--abort_incomplete_multipart_upload"></a>
+Optional:
+
+- `abort_incomplete_multipart_upload` (Attributes List) Abort incomplete multipart upload configuration. (see [below for nested schema](#nestedatt--rule--abort_incomplete_multipart_upload))
+- `expiration` (String) Expiration date or days (e.g., '2022-01-01' or '30d').
+- `expired_object_delete_marker` (Boolean) Enable expired object delete marker.
+- `filter` (String) Filter prefix for the rule.
+- `noncurrent_expiration` (Attributes List) Noncurrent version expiration configuration. (see [below for nested schema](#nestedatt--rule--noncurrent_expiration))
+- `noncurrent_transition` (Attributes List) Noncurrent version transition configuration. (see [below for nested schema](#nestedatt--rule--noncurrent_transition))
+- `status` (String) Rule status (Enabled or Disabled).
+- `tags` (Map of String) Tags for filtering objects.
+- `transition` (Attributes List) Transition configuration. (see [below for nested schema](#nestedatt--rule--transition))
+
+<a id="nestedatt--rule--abort_incomplete_multipart_upload"></a>
 ### Nested Schema for `rule.abort_incomplete_multipart_upload`
 
-Required:
+Optional:
 
-- `days_after_initiation` (String)
+- `days_after_initiation` (String) Days after initiation to abort incomplete multipart uploads.
 
 
-<a id="nestedobjatt--rule--noncurrent_expiration"></a>
+<a id="nestedatt--rule--noncurrent_expiration"></a>
 ### Nested Schema for `rule.noncurrent_expiration`
 
-Required:
+Optional:
 
-- `days` (String)
-- `newer_versions` (Number)
+- `days` (String) Days after which to expire noncurrent versions.
+- `newer_versions` (Number) Keep this many newer versions.
 
 
-<a id="nestedobjatt--rule--noncurrent_transition"></a>
+<a id="nestedatt--rule--noncurrent_transition"></a>
 ### Nested Schema for `rule.noncurrent_transition`
 
 Required:
 
-- `days` (String)
-- `newer_versions` (Number)
-- `storage_class` (String)
+- `storage_class` (String) Storage class to transition to.
+
+Optional:
+
+- `days` (String) Days after which to transition noncurrent versions.
+- `newer_versions` (Number) Keep this many newer versions.
 
 
-<a id="nestedobjatt--rule--transition"></a>
+<a id="nestedatt--rule--transition"></a>
 ### Nested Schema for `rule.transition`
 
 Required:
 
-- `date` (String)
-- `days` (String)
-- `storage_class` (String)
+- `storage_class` (String) Storage class to transition to.
+
+Optional:
+
+- `date` (String) Date on which to transition objects.
+- `days` (String) Days after which to transition objects.
 
 ## Import
 

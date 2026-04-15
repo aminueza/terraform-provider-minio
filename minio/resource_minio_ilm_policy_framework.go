@@ -226,6 +226,13 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	// Default status to "Enabled" if not set
+	for i := range data.Rules {
+		if data.Rules[i].Status.IsNull() || data.Rules[i].Status.IsUnknown() || data.Rules[i].Status.ValueString() == "" {
+			data.Rules[i].Status = types.StringValue("Enabled")
+		}
+	}
+
 	for i, rule := range data.Rules {
 		hasExpiration := !rule.Expiration.IsNull() && rule.Expiration.ValueString() != "" && rule.Expiration.ValueString() != "DeleteMarker"
 		hasExpiredObjectDeleteMarker := !rule.ExpiredObjectDeleteMarker.IsNull() && rule.ExpiredObjectDeleteMarker.ValueBool()
@@ -253,13 +260,6 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 			err.Error(),
 		)
 		return
-	}
-
-	// Default status to "Enabled" if not set
-	for i := range data.Rules {
-		if data.Rules[i].Status.IsNull() || data.Rules[i].Status.IsUnknown() || data.Rules[i].Status.ValueString() == "" {
-			data.Rules[i].Status = types.StringValue("Enabled")
-		}
 	}
 
 	data.ID = data.Bucket

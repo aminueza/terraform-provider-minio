@@ -590,12 +590,16 @@ func (r *ilmPolicyResource) parseAbortIncomplete(abortList []ilmAbortIncompleteM
 func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyResourceModel) error {
 	c := r.client.S3Client
 
-	// Store user's abort_incomplete_multipart_upload values to preserve them
+	// Store user's abort_incomplete_multipart_upload and status values to preserve them
 	userAbortValues := make(map[string][]ilmAbortIncompleteModel)
+	userStatusValues := make(map[string]types.String)
 	if len(data.Rules) > 0 {
 		for _, rule := range data.Rules {
 			if len(rule.AbortIncompleteMultipartUpload) > 0 {
 				userAbortValues[rule.ID.ValueString()] = rule.AbortIncompleteMultipartUpload
+			}
+			if !rule.Status.IsNull() && !rule.Status.IsUnknown() && rule.Status.ValueString() != "" {
+				userStatusValues[rule.ID.ValueString()] = rule.Status
 			}
 		}
 	}
@@ -711,8 +715,11 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			prefix = rule.RuleFilter.Prefix
 		}
 
+		// Preserve user's status value if it exists
 		status := types.StringValue(rule.Status)
-		if rule.Status == "" {
+		if userStatus, ok := userStatusValues[rule.ID]; ok {
+			status = userStatus
+		} else if rule.Status == "" {
 			status = types.StringNull()
 		}
 

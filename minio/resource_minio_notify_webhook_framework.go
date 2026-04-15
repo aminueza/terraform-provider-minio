@@ -124,7 +124,11 @@ func (r *minioNotifyWebhookResource) Create(ctx context.Context, req resource.Cr
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir
-	plan.QueueLimit = notifyData.QueueLimit
+	if notifyData.QueueLimit.IsUnknown() {
+		plan.QueueLimit = plan.QueueLimit
+	} else {
+		plan.QueueLimit = notifyData.QueueLimit
+	}
 	plan.Comment = notifyData.Comment
 	plan.RestartRequired = notifyData.RestartRequired
 	plan.Endpoint = notifyData.GetStringField("endpoint")
@@ -179,7 +183,11 @@ func (r *minioNotifyWebhookResource) Read(ctx context.Context, req resource.Read
 	state.Name = notifyData.Name
 	state.Enable = notifyData.Enable
 	state.QueueDir = notifyData.QueueDir
-	state.QueueLimit = notifyData.QueueLimit
+	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
+		state.QueueLimit = state.QueueLimit
+	} else {
+		state.QueueLimit = notifyData.QueueLimit
+	}
 	state.Comment = notifyData.Comment
 	state.RestartRequired = notifyData.RestartRequired
 	state.Endpoint = notifyData.GetStringField("endpoint")
@@ -235,7 +243,11 @@ func (r *minioNotifyWebhookResource) Update(ctx context.Context, req resource.Up
 	plan.Name = notifyData.Name
 	plan.Enable = notifyData.Enable
 	plan.QueueDir = notifyData.QueueDir
-	plan.QueueLimit = notifyData.QueueLimit
+	if notifyData.QueueLimit.IsUnknown() {
+		plan.QueueLimit = plan.QueueLimit
+	} else {
+		plan.QueueLimit = notifyData.QueueLimit
+	}
 	plan.Comment = notifyData.Comment
 	plan.RestartRequired = notifyData.RestartRequired
 	plan.Endpoint = notifyData.GetStringField("endpoint")

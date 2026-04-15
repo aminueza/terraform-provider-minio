@@ -144,6 +144,27 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	for i, rule := range data.Rules {
+		hasExpiration := !rule.Expiration.IsNull() && rule.Expiration.ValueString() != "" && rule.Expiration.ValueString() != "DeleteMarker"
+		hasExpiredObjectDeleteMarker := !rule.ExpiredObjectDeleteMarker.IsNull() && rule.ExpiredObjectDeleteMarker.ValueBool()
+
+		if hasExpiration && hasExpiredObjectDeleteMarker {
+			resp.Diagnostics.AddError(
+				"Invalid ILM policy configuration",
+				fmt.Sprintf("rule[%d]: 'expiration' and 'expired_object_delete_marker' are mutually exclusive", i),
+			)
+			return
+		}
+
+		if hasExpiredObjectDeleteMarker && len(rule.Tags) > 0 {
+			resp.Diagnostics.AddError(
+				"Invalid ILM policy configuration",
+				fmt.Sprintf("rule[%d]: delete-marker expiration is mutually exclusive with 'tags'", i),
+			)
+			return
+		}
+	}
+
 	if err := r.applyILMPolicy(ctx, &data); err != nil {
 		resp.Diagnostics.AddError(
 			"Error creating ILM policy",
@@ -191,6 +212,27 @@ func (r *ilmPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
+	}
+
+	for i, rule := range data.Rules {
+		hasExpiration := !rule.Expiration.IsNull() && rule.Expiration.ValueString() != "" && rule.Expiration.ValueString() != "DeleteMarker"
+		hasExpiredObjectDeleteMarker := !rule.ExpiredObjectDeleteMarker.IsNull() && rule.ExpiredObjectDeleteMarker.ValueBool()
+
+		if hasExpiration && hasExpiredObjectDeleteMarker {
+			resp.Diagnostics.AddError(
+				"Invalid ILM policy configuration",
+				fmt.Sprintf("rule[%d]: 'expiration' and 'expired_object_delete_marker' are mutually exclusive", i),
+			)
+			return
+		}
+
+		if hasExpiredObjectDeleteMarker && len(rule.Tags) > 0 {
+			resp.Diagnostics.AddError(
+				"Invalid ILM policy configuration",
+				fmt.Sprintf("rule[%d]: delete-marker expiration is mutually exclusive with 'tags'", i),
+			)
+			return
+		}
 	}
 
 	if err := r.applyILMPolicy(ctx, &data); err != nil {
@@ -253,16 +295,6 @@ func (r *ilmPolicyResource) applyILMPolicy(ctx context.Context, data *ilmPolicyR
 	config := lifecycle.NewConfiguration()
 
 	for _, ruleModel := range data.Rules {
-		hasAbort := len(ruleModel.AbortIncompleteMultipartUpload) > 0
-		hasSupportedAction := !ruleModel.Expiration.IsNull() ||
-			len(ruleModel.Transition) > 0 ||
-			len(ruleModel.NoncurrentExpiration) > 0 ||
-			len(ruleModel.NoncurrentTransition) > 0
-
-		if hasAbort && !hasSupportedAction {
-			continue
-		}
-
 		rule, err := r.createLifecycleRuleFromModel(ruleModel)
 		if err != nil {
 			return fmt.Errorf("creating lifecycle rule: %w", err)
@@ -482,27 +514,39 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 
 	for _, rule := range config.Rules {
 		var expirationStr string
-		var expiredObjectDeleteMarker bool
+		var expiredObjectDeleteMarker types.Bool
+
+		// Check if this is a pure expired_object_delete_marker rule (no days/date)
+		isPureExpiredDM := bool(rule.Expiration.DeleteMarker) && rule.Expiration.Days == 0 && rule.Expiration.Date.IsZero()
+
+		// Check if there's noncurrent version expiration (indicates expired_object_delete_marker is set)
+		hasNoncurrentExpiration := rule.NoncurrentVersionExpiration.NoncurrentDays != 0
 
 		if rule.Expiration.IsDeleteMarkerExpirationEnabled() {
-			expiredObjectDeleteMarker = true
 			if rule.Expiration.Days != 0 {
 				expirationStr = fmt.Sprintf("%dd", rule.Expiration.Days)
+				expiredObjectDeleteMarker = types.BoolValue(true)
 			} else if !rule.Expiration.Date.IsZero() {
 				expirationStr = rule.Expiration.Date.Format("2006-01-02")
-			} else {
+				expiredObjectDeleteMarker = types.BoolValue(true)
+			} else if isPureExpiredDM && !hasNoncurrentExpiration {
+				// Pure expired_object_delete_marker without noncurrent expiration
 				expirationStr = "DeleteMarker"
+				expiredObjectDeleteMarker = types.BoolNull()
+			} else if isPureExpiredDM && hasNoncurrentExpiration {
+				// expired_object_delete_marker with noncurrent expiration - don't set expiration
+				expiredObjectDeleteMarker = types.BoolValue(true)
+			} else {
+				expiredObjectDeleteMarker = types.BoolNull()
 			}
 		} else if rule.Expiration.Days != 0 {
 			expirationStr = fmt.Sprintf("%dd", rule.Expiration.Days)
-		} else if bool(rule.Expiration.DeleteMarker) && rule.Expiration.Days == 0 {
-			if rule.NoncurrentVersionExpiration.NoncurrentDays != 0 {
-				expiredObjectDeleteMarker = true
-			} else {
-				expirationStr = "DeleteMarker"
-			}
+			expiredObjectDeleteMarker = types.BoolNull()
 		} else if !rule.Expiration.IsNull() && !rule.Expiration.Date.IsZero() {
 			expirationStr = rule.Expiration.Date.Format("2006-01-02")
+			expiredObjectDeleteMarker = types.BoolNull()
+		} else {
+			expiredObjectDeleteMarker = types.BoolNull()
 		}
 
 		var transitionList []ilmTransitionModel
@@ -544,7 +588,7 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 		}
 
 		var abortList []ilmAbortIncompleteModel
-		if !rule.AbortIncompleteMultipartUpload.IsDaysNull() {
+		if rule.AbortIncompleteMultipartUpload.DaysAfterInitiation != 0 {
 			abortList = append(abortList, ilmAbortIncompleteModel{
 				DaysAfterInitiation: types.StringValue(fmt.Sprintf("%dd", rule.AbortIncompleteMultipartUpload.DaysAfterInitiation)),
 			})
@@ -566,11 +610,6 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			status = types.StringNull()
 		}
 
-		expiredObjectDeleteMarkerValue := types.BoolValue(expiredObjectDeleteMarker)
-		if !expiredObjectDeleteMarker && rule.Expiration.Days == 0 && !bool(rule.Expiration.DeleteMarker) {
-			expiredObjectDeleteMarkerValue = types.BoolNull()
-		}
-
 		var tagsValue map[string]types.String
 		if len(rule.RuleFilter.And.Tags) > 0 {
 			tagsValue = make(map[string]types.String)
@@ -583,7 +622,7 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 			ID:                             types.StringValue(rule.ID),
 			Status:                         status,
 			Expiration:                     getStringOrNull(expirationStr),
-			ExpiredObjectDeleteMarker:      expiredObjectDeleteMarkerValue,
+			ExpiredObjectDeleteMarker:      expiredObjectDeleteMarker,
 			Transition:                     transitionList,
 			NoncurrentExpiration:           noncurrentExpirationList,
 			NoncurrentTransition:           noncurrentTransitionList,

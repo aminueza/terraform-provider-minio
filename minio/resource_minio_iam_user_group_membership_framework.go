@@ -208,23 +208,18 @@ func (r *iamUserGroupMembershipResource) Delete(ctx context.Context, req resourc
 
 func (r *iamUserGroupMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	parts := strings.SplitN(req.ID, ":", 2)
-	if len(parts) != 2 {
-		resp.Diagnostics.AddError(
-			"Error importing user group membership",
-			fmt.Sprintf("import ID must be in the format <user>:<comma-separated-groups>, got %s", req.ID),
-		)
-		return
-	}
 
 	user := parts[0]
-	groupsStr := parts[1]
-
 	var groups []string
-	if groupsStr != "" {
-		groupList := strings.Split(groupsStr, ",")
-		for _, g := range groupList {
-			if g := strings.TrimSpace(g); g != "" {
-				groups = append(groups, g)
+
+	if len(parts) == 2 {
+		groupsStr := parts[1]
+		if groupsStr != "" {
+			groupList := strings.Split(groupsStr, ",")
+			for _, g := range groupList {
+				if g := strings.TrimSpace(g); g != "" {
+					groups = append(groups, g)
+				}
 			}
 		}
 	}

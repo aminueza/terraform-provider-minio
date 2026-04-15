@@ -148,6 +148,7 @@ func (r *prometheusBearerTokenResource) Create(ctx context.Context, req resource
 	plan.ID = types.StringValue(metricType)
 	plan.Token = types.StringValue(token)
 	plan.TokenExpiry = types.StringValue(expiry.Format(time.RFC3339))
+	plan.Limit = types.Int64Value(int64(limit))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -207,6 +208,7 @@ func (r *prometheusBearerTokenResource) Update(ctx context.Context, req resource
 
 	plan.Token = types.StringValue(token)
 	plan.TokenExpiry = types.StringValue(expiry.Format(time.RFC3339))
+	plan.Limit = types.Int64Value(int64(limit))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

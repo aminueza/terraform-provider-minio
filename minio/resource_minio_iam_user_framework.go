@@ -376,6 +376,7 @@ func (r *iamUserResource) Delete(ctx context.Context, req resource.DeleteRequest
 
 func (r *iamUserResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("name"), req.ID)...)
 }
 
 func (r *iamUserResource) read(ctx context.Context, data *iamUserResourceModel) diag.Diagnostics {

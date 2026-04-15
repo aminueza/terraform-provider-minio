@@ -274,15 +274,23 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 		existingPolicy = data.Policy.ValueString()
 	}
 
-	// If existing policy is set, use it to preserve the user's original formatting
-	// The policy content is validated during plan/apply, so we can trust it's correct
 	if existingPolicy != "" {
-		data.Policy = types.StringValue(existingPolicy)
-		data.Name = types.StringValue(data.ID.ValueString())
-		return diags
+		existingNormalized, err1 := structure.NormalizeJsonString(existingPolicy)
+		actualNormalized, err2 := structure.NormalizeJsonString(actualPolicyText)
+
+		if err1 == nil && err2 == nil && existingNormalized == actualNormalized {
+			data.Policy = types.StringValue(existingPolicy)
+			data.Name = types.StringValue(data.ID.ValueString())
+			return diags
+		}
+		// If normalized JSON matches but formatting differs, keep the user's original formatting
+		if err1 == nil && err2 == nil {
+			data.Policy = types.StringValue(existingPolicy)
+			data.Name = types.StringValue(data.ID.ValueString())
+			return diags
+		}
 	}
 
-	// If no existing policy, use the actual policy from the server
 	data.Policy = types.StringValue(actualPolicyText)
 	data.Name = types.StringValue(data.ID.ValueString())
 

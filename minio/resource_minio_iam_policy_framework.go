@@ -259,6 +259,23 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 	}
 
 	actualPolicyText := strings.TrimSpace(string(info.Policy))
+	existingPolicy := ""
+	if !data.Policy.IsNull() && !data.Policy.IsUnknown() {
+		existingPolicy = data.Policy.ValueString()
+	}
+
+	// If user's policy exists and normalized JSON matches, preserve user's formatting
+	if existingPolicy != "" {
+		existingNormalized, err1 := structure.NormalizeJsonString(existingPolicy)
+		actualNormalized, err2 := structure.NormalizeJsonString(actualPolicyText)
+
+		if err1 == nil && err2 == nil && existingNormalized == actualNormalized {
+			data.Policy = types.StringValue(existingPolicy)
+			data.Name = types.StringValue(data.ID.ValueString())
+			return diags
+		}
+	}
+
 	data.Policy = types.StringValue(actualPolicyText)
 	data.Name = types.StringValue(data.ID.ValueString())
 

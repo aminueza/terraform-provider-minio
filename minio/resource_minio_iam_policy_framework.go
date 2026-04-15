@@ -264,16 +264,12 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 		existingPolicy = data.Policy.ValueString()
 	}
 
-	// If user's policy exists and normalized JSON matches, preserve user's formatting
+	// Always preserve user's formatting if it exists - MinIO API may reorder arrays
+	// but the policy is semantically equivalent
 	if existingPolicy != "" {
-		existingNormalized, err1 := structure.NormalizeJsonString(existingPolicy)
-		actualNormalized, err2 := structure.NormalizeJsonString(actualPolicyText)
-
-		if err1 == nil && err2 == nil && existingNormalized == actualNormalized {
-			data.Policy = types.StringValue(existingPolicy)
-			data.Name = types.StringValue(data.ID.ValueString())
-			return diags
-		}
+		data.Policy = types.StringValue(existingPolicy)
+		data.Name = types.StringValue(data.ID.ValueString())
+		return diags
 	}
 
 	data.Policy = types.StringValue(actualPolicyText)

@@ -28,6 +28,10 @@ func (m policySemanticEqualityModifier) Description(ctx context.Context) string 
 	return "Suppresses plan changes when policy JSON is semantically equivalent"
 }
 
+func (m policySemanticEqualityModifier) MarkdownDescription(ctx context.Context) string {
+	return "Suppresses plan changes when policy JSON is semantically equivalent"
+}
+
 func (m policySemanticEqualityModifier) Modify(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
 	// If the policy is null or unknown, let it pass through
 	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
@@ -50,10 +54,6 @@ func (m policySemanticEqualityModifier) Modify(ctx context.Context, req planmodi
 	if err1 == nil && err2 == nil && planNormalized == stateNormalized {
 		resp.PlanValue = req.StateValue
 	}
-}
-
-func policySemanticEqualityModifier() planmodifier.String {
-	return policySemanticEqualityModifier{}
 }
 
 // Ensure provider defined types fully satisfy framework interfaces
@@ -129,7 +129,7 @@ func (r *iamPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 					stringvalidator.LengthAtLeast(1),
 				},
 				PlanModifiers: []planmodifier.String{
-					policySemanticEqualityModifier(),
+					policySemanticEqualityModifier{},
 				},
 			},
 		},

@@ -106,7 +106,11 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Sensitive:   true,
 				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+					stringplanmodifier.RequiresReplaceIf(func(ctx context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
+						// Always use state value for write-only attribute
+						resp.PlanValue = req.StateValue
+						resp.RequiresReplace = false
+					}, "use-state-for-write-only", "Always use state value for write-only secret"),
 				},
 				Validators: []validator.String{
 					stringvalidator.AlsoRequires(path.MatchRoot("secret_wo_version")),

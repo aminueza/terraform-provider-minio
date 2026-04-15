@@ -129,6 +129,10 @@ func (r *minioNotifyWebhookResource) Create(ctx context.Context, req resource.Cr
 	plan.QueueDir = notifyData.QueueDir
 	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
 		// Keep plan value if API doesn't return it
+		if plan.QueueLimit.IsNull() || plan.QueueLimit.IsUnknown() {
+			// Set default value of 0 (unlimited) if neither plan nor API returns a value
+			plan.QueueLimit = types.Int64Value(0)
+		}
 	} else {
 		plan.QueueLimit = notifyData.QueueLimit
 	}
@@ -188,6 +192,10 @@ func (r *minioNotifyWebhookResource) Read(ctx context.Context, req resource.Read
 	state.QueueDir = notifyData.QueueDir
 	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
 		// Keep state value if API doesn't return it
+		if state.QueueLimit.IsNull() || state.QueueLimit.IsUnknown() {
+			// Set default value of 0 (unlimited) if neither state nor API returns a value
+			state.QueueLimit = types.Int64Value(0)
+		}
 	} else {
 		state.QueueLimit = notifyData.QueueLimit
 	}
@@ -249,6 +257,10 @@ func (r *minioNotifyWebhookResource) Update(ctx context.Context, req resource.Up
 	plan.QueueDir = notifyData.QueueDir
 	if notifyData.QueueLimit.IsNull() || notifyData.QueueLimit.IsUnknown() {
 		// Keep plan value if API doesn't return it
+		if plan.QueueLimit.IsNull() || plan.QueueLimit.IsUnknown() {
+			// Set default value of 0 (unlimited) if neither plan nor API returns a value
+			plan.QueueLimit = types.Int64Value(0)
+		}
 	} else {
 		plan.QueueLimit = notifyData.QueueLimit
 	}
@@ -258,8 +270,7 @@ func (r *minioNotifyWebhookResource) Update(ctx context.Context, req resource.Up
 	plan.AuthToken = notifyData.GetStringField("auth_token")
 	plan.ClientCert = notifyData.GetStringField("client_cert")
 	plan.ClientKey = notifyData.GetStringField("client_key")
-	diags = resp.State.Set(ctx, &plan)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *minioNotifyWebhookResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

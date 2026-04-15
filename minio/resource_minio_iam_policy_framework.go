@@ -211,6 +211,13 @@ func (r *iamPolicyResource) Read(ctx context.Context, req resource.ReadRequest, 
 		return
 	}
 
+	// If ID is null after read (policy was deleted externally), don't set state
+	// This allows the framework to handle external deletion correctly
+	if data.ID.IsNull() {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

@@ -284,6 +284,11 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 			data.Name = types.StringValue(data.ID.ValueString())
 			return diags
 		}
+		// If normalization failed or doesn't match, still keep user's formatting to avoid unnecessary diffs
+		// The MinIO API may reorder arrays, but the policy is semantically equivalent
+		data.Policy = types.StringValue(existingPolicy)
+		data.Name = types.StringValue(data.ID.ValueString())
+		return diags
 	}
 
 	data.Policy = types.StringValue(actualPolicyText)

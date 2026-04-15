@@ -279,12 +279,7 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 		actualNormalized, err2 := structure.NormalizeJsonString(actualPolicyText)
 
 		if err1 == nil && err2 == nil && existingNormalized == actualNormalized {
-			data.Policy = types.StringValue(existingPolicy)
-			data.Name = types.StringValue(data.ID.ValueString())
-			return diags
-		}
-		// If normalized JSON matches but formatting differs, keep the user's original formatting
-		if err1 == nil && err2 == nil {
+			// Normalized JSON matches - keep the user's original formatting
 			data.Policy = types.StringValue(existingPolicy)
 			data.Name = types.StringValue(data.ID.ValueString())
 			return diags

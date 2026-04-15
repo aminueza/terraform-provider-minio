@@ -264,6 +264,13 @@ func (r *ilmPolicyResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
+	// Default status to "Enabled" if not set in state
+	for i := range data.Rules {
+		if data.Rules[i].Status.IsNull() || data.Rules[i].Status.IsUnknown() || data.Rules[i].Status.ValueString() == "" {
+			data.Rules[i].Status = types.StringValue("Enabled")
+		}
+	}
+
 	data.ID = data.Bucket
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

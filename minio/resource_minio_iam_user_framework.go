@@ -26,21 +26,19 @@ var (
 	_ resource.ResourceWithImportState = &iamUserResource{}
 )
 
-// useStateForWriteOnlyModifier always uses state value for write-only attribute
-type useStateForWriteOnlyModifier struct{}
+// secretWONullModifier always sets plan value to null for write-only attribute
+type secretWONullModifier struct{}
 
-func (m useStateForWriteOnlyModifier) Description(ctx context.Context) string {
-	return "Always use state value for write-only secret"
+func (m secretWONullModifier) Description(ctx context.Context) string {
+	return "Always set plan value to null for write-only secret"
 }
 
-func (m useStateForWriteOnlyModifier) MarkdownDescription(ctx context.Context) string {
-	return "Always use state value for write-only secret"
+func (m secretWONullModifier) MarkdownDescription(ctx context.Context) string {
+	return "Always set plan value to null for write-only secret"
 }
 
-func (m useStateForWriteOnlyModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
-		resp.PlanValue = req.StateValue
-	}
+func (m secretWONullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	resp.PlanValue = types.StringNull()
 }
 
 // iamUserResource defines the resource implementation
@@ -123,6 +121,9 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					secretWONullModifier{},
+				},
 				Validators: []validator.String{
 					stringvalidator.AlsoRequires(path.MatchRoot("secret_wo_version")),
 				},

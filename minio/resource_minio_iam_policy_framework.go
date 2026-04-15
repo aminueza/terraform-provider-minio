@@ -21,6 +21,41 @@ import (
 	"github.com/minio/madmin-go/v3"
 )
 
+// policySemanticEqualityModifier suppresses plan changes when the policy JSON is semantically equivalent
+type policySemanticEqualityModifier struct{}
+
+func (m policySemanticEqualityModifier) Description(ctx context.Context) string {
+	return "Suppresses plan changes when policy JSON is semantically equivalent"
+}
+
+func (m policySemanticEqualityModifier) Modify(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// If the policy is null or unknown, let it pass through
+	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
+		return
+	}
+
+	// If the state is null or unknown, let it pass through
+	if req.StateValue.IsUnknown() || req.StateValue.IsNull() {
+		return
+	}
+
+	planPolicy := req.PlanValue.ValueString()
+	statePolicy := req.StateValue.ValueString()
+
+	// Normalize both policies
+	planNormalized, err1 := structure.NormalizeJsonString(planPolicy)
+	stateNormalized, err2 := structure.NormalizeJsonString(statePolicy)
+
+	// If normalization succeeds and they match, suppress the diff
+	if err1 == nil && err2 == nil && planNormalized == stateNormalized {
+		resp.PlanValue = req.StateValue
+	}
+}
+
+func policySemanticEqualityModifier() planmodifier.String {
+	return policySemanticEqualityModifier{}
+}
+
 // Ensure provider defined types fully satisfy framework interfaces
 var (
 	_ resource.Resource                = &iamPolicyResource{}
@@ -92,6 +127,9 @@ func (r *iamPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 				Required:    true,
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					policySemanticEqualityModifier(),
 				},
 			},
 		},
@@ -269,28 +307,6 @@ func (r *iamPolicyResource) read(ctx context.Context, data *iamPolicyResourceMod
 	}
 
 	actualPolicyText := strings.TrimSpace(string(info.Policy))
-	existingPolicy := ""
-	if !data.Policy.IsNull() && !data.Policy.IsUnknown() {
-		existingPolicy = data.Policy.ValueString()
-	}
-
-	if existingPolicy != "" {
-		existingNormalized, err1 := structure.NormalizeJsonString(existingPolicy)
-		actualNormalized, err2 := structure.NormalizeJsonString(actualPolicyText)
-
-		if err1 == nil && err2 == nil && existingNormalized == actualNormalized {
-			// Normalized JSON matches - keep the user's original formatting
-			data.Policy = types.StringValue(existingPolicy)
-			data.Name = types.StringValue(data.ID.ValueString())
-			return diags
-		}
-		// If normalization failed or doesn't match, still keep user's formatting to avoid unnecessary diffs
-		// The MinIO API may reorder arrays, but the policy is semantically equivalent
-		data.Policy = types.StringValue(existingPolicy)
-		data.Name = types.StringValue(data.ID.ValueString())
-		return diags
-	}
-
 	data.Policy = types.StringValue(actualPolicyText)
 	data.Name = types.StringValue(data.ID.ValueString())
 

@@ -190,6 +190,9 @@ func (r *iamUserResource) Create(ctx context.Context, req resource.CreateRequest
 		data.Secret = types.StringValue(secretKey)
 	}
 
+	// Clear write-only secret before setting state
+	data.SecretWO = types.StringNull()
+
 	// Disable user if requested
 	if data.DisableUser.ValueBool() {
 		err = r.client.S3Admin.SetUserStatus(ctx, accessKey, madmin.AccountDisabled)
@@ -317,6 +320,9 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			data.Secret = types.StringValue(wantedSecret)
 		}
 	}
+
+	// Clear write-only secret before setting state
+	data.SecretWO = types.StringNull()
 
 	// Read final state
 	resp.Diagnostics.Append(r.read(ctx, &data)...)

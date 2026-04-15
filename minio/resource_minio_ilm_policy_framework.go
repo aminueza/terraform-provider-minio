@@ -183,6 +183,7 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 						},
 						"filter": schema.StringAttribute{
 							Optional:    true,
+							Computed:    true,
 							Description: "Filter prefix for the rule.",
 						},
 						"tags": schema.MapAttribute{

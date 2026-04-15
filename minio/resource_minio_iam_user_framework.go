@@ -224,6 +224,13 @@ func (r *iamUserResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	// If ID is null after read (user was deleted externally), don't set state
+	// This allows the framework to handle external deletion correctly
+	if data.ID.IsNull() {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

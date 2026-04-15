@@ -712,7 +712,7 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 		}
 
 		status := types.StringValue(rule.Status)
-		if rule.Status == "" || rule.Status == "Enabled" {
+		if rule.Status == "" {
 			status = types.StringNull()
 		}
 

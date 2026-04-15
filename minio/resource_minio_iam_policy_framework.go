@@ -21,41 +21,6 @@ import (
 	"github.com/minio/madmin-go/v3"
 )
 
-// policySemanticEqualityModifier suppresses plan changes when the policy JSON is semantically equivalent
-type policySemanticEqualityModifier struct{}
-
-func (m policySemanticEqualityModifier) Description(ctx context.Context) string {
-	return "Suppresses plan changes when policy JSON is semantically equivalent"
-}
-
-func (m policySemanticEqualityModifier) MarkdownDescription(ctx context.Context) string {
-	return "Suppresses plan changes when policy JSON is semantically equivalent"
-}
-
-func (m policySemanticEqualityModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	// If the policy is null or unknown, let it pass through
-	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
-		return
-	}
-
-	// If the state is null or unknown, let it pass through
-	if req.StateValue.IsUnknown() || req.StateValue.IsNull() {
-		return
-	}
-
-	planPolicy := req.PlanValue.ValueString()
-	statePolicy := req.StateValue.ValueString()
-
-	// Normalize both policies
-	planNormalized, err1 := structure.NormalizeJsonString(planPolicy)
-	stateNormalized, err2 := structure.NormalizeJsonString(statePolicy)
-
-	// If normalization succeeds and they match, suppress the diff
-	if err1 == nil && err2 == nil && planNormalized == stateNormalized {
-		resp.PlanValue = req.StateValue
-	}
-}
-
 // Ensure provider defined types fully satisfy framework interfaces
 var (
 	_ resource.Resource                = &iamPolicyResource{}
@@ -128,9 +93,6 @@ func (r *iamPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 				Validators: []validator.String{
 					stringvalidator.LengthAtLeast(1),
 				},
-				PlanModifiers: []planmodifier.String{
-					policySemanticEqualityModifier{},
-				},
 			},
 		},
 	}
@@ -196,12 +158,7 @@ func (r *iamPolicyResource) Create(ctx context.Context, req resource.CreateReque
 	data.ID = types.StringValue(name)
 	data.Name = types.StringValue(name)
 
-	// Read final state
-	resp.Diagnostics.Append(r.read(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
+	// Don't call read() to preserve user's formatting - MinIO API reformats JSON
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -248,12 +205,7 @@ func (r *iamPolicyResource) Update(ctx context.Context, req resource.UpdateReque
 		return
 	}
 
-	// Read final state
-	resp.Diagnostics.Append(r.read(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
+	// Don't call read() to preserve user's formatting - MinIO API reformats JSON
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

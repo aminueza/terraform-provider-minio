@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"log"
 	"path"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/replication"
+	"github.com/minio/minio-go/v7/pkg/s3utils"
 )
 
 var (
@@ -278,6 +280,7 @@ func (r *bucketReplicationResource) readReplication(ctx context.Context, model *
 
 	model.Rules = rules
 	model.ID = model.Bucket
+	model.LastResyncID = types.StringValue("")
 
 	return diags
 }
@@ -332,6 +335,7 @@ func (r *bucketReplicationResource) flattenReplicationRule(ctx context.Context, 
 	ruleModel := replicationRuleModel{}
 
 	ruleModel.ID = types.StringValue(rule.ID)
+	ruleModel.Arn = types.StringValue(rule.Destination.Bucket)
 
 	if rule.Status == "Enabled" {
 		ruleModel.Enabled = types.BoolValue(true)
@@ -369,6 +373,8 @@ func (r *bucketReplicationResource) flattenReplicationRule(ctx context.Context, 
 			return types.ObjectNull(replicationRuleObjectType.AttrTypes), diags
 		}
 		ruleModel.Tags = tagsObj
+	} else {
+		ruleModel.Tags = types.MapNull(types.StringType)
 	}
 
 	if rule.DeleteReplication.Status == "Enabled" {
@@ -472,7 +478,8 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 
 	targetModel.Region = types.StringValue(targetTarget.Region)
 	targetModel.AccessKey = types.StringValue(targetTarget.Credentials.AccessKey)
-	targetModel.SecretKey = types.StringNull()
+	// Set secret_key to empty string when reading from API - user must re-provide to change
+	targetModel.SecretKey = types.StringValue("")
 
 	obj, d := types.ObjectValue(replicationTargetObjectType.AttrTypes, map[string]attr.Value{
 		"bucket":              targetModel.Bucket,
@@ -504,8 +511,6 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 }
 
 func (r *bucketReplicationResource) applyReplication(ctx context.Context, model *bucketReplicationResourceModel) error {
-	var rules []replication.Rule
-
 	if model.Rules.IsNull() || model.Rules.IsUnknown() {
 		return nil
 	}
@@ -520,16 +525,33 @@ func (r *bucketReplicationResource) applyReplication(ctx context.Context, model 
 	admClient := r.client.S3Admin
 	bucket := model.Bucket.ValueString()
 
+	// Set remote targets first and collect ARNs
+	arns := make([]string, len(ruleModels))
+	targets := make([]madmin.BucketTarget, len(ruleModels))
 	for i, ruleModel := range ruleModels {
-		rule, target, err := r.expandReplicationRule(ctx, &ruleModel, i)
+		_, target, err := r.expandReplicationRule(ctx, &ruleModel, i)
 		if err != nil {
 			return fmt.Errorf("failed to expand rule %d: %w", i, err)
 		}
-		rules = append(rules, rule)
+		targets[i] = target
 
-		if err := r.ensureRemoteTarget(ctx, admClient, bucket, &target); err != nil {
-			return fmt.Errorf("failed to create remote target for rule %d: %w", i, err)
+		arn, err := r.setRemoteTarget(ctx, admClient, bucket, &target)
+		if err != nil {
+			return fmt.Errorf("failed to set remote target for rule %d: %w", i, err)
 		}
+		arns[i] = arn
+	}
+
+	// Now build rules with ARNs
+	var rules []replication.Rule
+	for i, ruleModel := range ruleModels {
+		rule, _, err := r.expandReplicationRule(ctx, &ruleModel, i)
+		if err != nil {
+			return fmt.Errorf("failed to expand rule %d: %w", i, err)
+		}
+		// Use the ARN from the remote target as the destination bucket
+		rule.Destination.Bucket = arns[i]
+		rules = append(rules, rule)
 	}
 
 	config := replication.Config{
@@ -617,6 +639,13 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 
 		if len(targetModels) > 0 {
 			t := targetModels[0]
+
+			err := s3utils.CheckValidBucketName(t.Bucket.ValueString())
+			if err != nil {
+				log.Printf("[WARN] Invalid bucket name for %q: %v", t.Bucket.ValueString(), err)
+				return replication.Rule{}, madmin.BucketTarget{}, fmt.Errorf("invalid bucket name %q: %w", t.Bucket.ValueString(), err)
+			}
+
 			rule.Destination.Bucket = t.Bucket.ValueString()
 
 			if !t.StorageClass.IsNull() && !t.StorageClass.IsUnknown() {
@@ -672,28 +701,34 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 	return rule, target, nil
 }
 
-func (r *bucketReplicationResource) ensureRemoteTarget(ctx context.Context, admClient *madmin.AdminClient, bucket string, target *madmin.BucketTarget) error {
+func (r *bucketReplicationResource) setRemoteTarget(ctx context.Context, admClient *madmin.AdminClient, bucket string, target *madmin.BucketTarget) (string, error) {
 	if target.TargetBucket == "" {
-		return nil
+		return "", nil
 	}
 
 	existingTargets, err := admClient.ListRemoteTargets(ctx, bucket, "")
 	if err != nil {
-		return fmt.Errorf("failed to list remote targets: %w", err)
+		return "", fmt.Errorf("failed to list remote targets: %w", err)
 	}
 
 	for _, existing := range existingTargets {
 		if existing.Endpoint == target.Endpoint && existing.TargetBucket == target.TargetBucket {
-			return nil
+			// Return existing ARN if target already exists
+			return existing.Arn, nil
 		}
 	}
 
-	_, err = admClient.SetRemoteTarget(ctx, bucket, target)
+	arn, err := admClient.SetRemoteTarget(ctx, bucket, target)
 	if err != nil {
-		return fmt.Errorf("failed to set remote target: %w", err)
+		return "", fmt.Errorf("failed to set remote target: %w", err)
 	}
 
-	return nil
+	return arn, nil
+}
+
+func (r *bucketReplicationResource) ensureRemoteTarget(ctx context.Context, admClient *madmin.AdminClient, bucket string, target *madmin.BucketTarget) error {
+	_, err := r.setRemoteTarget(ctx, admClient, bucket, target)
+	return err
 }
 
 func (r *bucketReplicationResource) deleteReplication(ctx context.Context, model *bucketReplicationResourceModel) error {

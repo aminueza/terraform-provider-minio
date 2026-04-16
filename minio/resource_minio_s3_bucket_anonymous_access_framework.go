@@ -23,6 +23,39 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
+type normalizeJSONPlanModifier struct{}
+
+func (m normalizeJSONPlanModifier) Description(ctx context.Context) string {
+	return "Normalizes JSON policy strings for consistent comparison"
+}
+
+func (m normalizeJSONPlanModifier) MarkdownDescription(ctx context.Context) string {
+	return "Normalizes JSON policy strings for consistent comparison"
+}
+
+func (m normalizeJSONPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
+		return
+	}
+
+	policyStr := req.PlanValue.ValueString()
+	if policyStr == "" {
+		return
+	}
+
+	var v interface{}
+	if err := json.Unmarshal([]byte(policyStr), &v); err != nil {
+		return
+	}
+
+	normalized, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+
+	resp.PlanValue = types.StringValue(string(normalized))
+}
+
 var (
 	_ resource.Resource                = &minioS3BucketAnonymousAccessResource{}
 	_ resource.ResourceWithConfigure   = &minioS3BucketAnonymousAccessResource{}
@@ -77,8 +110,11 @@ func (r *minioS3BucketAnonymousAccessResource) Schema(ctx context.Context, req r
 				Description: "Name of the bucket",
 			},
 			"policy": schema.StringAttribute{
-				Optional:    true,
-				Computed:    true,
+				Optional: true,
+				Computed: true,
+				PlanModifiers: []planmodifier.String{
+					&normalizeJSONPlanModifier{},
+				},
 				Description: "Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.",
 			},
 			"access_type": schema.StringAttribute{
@@ -188,14 +224,8 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		}
 	}
 
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-
 	state.ID = types.StringValue(bucketName)
-	state.Policy = types.StringValue(normalizedPolicy)
+	state.Policy = types.StringValue(policy)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
 	}

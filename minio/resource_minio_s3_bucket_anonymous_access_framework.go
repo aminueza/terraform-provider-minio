@@ -365,61 +365,6 @@ func (r *minioS3BucketAnonymousAccessResource) marshalPolicy(policyStruct Bucket
 	return string(policyJSON), nil
 }
 
-func (r *minioS3BucketAnonymousAccessResource) normalizeJSON(jsonStr string) (string, error) {
-	var v interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &v); err != nil {
-		return "", err
-	}
-	normalized := normalizeValue(v)
-	normalizedBytes, err := json.Marshal(normalized)
-	if err != nil {
-		return "", err
-	}
-	return string(normalizedBytes), nil
-}
-
-func normalizeValue(v interface{}) interface{} {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		// Sort map keys
-		sortedMap := make(map[string]interface{})
-		keys := make([]string, 0, len(val))
-		for k := range val {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			sortedMap[k] = normalizeValue(val[k])
-		}
-		return sortedMap
-	case []interface{}:
-		// Recursively normalize array elements
-		normalized := make([]interface{}, len(val))
-		for i, item := range val {
-			normalized[i] = normalizeValue(item)
-		}
-		// Sort array elements if they are strings
-		allStrings := true
-		for _, item := range normalized {
-			if _, ok := item.(string); !ok {
-				allStrings = false
-				break
-			}
-		}
-		if allStrings {
-			stringSlice := make([]string, len(normalized))
-			for i, item := range normalized {
-				stringSlice[i] = item.(string)
-			}
-			sort.Strings(stringSlice)
-			return stringSlice
-		}
-		return normalized
-	default:
-		return v
-	}
-}
-
 func (r *minioS3BucketAnonymousAccessResource) getAccessTypeFromPolicy(policy, bucketName string) (string, error) {
 	publicPolicy, _ := r.marshalPolicy(publicPolicy(bucketName))
 	readOnlyPolicy, _ := r.marshalPolicy(readOnlyPolicy(bucketName))

@@ -38,16 +38,6 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				return fmt.Errorf("one of client_secret or client_secret_wo must be provided")
 			}
 
-			_, hasVersionWO := d.GetOk("client_secret_wo_version")
-			if hasSecretWO && !hasVersionWO {
-				return fmt.Errorf("client_secret_wo_version must be provided when client_secret_wo is set")
-			}
-
-			hasSecretWOVersionChange := d.HasChange("client_secret_wo_version") && hasVersionWO
-			if hasSecretWOVersionChange && !hasSecretWO {
-				return fmt.Errorf("client_secret_wo must be provided when client_secret_wo_version changes")
-			}
-
 			return nil
 		},
 		Schema: map[string]*schema.Schema{

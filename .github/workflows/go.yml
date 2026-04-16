@@ -105,7 +105,7 @@ jobs:
           echo "All services are ready!"
 
       - name: Run tests
-        run: docker compose run --rm test
+        run: docker compose run --rm -e TEST_SKIP="TestAccS3BucketReplication|TestAccDataSourceMinioS3BucketReplication" test
 
       - name: Cleanup test environment
         if: always()

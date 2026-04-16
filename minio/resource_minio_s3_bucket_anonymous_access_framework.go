@@ -188,8 +188,14 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		}
 	}
 
+	normalizedPolicy, err := r.normalizeJSON(policy)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+		return
+	}
+
 	state.ID = types.StringValue(bucketName)
-	state.Policy = types.StringValue(policy)
+	state.Policy = types.StringValue(normalizedPolicy)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
 	}
@@ -363,6 +369,43 @@ func (r *minioS3BucketAnonymousAccessResource) marshalPolicy(policyStruct Bucket
 		return "", err
 	}
 	return string(policyJSON), nil
+}
+
+func (r *minioS3BucketAnonymousAccessResource) normalizeJSON(jsonStr string) (string, error) {
+	var v interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &v); err != nil {
+		return "", err
+	}
+	normalized := normalizeValue(v)
+	normalizedBytes, err := json.Marshal(normalized)
+	if err != nil {
+		return "", err
+	}
+	return string(normalizedBytes), nil
+}
+
+func normalizeValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		sortedMap := make(map[string]interface{})
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			sortedMap[k] = normalizeValue(val[k])
+		}
+		return sortedMap
+	case []interface{}:
+		normalized := make([]interface{}, len(val))
+		for i, item := range val {
+			normalized[i] = normalizeValue(item)
+		}
+		return normalized
+	default:
+		return v
+	}
 }
 
 func (r *minioS3BucketAnonymousAccessResource) getAccessTypeFromPolicy(policy, bucketName string) (string, error) {

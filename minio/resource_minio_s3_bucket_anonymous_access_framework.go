@@ -136,13 +136,7 @@ func (r *minioS3BucketAnonymousAccessResource) Create(ctx context.Context, req r
 
 	plan.ID = types.StringValue(bucketName)
 
-	// Normalize policy in state for consistency
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-	plan.Policy = types.StringValue(normalizedPolicy)
+	plan.Policy = types.StringValue(policy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -194,14 +188,8 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		}
 	}
 
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-
 	state.ID = types.StringValue(bucketName)
-	state.Policy = types.StringValue(normalizedPolicy)
+	state.Policy = types.StringValue(policy)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
 	}
@@ -244,13 +232,7 @@ func (r *minioS3BucketAnonymousAccessResource) Update(ctx context.Context, req r
 
 	plan.ID = types.StringValue(bucketName)
 
-	// Normalize policy in state for consistency
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-	plan.Policy = types.StringValue(normalizedPolicy)
+	plan.Policy = types.StringValue(policy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }

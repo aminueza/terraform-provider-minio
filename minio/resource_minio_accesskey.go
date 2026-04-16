@@ -44,8 +44,6 @@ func resourceMinioAccessKey() *schema.Resource {
 				version = strings.TrimSpace(versionRaw.(string))
 			}
 
-			_, hasVersionWO := d.GetOk("secret_key_wo_version")
-
 			if secret != "" && hasSecretWO {
 				return fmt.Errorf("secret_key and secret_key_wo cannot be set together")
 			}
@@ -53,11 +51,6 @@ func resourceMinioAccessKey() *schema.Resource {
 			// Enforce that when secret_key is set, secret_key_version must be provided
 			if secret != "" && (!hasVersion || version == "") {
 				return fmt.Errorf("secret_key_version must be provided when secret_key is set")
-			}
-
-			// Enforce that when secret_key_wo is set, secret_key_wo_version must be provided
-			if hasSecretWO && !hasVersionWO {
-				return fmt.Errorf("secret_key_wo_version must be provided when secret_key_wo is set")
 			}
 
 			hasSecretVersionChange := d.HasChange("secret_key_version") && version != ""
@@ -72,11 +65,6 @@ func resourceMinioAccessKey() *schema.Resource {
 				if secret == "" && secretKeyAttr.IsNull() {
 					return fmt.Errorf("secret_key must be provided when secret_key_version changes")
 				}
-			}
-
-			hasSecretWOVersionChange := d.HasChange("secret_key_wo_version") && hasVersionWO
-			if hasSecretWOVersionChange && !hasSecretWO {
-				return fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes")
 			}
 
 			return nil

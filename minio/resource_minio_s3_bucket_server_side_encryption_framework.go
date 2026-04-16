@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -68,6 +69,11 @@ func (r *bucketEncryptionResource) Schema(ctx context.Context, req resource.Sche
 			"kms_key_id": schema.StringAttribute{
 				Description: "KMS key id to use for SSE-KMS encryption. Required when encryption_type is `aws:kms`, ignored for `AES256`.",
 				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString(""),
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
@@ -99,7 +105,7 @@ func (r *bucketEncryptionResource) Create(ctx context.Context, req resource.Crea
 	}
 
 	// Validate kms_key_id is required for aws:kms
-	if data.EncryptionType.ValueString() == "aws:kms" && data.KMSKeyID.IsNull() {
+	if data.EncryptionType.ValueString() == "aws:kms" && (data.KMSKeyID.IsNull() || data.KMSKeyID.ValueString() == "") {
 		resp.Diagnostics.AddError(
 			"Missing required attribute",
 			"kms_key_id is required when encryption_type is \"aws:kms\"",
@@ -147,7 +153,7 @@ func (r *bucketEncryptionResource) Update(ctx context.Context, req resource.Upda
 	}
 
 	// Validate kms_key_id is required for aws:kms
-	if data.EncryptionType.ValueString() == "aws:kms" && data.KMSKeyID.IsNull() {
+	if data.EncryptionType.ValueString() == "aws:kms" && (data.KMSKeyID.IsNull() || data.KMSKeyID.ValueString() == "") {
 		resp.Diagnostics.AddError(
 			"Missing required attribute",
 			"kms_key_id is required when encryption_type is \"aws:kms\"",
@@ -236,7 +242,12 @@ func (r *bucketEncryptionResource) read(ctx context.Context, data *bucketEncrypt
 	}
 
 	data.EncryptionType = types.StringValue(encryptionConfig.Rules[0].Apply.SSEAlgorithm)
-	data.KMSKeyID = types.StringValue(encryptionConfig.Rules[0].Apply.KmsMasterKeyID)
+	// Set kms_key_id to empty string when not set (for AES256), or the actual key ID for KMS
+	if encryptionConfig.Rules[0].Apply.KmsMasterKeyID != "" {
+		data.KMSKeyID = types.StringValue(encryptionConfig.Rules[0].Apply.KmsMasterKeyID)
+	} else {
+		data.KMSKeyID = types.StringValue("")
+	}
 
 	if data.ID.IsNull() {
 		data.ID = data.Bucket

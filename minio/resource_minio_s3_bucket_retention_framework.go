@@ -268,14 +268,22 @@ func (r *bucketRetentionResource) read(ctx context.Context, data *bucketRetentio
 		return diags
 	}
 	if !exists {
-		data.ID = types.StringNull()
+		// Bucket doesn't exist, but keep ID for state consistency
+		data.ID = data.Bucket
+		data.Mode = types.StringNull()
+		data.Unit = types.StringNull()
+		data.ValidityPeriod = types.Int64Null()
 		return diags
 	}
 
 	mode, validity, unit, err := r.client.S3Client.GetBucketObjectLockConfig(ctx, data.Bucket.ValueString())
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
-			data.ID = types.StringNull()
+			// Object lock config doesn't exist, clear fields to trigger reapply
+			data.ID = data.Bucket
+			data.Mode = types.StringNull()
+			data.Unit = types.StringNull()
+			data.ValidityPeriod = types.Int64Null()
 			return diags
 		}
 		diags.AddError("Error reading bucket retention config", err.Error())
@@ -283,7 +291,11 @@ func (r *bucketRetentionResource) read(ctx context.Context, data *bucketRetentio
 	}
 
 	if mode == nil || validity == nil || unit == nil {
-		data.ID = types.StringNull()
+		// Object lock config is incomplete, clear fields to trigger reapply
+		data.ID = data.Bucket
+		data.Mode = types.StringNull()
+		data.Unit = types.StringNull()
+		data.ValidityPeriod = types.Int64Null()
 		return diags
 	}
 

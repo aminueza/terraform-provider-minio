@@ -23,9 +23,9 @@ func TestAccMinioBucketServerSideEncryption_sseS3(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSES3(bucketName),
@@ -45,9 +45,9 @@ func TestAccMinioBucketServerSideEncryption_sseKMS(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSEKMS(bucketName, "my-minio-key"),
@@ -67,9 +67,9 @@ func TestAccMinioBucketServerSideEncryption_update(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSES3(bucketName),
@@ -95,9 +95,9 @@ func TestAccMinioBucketServerSideEncryption_import(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSES3(bucketName),
@@ -119,9 +119,9 @@ func TestAccMinioBucketServerSideEncryption_updateKMStoS3(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSEKMS(bucketName, "my-minio-key"),
@@ -148,9 +148,9 @@ func TestAccMinioBucketServerSideEncryption_importKMS(t *testing.T) {
 	resourceName := "minio_s3_bucket_server_side_encryption.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketEncryptionSSEKMS(bucketName, "my-minio-key"),
@@ -173,9 +173,9 @@ func TestAccMinioBucketServerSideEncryption_invalidType(t *testing.T) {
 	bucketName := "tfacc-sse-inv-" + acctest.RandString(8)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -190,7 +190,7 @@ resource "minio_s3_bucket_server_side_encryption" "test" {
   encryption_type = "invalid"
 }
 `, bucketName),
-				ExpectError: regexp.MustCompile(`expected encryption_type to be one of \["aws:kms" "AES256"\]`),
+				ExpectError: regexp.MustCompile(`Attribute encryption_type value must be one of: \["aws:kms" "AES256"\]`),
 			},
 		},
 	})
@@ -200,9 +200,9 @@ func TestAccMinioBucketServerSideEncryption_kmsWithoutKeyID(t *testing.T) {
 	bucketName := "tfacc-sse-nk-" + acctest.RandString(8)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
+		PreCheck:                 func() { testAccPreCheck(t); testAccPreCheckSSE(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioBucketEncryptionDestroy,
+		CheckDestroy:             testAccCheckMinioBucketEncryptionDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`

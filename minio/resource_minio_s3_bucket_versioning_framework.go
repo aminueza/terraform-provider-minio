@@ -207,6 +207,10 @@ func (r *bucketVersioningResource) Delete(ctx context.Context, req resource.Dele
 	// Suspend versioning
 	err := r.client.S3Client.SuspendVersioning(ctx, data.Bucket.ValueString())
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			// Bucket doesn't exist, nothing to delete
+			return
+		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "InvalidBucketState" {
 			return
@@ -297,7 +301,8 @@ func (r *bucketVersioningResource) read(ctx context.Context, data *bucketVersion
 		timeout := 2 * time.Minute
 		if err := waitForBucketReadyFramework(ctx, r.client.S3Client, data.Bucket.ValueString(), timeout); err != nil {
 			if isNoSuchBucketError(err) {
-				data.ID = types.StringNull()
+				// Bucket doesn't exist, but keep ID for state consistency
+				data.ID = data.Bucket
 				return diags
 			}
 			diags.AddError(
@@ -317,7 +322,8 @@ func (r *bucketVersioningResource) read(ctx context.Context, data *bucketVersion
 			return diags
 		}
 		if !exists {
-			data.ID = types.StringNull()
+			// Bucket doesn't exist, but keep ID for state consistency
+			data.ID = data.Bucket
 			return diags
 		}
 	}

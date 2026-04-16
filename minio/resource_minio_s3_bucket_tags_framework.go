@@ -152,6 +152,10 @@ func (r *bucketTagsResource) Delete(ctx context.Context, req resource.DeleteRequ
 
 	err := r.client.S3Client.RemoveBucketTagging(ctx, data.Bucket.ValueString())
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			// Bucket doesn't exist, nothing to delete
+			return
+		}
 		if !IsS3TaggingNotImplemented(err) {
 			resp.Diagnostics.AddError(
 				"Error removing bucket tags",
@@ -228,7 +232,8 @@ func (r *bucketTagsResource) read(ctx context.Context, data *bucketTagsResourceM
 	bucketTags, err := r.client.S3Client.GetBucketTagging(ctx, data.Bucket.ValueString())
 	if err != nil {
 		if isNoSuchBucketError(err) {
-			data.ID = types.StringNull()
+			// Bucket doesn't exist, but keep ID for state consistency
+			data.ID = data.Bucket
 			return diags
 		}
 		var minioErr minio.ErrorResponse

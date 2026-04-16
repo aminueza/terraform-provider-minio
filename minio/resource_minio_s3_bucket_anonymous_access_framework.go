@@ -23,41 +23,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-type normalizeJSONPlanModifier struct{}
-
-func (m normalizeJSONPlanModifier) Description(ctx context.Context) string {
-	return "Normalizes JSON policy strings for consistent comparison"
-}
-
-func (m normalizeJSONPlanModifier) MarkdownDescription(ctx context.Context) string {
-	return "Normalizes JSON policy strings for consistent comparison"
-}
-
-func (m normalizeJSONPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
-		return
-	}
-
-	policyStr := req.PlanValue.ValueString()
-	if policyStr == "" {
-		return
-	}
-
-	var v interface{}
-	if err := json.Unmarshal([]byte(policyStr), &v); err != nil {
-		// If it's not valid JSON, leave it as is
-		return
-	}
-
-	normalized, err := json.Marshal(v)
-	if err != nil {
-		// If marshaling fails, leave it as is
-		return
-	}
-
-	resp.PlanValue = types.StringValue(string(normalized))
-}
-
 var (
 	_ resource.Resource                = &minioS3BucketAnonymousAccessResource{}
 	_ resource.ResourceWithConfigure   = &minioS3BucketAnonymousAccessResource{}

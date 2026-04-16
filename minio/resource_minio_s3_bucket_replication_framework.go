@@ -335,7 +335,6 @@ func (r *bucketReplicationResource) flattenReplicationRule(ctx context.Context, 
 	ruleModel := replicationRuleModel{}
 
 	ruleModel.ID = types.StringValue(rule.ID)
-	ruleModel.Arn = types.StringValue(rule.Destination.Bucket)
 
 	if rule.Status == "Enabled" {
 		ruleModel.Enabled = types.BoolValue(true)
@@ -724,11 +723,6 @@ func (r *bucketReplicationResource) setRemoteTarget(ctx context.Context, admClie
 	}
 
 	return arn, nil
-}
-
-func (r *bucketReplicationResource) ensureRemoteTarget(ctx context.Context, admClient *madmin.AdminClient, bucket string, target *madmin.BucketTarget) error {
-	_, err := r.setRemoteTarget(ctx, admClient, bucket, target)
-	return err
 }
 
 func (r *bucketReplicationResource) deleteReplication(ctx context.Context, model *bucketReplicationResourceModel) error {

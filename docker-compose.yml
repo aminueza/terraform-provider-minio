@@ -15,7 +15,20 @@ services:
     ports:
       - "1389:389"
     healthcheck:
-      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost:389", "-b", "dc=example,dc=com", "-D", "cn=admin,dc=example,dc=com", "-w", "adminpassword"]
+      test:
+        [
+          "CMD",
+          "ldapsearch",
+          "-x",
+          "-H",
+          "ldap://localhost:389",
+          "-b",
+          "dc=example,dc=com",
+          "-D",
+          "cn=admin,dc=example,dc=com",
+          "-w",
+          "adminpassword",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10

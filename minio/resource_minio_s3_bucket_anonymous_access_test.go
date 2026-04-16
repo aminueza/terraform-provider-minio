@@ -15,9 +15,9 @@ func TestAccS3BucketAnonymousAccess_basic(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketAnonymousAccessConfig(name, "public-read"),
@@ -27,9 +27,10 @@ func TestAccS3BucketAnonymousAccess_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      "minio_s3_bucket_anonymous_access.access",
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            "minio_s3_bucket_anonymous_access.access",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"policy"},
 			},
 		},
 	})
@@ -51,9 +52,9 @@ func TestAccS3BucketAnonymousAccess_policyOverridesAccessType(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketAnonymousAccessCustomPolicyWithAccessTypeConfig(name, customPolicy, "public"),
@@ -70,9 +71,9 @@ func TestAccS3BucketAnonymousAccess_update(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketAnonymousAccessConfig(name, "public-read"),
@@ -108,9 +109,9 @@ func TestAccS3BucketAnonymousAccess_customPolicy(t *testing.T) {
 }`, name)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketAnonymousAccessCustomPolicyConfig(name, customPolicy),

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
@@ -18,43 +19,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/policy"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
-
-type normalizeJSONPlanModifier struct{}
-
-func (m normalizeJSONPlanModifier) Description(ctx context.Context) string {
-	return "Normalizes JSON policy strings for consistent comparison"
-}
-
-func (m normalizeJSONPlanModifier) MarkdownDescription(ctx context.Context) string {
-	return "Normalizes JSON policy strings for consistent comparison"
-}
-
-func (m normalizeJSONPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
-		return
-	}
-
-	policyStr := req.PlanValue.ValueString()
-	if policyStr == "" {
-		return
-	}
-
-	var v interface{}
-	if err := json.Unmarshal([]byte(policyStr), &v); err != nil {
-		return
-	}
-
-	normalized, err := json.Marshal(v)
-	if err != nil {
-		return
-	}
-
-	resp.PlanValue = types.StringValue(string(normalized))
-}
 
 var (
 	_ resource.Resource                = &minioS3BucketAnonymousAccessResource{}
@@ -110,11 +79,8 @@ func (r *minioS3BucketAnonymousAccessResource) Schema(ctx context.Context, req r
 				Description: "Name of the bucket",
 			},
 			"policy": schema.StringAttribute{
-				Optional: true,
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					&normalizeJSONPlanModifier{},
-				},
+				Optional:    true,
+				Computed:    true,
 				Description: "Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.",
 			},
 			"access_type": schema.StringAttribute{
@@ -171,7 +137,6 @@ func (r *minioS3BucketAnonymousAccessResource) Create(ctx context.Context, req r
 	}
 
 	plan.ID = types.StringValue(bucketName)
-
 	plan.Policy = types.StringValue(policy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -205,7 +170,8 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 	}
 
 	// If accessType is empty, the anonymous access policy was likely deleted externally
-	if accessType == "" && !state.AccessType.IsNull() {
+	// But don't remove if a custom policy was provided
+	if accessType == "" && !state.AccessType.IsNull() && (state.Policy.IsNull() || state.Policy.ValueString() == "") {
 		tflog.Warn(ctx, fmt.Sprintf("Anonymous access policy for bucket %s no longer exists, removing from state", bucketName))
 		resp.State.RemoveResource(ctx)
 		return
@@ -213,19 +179,56 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 
 	if accessType != "" {
 		if !state.AccessType.IsNull() && state.AccessType.ValueString() == accessType {
-			canonical, err := r.canonicalPolicyForAccessType(accessType, bucketName)
-			if err != nil {
-				resp.Diagnostics.AddError("Building canonical anonymous access policy", err.Error())
-				return
-			}
-			if canonical != "" {
-				policy = canonical
+			// Only use canonical policy if no custom policy was provided
+			if state.Policy.IsNull() || state.Policy.ValueString() == "" {
+				canonical, err := r.canonicalPolicyForAccessType(accessType, bucketName)
+				if err != nil {
+					resp.Diagnostics.AddError("Building canonical anonymous access policy", err.Error())
+					return
+				}
+				if canonical != "" {
+					policy = canonical
+				}
 			}
 		}
 	}
 
+	// Compare policies and choose appropriate one for state consistency
+	existingPolicy := state.Policy.ValueString()
+	var policyToUse string
+
+	if existingPolicy == "" || strings.TrimSpace(existingPolicy) == "" {
+		// If no existing policy, use the API policy and normalize it
+		normalized, err := structure.NormalizeJsonString(policy)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+			return
+		}
+		policyToUse = normalized
+	} else {
+		// Check if policies are equivalent
+		equivalent, err := awspolicy.PoliciesAreEquivalent(existingPolicy, policy)
+		if err != nil {
+			resp.Diagnostics.AddError("Error comparing policies", err.Error())
+			return
+		}
+
+		if equivalent {
+			// If equivalent, use existing policy as-is for state consistency
+			policyToUse = existingPolicy
+		} else {
+			// If not equivalent, use the new policy from API and normalize it
+			normalized, err := structure.NormalizeJsonString(policy)
+			if err != nil {
+				resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+				return
+			}
+			policyToUse = normalized
+		}
+	}
+
 	state.ID = types.StringValue(bucketName)
-	state.Policy = types.StringValue(policy)
+	state.Policy = types.StringValue(policyToUse)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
 	}
@@ -267,7 +270,6 @@ func (r *minioS3BucketAnonymousAccessResource) Update(ctx context.Context, req r
 	}
 
 	plan.ID = types.StringValue(bucketName)
-
 	plan.Policy = types.StringValue(policy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
@@ -399,43 +401,6 @@ func (r *minioS3BucketAnonymousAccessResource) marshalPolicy(policyStruct Bucket
 		return "", err
 	}
 	return string(policyJSON), nil
-}
-
-func (r *minioS3BucketAnonymousAccessResource) normalizeJSON(jsonStr string) (string, error) {
-	var v interface{}
-	if err := json.Unmarshal([]byte(jsonStr), &v); err != nil {
-		return "", err
-	}
-	normalized := normalizeValue(v)
-	normalizedBytes, err := json.Marshal(normalized)
-	if err != nil {
-		return "", err
-	}
-	return string(normalizedBytes), nil
-}
-
-func normalizeValue(v interface{}) interface{} {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		sortedMap := make(map[string]interface{})
-		keys := make([]string, 0, len(val))
-		for k := range val {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			sortedMap[k] = normalizeValue(val[k])
-		}
-		return sortedMap
-	case []interface{}:
-		normalized := make([]interface{}, len(val))
-		for i, item := range val {
-			normalized[i] = normalizeValue(item)
-		}
-		return normalized
-	default:
-		return v
-	}
 }
 
 func (r *minioS3BucketAnonymousAccessResource) getAccessTypeFromPolicy(policy, bucketName string) (string, error) {

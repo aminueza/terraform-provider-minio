@@ -628,7 +628,7 @@ func TestAccILMPolicy_mutuallyExclusiveExpirationAttributes(t *testing.T) {
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioILMPolicyConfigMutuallyExclusive(name),
-				ExpectError: regexp.MustCompile(`'expiration' and 'expired_object_delete_marker' are mutually exclusive`),
+				ExpectError: regexp.MustCompile(`rule\[0\]: 'expiration' and 'expired_object_delete_marker' are mutually\s+exclusive`),
 			},
 		},
 	})

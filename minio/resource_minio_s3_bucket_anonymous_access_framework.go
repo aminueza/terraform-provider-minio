@@ -23,6 +23,41 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
+type normalizeJSONPlanModifier struct{}
+
+func (m normalizeJSONPlanModifier) Description(ctx context.Context) string {
+	return "Normalizes JSON policy strings for consistent comparison"
+}
+
+func (m normalizeJSONPlanModifier) MarkdownDescription(ctx context.Context) string {
+	return "Normalizes JSON policy strings for consistent comparison"
+}
+
+func (m normalizeJSONPlanModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if req.PlanValue.IsUnknown() || req.PlanValue.IsNull() {
+		return
+	}
+
+	policyStr := req.PlanValue.ValueString()
+	if policyStr == "" {
+		return
+	}
+
+	var v interface{}
+	if err := json.Unmarshal([]byte(policyStr), &v); err != nil {
+		// If it's not valid JSON, leave it as is
+		return
+	}
+
+	normalized, err := json.Marshal(v)
+	if err != nil {
+		// If marshaling fails, leave it as is
+		return
+	}
+
+	resp.PlanValue = types.StringValue(string(normalized))
+}
+
 var (
 	_ resource.Resource                = &minioS3BucketAnonymousAccessResource{}
 	_ resource.ResourceWithConfigure   = &minioS3BucketAnonymousAccessResource{}
@@ -117,17 +152,9 @@ func (r *minioS3BucketAnonymousAccessResource) Create(ctx context.Context, req r
 		return
 	}
 
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-
-	plan.Policy = types.StringValue(normalizedPolicy)
-
 	accessType := plan.AccessType.ValueString()
 	if accessType == "" {
-		accessType, err = r.getAccessTypeFromPolicy(normalizedPolicy, bucketName)
+		accessType, err = r.getAccessTypeFromPolicy(policy, bucketName)
 		if err != nil {
 			resp.Diagnostics.AddError("Determining access_type", err.Error())
 			return
@@ -137,12 +164,20 @@ func (r *minioS3BucketAnonymousAccessResource) Create(ctx context.Context, req r
 		}
 	}
 
-	if err := r.putBucketPolicy(ctx, bucketName, normalizedPolicy); err != nil {
+	if err := r.putBucketPolicy(ctx, bucketName, policy); err != nil {
 		resp.Diagnostics.AddError("Setting bucket policy", err.Error())
 		return
 	}
 
 	plan.ID = types.StringValue(bucketName)
+
+	// Normalize policy in state for consistency
+	normalizedPolicy, err := r.normalizeJSON(policy)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+		return
+	}
+	plan.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -194,8 +229,14 @@ func (r *minioS3BucketAnonymousAccessResource) Read(ctx context.Context, req res
 		}
 	}
 
+	normalizedPolicy, err := r.normalizeJSON(policy)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+		return
+	}
+
 	state.ID = types.StringValue(bucketName)
-	state.Policy = types.StringValue(policy)
+	state.Policy = types.StringValue(normalizedPolicy)
 	if accessType != "" {
 		state.AccessType = types.StringValue(accessType)
 	}
@@ -219,17 +260,9 @@ func (r *minioS3BucketAnonymousAccessResource) Update(ctx context.Context, req r
 		return
 	}
 
-	normalizedPolicy, err := r.normalizeJSON(policy)
-	if err != nil {
-		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
-		return
-	}
-
-	plan.Policy = types.StringValue(normalizedPolicy)
-
 	accessType := plan.AccessType.ValueString()
 	if accessType == "" {
-		accessType, err = r.getAccessTypeFromPolicy(normalizedPolicy, bucketName)
+		accessType, err = r.getAccessTypeFromPolicy(policy, bucketName)
 		if err != nil {
 			resp.Diagnostics.AddError("Determining access_type", err.Error())
 			return
@@ -239,12 +272,20 @@ func (r *minioS3BucketAnonymousAccessResource) Update(ctx context.Context, req r
 		}
 	}
 
-	if err := r.putBucketPolicy(ctx, bucketName, normalizedPolicy); err != nil {
+	if err := r.putBucketPolicy(ctx, bucketName, policy); err != nil {
 		resp.Diagnostics.AddError("Setting bucket policy", err.Error())
 		return
 	}
 
 	plan.ID = types.StringValue(bucketName)
+
+	// Normalize policy in state for consistency
+	normalizedPolicy, err := r.normalizeJSON(policy)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to normalize policy JSON", err.Error())
+		return
+	}
+	plan.Policy = types.StringValue(normalizedPolicy)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -382,11 +423,54 @@ func (r *minioS3BucketAnonymousAccessResource) normalizeJSON(jsonStr string) (st
 	if err := json.Unmarshal([]byte(jsonStr), &v); err != nil {
 		return "", err
 	}
-	normalized, err := json.Marshal(v)
+	normalized := normalizeValue(v)
+	normalizedBytes, err := json.Marshal(normalized)
 	if err != nil {
 		return "", err
 	}
-	return string(normalized), nil
+	return string(normalizedBytes), nil
+}
+
+func normalizeValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		// Sort map keys
+		sortedMap := make(map[string]interface{})
+		keys := make([]string, 0, len(val))
+		for k := range val {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			sortedMap[k] = normalizeValue(val[k])
+		}
+		return sortedMap
+	case []interface{}:
+		// Recursively normalize array elements
+		normalized := make([]interface{}, len(val))
+		for i, item := range val {
+			normalized[i] = normalizeValue(item)
+		}
+		// Sort array elements if they are strings
+		allStrings := true
+		for _, item := range normalized {
+			if _, ok := item.(string); !ok {
+				allStrings = false
+				break
+			}
+		}
+		if allStrings {
+			stringSlice := make([]string, len(normalized))
+			for i, item := range normalized {
+				stringSlice[i] = item.(string)
+			}
+			sort.Strings(stringSlice)
+			return stringSlice
+		}
+		return normalized
+	default:
+		return v
+	}
 }
 
 func (r *minioS3BucketAnonymousAccessResource) getAccessTypeFromPolicy(policy, bucketName string) (string, error) {

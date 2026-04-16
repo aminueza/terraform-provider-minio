@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
@@ -107,6 +108,8 @@ func (r *ilmPolicyResource) Schema(ctx context.Context, req resource.SchemaReque
 						},
 						"expiration": schema.StringAttribute{
 							Optional:    true,
+							Computed:    true,
+							Default:     stringdefault.StaticString(""),
 							Description: "Expiration date or days (e.g., '2022-01-01' or '30d').",
 						},
 						"expired_object_delete_marker": schema.BoolAttribute{
@@ -771,8 +774,5 @@ func (r *ilmPolicyResource) readILMPolicy(ctx context.Context, data *ilmPolicyRe
 }
 
 func getStringOrNull(s string) types.String {
-	if s == "" {
-		return types.StringNull()
-	}
 	return types.StringValue(s)
 }

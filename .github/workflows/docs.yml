@@ -98,7 +98,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Docs are already up to date."
           else
-            git commit -m "docs: auto-generate provider documentation [skip ci]"
+            git commit -m "docs: auto-generate provider documentation"
             git push
           fi
 

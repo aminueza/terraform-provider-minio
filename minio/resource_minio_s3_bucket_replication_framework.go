@@ -409,7 +409,13 @@ func (r *bucketReplicationResource) overlaySecretKeysFromConfig(ctx context.Cont
 // "100 MB"). Without this, Terraform flags an inconsistency between plan and post-apply state.
 func (r *bucketReplicationResource) preserveBandwidthLimitFormat(ctx context.Context, config tfsdk.Config, plan *bucketReplicationResourceModel) diag.Diagnostics {
 	return r.overlayFromConfig(ctx, config, plan, func(dst, src *replicationTargetModel) bool {
+		// If config doesn't have bandwidth_limit, don't try to preserve it
 		if src.BandwidthLimit.IsNull() || src.BandwidthLimit.IsUnknown() {
+			// If config is null but destination has a value, clear it
+			if !dst.BandwidthLimit.IsNull() && !dst.BandwidthLimit.IsUnknown() {
+				dst.BandwidthLimit = types.StringNull()
+				return true
+			}
 			return false
 		}
 		if dst.BandwidthLimit.IsNull() || dst.BandwidthLimit.IsUnknown() {

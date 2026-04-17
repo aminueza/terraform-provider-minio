@@ -66,7 +66,7 @@ Use `secret_wo` with `secret_wo_version` when you do not want the provided secre
 - `secret_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the IAM user.
 - `secret_wo_version` (Number) Version identifier for secret_wo. Change this value to trigger rotation when using secret_wo.
 - `tags` (Map of String) A map of tags to assign to the user.
-- `update_secret` (Boolean) Rotate Minio User Secret Key.
+- `update_secret` (Boolean) Rotate the secret access key on next apply
 
 ### Read-Only
 

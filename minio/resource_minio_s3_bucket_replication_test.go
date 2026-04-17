@@ -746,6 +746,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
 					"resync_version",
 					"last_resync_id",
+					"rule.0.target.0.bandwidth_limit", // MinIO normalizes "100M" → "100 MB" on import; state has original form
 				},
 				Config: kOneWaySimpleResource,
 			},

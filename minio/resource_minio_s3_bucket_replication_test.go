@@ -336,7 +336,6 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
     minio_s3_bucket_versioning.my_bucket_in_b,
-    null_resource.wait_for_iam_propagation_b,
   ]
 }`
 

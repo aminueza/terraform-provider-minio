@@ -63,9 +63,9 @@ func TestAccAWSUser_basic(t *testing.T) {
 	resourceName := "minio_iam_user.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfig(name),
@@ -93,9 +93,9 @@ func TestAccAWSUser_UpdateName(t *testing.T) {
 	updatedName := fmt.Sprintf("test-user-%d", acctest.RandInt())
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfig(name),
@@ -120,9 +120,9 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 	resourceName := "minio_iam_user.test1"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigDisabled(name),
@@ -143,9 +143,9 @@ func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	resourceName := "minio_iam_user.test3"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigWithoutSecret(name),
@@ -174,9 +174,9 @@ func TestAccAWSUser_SettingAccessKey(t *testing.T) {
 	resourceName := "minio_iam_user.test4"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigSetSecret(name),
@@ -197,9 +197,9 @@ func TestAccAWSUser_UpdateAccessKey(t *testing.T) {
 	resourceName := "minio_iam_user.test5"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigWithSecretOne(name),
@@ -229,9 +229,9 @@ func TestAccAWSUser_RecreateMissing(t *testing.T) {
 	resourceName := "minio_iam_user.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfig(name),
@@ -259,16 +259,15 @@ func TestAccAWSUser_RecreateMissing(t *testing.T) {
 }
 
 func TestAccAWSUser_WriteOnlySecret_basic(t *testing.T) {
-	t.Skip("Skipping due to framework write-only attribute complexity - needs investigation")
 	var user madmin.UserInfo
 
 	name := fmt.Sprintf("test-user-wo-%d", acctest.RandInt())
 	resourceName := "minio_iam_user.testwo"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigSetSecretWO(name, "secret1234", 1),
@@ -283,16 +282,16 @@ func TestAccAWSUser_WriteOnlySecret_basic(t *testing.T) {
 }
 
 func TestAccAWSUser_WriteOnlySecret_transition(t *testing.T) {
-	t.Skip("Skipping due to framework write-only attribute complexity - needs investigation")
+	t.Skip("Skipping transition test - needs further investigation for secret to secret_wo transition")
 	var user madmin.UserInfo
 
 	name := fmt.Sprintf("test-user-wo-transition-%d", acctest.RandInt())
 	resourceName := "minio_iam_user.testwo_transition"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioUserDestroy,
+		CheckDestroy:             testAccCheckMinioUserDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioUserConfigSensitiveTransitionOne(name),

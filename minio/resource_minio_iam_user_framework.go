@@ -26,21 +26,83 @@ var (
 	_ resource.ResourceWithImportState = &iamUserResource{}
 )
 
-// secretWONullModifier sets secret_wo to null in plan when state has null
+// secretWONullModifier sets secret_wo to null in plan when secret_wo_version hasn't changed
+// This allows secret rotation to be triggered by changing secret_wo_version
 type secretWONullModifier struct{}
 
 func (m secretWONullModifier) Description(ctx context.Context) string {
-	return "Use state value for secret_wo when available to avoid diffs"
+	return "Use state value for secret_wo when secret_wo_version hasn't changed to avoid diffs"
 }
 
 func (m secretWONullModifier) MarkdownDescription(ctx context.Context) string {
-	return "Use state value for secret_wo when available to avoid diffs"
+	return "Use state value for secret_wo when secret_wo_version hasn't changed to avoid diffs"
 }
 
 func (m secretWONullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	// If state has a value (after first apply), use state value to avoid diff
-	// During first apply, state is null, so use plan value (from config)
-	if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
+	// If state is null (first apply), use plan value from config
+	if req.StateValue.IsNull() || req.StateValue.IsUnknown() {
+		return
+	}
+
+	// Get secret_wo_version from state and plan to check if it changed
+	var planData, stateData iamUserResourceModel
+	diags := req.Plan.Get(ctx, &planData)
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
+		return
+	}
+
+	diags = req.State.Get(ctx, &stateData)
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
+		return
+	}
+
+	// If secret_wo_version changed, allow the new secret_wo value to flow through
+	// This triggers secret rotation
+	if !planData.SecretWOVersion.IsUnknown() && !planData.SecretWOVersion.IsNull() &&
+		!stateData.SecretWOVersion.IsUnknown() && !stateData.SecretWOVersion.IsNull() {
+		if planData.SecretWOVersion.ValueInt64() != stateData.SecretWOVersion.ValueInt64() {
+			return
+		}
+	}
+
+	// If secret_wo_version hasn't changed, force plan value to state value (null)
+	// This suppresses spurious diffs when secret_wo is only set in state
+	resp.PlanValue = req.StateValue
+}
+
+// secretNullModifier sets secret to null when secret_wo is provided
+// This ensures that when using secret_wo, the secret field stays empty
+type secretNullModifier struct{}
+
+func (m secretNullModifier) Description(ctx context.Context) string {
+	return "Set secret to null when secret_wo is provided"
+}
+
+func (m secretNullModifier) MarkdownDescription(ctx context.Context) string {
+	return "Set secret to null when secret_wo is provided"
+}
+
+func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	// Get plan data to check if secret_wo is provided
+	var planData iamUserResourceModel
+	diags := req.Plan.Get(ctx, &planData)
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
+		return
+	}
+
+	// If secret_wo is provided in plan, force secret to empty string
+	// This handles both initial creation with secret_wo and transition from secret to secret_wo
+	if !planData.SecretWO.IsNull() && !planData.SecretWO.IsUnknown() {
+		resp.PlanValue = types.StringValue("")
+		return
+	}
+
+	// Otherwise, use state value if available to preserve computed secret
+	// Only do this if the plan value is unknown (not explicitly set)
+	if req.PlanValue.IsUnknown() && !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
 		resp.PlanValue = req.StateValue
 	}
 }
@@ -119,11 +181,15 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Computed:    true,
 				Sensitive:   true,
+				PlanModifiers: []planmodifier.String{
+					secretNullModifier{},
+				},
 			},
 			"secret_wo": schema.StringAttribute{
 				Description: "Write-only secret key for the IAM user.",
 				Optional:    true,
 				Sensitive:   true,
+				WriteOnly:   true,
 				PlanModifiers: []planmodifier.String{
 					secretWONullModifier{},
 				},
@@ -205,10 +271,16 @@ func (r *iamUserResource) Create(ctx context.Context, req resource.CreateRequest
 	// Set ID
 	data.ID = types.StringValue(accessKey)
 
-	// Set secret in state
+	// Set secret in state only when not using secret_wo
+	// When secret_wo is used, secret should be empty string
 	if !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown() {
+		// Using secret_wo, set secret to empty string
 		data.Secret = types.StringValue("")
+	} else if !data.Secret.IsNull() && !data.Secret.IsUnknown() {
+		// User provided secret, keep it as-is
+		// data.Secret already has the value
 	} else {
+		// No secret provided and not using secret_wo, set the generated secret
 		data.Secret = types.StringValue(secretKey)
 	}
 
@@ -261,8 +333,14 @@ func (r *iamUserResource) Read(ctx context.Context, req resource.ReadRequest, re
 
 func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var data iamUserResourceModel
+	var stateData iamUserResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -343,6 +421,15 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
+	// Save plan secret_wo value before clearing for transition detection
+	planHasSecretWO := !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown()
+
+	// If transitioning to secret_wo, clear secret before read so read preserves the null
+	// instead of restoring the old secret from state
+	if planHasSecretWO && !stateData.Secret.IsNull() && !stateData.Secret.IsUnknown() {
+		data.Secret = types.StringNull()
+	}
+
 	// Clear write-only secret before setting state
 	data.SecretWO = types.StringNull()
 
@@ -417,6 +504,9 @@ func (r *iamUserResource) ImportState(ctx context.Context, req resource.ImportSt
 func (r *iamUserResource) read(ctx context.Context, data *iamUserResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
 
+	// Preserve secret from state since server doesn't return it
+	preservedSecret := data.Secret
+
 	output, err := r.client.S3Admin.GetUserInfo(ctx, data.ID.ValueString())
 	if err != nil {
 		var errResp madmin.ErrorResponse
@@ -436,8 +526,10 @@ func (r *iamUserResource) read(ctx context.Context, data *iamUserResourceModel) 
 	}
 
 	data.Status = types.StringValue(string(output.Status))
-	// Clear write-only attributes
+	// Clear write-only attributes (server doesn't return these)
 	data.SecretWO = types.StringNull()
+	// Restore secret from state since server doesn't return it
+	data.Secret = preservedSecret
 
 	return diags
 }

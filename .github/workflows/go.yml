@@ -101,10 +101,15 @@ jobs:
       - name: Wait for services to be ready
         run: |
           echo "Waiting for all MinIO services to be ready..."
-          timeout 120 bash -c 'until docker compose exec -T minio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
-          timeout 120 bash -c 'until docker compose exec -T secondminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
-          timeout 120 bash -c 'until docker compose exec -T thirdminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
-          timeout 120 bash -c 'until docker compose exec -T fourthminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
+          # Configure mc aliases for each service and wait for them to be ready
+          docker compose exec -T minio mc alias set local http://localhost:9000 minio minio123 --api s3v4 || true
+          docker compose exec -T secondminio mc alias set local http://localhost:9000 minio minio321 --api s3v4 || true
+          docker compose exec -T thirdminio mc alias set local http://localhost:9000 minio minio456 --api s3v4 || true
+          docker compose exec -T fourthminio mc alias set local http://localhost:9000 minio minio654 --api s3v4 || true
+          timeout 120 bash -c 'until docker compose exec -T minio mc admin info local >/dev/null 2>&1; do sleep 2; done'
+          timeout 120 bash -c 'until docker compose exec -T secondminio mc admin info local >/dev/null 2>&1; do sleep 2; done'
+          timeout 120 bash -c 'until docker compose exec -T thirdminio mc admin info local >/dev/null 2>&1; do sleep 2; done'
+          timeout 120 bash -c 'until docker compose exec -T fourthminio mc admin info local >/dev/null 2>&1; do sleep 2; done'
           echo "All MinIO services are ready!"
           echo "Waiting 5 seconds for IAM state to stabilize..."
           sleep 5

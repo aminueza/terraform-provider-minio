@@ -597,6 +597,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
     minio_s3_bucket_versioning.my_bucket_in_b,
   ]
 }`,
+				ExpectNonEmptyPlan: true,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckBucketHasReplication(
 						"minio_s3_bucket_replication.replication_in_b",
@@ -661,6 +662,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
     minio_s3_bucket_versioning.my_bucket_in_b,
   ]
 }`,
+				ExpectNonEmptyPlan: true,
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckBucketHasReplication(
 						"minio_s3_bucket_replication.replication_in_b",

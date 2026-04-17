@@ -133,6 +133,7 @@ resource "minio_s3_bucket_replication" "%s" {
         region = %q
         secure = false
         access_key = minio_iam_service_account.replication_in_%s.access_key
+        secret_key = minio_iam_service_account.replication_in_%s.secret_key
     }
   }
 
@@ -150,6 +151,7 @@ resource "minio_s3_bucket_replication" "%s" {
         region = %q
         secure = false
         access_key = minio_iam_service_account.replication_in_%s.access_key
+        secret_key = minio_iam_service_account.replication_in_%s.secret_key
         health_check_period = "60s"
     }
   }
@@ -170,6 +172,7 @@ resource "minio_s3_bucket_replication" "%s" {
         region = %q
         secure = false
         access_key = minio_iam_service_account.replication_in_%s.access_key
+        secret_key = minio_iam_service_account.replication_in_%s.secret_key
         bandwidth_limit = "1G"
     }
   }
@@ -199,15 +202,18 @@ var kTwoWayComplexResource = fmt.Sprintf(kTemplateComplexResource,
 	"second",
 	"eu-west-1",
 	"b",
+	"b",
 	// Rule 2
 	"c",
 	"third",
 	"ap-south-1",
 	"c",
+	"c",
 	// Rule 3
 	"d",
 	"fourth",
 	"us-west-2",
+	"d",
 	"d",
 ) +
 	fmt.Sprintf(kTemplateComplexResource,
@@ -219,15 +225,18 @@ var kTwoWayComplexResource = fmt.Sprintf(kTemplateComplexResource,
 		"third",
 		"ap-south-1",
 		"c",
+		"c",
 		// Rule 2
 		"d",
 		"fourth",
 		"us-west-2",
 		"d",
+		"d",
 		// Rule 3
 		"a",
 		"primary",
 		"eu-central-1",
+		"a",
 		"a",
 	) +
 	fmt.Sprintf(kTemplateComplexResource,
@@ -239,15 +248,18 @@ var kTwoWayComplexResource = fmt.Sprintf(kTemplateComplexResource,
 		"fourth",
 		"us-west-2",
 		"d",
+		"d",
 		// Rule 2
 		"a",
 		"primary",
 		"eu-central-1",
 		"a",
+		"a",
 		// Rule 3
 		"b",
 		"second",
 		"eu-west-1",
+		"b",
 		"b",
 	) +
 	fmt.Sprintf(kTemplateComplexResource,
@@ -259,15 +271,18 @@ var kTwoWayComplexResource = fmt.Sprintf(kTemplateComplexResource,
 		"primary",
 		"eu-central-1",
 		"a",
+		"a",
 		// Rule 2
 		"b",
 		"second",
 		"eu-west-1",
 		"b",
+		"b",
 		// Rule 3
 		"c",
 		"third",
 		"ap-south-1",
+		"c",
 		"c",
 	)
 
@@ -287,6 +302,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         secure = false
         bandwidth_limit = "100M"
         access_key = minio_iam_service_account.replication_in_b.access_key
+        secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
   }
 
@@ -313,6 +329,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         secure = false
         bandwidth_limit = "100M"
         access_key = minio_iam_service_account.replication_in_b.access_key
+        secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
   }
 
@@ -342,6 +359,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
             synchronous = true
             bandwidth_limit = "100M"
             access_key = minio_iam_service_account.replication_in_b.access_key
+            secret_key = minio_iam_service_account.replication_in_b.secret_key
         }
     }
     
@@ -372,6 +390,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
             bandwidth_limit = "800M"
             health_check_period = "2m"
             access_key = minio_iam_service_account.replication_in_a.access_key
+            secret_key = minio_iam_service_account.replication_in_a.secret_key
         }
     }
 
@@ -382,8 +401,6 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 }`
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -453,7 +470,6 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_resync(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -494,7 +510,6 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -571,6 +586,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bandwidth_limit = "150M"
         health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
+        secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
   }
 
@@ -637,6 +653,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bandwidth_limit = "150M"
         health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
+        secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
   }
 
@@ -733,7 +750,6 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 	})
 }
 func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
@@ -860,7 +876,6 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -966,7 +981,6 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	})
 }
 func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	t.Run("TestBandwidthAttributeMigration", func(t *testing.T) {
 		// Test with old attribute (bandwidth_limt)
 		{
@@ -1044,7 +1058,6 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
-	t.Skip("Skipping replication tests due to secret_key limitation: MinIO API doesn't return secret_key after apply (it's write-only), causing Terraform to detect inconsistency for sensitive attributes. This is a known limitation of the Terraform Plugin Framework when dealing with write-only sensitive attributes that aren't returned by the API.")
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")

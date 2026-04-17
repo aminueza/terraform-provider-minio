@@ -14,8 +14,10 @@ import (
 	fwp "github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -69,6 +71,7 @@ type replicationTargetModel struct {
 	BandwidthLimit    types.String `tfsdk:"bandwidth_limit"`
 	Region            types.String `tfsdk:"region"`
 	AccessKey         types.String `tfsdk:"access_key"`
+	SecretKey         types.String `tfsdk:"secret_key"`
 }
 
 var replicationTargetObjectType = types.ObjectType{
@@ -85,8 +88,7 @@ var replicationTargetObjectType = types.ObjectType{
 		"bandwidth_limit":     types.StringType,
 		"region":              types.StringType,
 		"access_key":          types.StringType,
-		// secret_key removed from schema due to MinIO API limitation: it's write-only and not returned after apply,
-		// causing Terraform to detect inconsistency for sensitive attributes. Use access_key with pre-configured credentials.
+		"secret_key":          types.StringType,
 	},
 }
 
@@ -142,13 +144,261 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 				Computed:    true,
 				Description: "ID of the last resync operation.",
 			},
-			"rule": schema.ListAttribute{
+			"rule": schema.ListNestedAttribute{
 				Description: "Rule definitions",
 				Optional:    true,
-				ElementType: replicationRuleObjectType,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							Computed:    true,
+							Description: "Rule ID",
+						},
+						"arn": schema.StringAttribute{
+							Computed:    true,
+							Description: "Rule ARN",
+						},
+						"enabled": schema.BoolAttribute{
+							Optional:    true,
+							Computed:    true,
+							Default:     booldefault.StaticBool(true),
+							Description: "Whether the rule is enabled",
+						},
+						"priority": schema.Int64Attribute{
+							Optional:    true,
+							Computed:    true,
+							Description: "Rule priority (lower number = higher priority)",
+						},
+						"prefix": schema.StringAttribute{
+							Optional:    true,
+							Description: "Object prefix to replicate",
+						},
+						"tags": schema.MapAttribute{
+							Optional:    true,
+							ElementType: types.StringType,
+							Description: "Tags to filter objects for replication",
+						},
+						"delete_replication": schema.BoolAttribute{
+							Optional:    true,
+							Computed:    true,
+							Description: "Whether to replicate delete operations",
+						},
+						"delete_marker_replication": schema.BoolAttribute{
+							Optional:    true,
+							Computed:    true,
+							Description: "Whether to replicate delete markers",
+						},
+						"existing_object_replication": schema.BoolAttribute{
+							Optional:    true,
+							Computed:    true,
+							Description: "Whether to replicate existing objects",
+						},
+						"metadata_sync": schema.BoolAttribute{
+							Optional:    true,
+							Computed:    true,
+							Description: "Whether to sync object metadata",
+						},
+						"target": schema.ListNestedAttribute{
+							Optional: true,
+							NestedObject: schema.NestedAttributeObject{
+								Attributes: map[string]schema.Attribute{
+									"bucket": schema.StringAttribute{
+										Required:    true,
+										Description: "Target bucket name",
+									},
+									"storage_class": schema.StringAttribute{
+										Optional:    true,
+										Description: "Storage class for replicated objects",
+									},
+									"host": schema.StringAttribute{
+										Required:    true,
+										Description: "Target endpoint host",
+									},
+									"secure": schema.BoolAttribute{
+										Optional:    true,
+										Computed:    true,
+										Default:     booldefault.StaticBool(true),
+										Description: "Use HTTPS for target connection",
+									},
+									"path_style": schema.StringAttribute{
+										Optional:    true,
+										Computed:    true,
+										Default:     stringdefault.StaticString("auto"),
+										Description: "Path style for target (auto, on, off)",
+									},
+									"path": schema.StringAttribute{
+										Optional:    true,
+										Description: "Target path prefix",
+									},
+									"synchronous": schema.BoolAttribute{
+										Optional:    true,
+										Computed:    true,
+										Description: "Whether replication is synchronous",
+									},
+									"disable_proxy": schema.BoolAttribute{
+										Optional:    true,
+										Computed:    true,
+										Description: "Disable proxy for target",
+									},
+									"health_check_period": schema.StringAttribute{
+										Optional:    true,
+										Description: "Health check period (e.g., '30s')",
+									},
+									"bandwidth_limit": schema.StringAttribute{
+										Optional:    true,
+										Description: "Bandwidth limit (e.g., '100MB')",
+									},
+									"region": schema.StringAttribute{
+										Optional:    true,
+										Description: "Target region",
+									},
+									"access_key": schema.StringAttribute{
+										Required:    true,
+										Description: "Target access key",
+									},
+									"secret_key": schema.StringAttribute{
+										Optional:    true,
+										Sensitive:   true,
+										Description: "Target secret key (write-only, not returned by MinIO API)",
+									},
+								},
+							},
+						},
+					},
+				},
+				PlanModifiers: []planmodifier.List{
+					preserveSecretKeyInReplicationTargets{},
+				},
 			},
 		},
 	}
+}
+
+// preserveSecretKeyInReplicationTargets preserves secret_key from state when not changed in plan.
+// MinIO API does not return secret_key on read (it's write-only), so we need to preserve it from state.
+type preserveSecretKeyInReplicationTargets struct{}
+
+func (m preserveSecretKeyInReplicationTargets) Description(ctx context.Context) string {
+	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
+}
+
+func (m preserveSecretKeyInReplicationTargets) MarkdownDescription(ctx context.Context) string {
+	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
+}
+
+func (m preserveSecretKeyInReplicationTargets) PlanModifyList(ctx context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
+	// Skip on destroy.
+	if req.PlanValue.IsNull() {
+		return
+	}
+
+	// If no state exists, nothing to preserve.
+	if req.StateValue.IsNull() {
+		return
+	}
+
+	// Parse plan rules.
+	var planRules []replicationRuleModel
+	diags := req.PlanValue.ElementsAs(ctx, &planRules, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Parse state rules.
+	var stateRules []replicationRuleModel
+	diags = req.StateValue.ElementsAs(ctx, &stateRules, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Build a map of state rules by ID for quick lookup.
+	stateRulesByID := make(map[string]replicationRuleModel)
+	for _, rule := range stateRules {
+		ruleID := rule.ID.ValueString()
+		if ruleID != "" {
+			stateRulesByID[ruleID] = rule
+		}
+	}
+
+	// For each plan rule, if it matches a state rule by ID, preserve secret_key from state targets.
+	for i, planRule := range planRules {
+		ruleID := planRule.ID.ValueString()
+		if ruleID == "" {
+			continue
+		}
+
+		stateRule, exists := stateRulesByID[ruleID]
+		if !exists {
+			continue
+		}
+
+		// Parse plan targets.
+		var planTargets []replicationTargetModel
+		diags = planRule.Target.ElementsAs(ctx, &planTargets, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		// Parse state targets.
+		var stateTargets []replicationTargetModel
+		diags = stateRule.Target.ElementsAs(ctx, &stateTargets, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		// Build a map of state targets by bucket for quick lookup.
+		stateTargetsByBucket := make(map[string]replicationTargetModel)
+		for _, target := range stateTargets {
+			bucket := target.Bucket.ValueString()
+			if bucket != "" {
+				stateTargetsByBucket[bucket] = target
+			}
+		}
+
+		// For each plan target, if it matches a state target by bucket and secret_key is null/empty in plan,
+		// preserve the secret_key from state.
+		for j, planTarget := range planTargets {
+			bucket := planTarget.Bucket.ValueString()
+			if bucket == "" {
+				continue
+			}
+
+			// If plan has a non-empty secret_key, user is explicitly setting it (rotation), so don't override.
+			if !planTarget.SecretKey.IsNull() && !planTarget.SecretKey.IsUnknown() && planTarget.SecretKey.ValueString() != "" {
+				continue
+			}
+
+			stateTarget, exists := stateTargetsByBucket[bucket]
+			if !exists {
+				continue
+			}
+
+			// Preserve secret_key from state if it exists.
+			if !stateTarget.SecretKey.IsNull() && !stateTarget.SecretKey.IsUnknown() && stateTarget.SecretKey.ValueString() != "" {
+				planTargets[j].SecretKey = stateTarget.SecretKey
+			}
+		}
+
+		// Update plan rule targets.
+		targets, diags := types.ListValueFrom(ctx, replicationTargetObjectType, planTargets)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		planRules[i].Target = targets
+	}
+
+	// Set the modified plan rules back.
+	modifiedPlan, diags := types.ListValueFrom(ctx, replicationRuleObjectType, planRules)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.PlanValue = modifiedPlan
 }
 
 func (r *bucketReplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -208,9 +458,108 @@ func (r *bucketReplicationResource) Read(ctx context.Context, req resource.ReadR
 		"bucket": state.Bucket.ValueString(),
 	})
 
+	// Preserve secret_key from state before reading, since MinIO API doesn't return it.
+	var stateRules []replicationRuleModel
+	if !state.Rules.IsNull() && !state.Rules.IsUnknown() {
+		diags := state.Rules.ElementsAs(ctx, &stateRules, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	if diags := r.readReplication(ctx, &state); diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
+	}
+
+	// Restore secret_key from state for each matching rule/target.
+	if !state.Rules.IsNull() && !state.Rules.IsUnknown() && len(stateRules) > 0 {
+		var readRules []replicationRuleModel
+		diags := state.Rules.ElementsAs(ctx, &readRules, false)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		// Build map of state rules by ID for secret_key lookup.
+		stateRulesByID := make(map[string]replicationRuleModel)
+		for _, rule := range stateRules {
+			ruleID := rule.ID.ValueString()
+			if ruleID != "" {
+				stateRulesByID[ruleID] = rule
+			}
+		}
+
+		// Restore secret_key for matching rules.
+		for i, readRule := range readRules {
+			ruleID := readRule.ID.ValueString()
+			if ruleID == "" {
+				continue
+			}
+
+			stateRule, exists := stateRulesByID[ruleID]
+			if !exists {
+				continue
+			}
+
+			var stateTargets []replicationTargetModel
+			diags := stateRule.Target.ElementsAs(ctx, &stateTargets, false)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			var readTargets []replicationTargetModel
+			diags = readRule.Target.ElementsAs(ctx, &readTargets, false)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			// Build map of state targets by bucket.
+			stateTargetsByBucket := make(map[string]replicationTargetModel)
+			for _, target := range stateTargets {
+				bucket := target.Bucket.ValueString()
+				if bucket != "" {
+					stateTargetsByBucket[bucket] = target
+				}
+			}
+
+			// Restore secret_key for matching targets.
+			for j, readTarget := range readTargets {
+				bucket := readTarget.Bucket.ValueString()
+				if bucket == "" {
+					continue
+				}
+
+				stateTarget, exists := stateTargetsByBucket[bucket]
+				if !exists {
+					continue
+				}
+
+				// Restore secret_key from state if it exists.
+				if !stateTarget.SecretKey.IsNull() && !stateTarget.SecretKey.IsUnknown() && stateTarget.SecretKey.ValueString() != "" {
+					readTargets[j].SecretKey = stateTarget.SecretKey
+				}
+			}
+
+			// Update read rule targets.
+			targets, diags := types.ListValueFrom(ctx, replicationTargetObjectType, readTargets)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			readRules[i].Target = targets
+		}
+
+		// Update state rules with restored secret_key values.
+		rules, diags := types.ListValueFrom(ctx, replicationRuleObjectType, readRules)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		state.Rules = rules
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
@@ -661,7 +1010,7 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 
 			creds := &madmin.Credentials{
 				AccessKey: t.AccessKey.ValueString(),
-				SecretKey: "", // secret_key removed from schema - use pre-configured credentials
+				SecretKey: t.SecretKey.ValueString(),
 			}
 
 			pathStyle := "auto"

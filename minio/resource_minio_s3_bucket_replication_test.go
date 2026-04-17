@@ -87,6 +87,9 @@ resource "minio_s3_bucket_replication" "replication_in_all" {
     minio_s3_bucket_versioning.my_bucket_in_b,
     minio_s3_bucket_versioning.my_bucket_in_c,
     minio_s3_bucket_versioning.my_bucket_in_d,
+    minio_iam_service_account.replication_in_b,
+    minio_iam_service_account.replication_in_c,
+    minio_iam_service_account.replication_in_d,
   ]
 }`
 

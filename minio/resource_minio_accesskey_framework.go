@@ -157,14 +157,12 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 
 	// WriteOnly attribute values must be read via GetAttribute from Config;
 	// they are null when read through Plan.Get even at plan time.
-	var planSecretKeyVal, planSecretKeyWOVal types.String
+	var planSecretKeyVal types.String
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key"), &planSecretKeyVal)...)
-	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key_wo"), &planSecretKeyWOVal)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	planSecretKey := planSecretKeyVal.ValueString()
-	planSecretKeyWO := planSecretKeyWOVal.ValueString()
 
 	// Static validation: if secret_key is set, secret_key_version must also be set.
 	if planSecretKey != "" {
@@ -177,16 +175,8 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		}
 	}
 
-	// Static validation: if secret_key_wo is set, secret_key_wo_version must also be set.
-	if planSecretKeyWO != "" {
-		if plan.SecretKeyWOVersion.IsNull() || plan.SecretKeyWOVersion.IsUnknown() {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("secret_key_wo_version"),
-				"Missing secret_key_wo_version",
-				"secret_key_wo_version must be provided when secret_key_wo is set",
-			)
-		}
-	}
+	// Static validation removed to allow unknown values during plan (matching SDK fix 244180b).
+	// The apply-time check in Update enforces the requirement when version actually changes.
 
 	// Dynamic validation requires state (update scenario only).
 	if req.State.Raw.IsNull() {
@@ -211,17 +201,8 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		}
 	}
 
-	// If secret_key_wo_version is set in the plan and changed, secret_key_wo must be provided.
-	if !plan.SecretKeyWOVersion.IsNull() && !plan.SecretKeyWOVersion.IsUnknown() &&
-		!plan.SecretKeyWOVersion.Equal(state.SecretKeyWOVersion) {
-		if planSecretKeyWO == "" {
-			resp.Diagnostics.AddAttributeError(
-				path.Root("secret_key_wo"),
-				"Missing secret_key_wo",
-				"secret_key_wo must be provided when secret_key_wo_version changes",
-			)
-		}
-	}
+	// Dynamic validation removed to allow unknown values during plan (matching SDK fix 244180b).
+	// The apply-time check in Update enforces the requirement when version actually changes.
 }
 
 func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

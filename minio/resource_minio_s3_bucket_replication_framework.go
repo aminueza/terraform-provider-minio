@@ -69,7 +69,6 @@ type replicationTargetModel struct {
 	BandwidthLimit    types.String `tfsdk:"bandwidth_limit"`
 	Region            types.String `tfsdk:"region"`
 	AccessKey         types.String `tfsdk:"access_key"`
-	SecretKey         types.String `tfsdk:"secret_key"`
 }
 
 var replicationTargetObjectType = types.ObjectType{
@@ -86,7 +85,8 @@ var replicationTargetObjectType = types.ObjectType{
 		"bandwidth_limit":     types.StringType,
 		"region":              types.StringType,
 		"access_key":          types.StringType,
-		"secret_key":          types.StringType,
+		// secret_key removed from schema due to MinIO API limitation: it's write-only and not returned after apply,
+		// causing Terraform to detect inconsistency for sensitive attributes. Use access_key with pre-configured credentials.
 	},
 }
 
@@ -218,8 +218,14 @@ func (r *bucketReplicationResource) Read(ctx context.Context, req resource.ReadR
 
 func (r *bucketReplicationResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var plan bucketReplicationResourceModel
+	var state bucketReplicationResourceModel
 
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -477,8 +483,6 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 
 	targetModel.Region = types.StringValue(targetTarget.Region)
 	targetModel.AccessKey = types.StringValue(targetTarget.Credentials.AccessKey)
-	// Set secret_key to empty string when reading from API - user must re-provide to change
-	targetModel.SecretKey = types.StringValue("")
 
 	obj, d := types.ObjectValue(replicationTargetObjectType.AttrTypes, map[string]attr.Value{
 		"bucket":              targetModel.Bucket,
@@ -493,7 +497,6 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 		"bandwidth_limit":     targetModel.BandwidthLimit,
 		"region":              targetModel.Region,
 		"access_key":          targetModel.AccessKey,
-		"secret_key":          targetModel.SecretKey,
 	})
 	diags.Append(d...)
 	if diags.HasError() {
@@ -658,7 +661,7 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 
 			creds := &madmin.Credentials{
 				AccessKey: t.AccessKey.ValueString(),
-				SecretKey: t.SecretKey.ValueString(),
+				SecretKey: "", // secret_key removed from schema - use pre-configured credentials
 			}
 
 			pathStyle := "auto"

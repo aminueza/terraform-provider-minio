@@ -84,12 +84,6 @@ func (m secretNullModifier) MarkdownDescription(ctx context.Context) string {
 }
 
 func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	var planData iamUserResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
 	// secret_wo is WriteOnly so it's always null in the plan; check config instead.
 	var secretWOVal types.String
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_wo"), &secretWOVal)...)
@@ -103,13 +97,6 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 		return
 	}
 
-	// When update_secret is true, mark secret as unknown to avoid inconsistency
-	// when a new secret is generated.
-	if planData.UpdateSecret.ValueBool() {
-		resp.PlanValue = types.StringUnknown()
-		return
-	}
-
 	// Preserve existing state value when secret is not being changed (computed).
 	if req.PlanValue.IsUnknown() && !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
 		resp.PlanValue = req.StateValue
@@ -119,6 +106,32 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 // iamUserResource defines the resource implementation
 type iamUserResource struct {
 	client *S3MinioClient
+}
+
+var _ resource.ResourceWithModifyPlan = &iamUserResource{}
+
+// ModifyPlan handles plan modifications at the resource level
+func (r *iamUserResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	var planData, stateData iamUserResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Only read state if it exists (not null)
+	if !req.State.Raw.IsNull() {
+		resp.Diagnostics.Append(req.State.Get(ctx, &stateData)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	// When update_secret transitions from false/null to true, mark secret as unknown
+	// to avoid inconsistency when a new secret is generated.
+	// If update_secret is already true in state, preserve the state value.
+	if planData.UpdateSecret.ValueBool() && !stateData.UpdateSecret.ValueBool() {
+		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, path.Root("secret"), types.StringUnknown())...)
+	}
 }
 
 // iamUserResourceModel describes the resource data model

@@ -84,15 +84,20 @@ func (m secretNullModifier) MarkdownDescription(ctx context.Context) string {
 }
 
 func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	var planData iamUserResourceModel
+	var planData, stateData iamUserResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateData)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	// When update_secret is true the provider generates a new random secret at apply time;
-	// mark as unknown so Terraform doesn't produce an inconsistency error.
-	if planData.UpdateSecret.ValueBool() {
+	// When update_secret transitions from false to true, mark secret as unknown
+	// so Terraform doesn't produce an inconsistency error during the rotation.
+	// If update_secret is already true in state, preserve the state value.
+	if planData.UpdateSecret.ValueBool() && !stateData.UpdateSecret.ValueBool() {
 		resp.PlanValue = types.StringUnknown()
 		return
 	}
@@ -406,8 +411,6 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 		wantedSecret = secretKey
-		// Clear the old secret so read() doesn't restore it
-		data.Secret = types.StringNull()
 	}
 
 	hasSecretWOVersion := !data.SecretWOVersion.IsNull() && !data.SecretWOVersion.IsUnknown()

@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -89,7 +88,6 @@ func (r *bucketVersioningResource) Schema(ctx context.Context, req resource.Sche
 						Optional:    true,
 						Computed:    true,
 						ElementType: types.StringType,
-						Default:     listdefault.StaticValue(types.ListNull(types.StringType)),
 						PlanModifiers: []planmodifier.List{
 							listplanmodifier.UseStateForUnknown(),
 						},
@@ -375,6 +373,15 @@ func (r *bucketVersioningResource) read(ctx context.Context, data *bucketVersion
 	if diagErr.HasError() {
 		diags.Append(diagErr...)
 		return diags
+	}
+
+	// Ensure excluded_prefixes is empty list, not null, when server returns no prefixes
+	if excludedPrefixesList.IsNull() || excludedPrefixesList.IsUnknown() {
+		excludedPrefixesList, diagErr = types.ListValueFrom(ctx, types.StringType, []string{})
+		if diagErr.HasError() {
+			diags.Append(diagErr...)
+			return diags
+		}
 	}
 
 	newConfig := bucketVersioningConfigurationModel{

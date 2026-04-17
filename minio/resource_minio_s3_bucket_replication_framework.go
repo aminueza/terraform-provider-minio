@@ -1225,8 +1225,11 @@ func (r *bucketReplicationResource) setRemoteTarget(ctx context.Context, admClie
 
 	for _, existing := range existingTargets {
 		if existing.Endpoint == target.Endpoint && existing.TargetBucket == target.TargetBucket {
-			// Return existing ARN if target already exists
-			return existing.Arn, nil
+			// Remove existing target to update it with new values
+			if err := admClient.RemoveRemoteTarget(ctx, bucket, existing.Arn); err != nil {
+				return "", fmt.Errorf("failed to remove existing remote target for update: %w", err)
+			}
+			break
 		}
 	}
 

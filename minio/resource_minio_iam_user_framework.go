@@ -84,12 +84,8 @@ func (m secretNullModifier) MarkdownDescription(ctx context.Context) string {
 }
 
 func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	var planData, stateData iamUserResourceModel
+	var planData iamUserResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-	resp.Diagnostics.Append(req.State.Get(ctx, &stateData)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -107,10 +103,9 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 		return
 	}
 
-	// When update_secret transitions from false/null to true, mark secret as unknown
-	// to avoid inconsistency when a new secret is generated.
-	// If update_secret is already true in state, preserve the state value.
-	if planData.UpdateSecret.ValueBool() && !stateData.UpdateSecret.ValueBool() {
+	// When update_secret is true, mark secret as unknown to avoid inconsistency
+	// when a new secret is generated.
+	if planData.UpdateSecret.ValueBool() {
 		resp.PlanValue = types.StringUnknown()
 		return
 	}
@@ -181,7 +176,7 @@ func (r *iamUserResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Default:     booldefault.StaticBool(false),
 			},
 			"update_secret": schema.BoolAttribute{
-				Description: "Rotate Minio User Secret Key.",
+				Description: "Rotate the secret access key on next apply",
 				Optional:    true,
 				Computed:    true,
 				Default:     booldefault.StaticBool(false),

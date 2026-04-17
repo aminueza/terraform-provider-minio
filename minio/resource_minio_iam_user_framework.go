@@ -407,6 +407,8 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 		wantedSecret = secretKey
+		// Clear update_secret in state after applying to prevent plan diff
+		data.UpdateSecret = types.BoolValue(false)
 	}
 
 	hasSecretWOVersion := !data.SecretWOVersion.IsNull() && !data.SecretWOVersion.IsUnknown()

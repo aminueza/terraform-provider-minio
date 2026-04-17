@@ -406,6 +406,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
       null_resource.wait_for_iam_propagation_a,
     ]
 }
+`
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")

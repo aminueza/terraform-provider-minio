@@ -410,7 +410,8 @@ func (r *s3ObjectResource) read(ctx context.Context, data *s3ObjectResourceModel
 		if lower == "x-amz-acl" || lower == "content-type" {
 			continue
 		}
-		userMeta[k] = v
+		// Normalize key to lowercase to match plan case
+		userMeta[strings.ToLower(k)] = v
 	}
 	if len(userMeta) > 0 {
 		metadata, mapDiags := types.MapValueFrom(ctx, types.StringType, userMeta)
@@ -421,10 +422,12 @@ func (r *s3ObjectResource) read(ctx context.Context, data *s3ObjectResourceModel
 		data.Metadata = metadata
 	}
 
-	// ACL handling - MinIO may not return x-amz-acl in UserMetadata
-	// If ACL is unknown but was set in state, preserve it
-	if data.ACL.IsUnknown() && !data.ACL.IsNull() {
-		data.ACL = types.StringNull()
+	// ACL handling - read from UserMetadata if present
+	if acl := objInfo.UserMetadata["x-amz-acl"]; acl != "" {
+		data.ACL = types.StringValue(acl)
+	} else if data.ACL.IsNull() || data.ACL.IsUnknown() {
+		// Default to "private" if not set
+		data.ACL = types.StringValue("private")
 	}
 
 	return diags

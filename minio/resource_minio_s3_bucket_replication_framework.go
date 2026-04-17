@@ -788,7 +788,8 @@ func (r *bucketReplicationResource) readReplication(ctx context.Context, model *
 
 	model.Rules = rules
 	model.ID = model.Bucket
-	// Don't set LastResyncID - it's not available through the MinIO API
+	// last_resync_id is not available through the MinIO API, set to empty string as placeholder
+	model.LastResyncID = types.StringValue("")
 
 	return diags
 }

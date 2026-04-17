@@ -100,9 +100,12 @@ jobs:
 
       - name: Wait for services to be ready
         run: |
-          echo "Waiting for MinIO services to be ready..."
+          echo "Waiting for all MinIO services to be ready..."
           timeout 120 bash -c 'until docker compose exec -T minio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
-          echo "All services are ready!"
+          timeout 120 bash -c 'until docker compose exec -T secondminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
+          timeout 120 bash -c 'until docker compose exec -T thirdminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
+          timeout 120 bash -c 'until docker compose exec -T fourthminio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
+          echo "All MinIO services are ready!"
 
       - name: Run tests
         run: docker compose run --rm test

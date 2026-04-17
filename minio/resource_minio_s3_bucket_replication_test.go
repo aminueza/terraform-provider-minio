@@ -974,6 +974,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerifyIgnore: []string{
 					"resync_version",
 					"last_resync_id",
+					"rule.0.target.0.bandwidth_limit", // MinIO normalizes "100M" → "100 MB" on import; state has original form
 				},
 				Config: kTwoWaySimpleResource,
 			},
@@ -984,6 +985,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 				ImportStateVerifyIgnore: []string{
 					"resync_version",
 					"last_resync_id",
+					"rule.0.target.0.bandwidth_limit", // MinIO normalizes "100M" → "100 MB" on import; state has original form
 				},
 				Config: kTwoWaySimpleResource,
 			},

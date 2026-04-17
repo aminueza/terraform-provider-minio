@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -173,6 +174,28 @@ func (r *iamUserPolicyAttachmentResource) Delete(ctx context.Context, req resour
 	if detachErr != nil {
 		resp.Diagnostics.AddError("Unable to delete user policy", detachErr.Error())
 		return
+	}
+
+	// Verify policy was actually detached, retrying while MinIO still reports it attached.
+	// Policy detachment is eventually consistent; the change may not propagate immediately.
+	for attempt := 0; attempt < 20; attempt++ {
+		policies, err := r.readUserPolicies(ctx, data.UserName.ValueString())
+		if err != nil {
+			// User might be deleted, consider detachment successful
+			break
+		}
+		if !containsString(policies, data.PolicyName.ValueString()) {
+			// Policy successfully detached
+			break
+		}
+		if attempt == 19 {
+			resp.Diagnostics.AddError(
+				"Unable to delete user policy",
+				"Policy "+data.PolicyName.ValueString()+" still attached to user "+data.UserName.ValueString()+" after detachment",
+			)
+			return
+		}
+		time.Sleep(time.Second)
 	}
 }
 

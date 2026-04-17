@@ -464,6 +464,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 					"rule.0.priority", // This is omitted in our test case, so it gets automatically generated and thus mismatch
 					"resync_version",
 					"last_resync_id",
+					"rule.0.target.0.bandwidth_limit", // MinIO normalizes "100M" → "100 MB" on import; state has original form
 				},
 				Config: kOneWaySimpleResource,
 			},
@@ -1544,7 +1545,7 @@ resource "minio_iam_user" "replication_in_%s" {
   provider = %s
   name = %q
   force_destroy = true
-} 
+}
 
 resource "minio_iam_user_policy_attachment" "replication_in_%s" {
   provider = %s
@@ -1558,11 +1559,10 @@ resource "minio_iam_service_account" "replication_in_%s" {
 
   depends_on = [
     minio_iam_user_policy_attachment.replication_in_%s,
-    minio_iam_policy.replication_in_%s,
   ]
 }
 
-`, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, indentifier, letter, letter, letter)
+`, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, indentifier, letter, letter)
 	}
 	return varBlock
 }

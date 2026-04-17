@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -518,6 +519,25 @@ func (r *iamUserResource) Delete(ctx context.Context, req resource.DeleteRequest
 			"Could not delete user "+data.ID.ValueString()+": "+err.Error(),
 		)
 		return
+	}
+
+	// Verify user was actually deleted, retrying while MinIO still reports it exists.
+	// User and service account can destroy in parallel, and MinIO's user deletion is eventually consistent;
+	// the dependent's deletion may not have propagated when we issue the user delete.
+	for attempt := 0; attempt < 20; attempt++ {
+		_, err := r.client.S3Admin.GetUserInfo(ctx, data.ID.ValueString())
+		if err != nil {
+			// User doesn't exist, deletion successful
+			break
+		}
+		if attempt == 19 {
+			resp.Diagnostics.AddError(
+				"Error deleting user",
+				"User "+data.ID.ValueString()+" still exists after deletion",
+			)
+			return
+		}
+		time.Sleep(time.Second)
 	}
 
 	// Clear ID

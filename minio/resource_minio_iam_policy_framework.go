@@ -260,8 +260,26 @@ func (r *iamPolicyResource) Delete(ctx context.Context, req resource.DeleteReque
 		return
 	}
 
-	// Delete policy
-	err := r.client.S3Admin.RemoveCannedPolicy(ctx, data.ID.ValueString())
+	// Delete policy, retrying while MinIO still reports the policy as in-use.
+	// Policy and user can destroy in parallel, and MinIO's in-use check is eventually consistent;
+	// the dependent's deletion may not have propagated when we issue the policy delete.
+	var err error
+	for attempt := 0; attempt < 60; attempt++ {
+		err = r.client.S3Admin.RemoveCannedPolicy(ctx, data.ID.ValueString())
+		if err == nil {
+			break
+		}
+		if !strings.Contains(err.Error(), "policy cannot be removed") &&
+			!strings.Contains(err.Error(), "in use") {
+			break
+		}
+		// Exponential backoff with jitter: start at 1s, max 5s
+		sleepTime := time.Duration(1+attempt/10) * time.Second
+		if sleepTime > 5*time.Second {
+			sleepTime = 5 * time.Second
+		}
+		time.Sleep(sleepTime)
+	}
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Error deleting policy",

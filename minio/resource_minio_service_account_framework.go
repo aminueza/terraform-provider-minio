@@ -492,6 +492,35 @@ func (r *serviceAccountResource) Delete(ctx context.Context, req resource.Delete
 		// Not found, consider it deleted
 	}
 
+	// Verify service account was actually deleted, retrying while MinIO still reports it exists.
+	// Service account deletion is eventually consistent.
+	for attempt := 0; attempt < 20; attempt++ {
+		serviceAccountList, listErr := r.client.S3Admin.ListServiceAccounts(ctx, data.TargetUser.ValueString())
+		if listErr != nil {
+			// User might be deleted, consider service account deleted
+			break
+		}
+		found := false
+		for _, account := range serviceAccountList.Accounts {
+			if account.AccessKey == data.ID.ValueString() {
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Service account successfully deleted
+			break
+		}
+		if attempt == 19 {
+			resp.Diagnostics.AddError(
+				"Error deleting service account",
+				"Service account "+data.ID.ValueString()+" still exists after deletion",
+			)
+			return
+		}
+		time.Sleep(time.Second)
+	}
+
 	// Clear ID
 	data.ID = types.StringNull()
 

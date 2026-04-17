@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/minio/madmin-go/v3"
@@ -389,6 +390,144 @@ func (r *bucketReplicationResource) ModifyPlan(ctx context.Context, req resource
 	}
 }
 
+// overlaySecretKeysFromConfig copies secret_key values from the user's config onto the plan model.
+// Since secret_key is WriteOnly it is never present in plan or state, but we still need it during
+// Create/Update to authenticate with the remote MinIO when setting a replication target.
+// Rules are matched by index (order in config matches order in plan), and targets by bucket name.
+func (r *bucketReplicationResource) overlaySecretKeysFromConfig(ctx context.Context, config tfsdk.Config, plan *bucketReplicationResourceModel) diag.Diagnostics {
+	return r.overlayFromConfig(ctx, config, plan, func(dst, src *replicationTargetModel) bool {
+		if !src.SecretKey.IsNull() && !src.SecretKey.IsUnknown() && src.SecretKey.ValueString() != "" {
+			dst.SecretKey = src.SecretKey
+			return true
+		}
+		return false
+	})
+}
+
+// preserveBandwidthLimitFormat restores the user's original bandwidth_limit string from config whenever
+// it represents the same number of bytes as what MinIO returned (e.g. user wrote "100M", MinIO returns
+// "100 MB"). Without this, Terraform flags an inconsistency between plan and post-apply state.
+func (r *bucketReplicationResource) preserveBandwidthLimitFormat(ctx context.Context, config tfsdk.Config, plan *bucketReplicationResourceModel) diag.Diagnostics {
+	return r.overlayFromConfig(ctx, config, plan, func(dst, src *replicationTargetModel) bool {
+		if src.BandwidthLimit.IsNull() || src.BandwidthLimit.IsUnknown() {
+			return false
+		}
+		if dst.BandwidthLimit.IsNull() || dst.BandwidthLimit.IsUnknown() {
+			return false
+		}
+		if src.BandwidthLimit.ValueString() == dst.BandwidthLimit.ValueString() {
+			return false
+		}
+		srcBytes, errS := humanize.ParseBytes(src.BandwidthLimit.ValueString())
+		dstBytes, errD := humanize.ParseBytes(dst.BandwidthLimit.ValueString())
+		if errS != nil || errD != nil || srcBytes != dstBytes {
+			return false
+		}
+		dst.BandwidthLimit = src.BandwidthLimit
+		return true
+	})
+}
+
+// overlayFromConfig walks the config's rules/targets in parallel with plan's and invokes `apply` for
+// each matching target pair. Rules match by index, targets match by bucket name. Returns diagnostics
+// and commits any modifications back into plan.Rules.
+func (r *bucketReplicationResource) overlayFromConfig(
+	ctx context.Context,
+	config tfsdk.Config,
+	plan *bucketReplicationResourceModel,
+	apply func(dst, src *replicationTargetModel) bool,
+) diag.Diagnostics {
+	var diags diag.Diagnostics
+
+	if plan.Rules.IsNull() || plan.Rules.IsUnknown() {
+		return diags
+	}
+
+	var configModel bucketReplicationResourceModel
+	diags.Append(config.Get(ctx, &configModel)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	if configModel.Rules.IsNull() || configModel.Rules.IsUnknown() {
+		return diags
+	}
+
+	var planRules []replicationRuleModel
+	diags.Append(plan.Rules.ElementsAs(ctx, &planRules, false)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	var configRules []replicationRuleModel
+	diags.Append(configModel.Rules.ElementsAs(ctx, &configRules, false)...)
+	if diags.HasError() {
+		return diags
+	}
+
+	modified := false
+	for i := range planRules {
+		if i >= len(configRules) {
+			break
+		}
+
+		var planTargets []replicationTargetModel
+		diags.Append(planRules[i].Target.ElementsAs(ctx, &planTargets, false)...)
+		if diags.HasError() {
+			return diags
+		}
+
+		var configTargets []replicationTargetModel
+		diags.Append(configRules[i].Target.ElementsAs(ctx, &configTargets, false)...)
+		if diags.HasError() {
+			return diags
+		}
+
+		configTargetsByBucket := make(map[string]replicationTargetModel, len(configTargets))
+		for _, t := range configTargets {
+			if b := t.Bucket.ValueString(); b != "" {
+				configTargetsByBucket[b] = t
+			}
+		}
+
+		targetModified := false
+		for j := range planTargets {
+			bucket := planTargets[j].Bucket.ValueString()
+			if bucket == "" {
+				continue
+			}
+			configTarget, ok := configTargetsByBucket[bucket]
+			if !ok {
+				continue
+			}
+			if apply(&planTargets[j], &configTarget) {
+				targetModified = true
+			}
+		}
+
+		if targetModified {
+			newTargets, d := types.ListValueFrom(ctx, replicationTargetObjectType, planTargets)
+			diags.Append(d...)
+			if diags.HasError() {
+				return diags
+			}
+			planRules[i].Target = newTargets
+			modified = true
+		}
+	}
+
+	if modified {
+		newRules, d := types.ListValueFrom(ctx, replicationRuleObjectType, planRules)
+		diags.Append(d...)
+		if diags.HasError() {
+			return diags
+		}
+		plan.Rules = newRules
+	}
+
+	return diags
+}
+
 func (r *bucketReplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -414,6 +553,12 @@ func (r *bucketReplicationResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
+	// secret_key is WriteOnly, so it's never present in plan or state — read it from config.
+	resp.Diagnostics.Append(r.overlaySecretKeysFromConfig(ctx, req.Config, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	tflog.Debug(ctx, "Creating bucket replication configuration", map[string]interface{}{
 		"bucket": plan.Bucket.ValueString(),
 	})
@@ -428,6 +573,11 @@ func (r *bucketReplicationResource) Create(ctx context.Context, req resource.Cre
 
 	if diags := r.readReplication(ctx, &plan); diags.HasError() {
 		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	resp.Diagnostics.Append(r.preserveBandwidthLimitFormat(ctx, req.Config, &plan)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -455,7 +605,6 @@ func (r *bucketReplicationResource) Read(ctx context.Context, req resource.ReadR
 			return
 		}
 	}
-
 	if diags := r.readReplication(ctx, &state); diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
@@ -470,26 +619,13 @@ func (r *bucketReplicationResource) Read(ctx context.Context, req resource.ReadR
 			return
 		}
 
-		// Build map of state rules by ID for secret_key lookup.
-		stateRulesByID := make(map[string]replicationRuleModel)
-		for _, rule := range stateRules {
-			ruleID := rule.ID.ValueString()
-			if ruleID != "" {
-				stateRulesByID[ruleID] = rule
-			}
-		}
-
-		// Restore secret_key for matching rules.
+		// Match rules by index — MinIO often returns an empty rule ID, so ID-based matching is unreliable.
+		// Rules are position-stable from the user's config, so index matching preserves state correctly.
 		for i, readRule := range readRules {
-			ruleID := readRule.ID.ValueString()
-			if ruleID == "" {
-				continue
+			if i >= len(stateRules) {
+				break
 			}
-
-			stateRule, exists := stateRulesByID[ruleID]
-			if !exists {
-				continue
-			}
+			stateRule := stateRules[i]
 
 			var stateTargets []replicationTargetModel
 			diags := stateRule.Target.ElementsAs(ctx, &stateTargets, false)
@@ -530,6 +666,18 @@ func (r *bucketReplicationResource) Read(ctx context.Context, req resource.ReadR
 				if !stateTarget.SecretKey.IsNull() && !stateTarget.SecretKey.IsUnknown() && stateTarget.SecretKey.ValueString() != "" {
 					readTargets[j].SecretKey = stateTarget.SecretKey
 				}
+
+				// Preserve bandwidth_limit's original string form when byte-equivalent.
+				// MinIO normalizes "100M" → "100 MB"; keeping state's format avoids a spurious drift.
+				if !stateTarget.BandwidthLimit.IsNull() && !stateTarget.BandwidthLimit.IsUnknown() &&
+					!readTarget.BandwidthLimit.IsNull() && !readTarget.BandwidthLimit.IsUnknown() &&
+					stateTarget.BandwidthLimit.ValueString() != readTarget.BandwidthLimit.ValueString() {
+					stateBytes, errS := humanize.ParseBytes(stateTarget.BandwidthLimit.ValueString())
+					readBytes, errR := humanize.ParseBytes(readTarget.BandwidthLimit.ValueString())
+					if errS == nil && errR == nil && stateBytes == readBytes {
+						readTargets[j].BandwidthLimit = stateTarget.BandwidthLimit
+					}
+				}
 			}
 
 			// Update read rule targets.
@@ -567,6 +715,12 @@ func (r *bucketReplicationResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
+	// secret_key is WriteOnly, so it's never present in plan or state — read it from config.
+	resp.Diagnostics.Append(r.overlaySecretKeysFromConfig(ctx, req.Config, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	tflog.Debug(ctx, "Updating bucket replication configuration", map[string]interface{}{
 		"bucket": plan.Bucket.ValueString(),
 	})
@@ -581,6 +735,11 @@ func (r *bucketReplicationResource) Update(ctx context.Context, req resource.Upd
 
 	if diags := r.readReplication(ctx, &plan); diags.HasError() {
 		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	resp.Diagnostics.Append(r.preserveBandwidthLimitFormat(ctx, req.Config, &plan)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
@@ -971,6 +1130,8 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 	if !model.MetadataSync.IsNull() && !model.MetadataSync.IsUnknown() {
 		if model.MetadataSync.ValueBool() {
 			rule.SourceSelectionCriteria.ReplicaModifications.Status = "Enabled"
+		} else {
+			rule.SourceSelectionCriteria.ReplicaModifications.Status = "Disabled"
 		}
 	}
 
@@ -1098,6 +1259,24 @@ func (r *bucketReplicationResource) deleteReplication(ctx context.Context, model
 		if err := admClient.RemoveRemoteTarget(ctx, bucket, target.Arn); err != nil {
 			return fmt.Errorf("failed to remove remote target %s: %w", target.Arn, err)
 		}
+	}
+
+	// Verify remote targets were actually removed, retrying while MinIO still reports them.
+	// Remote target removal is eventually consistent.
+	for attempt := 0; attempt < 20; attempt++ {
+		remainingTargets, err := admClient.ListRemoteTargets(ctx, bucket, "")
+		if err != nil {
+			// If listing fails, assume targets are gone
+			break
+		}
+		if len(remainingTargets) == 0 {
+			// All targets successfully removed
+			break
+		}
+		if attempt == 19 {
+			return fmt.Errorf("remote targets still exist after removal: %d targets remaining", len(remainingTargets))
+		}
+		time.Sleep(time.Second)
 	}
 
 	return nil

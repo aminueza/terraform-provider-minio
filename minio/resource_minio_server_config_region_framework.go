@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -79,11 +78,13 @@ func (r *serverConfigRegionResource) Schema(ctx context.Context, req resource.Sc
 				Optional:    true,
 				Computed:    true,
 				Description: "Region description.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"restart_required": schema.BoolAttribute{
 				Computed:    true,
 				Description: "Whether a MinIO server restart is required.",
-				Default:     booldefault.StaticBool(false),
 			},
 		},
 	}
@@ -136,16 +137,21 @@ func (r *serverConfigRegionResource) Create(ctx context.Context, req resource.Cr
 	plan.ID = types.StringValue("region")
 	plan.RestartRequired = types.BoolValue(restartRequired)
 
-	tflog.Debug(ctx, fmt.Sprintf("Set region config (restart_required=%v)", restartRequired))
-
-	if restartRequired {
-		tflog.Warn(ctx, "Region config change requires MinIO server restart to take effect")
-	} else {
+	// Only read config if no restart is required to avoid inconsistent state
+	if !restartRequired {
 		resp.Diagnostics.Append(r.readRegion(ctx, &plan)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
+	} else {
+		tflog.Warn(ctx, "Region config change requires MinIO server restart to take effect")
+		// Set comment to empty string if not provided
+		if plan.Comment.IsNull() || plan.Comment.IsUnknown() {
+			plan.Comment = types.StringValue("")
+		}
 	}
+
+	tflog.Debug(ctx, fmt.Sprintf("Set region config (restart_required=%v)", plan.RestartRequired.ValueBool()))
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
@@ -170,6 +176,9 @@ func (r *serverConfigRegionResource) Read(ctx context.Context, req resource.Read
 
 func (r *serverConfigRegionResource) readRegion(ctx context.Context, model *serverConfigRegionResourceModel) diag.Diagnostics {
 	var diags diag.Diagnostics
+
+	// Preserve restart_required from state since server doesn't return it
+	preservedRestartRequired := model.RestartRequired
 
 	configData, err := r.client.S3Admin.GetConfigKV(ctx, "region")
 	if err != nil {
@@ -196,7 +205,12 @@ func (r *serverConfigRegionResource) readRegion(ctx context.Context, model *serv
 	}
 	if v, ok := cfgMap["comment"]; ok && v != "" {
 		model.Comment = types.StringValue(v)
+	} else {
+		model.Comment = types.StringValue("")
 	}
+
+	// Restore restart_required from state
+	model.RestartRequired = preservedRestartRequired
 
 	return diags
 }

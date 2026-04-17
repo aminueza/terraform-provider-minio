@@ -77,21 +77,33 @@ func (r *serverConfigHealResource) Schema(ctx context.Context, req resource.Sche
 				Optional:    true,
 				Computed:    true,
 				Description: "Bitrot scan mode: \"on\", \"off\", or cycle duration (e.g., \"12m\" for monthly).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"max_sleep": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Maximum sleep between heal operations (e.g., \"250ms\").",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"max_io": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Maximum concurrent I/O operations for healing.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"drive_workers": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Number of workers per drive for healing. Empty for auto (1/4 CPU cores).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"restart_required": schema.BoolAttribute{
 				Computed:    true,
@@ -281,6 +293,18 @@ func (r *serverConfigHealResource) readHealConfig(ctx context.Context, model *se
 				model.MaxIO = types.StringValue(v)
 			case "drive_workers":
 				model.DriveWorkers = types.StringValue(v)
+			}
+		} else {
+			// Set empty string for fields not present in server response
+			switch f {
+			case "bitrotscan":
+				model.Bitrotscan = types.StringValue("")
+			case "max_sleep":
+				model.MaxSleep = types.StringValue("")
+			case "max_io":
+				model.MaxIO = types.StringValue("")
+			case "drive_workers":
+				model.DriveWorkers = types.StringValue("")
 			}
 		}
 	}

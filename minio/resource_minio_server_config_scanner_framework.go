@@ -84,31 +84,49 @@ func (r *serverConfigScannerResource) Schema(ctx context.Context, req resource.S
 				Validators: []validator.String{
 					stringvalidator.OneOf("fastest", "fast", "default", "slow", "slowest"),
 				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"delay": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Scanner delay multiplier between operations.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"max_wait": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Maximum wait between scanner cycles (e.g., \"15s\").",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"cycle": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Time between full scanner cycles (e.g., \"1m\").",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"excess_versions": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Alert threshold for excess object versions per prefix.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"excess_folders": schema.StringAttribute{
 				Optional:    true,
 				Computed:    true,
 				Description: "Alert threshold for excess folders per prefix.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"restart_required": schema.BoolAttribute{
 				Computed:    true,
@@ -311,6 +329,22 @@ func (r *serverConfigScannerResource) readScannerConfig(ctx context.Context, mod
 				model.ExcessVersions = types.StringValue(v)
 			case "excess_folders":
 				model.ExcessFolders = types.StringValue(v)
+			}
+		} else {
+			// Set empty string for fields not present in server response
+			switch f {
+			case "speed":
+				model.Speed = types.StringValue("")
+			case "delay":
+				model.Delay = types.StringValue("")
+			case "max_wait":
+				model.MaxWait = types.StringValue("")
+			case "cycle":
+				model.Cycle = types.StringValue("")
+			case "excess_versions":
+				model.ExcessVersions = types.StringValue("")
+			case "excess_folders":
+				model.ExcessFolders = types.StringValue("")
 			}
 		}
 	}

@@ -1562,7 +1562,7 @@ resource "minio_iam_service_account" "replication_in_%s" {
   ]
 
   provisioner "local-exec" {
-    command = "sleep 2"
+    command = "sleep 5"
   }
 }
 

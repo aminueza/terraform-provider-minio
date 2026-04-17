@@ -570,19 +570,22 @@ func TestValidateLifecycleRule_filterConflict(t *testing.T) {
 	}
 }
 
-func TestValidateLifecycleRule_sizeBounds(t *testing.T) {
+func TestValidateLifecycleRule_sizeBoundsInAnd(t *testing.T) {
 	rule := map[string]interface{}{
 		"id": "r1",
 		"expiration": []interface{}{map[string]interface{}{
 			"days": 10,
 		}},
 		"filter": []interface{}{map[string]interface{}{
-			"object_size_greater_than": 1000,
-			"object_size_less_than":    500,
+			"and": []interface{}{map[string]interface{}{
+				"object_size_greater_than": 2000,
+				"object_size_less_than":    1000,
+			}},
 		}},
 	}
-	if err := validateLifecycleRule("r1", rule); err == nil {
-		t.Fatal("expected a validation error")
+	err := validateLifecycleRule("r1", rule)
+	if err == nil || !strings.Contains(err.Error(), "must be less than") {
+		t.Errorf("expected size-bounds error, got %v", err)
 	}
 }
 

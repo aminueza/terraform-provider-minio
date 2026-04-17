@@ -402,6 +402,21 @@ func validateLifecycleFilter(id string, raw interface{}) error {
 	if topLevel > 1 {
 		return fmt.Errorf("rule %q: top-level filter fields are mutually exclusive; use filter.and for composite filters", id)
 	}
+	if err := validateLifecycleSizeBounds(id, sizeGT, sizeLT); err != nil {
+		return err
+	}
+	if len(and) > 0 {
+		andMap, _ := and[0].(map[string]interface{})
+		andGT := getIntValue(andMap, "object_size_greater_than")
+		andLT := getIntValue(andMap, "object_size_less_than")
+		if err := validateLifecycleSizeBounds(id, andGT, andLT); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateLifecycleSizeBounds(id string, sizeGT, sizeLT int) error {
 	if sizeGT > 0 && sizeLT > 0 && sizeGT >= sizeLT {
 		return fmt.Errorf("rule %q: object_size_greater_than (%d) must be less than object_size_less_than (%d)", id, sizeGT, sizeLT)
 	}
@@ -473,14 +488,56 @@ func minioReadS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("setting bucket", bucket, err)
 	}
 
+	abortFromState := abortBlocksFromState(d)
+
 	rules := make([]map[string]interface{}, 0, len(config.Rules))
 	for _, r := range config.Rules {
-		rules = append(rules, flattenLifecycleRule(r))
+		flat := flattenLifecycleRule(r)
+		if _, present := flat["abort_incomplete_multipart_upload"]; !present {
+			if preserved, ok := abortFromState[r.ID]; ok {
+				flat["abort_incomplete_multipart_upload"] = preserved
+			}
+		}
+		rules = append(rules, flat)
 	}
 	if err := d.Set("rule", rules); err != nil {
 		return NewResourceError("setting rules", bucket, err)
 	}
 	return nil
+}
+
+// abortBlocksFromState returns the user-configured abort_incomplete_multipart_upload
+// block keyed by rule ID. MinIO does not always round-trip this field, so we fall
+// back to the last-known config to avoid spurious drift on refresh.
+func abortBlocksFromState(d *schema.ResourceData) map[string][]map[string]interface{} {
+	out := map[string][]map[string]interface{}{}
+	raw, _ := d.GetOk("rule")
+	rules, ok := raw.([]interface{})
+	if !ok {
+		return out
+	}
+	for _, ri := range rules {
+		rule, ok := ri.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id, _ := getStringValue(rule, "id")
+		if id == "" {
+			continue
+		}
+		abortList, ok := rule["abort_incomplete_multipart_upload"].([]interface{})
+		if !ok || len(abortList) == 0 {
+			continue
+		}
+		first, ok := abortList[0].(map[string]interface{})
+		if !ok || first == nil {
+			continue
+		}
+		if days := getIntValue(first, "days_after_initiation"); days > 0 {
+			out[id] = []map[string]interface{}{{"days_after_initiation": days}}
+		}
+	}
+	return out
 }
 
 func minioUpdateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

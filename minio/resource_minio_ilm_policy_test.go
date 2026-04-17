@@ -21,9 +21,9 @@ func TestAccILMPolicy_basic(t *testing.T) {
 	resourceName := "minio_ilm_policy.rule"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfig(name),
@@ -68,9 +68,9 @@ func TestAccILMPolicy_abortOnlyNoExpiration(t *testing.T) {
 	resourceName := "minio_ilm_policy.abort_only"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfigAbortOnly(name),
@@ -89,9 +89,9 @@ func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 	resourceName := "minio_ilm_policy.rule2"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfigDeleteMarker(name),
@@ -112,15 +112,14 @@ func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 }
 
 func TestAccILMPolicy_filterTags(t *testing.T) {
-	t.Skip("Skipping due to unknown status values in rules - needs investigation")
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-rule3-%d", acctest.RandInt())
 	resourceName := "minio_ilm_policy.rule3"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyFilterWithPrefix(name),
@@ -146,9 +145,9 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 	resourceName := "minio_ilm_policy.rule4"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyExpireNoncurrentVersion(name),
@@ -166,7 +165,6 @@ func TestAccILMPolicy_expireNoncurrentVersion(t *testing.T) {
 }
 
 func TestAccILMPolicy_transition(t *testing.T) {
-	t.Skip("Skipping due to unknown filter/status values in rules with transitions - needs investigation")
 	var lifecycleConfig lifecycle.Configuration
 	resourceName := "minio_ilm_policy.rule_transition"
 
@@ -180,9 +178,9 @@ func TestAccILMPolicy_transition(t *testing.T) {
 	remoteTierName := acctest.RandomWithPrefix("COLD")
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
@@ -228,9 +226,9 @@ func TestAccILMPolicy_ruleStatus(t *testing.T) {
 	resourceName := "minio_ilm_policy.rule_status"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				// Test default status (should be "Enabled")
@@ -267,9 +265,9 @@ func TestAccILMPolicy_abortIncompleteMultipartUpload(t *testing.T) {
 	resourceName := "minio_ilm_policy.abort_mpu"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfigAbortIncompleteMultipartUpload(name),
@@ -581,9 +579,9 @@ func TestAccILMPolicy_expiredObjectDeleteMarker(t *testing.T) {
 	resourceName := "minio_ilm_policy.expired_dm"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfigExpiredObjectDeleteMarker(name),
@@ -622,9 +620,9 @@ func TestAccILMPolicy_mutuallyExclusiveExpirationAttributes(t *testing.T) {
 	name := fmt.Sprintf("test-ilm-mutex-%d", acctest.RandInt())
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioILMPolicyConfigMutuallyExclusive(name),
@@ -656,9 +654,9 @@ func TestAccILMPolicy_mutuallyExclusiveDeleteMarkerTags(t *testing.T) {
 	name := fmt.Sprintf("test-ilm-dm-tags-%d", acctest.RandInt())
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config:      testAccMinioILMPolicyConfigDeleteMarkerWithTags(name),
@@ -804,9 +802,9 @@ func TestAccILMPolicy_expirationNoFilter(t *testing.T) {
 	resourceName := "minio_ilm_policy.rule"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
-		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		CheckDestroy:             testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioILMPolicyConfigNoFilter(name),

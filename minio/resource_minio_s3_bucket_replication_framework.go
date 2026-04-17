@@ -244,6 +244,8 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 									},
 									"health_check_period": schema.StringAttribute{
 										Optional:    true,
+										Computed:    true,
+										Default:     stringdefault.StaticString("30s"),
 										Description: "Health check period (e.g., '30s')",
 									},
 									"bandwidth_limit": schema.StringAttribute{
@@ -351,8 +353,14 @@ func (r *bucketReplicationResource) ModifyPlan(ctx context.Context, req resource
 			if bucket == "" {
 				continue
 			}
-			// User set a new explicit key; don't override.
-			if !planTarget.SecretKey.IsNull() && !planTarget.SecretKey.IsUnknown() && planTarget.SecretKey.ValueString() != "" {
+			// Check config to see if user explicitly set a new key (write-only attributes are null in plan)
+			configSecretKey, diags := r.getPlanSecretKey(ctx, req, i, j)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			// User set a new explicit key in config; don't override.
+			if !configSecretKey.IsNull() && !configSecretKey.IsUnknown() && configSecretKey.ValueString() != "" {
 				continue
 			}
 			stateTarget, ok := stateTargetsByBucket[bucket]
@@ -384,6 +392,15 @@ func (r *bucketReplicationResource) ModifyPlan(ctx context.Context, req resource
 		}
 		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, fwp.Root("rule"), newRules)...)
 	}
+}
+
+// getPlanSecretKey reads secret_key from config if available (write-only attributes are null in plan)
+func (r *bucketReplicationResource) getPlanSecretKey(ctx context.Context, req resource.ModifyPlanRequest, ruleIndex, targetIndex int) (types.String, diag.Diagnostics) {
+	var diags diag.Diagnostics
+	targetPath := fwp.Root("rule").AtListIndex(ruleIndex).AtListIndex(targetIndex).AtName("secret_key")
+	var secretKey types.String
+	diags.Append(req.Config.GetAttribute(ctx, targetPath, &secretKey)...)
+	return secretKey, diags
 }
 
 func (r *bucketReplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

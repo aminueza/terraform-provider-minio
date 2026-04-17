@@ -406,6 +406,8 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 		wantedSecret = secretKey
+		// Clear the old secret so read() doesn't restore it
+		data.Secret = types.StringNull()
 	}
 
 	hasSecretWOVersion := !data.SecretWOVersion.IsNull() && !data.SecretWOVersion.IsUnknown()

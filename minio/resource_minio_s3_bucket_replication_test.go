@@ -1560,10 +1560,6 @@ resource "minio_iam_service_account" "replication_in_%s" {
     minio_iam_user_policy_attachment.replication_in_%s,
     minio_iam_policy.replication_in_%s,
   ]
-
-  provisioner "local-exec" {
-    command = "sleep 5"
-  }
 }
 
 `, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, indentifier, letter, letter, letter)

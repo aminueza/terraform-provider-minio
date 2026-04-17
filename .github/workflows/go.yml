@@ -111,8 +111,8 @@ jobs:
           timeout 120 bash -c 'until docker compose exec -T thirdminio mc admin info local >/dev/null 2>&1; do sleep 2; done'
           timeout 120 bash -c 'until docker compose exec -T fourthminio mc admin info local >/dev/null 2>&1; do sleep 2; done'
           echo "All MinIO services are ready!"
-          echo "Waiting 5 seconds for IAM state to stabilize..."
-          sleep 5
+          echo "Waiting 30 seconds for IAM state to stabilize..."
+          sleep 30
 
       - name: Run tests
         run: docker compose run --rm test

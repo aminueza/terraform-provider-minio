@@ -155,16 +155,16 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		return
 	}
 
-	// WriteOnly attribute values must be read via GetAttribute from Config;
-	// they are null when read through Plan.Get even at plan time.
-	var planSecretKeyVal types.String
+	// WriteOnly attribute values are null in Plan; must be read from Config.
+	var planSecretKeyVal, planSecretKeyWOVal types.String
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key"), &planSecretKeyVal)...)
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_key_wo"), &planSecretKeyWOVal)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 	planSecretKey := planSecretKeyVal.ValueString()
 
-	// Static validation: if secret_key is set, secret_key_version must also be set.
+	// Static validation: if secret_key is set (known value), secret_key_version must be provided.
 	if planSecretKey != "" {
 		if plan.SecretKeyVersion.IsNull() || plan.SecretKeyVersion.IsUnknown() || plan.SecretKeyVersion.ValueString() == "" {
 			resp.Diagnostics.AddAttributeError(
@@ -175,8 +175,17 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		}
 	}
 
-	// Static validation removed to allow unknown values during plan (matching SDK fix 244180b).
-	// The apply-time check in Update enforces the requirement when version actually changes.
+	// Static validation: if secret_key_wo is set (known value, not unknown from ephemeral resource),
+	// secret_key_wo_version must be provided.
+	if !planSecretKeyWOVal.IsNull() && !planSecretKeyWOVal.IsUnknown() {
+		if plan.SecretKeyWOVersion.IsNull() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key_wo_version"),
+				"Missing secret_key_wo_version",
+				"secret_key_wo_version must be provided when secret_key_wo is set",
+			)
+		}
+	}
 
 	// Dynamic validation requires state (update scenario only).
 	if req.State.Raw.IsNull() {
@@ -189,7 +198,7 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		return
 	}
 
-	// If secret_key_version is set in the plan and changed, secret_key must be provided.
+	// If secret_key_version changed, secret_key must be provided (skip if secret_key value is unknown).
 	if !plan.SecretKeyVersion.IsNull() && !plan.SecretKeyVersion.IsUnknown() &&
 		!plan.SecretKeyVersion.Equal(state.SecretKeyVersion) {
 		if planSecretKey == "" {
@@ -201,8 +210,18 @@ func (r *accessKeyResource) ModifyPlan(ctx context.Context, req resource.ModifyP
 		}
 	}
 
-	// Dynamic validation removed to allow unknown values during plan (matching SDK fix 244180b).
-	// The apply-time check in Update enforces the requirement when version actually changes.
+	// If secret_key_wo_version changed, secret_key_wo must be provided (skip if value is unknown,
+	// which happens when sourced from an ephemeral resource).
+	if !plan.SecretKeyWOVersion.IsNull() && !plan.SecretKeyWOVersion.IsUnknown() &&
+		!plan.SecretKeyWOVersion.Equal(state.SecretKeyWOVersion) {
+		if planSecretKeyWOVal.IsNull() && !planSecretKeyWOVal.IsUnknown() {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("secret_key_wo"),
+				"Missing secret_key_wo",
+				"secret_key_wo must be provided when secret_key_wo_version changes",
+			)
+		}
+	}
 }
 
 func (r *accessKeyResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {

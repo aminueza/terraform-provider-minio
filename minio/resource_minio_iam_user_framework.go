@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/minio/madmin-go/v3"
 )
 
@@ -85,23 +84,33 @@ func (m secretNullModifier) MarkdownDescription(ctx context.Context) string {
 }
 
 func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
-	// Get plan data to check if secret_wo is provided
 	var planData iamUserResourceModel
-	diags := req.Plan.Get(ctx, &planData)
-	resp.Diagnostics.Append(diags...)
-	if diags.HasError() {
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// If secret_wo is provided in plan, force secret to empty string
-	// This handles both initial creation with secret_wo and transition from secret to secret_wo
-	if !planData.SecretWO.IsNull() && !planData.SecretWO.IsUnknown() {
+	// When update_secret is true the provider generates a new random secret at apply time;
+	// mark as unknown so Terraform doesn't produce an inconsistency error.
+	if planData.UpdateSecret.ValueBool() {
+		resp.PlanValue = types.StringUnknown()
+		return
+	}
+
+	// secret_wo is WriteOnly so it's always null in the plan; check config instead.
+	var secretWOVal types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_wo"), &secretWOVal)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// When the user supplies secret_wo the secret attribute must be empty.
+	if !secretWOVal.IsNull() && !secretWOVal.IsUnknown() {
 		resp.PlanValue = types.StringValue("")
 		return
 	}
 
-	// Otherwise, use state value if available to preserve computed secret
-	// Only do this if the plan value is unknown (not explicitly set)
+	// Preserve existing state value when secret is not being changed (computed).
 	if req.PlanValue.IsUnknown() && !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
 		resp.PlanValue = req.StateValue
 	}
@@ -238,15 +247,21 @@ func (r *iamUserResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	// secret_wo is WriteOnly: it is null in req.Plan. Read it directly from config.
+	var secretWOAttr types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_wo"), &secretWOAttr)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	usingSecretWO := !secretWOAttr.IsNull() && !secretWOAttr.IsUnknown()
+
 	accessKey := data.Name.ValueString()
 	secretKey := data.Secret.ValueString()
 
-	// Handle secret_wo if provided
-	if !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown() {
-		secretKey = data.SecretWO.ValueString()
+	if usingSecretWO {
+		secretKey = secretWOAttr.ValueString()
 	}
 
-	// Generate secret if not provided
 	if secretKey == "" {
 		var err error
 		if secretKey, err = generateSecretAccessKey(); err != nil {
@@ -258,7 +273,6 @@ func (r *iamUserResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
-	// Create user
 	err := r.client.S3Admin.AddUser(ctx, accessKey, secretKey)
 	if err != nil {
 		resp.Diagnostics.AddError(
@@ -268,23 +282,19 @@ func (r *iamUserResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
-	// Set ID
 	data.ID = types.StringValue(accessKey)
 
-	// Set secret in state only when not using secret_wo
-	// When secret_wo is used, secret should be empty string
-	if !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown() {
-		// Using secret_wo, set secret to empty string
+	if usingSecretWO {
+		// Write-only path: secret must stay empty in state.
 		data.Secret = types.StringValue("")
 	} else if !data.Secret.IsNull() && !data.Secret.IsUnknown() {
-		// User provided secret, keep it as-is
-		// data.Secret already has the value
+		// User supplied an explicit secret; keep it.
 	} else {
-		// No secret provided and not using secret_wo, set the generated secret
+		// Auto-generated secret: store it so the user can retrieve it.
 		data.Secret = types.StringValue(secretKey)
 	}
 
-	// Clear write-only secret before setting state
+	// Never persist write-only value in state.
 	data.SecretWO = types.StringNull()
 
 	// Disable user if requested
@@ -372,30 +382,36 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
-	// Handle secret updates
+	// secret_wo is WriteOnly: null in req.Plan. Read directly from config.
+	var secretWOAttr types.String
+	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_wo"), &secretWOAttr)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	usingSecretWO := !secretWOAttr.IsNull() && !secretWOAttr.IsUnknown()
+
+	// Determine the desired secret value.
 	wantedSecret := data.Secret.ValueString()
-	if !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown() {
-		wantedSecret = data.SecretWO.ValueString()
+	if usingSecretWO {
+		wantedSecret = secretWOAttr.ValueString()
 	}
 
-	// Check if secret should be rotated
 	if data.UpdateSecret.ValueBool() {
-		if secretKey, err := generateSecretAccessKey(); err != nil {
+		secretKey, err := generateSecretAccessKey()
+		if err != nil {
 			resp.Diagnostics.AddError(
 				"Error rotating secret",
 				"Could not generate new secret: "+err.Error(),
 			)
 			return
-		} else {
-			wantedSecret = secretKey
 		}
+		wantedSecret = secretKey
 	}
 
-	// Check for secret_wo_version change
 	hasSecretWOVersion := !data.SecretWOVersion.IsNull() && !data.SecretWOVersion.IsUnknown()
-	hasSecretWOChange := !data.SecretWOVersion.Equal(basetypes.NewInt64Null()) && hasSecretWOVersion
+	hasSecretWOChange := hasSecretWOVersion && !data.SecretWOVersion.Equal(stateData.SecretWOVersion)
 
-	if hasSecretWOChange && data.SecretWO.IsNull() && data.SecretWO.IsUnknown() {
+	if hasSecretWOChange && !usingSecretWO {
 		resp.Diagnostics.AddError(
 			"Error updating secret",
 			"secret_wo must be provided when secret_wo_version changes",
@@ -403,8 +419,7 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
-	// Update secret if changed
-	if data.SecretChanged() || hasSecretWOChange || data.Secret.ValueString() != wantedSecret {
+	if data.SecretChanged() || hasSecretWOChange || data.UpdateSecret.ValueBool() || data.Secret.ValueString() != wantedSecret {
 		err = r.client.S3Admin.SetUser(ctx, data.ID.ValueString(), wantedSecret, wantedStatus)
 		if err != nil {
 			resp.Diagnostics.AddError(
@@ -414,23 +429,18 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 
-		if !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown() {
+		if usingSecretWO {
 			data.Secret = types.StringValue("")
 		} else {
 			data.Secret = types.StringValue(wantedSecret)
 		}
 	}
 
-	// Save plan secret_wo value before clearing for transition detection
-	planHasSecretWO := !data.SecretWO.IsNull() && !data.SecretWO.IsUnknown()
-
-	// If transitioning to secret_wo, clear secret before read so read preserves the null
-	// instead of restoring the old secret from state
-	if planHasSecretWO && !stateData.Secret.IsNull() && !stateData.Secret.IsUnknown() {
-		data.Secret = types.StringNull()
+	// If transitioning from secret → secret_wo, clear secret so Read doesn't restore the old value.
+	if usingSecretWO && !stateData.Secret.IsNull() && !stateData.Secret.IsUnknown() && stateData.Secret.ValueString() != "" {
+		data.Secret = types.StringValue("")
 	}
 
-	// Clear write-only secret before setting state
 	data.SecretWO = types.StringNull()
 
 	// Read final state

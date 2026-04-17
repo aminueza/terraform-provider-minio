@@ -30,6 +30,7 @@ var (
 	_ resource.Resource                = &bucketReplicationResource{}
 	_ resource.ResourceWithConfigure   = &bucketReplicationResource{}
 	_ resource.ResourceWithImportState = &bucketReplicationResource{}
+	_ resource.ResourceWithModifyPlan  = &bucketReplicationResource{}
 )
 
 type bucketReplicationResource struct {
@@ -144,10 +145,11 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 				Computed:    true,
 				Description: "ID of the last resync operation.",
 			},
-			"rule": schema.ListNestedAttribute{
+		},
+		Blocks: map[string]schema.Block{
+			"rule": schema.ListNestedBlock{
 				Description: "Rule definitions",
-				Optional:    true,
-				NestedObject: schema.NestedAttributeObject{
+				NestedObject: schema.NestedBlockObject{
 					Attributes: map[string]schema.Attribute{
 						"id": schema.StringAttribute{
 							Computed:    true,
@@ -197,9 +199,10 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 							Computed:    true,
 							Description: "Whether to sync object metadata",
 						},
-						"target": schema.ListNestedAttribute{
-							Optional: true,
-							NestedObject: schema.NestedAttributeObject{
+					},
+					Blocks: map[string]schema.Block{
+						"target": schema.ListNestedBlock{
+							NestedObject: schema.NestedBlockObject{
 								Attributes: map[string]schema.Attribute{
 									"bucket": schema.StringAttribute{
 										Required:    true,
@@ -265,140 +268,122 @@ func (r *bucketReplicationResource) Schema(ctx context.Context, req resource.Sch
 						},
 					},
 				},
-				PlanModifiers: []planmodifier.List{
-					preserveSecretKeyInReplicationTargets{},
-				},
 			},
 		},
 	}
 }
 
-// preserveSecretKeyInReplicationTargets preserves secret_key from state when not changed in plan.
-// MinIO API does not return secret_key on read (it's write-only), so we need to preserve it from state.
-type preserveSecretKeyInReplicationTargets struct{}
-
-func (m preserveSecretKeyInReplicationTargets) Description(ctx context.Context) string {
-	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
-}
-
-func (m preserveSecretKeyInReplicationTargets) MarkdownDescription(ctx context.Context) string {
-	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
-}
-
-func (m preserveSecretKeyInReplicationTargets) PlanModifyList(ctx context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
+// ModifyPlan preserves secret_key from state for replication targets, since MinIO API does not
+// return secret_key on read. Without this, every Read would clear the user's secret_key value.
+func (r *bucketReplicationResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	// Skip on destroy.
-	if req.PlanValue.IsNull() {
+	if req.Plan.Raw.IsNull() {
 		return
 	}
 
-	// If no state exists, nothing to preserve.
-	if req.StateValue.IsNull() {
+	// No state on first create; nothing to preserve.
+	if req.State.Raw.IsNull() {
 		return
 	}
 
-	// Parse plan rules.
+	var planModel, stateModel bucketReplicationResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planModel)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateModel)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if planModel.Rules.IsNull() || planModel.Rules.IsUnknown() {
+		return
+	}
+	if stateModel.Rules.IsNull() || stateModel.Rules.IsUnknown() {
+		return
+	}
+
 	var planRules []replicationRuleModel
-	diags := req.PlanValue.ElementsAs(ctx, &planRules, false)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(planModel.Rules.ElementsAs(ctx, &planRules, false)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Parse state rules.
 	var stateRules []replicationRuleModel
-	diags = req.StateValue.ElementsAs(ctx, &stateRules, false)
-	resp.Diagnostics.Append(diags...)
+	resp.Diagnostics.Append(stateModel.Rules.ElementsAs(ctx, &stateRules, false)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	// Build a map of state rules by ID for quick lookup.
-	stateRulesByID := make(map[string]replicationRuleModel)
+	stateRulesByID := make(map[string]replicationRuleModel, len(stateRules))
 	for _, rule := range stateRules {
-		ruleID := rule.ID.ValueString()
-		if ruleID != "" {
-			stateRulesByID[ruleID] = rule
+		if id := rule.ID.ValueString(); id != "" {
+			stateRulesByID[id] = rule
 		}
 	}
 
-	// For each plan rule, if it matches a state rule by ID, preserve secret_key from state targets.
+	modified := false
 	for i, planRule := range planRules {
-		ruleID := planRule.ID.ValueString()
-		if ruleID == "" {
-			continue
-		}
-
-		stateRule, exists := stateRulesByID[ruleID]
+		stateRule, exists := stateRulesByID[planRule.ID.ValueString()]
 		if !exists {
 			continue
 		}
 
-		// Parse plan targets.
 		var planTargets []replicationTargetModel
-		diags = planRule.Target.ElementsAs(ctx, &planTargets, false)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.Append(planRule.Target.ElementsAs(ctx, &planTargets, false)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
 
-		// Parse state targets.
 		var stateTargets []replicationTargetModel
-		diags = stateRule.Target.ElementsAs(ctx, &stateTargets, false)
-		resp.Diagnostics.Append(diags...)
+		resp.Diagnostics.Append(stateRule.Target.ElementsAs(ctx, &stateTargets, false)...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
 
-		// Build a map of state targets by bucket for quick lookup.
-		stateTargetsByBucket := make(map[string]replicationTargetModel)
-		for _, target := range stateTargets {
-			bucket := target.Bucket.ValueString()
-			if bucket != "" {
-				stateTargetsByBucket[bucket] = target
+		stateTargetsByBucket := make(map[string]replicationTargetModel, len(stateTargets))
+		for _, t := range stateTargets {
+			if b := t.Bucket.ValueString(); b != "" {
+				stateTargetsByBucket[b] = t
 			}
 		}
 
-		// For each plan target, if it matches a state target by bucket and secret_key is null/empty in plan,
-		// preserve the secret_key from state.
+		targetModified := false
 		for j, planTarget := range planTargets {
 			bucket := planTarget.Bucket.ValueString()
 			if bucket == "" {
 				continue
 			}
-
-			// If plan has a non-empty secret_key, user is explicitly setting it (rotation), so don't override.
+			// User set a new explicit key; don't override.
 			if !planTarget.SecretKey.IsNull() && !planTarget.SecretKey.IsUnknown() && planTarget.SecretKey.ValueString() != "" {
 				continue
 			}
-
-			stateTarget, exists := stateTargetsByBucket[bucket]
-			if !exists {
+			stateTarget, ok := stateTargetsByBucket[bucket]
+			if !ok {
 				continue
 			}
-
-			// Preserve secret_key from state if it exists.
 			if !stateTarget.SecretKey.IsNull() && !stateTarget.SecretKey.IsUnknown() && stateTarget.SecretKey.ValueString() != "" {
 				planTargets[j].SecretKey = stateTarget.SecretKey
+				targetModified = true
 			}
 		}
 
-		// Update plan rule targets.
-		targets, diags := types.ListValueFrom(ctx, replicationTargetObjectType, planTargets)
+		if targetModified {
+			newTargets, diags := types.ListValueFrom(ctx, replicationTargetObjectType, planTargets)
+			resp.Diagnostics.Append(diags...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+			planRules[i].Target = newTargets
+			modified = true
+		}
+	}
+
+	if modified {
+		newRules, diags := types.ListValueFrom(ctx, replicationRuleObjectType, planRules)
 		resp.Diagnostics.Append(diags...)
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		planRules[i].Target = targets
+		resp.Diagnostics.Append(resp.Plan.SetAttribute(ctx, fwp.Root("rule"), newRules)...)
 	}
-
-	// Set the modified plan rules back.
-	modifiedPlan, diags := types.ListValueFrom(ctx, replicationRuleObjectType, planRules)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.PlanValue = modifiedPlan
 }
 
 func (r *bucketReplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
@@ -846,6 +831,7 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 		"bandwidth_limit":     targetModel.BandwidthLimit,
 		"region":              targetModel.Region,
 		"access_key":          targetModel.AccessKey,
+		"secret_key":          types.StringNull(), // MinIO API never returns the secret; ModifyPlan/Read restore from state
 	})
 	diags.Append(d...)
 	if diags.HasError() {

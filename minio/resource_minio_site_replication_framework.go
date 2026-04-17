@@ -82,10 +82,42 @@ func (r *siteReplicationResource) Schema(ctx context.Context, req resource.Schem
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"site": schema.ListAttribute{
+			"site": schema.ListNestedAttribute{
 				Description: "List of sites to replicate between (minimum 2). Access_key and secret_key are stored in state but not returned by the MinIO API during read operations for security reasons.",
 				Required:    true,
-				ElementType: siteObjectType,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Required:    true,
+							Description: "Site name",
+						},
+						"endpoint": schema.StringAttribute{
+							Required:    true,
+							Description: "Site endpoint URL",
+						},
+						"access_key": schema.StringAttribute{
+							Required:    true,
+							Description: "Site access key",
+						},
+						"secret_key": schema.StringAttribute{
+							Required:    true,
+							Sensitive:   true,
+							Description: "Site secret key (write-only, not returned by MinIO API)",
+						},
+						"secret_key_wo": schema.StringAttribute{
+							Optional:    true,
+							Sensitive:   true,
+							Description: "Write-only secret key for rotation",
+						},
+						"secret_key_wo_version": schema.Int64Attribute{
+							Optional:    true,
+							Description: "Version for write-only secret key rotation",
+						},
+					},
+				},
+				PlanModifiers: []planmodifier.List{
+					preserveSecretKeyInSites{},
+				},
 			},
 			"replicate_ilm_expiry": schema.BoolAttribute{
 				Optional:    true,
@@ -99,6 +131,96 @@ func (r *siteReplicationResource) Schema(ctx context.Context, req resource.Schem
 			},
 		},
 	}
+}
+
+// preserveSecretKeyInSites preserves secret_key from state when not changed in plan.
+// MinIO API does not return secret_key on read (it's write-only), so we need to preserve it from state.
+type preserveSecretKeyInSites struct{}
+
+func (m preserveSecretKeyInSites) Description(ctx context.Context) string {
+	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
+}
+
+func (m preserveSecretKeyInSites) MarkdownDescription(ctx context.Context) string {
+	return "Preserve secret_key from state when not changed in plan, since MinIO API does not return it on read."
+}
+
+func (m preserveSecretKeyInSites) PlanModifyList(ctx context.Context, req planmodifier.ListRequest, resp *planmodifier.ListResponse) {
+	// Skip on destroy.
+	if req.PlanValue.IsNull() {
+		return
+	}
+
+	// If no state exists, nothing to preserve.
+	if req.StateValue.IsNull() {
+		return
+	}
+
+	// Parse plan sites.
+	var planSites []siteModel
+	diags := req.PlanValue.ElementsAs(ctx, &planSites, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Parse state sites.
+	var stateSites []siteModel
+	diags = req.StateValue.ElementsAs(ctx, &stateSites, false)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Build a map of state sites by name for quick lookup.
+	stateSitesByName := make(map[string]siteModel)
+	for _, site := range stateSites {
+		name := site.Name.ValueString()
+		if name != "" {
+			stateSitesByName[name] = site
+		}
+	}
+
+	// For each plan site, if it matches a state site by name, preserve secret_key from state.
+	for i, planSite := range planSites {
+		name := planSite.Name.ValueString()
+		if name == "" {
+			continue
+		}
+
+		stateSite, exists := stateSitesByName[name]
+		if !exists {
+			continue
+		}
+
+		// If plan has a non-empty secret_key, user is explicitly setting it (rotation), so don't override.
+		if !planSite.SecretKey.IsNull() && !planSite.SecretKey.IsUnknown() && planSite.SecretKey.ValueString() != "" {
+			continue
+		}
+
+		// Preserve secret_key from state if it exists.
+		if !stateSite.SecretKey.IsNull() && !stateSite.SecretKey.IsUnknown() && stateSite.SecretKey.ValueString() != "" {
+			planSites[i].SecretKey = stateSite.SecretKey
+		}
+
+		// Same for secret_key_wo
+		if !planSite.SecretKeyWO.IsNull() && !planSite.SecretKeyWO.IsUnknown() && planSite.SecretKeyWO.ValueString() != "" {
+			continue
+		}
+
+		if !stateSite.SecretKeyWO.IsNull() && !stateSite.SecretKeyWO.IsUnknown() && stateSite.SecretKeyWO.ValueString() != "" {
+			planSites[i].SecretKeyWO = stateSite.SecretKeyWO
+		}
+	}
+
+	// Set the modified plan sites back.
+	modifiedPlan, diags := types.ListValueFrom(ctx, siteObjectType, planSites)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.PlanValue = modifiedPlan
 }
 
 func (r *siteReplicationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {

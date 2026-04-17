@@ -1029,6 +1029,14 @@ func (r *bucketReplicationResource) applyReplication(ctx context.Context, model 
 	admClient := r.client.S3Admin
 	bucket := model.Bucket.ValueString()
 
+	// Clear existing replication config to allow remote target updates
+	// MinIO doesn't allow removing or updating a remote target while it's in use
+	config, err := client.GetBucketReplication(ctx, bucket)
+	if err == nil {
+		config.Rules = []replication.Rule{}
+		_ = client.SetBucketReplication(ctx, bucket, config)
+	}
+
 	// Set remote targets first and collect ARNs
 	arns := make([]string, len(ruleModels))
 	targets := make([]madmin.BucketTarget, len(ruleModels))
@@ -1058,11 +1066,11 @@ func (r *bucketReplicationResource) applyReplication(ctx context.Context, model 
 		rules = append(rules, rule)
 	}
 
-	config := replication.Config{
+	config = replication.Config{
 		Rules: rules,
 	}
 
-	err := client.SetBucketReplication(ctx, bucket, config)
+	err = client.SetBucketReplication(ctx, bucket, config)
 	if err != nil {
 		return fmt.Errorf("failed to set replication config: %w", err)
 	}
@@ -1225,11 +1233,8 @@ func (r *bucketReplicationResource) setRemoteTarget(ctx context.Context, admClie
 
 	for _, existing := range existingTargets {
 		if existing.Endpoint == target.Endpoint && existing.TargetBucket == target.TargetBucket {
-			// Remove existing target to update it with new values
-			if err := admClient.RemoveRemoteTarget(ctx, bucket, existing.Arn); err != nil {
-				return "", fmt.Errorf("failed to remove existing remote target for update: %w", err)
-			}
-			break
+			// Return existing ARN if target already exists
+			return existing.Arn, nil
 		}
 	}
 

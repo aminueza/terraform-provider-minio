@@ -389,7 +389,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
             host = local.primary_minio_host
             region = "eu-north-1"
             secure = false
-            syncronous = true  # Test deprecated attribute for backwards compatibility
+            synchronous = true  # Test deprecated attribute for backwards compatibility
             bandwidth_limit = "800M"
             health_check_period = "2m"
             access_key = minio_iam_service_account.replication_in_a.access_key

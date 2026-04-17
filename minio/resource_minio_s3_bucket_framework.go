@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -71,6 +70,7 @@ func (r *minioS3BucketResource) Schema(ctx context.Context, req resource.SchemaR
 				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
+					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"bucket_prefix": schema.StringAttribute{
@@ -99,10 +99,16 @@ func (r *minioS3BucketResource) Schema(ctx context.Context, req resource.SchemaR
 			"arn": schema.StringAttribute{
 				Description: "ARN of the bucket",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"bucket_domain_name": schema.StringAttribute{
 				Description: "The bucket domain name",
 				Computed:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"quota": schema.Int64Attribute{
 				Description: "Quota of the bucket",
@@ -203,14 +209,9 @@ func (r *minioS3BucketResource) Create(ctx context.Context, req resource.CreateR
 	data.ID = types.StringValue(bucket)
 	data.Bucket = types.StringValue(bucket)
 
-	// Ensure bucket_prefix has a value (it's Computed)
+	// Ensure bucket_prefix has a known value (it's Computed)
 	if data.BucketPrefix.IsNull() || data.BucketPrefix.IsUnknown() {
-		// Extract prefix from generated bucket name if possible
-		if strings.HasPrefix(bucket, "tf-") {
-			data.BucketPrefix = types.StringValue("tf-")
-		} else {
-			data.BucketPrefix = types.StringValue("")
-		}
+		data.BucketPrefix = types.StringValue("")
 	}
 
 	// Wait for bucket to be ready
@@ -253,6 +254,12 @@ func (r *minioS3BucketResource) Read(ctx context.Context, req resource.ReadReque
 	// Ensure bucket field is set
 	if data.Bucket.IsNull() || data.Bucket.IsUnknown() {
 		data.Bucket = types.StringValue(bucket)
+	}
+
+	// Preserve bucket_prefix from state (server doesn't return it)
+	// Only set to empty if it's null
+	if data.BucketPrefix.IsNull() {
+		data.BucketPrefix = types.StringValue("")
 	}
 
 	// Compute derived attributes

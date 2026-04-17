@@ -90,13 +90,6 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 		return
 	}
 
-	// When update_secret is true the provider generates a new random secret at apply time;
-	// mark as unknown so Terraform doesn't produce an inconsistency error.
-	if planData.UpdateSecret.ValueBool() {
-		resp.PlanValue = types.StringUnknown()
-		return
-	}
-
 	// secret_wo is WriteOnly so it's always null in the plan; check config instead.
 	var secretWOVal types.String
 	resp.Diagnostics.Append(req.Config.GetAttribute(ctx, path.Root("secret_wo"), &secretWOVal)...)
@@ -107,6 +100,17 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 	// When the user supplies secret_wo the secret attribute must be empty.
 	if !secretWOVal.IsNull() && !secretWOVal.IsUnknown() {
 		resp.PlanValue = types.StringValue("")
+		return
+	}
+
+	// When update_secret is true and state has a value, preserve it to avoid plan diff
+	// after rotation. Only return unknown when state is null (first create with update_secret).
+	if planData.UpdateSecret.ValueBool() {
+		if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
+			resp.PlanValue = req.StateValue
+			return
+		}
+		resp.PlanValue = types.StringUnknown()
 		return
 	}
 

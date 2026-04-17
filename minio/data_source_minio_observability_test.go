@@ -7,9 +7,8 @@ import (
 )
 
 func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
-	t.Skip("Skipping due to MinIO SDK JSON unmarshal bug: cannot unmarshal object into Go struct field BucketDetails.Buckets.details.tags of type string")
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -27,7 +26,7 @@ func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
 
 func TestAccDataSourceMinioStorageInfo_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -46,7 +45,7 @@ func TestAccDataSourceMinioStorageInfo_basic(t *testing.T) {
 
 func TestAccDataSourceMinioDataUsage_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
@@ -64,7 +63,7 @@ func TestAccDataSourceMinioDataUsage_basic(t *testing.T) {
 
 func TestAccDataSourceMinioILMTierStats_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:                 func() { testAccPreCheck(t) },
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{

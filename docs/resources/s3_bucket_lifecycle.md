@@ -98,9 +98,9 @@ Optional:
 - `expiration` (Block List, Max: 1) Expiration for current object versions. (see [below for nested schema](#nestedblock--rule--expiration))
 - `filter` (Block List, Max: 1) Filter identifying one or more objects to which the rule applies. Omit to match all objects in the bucket. (see [below for nested schema](#nestedblock--rule--filter))
 - `noncurrent_version_expiration` (Block List, Max: 1) Expiration for non-current object versions. Requires versioning enabled on the bucket. (see [below for nested schema](#nestedblock--rule--noncurrent_version_expiration))
-- `noncurrent_version_transition` (Block List) Transitions for non-current object versions to another storage class. Requires versioning enabled on the bucket. (see [below for nested schema](#nestedblock--rule--noncurrent_version_transition))
+- `noncurrent_version_transition` (Block List, Max: 1) Transition for non-current object versions to another storage class. Requires versioning enabled on the bucket. (see [below for nested schema](#nestedblock--rule--noncurrent_version_transition))
 - `status` (String) Whether the rule is currently applied. One of `Enabled` or `Disabled`. Defaults to `Enabled`.
-- `transition` (Block List) Transitions for current object versions to another storage class. Multiple transitions may be specified as long as their days/date values do not overlap. (see [below for nested schema](#nestedblock--rule--transition))
+- `transition` (Block List, Max: 1) Transition for current object versions to another storage class. Only one transition per rule; add additional rules for multi-stage transitions. (see [below for nested schema](#nestedblock--rule--transition))
 
 <a id="nestedblock--rule--abort_incomplete_multipart_upload"></a>
 ### Nested Schema for `rule.abort_incomplete_multipart_upload`

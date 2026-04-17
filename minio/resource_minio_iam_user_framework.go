@@ -103,13 +103,10 @@ func (m secretNullModifier) PlanModifyString(ctx context.Context, req planmodifi
 		return
 	}
 
-	// When update_secret is true and state has a value, preserve it to avoid plan diff
-	// after rotation. Only return unknown when state is null (first create with update_secret).
+	// When update_secret is true, always return unknown to avoid inconsistency
+	// when a new secret is generated. After apply, the state will have the new secret
+	// and the next plan check will preserve it (when update_secret is false or removed).
 	if planData.UpdateSecret.ValueBool() {
-		if !req.StateValue.IsNull() && !req.StateValue.IsUnknown() {
-			resp.PlanValue = req.StateValue
-			return
-		}
 		resp.PlanValue = types.StringUnknown()
 		return
 	}
@@ -410,8 +407,6 @@ func (r *iamUserResource) Update(ctx context.Context, req resource.UpdateRequest
 			return
 		}
 		wantedSecret = secretKey
-		// Clear the old secret so read() doesn't restore it
-		data.Secret = types.StringNull()
 	}
 
 	hasSecretWOVersion := !data.SecretWOVersion.IsNull() && !data.SecretWOVersion.IsUnknown()

@@ -112,6 +112,11 @@ var _ resource.ResourceWithModifyPlan = &iamUserResource{}
 
 // ModifyPlan handles plan modifications at the resource level
 func (r *iamUserResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	// Skip ModifyPlan for destroy actions
+	if req.Plan.Raw.IsNull() {
+		return
+	}
+
 	var planData iamUserResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &planData)...)
 	if resp.Diagnostics.HasError() {

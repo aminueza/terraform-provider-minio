@@ -87,6 +87,9 @@ resource "minio_s3_bucket_replication" "replication_in_all" {
     minio_s3_bucket_versioning.my_bucket_in_b,
     minio_s3_bucket_versioning.my_bucket_in_c,
     minio_s3_bucket_versioning.my_bucket_in_d,
+    null_resource.wait_for_iam_propagation_b,
+    null_resource.wait_for_iam_propagation_c,
+    null_resource.wait_for_iam_propagation_d,
   ]
 }`
 
@@ -308,7 +311,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
-    minio_s3_bucket_versioning.my_bucket_in_b
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    null_resource.wait_for_iam_propagation_b,
   ]
 }`
 
@@ -335,7 +339,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
-    minio_s3_bucket_versioning.my_bucket_in_b
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    null_resource.wait_for_iam_propagation_b,
   ]
 }`
 
@@ -365,7 +370,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
     
     depends_on = [
         minio_s3_bucket_versioning.my_bucket_in_a,
-        minio_s3_bucket_versioning.my_bucket_in_b
+        minio_s3_bucket_versioning.my_bucket_in_b,
+        null_resource.wait_for_iam_propagation_b,
     ]
 }
 
@@ -396,9 +402,10 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
     depends_on = [
       minio_s3_bucket_versioning.my_bucket_in_a,
-      minio_s3_bucket_versioning.my_bucket_in_b
+      minio_s3_bucket_versioning.my_bucket_in_b,
+      null_resource.wait_for_iam_propagation_a,
     ]
-}`
+}
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
@@ -592,7 +599,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
-    minio_s3_bucket_versioning.my_bucket_in_b
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    null_resource.wait_for_iam_propagation_b,
   ]
 }`,
 				Check: resource.ComposeTestCheckFunc(
@@ -659,7 +667,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 
   depends_on = [
     minio_s3_bucket_versioning.my_bucket_in_a,
-    minio_s3_bucket_versioning.my_bucket_in_b
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    null_resource.wait_for_iam_propagation_b,
   ]
 }`,
 				Check: resource.ComposeTestCheckFunc(
@@ -1561,7 +1570,14 @@ resource "minio_iam_service_account" "replication_in_%s" {
   ]
 }
 
-`, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, indentifier, letter, letter, letter)
+resource "null_resource" "wait_for_iam_propagation_%s" {
+  depends_on = [minio_iam_service_account.replication_in_%s]
+  provisioner "local-exec" {
+    command = "sleep 2"
+  }
+}
+
+`, letter, indentifier, letter, indentifier, username, letter, indentifier, letter, letter, letter, letter, indentifier, letter, letter, letter, letter)
 	}
 	return varBlock
 }

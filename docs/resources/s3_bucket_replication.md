@@ -203,14 +203,14 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 ### Optional
 
 - `resync_version` (Number) Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.
-- `rule` (Attributes List) Rule definitions (see [below for nested schema](#nestedatt--rule))
+- `rule` (Block List) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
 ### Read-Only
 
 - `id` (String) Bucket name (used as resource ID)
 - `last_resync_id` (String) ID of the last resync operation.
 
-<a id="nestedatt--rule"></a>
+<a id="nestedblock--rule"></a>
 ### Nested Schema for `rule`
 
 Optional:
@@ -223,14 +223,14 @@ Optional:
 - `prefix` (String) Object prefix to replicate
 - `priority` (Number) Rule priority (lower number = higher priority)
 - `tags` (Map of String) Tags to filter objects for replication
-- `target` (Attributes List) (see [below for nested schema](#nestedatt--rule--target))
+- `target` (Block List) (see [below for nested schema](#nestedblock--rule--target))
 
 Read-Only:
 
 - `arn` (String) Rule ARN
 - `id` (String) Rule ID
 
-<a id="nestedatt--rule--target"></a>
+<a id="nestedblock--rule--target"></a>
 ### Nested Schema for `rule.target`
 
 Required:

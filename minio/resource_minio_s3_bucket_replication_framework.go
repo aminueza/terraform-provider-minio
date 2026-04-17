@@ -807,16 +807,19 @@ func (r *bucketReplicationResource) flattenReplicationTargets(ctx context.Contex
 	}
 
 	targetModel := replicationTargetModel{}
-	targetModel.Bucket = types.StringValue(rule.Destination.Bucket)
+	// Extract bucket name from TargetBucket (format: "bucket-name" or "arn:...")
+	// The ARN in rule.Destination.Bucket is used internally, but we want the actual bucket name
+	parts := strings.SplitN(targetTarget.TargetBucket, "/", 4)
+	if len(parts) >= 1 {
+		targetModel.Bucket = types.StringValue(parts[0])
+	}
 
 	if rule.Destination.StorageClass != "" {
 		targetModel.StorageClass = types.StringValue(rule.Destination.StorageClass)
 	}
 
-	parts := strings.SplitN(targetTarget.TargetBucket, "/", 4)
-	if len(parts) >= 3 {
-		targetModel.Host = types.StringValue(targetTarget.Endpoint)
-	}
+	// Set host from endpoint unconditionally
+	targetModel.Host = types.StringValue(targetTarget.Endpoint)
 
 	targetModel.Secure = types.BoolValue(targetTarget.Secure)
 	targetModel.PathStyle = types.StringValue(strings.ToLower(targetTarget.Path))

@@ -203,7 +203,7 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 ### Optional
 
 - `resync_version` (Number) Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.
-- `rule` (List of Object) Rule definitions (see [below for nested schema](#nestedatt--rule))
+- `rule` (Attributes List) Rule definitions (see [below for nested schema](#nestedatt--rule))
 
 ### Read-Only
 
@@ -215,36 +215,42 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
 Optional:
 
-- `arn` (String)
-- `delete_marker_replication` (Boolean)
-- `delete_replication` (Boolean)
-- `enabled` (Boolean)
-- `existing_object_replication` (Boolean)
-- `id` (String)
-- `metadata_sync` (Boolean)
-- `prefix` (String)
-- `priority` (Number)
-- `tags` (Map of String)
-- `target` (List of Object) (see [below for nested schema](#nestedobjatt--rule--target))
+- `delete_marker_replication` (Boolean) Whether to replicate delete markers
+- `delete_replication` (Boolean) Whether to replicate delete operations
+- `enabled` (Boolean) Whether the rule is enabled
+- `existing_object_replication` (Boolean) Whether to replicate existing objects
+- `metadata_sync` (Boolean) Whether to sync object metadata
+- `prefix` (String) Object prefix to replicate
+- `priority` (Number) Rule priority (lower number = higher priority)
+- `tags` (Map of String) Tags to filter objects for replication
+- `target` (Attributes List) (see [below for nested schema](#nestedatt--rule--target))
 
-<a id="nestedobjatt--rule--target"></a>
+Read-Only:
+
+- `arn` (String) Rule ARN
+- `id` (String) Rule ID
+
+<a id="nestedatt--rule--target"></a>
 ### Nested Schema for `rule.target`
+
+Required:
+
+- `access_key` (String) Target access key
+- `bucket` (String) Target bucket name
+- `host` (String) Target endpoint host
 
 Optional:
 
-- `access_key` (String)
-- `bandwidth_limit` (String)
-- `bucket` (String)
-- `disable_proxy` (Boolean)
-- `health_check_period` (String)
-- `host` (String)
-- `path` (String)
-- `path_style` (String)
-- `region` (String)
-- `secret_key` (String)
-- `secure` (Boolean)
-- `storage_class` (String)
-- `synchronous` (Boolean)
+- `bandwidth_limit` (String) Bandwidth limit (e.g., '100MB')
+- `disable_proxy` (Boolean) Disable proxy for target
+- `health_check_period` (String) Health check period (e.g., '30s')
+- `path` (String) Target path prefix
+- `path_style` (String) Path style for target (auto, on, off)
+- `region` (String) Target region
+- `secret_key` (String, Sensitive) Target secret key (write-only, not returned by MinIO API)
+- `secure` (Boolean) Use HTTPS for target connection
+- `storage_class` (String) Storage class for replicated objects
+- `synchronous` (Boolean) Whether replication is synchronous
 
 ## Import
 

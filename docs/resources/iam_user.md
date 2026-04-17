@@ -58,10 +58,12 @@ Use `secret_wo` with `secret_wo_version` when you do not want the provided secre
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `disable_user` (Boolean) Disable user.
 - `force_destroy` (Boolean) Delete user even if it has non-Terraform-managed IAM access keys.
 - `secret` (String, Sensitive) Secret key for the IAM user.
-- `secret_wo` (String, Sensitive) Write-only secret key for the IAM user.
+- `secret_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only secret key for the IAM user.
 - `secret_wo_version` (Number) Version identifier for secret_wo. Change this value to trigger rotation when using secret_wo.
 - `tags` (Map of String) A map of tags to assign to the user.
 - `update_secret` (Boolean) Rotate Minio User Secret Key.

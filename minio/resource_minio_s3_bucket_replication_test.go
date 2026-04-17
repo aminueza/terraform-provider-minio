@@ -587,8 +587,6 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bucket = minio_s3_bucket.my_bucket_in_b.bucket
         host = local.second_minio_host
         secure = false
-        bandwidth_limit = "150M"
-        health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
         secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
@@ -624,8 +622,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 									Synchronous:       false,
 									Secure:            false,
 									PathStyle:         S3PathStyleAuto,
-									HealthCheckPeriod: time.Minute * 5,
-									BandwidthLimit:    150000000,
+									HealthCheckPeriod: time.Second * 30,
+									BandwidthLimit:    100000000,
 								},
 							},
 						},
@@ -653,8 +651,6 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
         bucket = minio_s3_bucket.my_bucket_in_b.bucket
         host = local.second_minio_host
         secure = false
-        bandwidth_limit = "150M"
-        health_check_period = "5m"
         access_key = minio_iam_service_account.replication_in_b.access_key
         secret_key = minio_iam_service_account.replication_in_b.secret_key
     }
@@ -690,8 +686,8 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 									Synchronous:       false,
 									Secure:            false,
 									PathStyle:         S3PathStyleAuto,
-									HealthCheckPeriod: time.Minute * 5,
-									BandwidthLimit:    150000000,
+									HealthCheckPeriod: time.Second * 30,
+									BandwidthLimit:    100000000,
 								},
 							},
 						},

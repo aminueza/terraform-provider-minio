@@ -202,6 +202,8 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `resync_version` (Number) Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.
 - `rule` (Block List) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
@@ -214,6 +216,8 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 ### Nested Schema for `rule`
 
 Optional:
+
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
 - `delete_marker_replication` (Boolean) Whether to replicate delete markers
 - `delete_replication` (Boolean) Whether to replicate delete operations
@@ -241,13 +245,15 @@ Required:
 
 Optional:
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `bandwidth_limit` (String) Bandwidth limit (e.g., '100MB')
 - `disable_proxy` (Boolean) Disable proxy for target
 - `health_check_period` (String) Health check period (e.g., '30s')
 - `path` (String) Target path prefix
 - `path_style` (String) Path style for target (auto, on, off)
 - `region` (String) Target region
-- `secret_key` (String, Sensitive) Target secret key (write-only, not returned by MinIO API)
+- `secret_key` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Target secret key (write-only, not returned by MinIO API)
 - `secure` (Boolean) Use HTTPS for target connection
 - `storage_class` (String) Storage class for replicated objects
 - `synchronous` (Boolean) Whether replication is synchronous

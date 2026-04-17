@@ -23,6 +23,11 @@ Lifecycle configurations can be imported using the bucket name:
 terraform import minio_s3_bucket_lifecycle.example my-bucket
 ```
 
+After import, `abort_incomplete_multipart_upload` blocks may not appear in state.
+MinIO does not reliably return this field through `GetBucketLifecycle` when it is
+combined with `expiration` on the same rule. Re-run `terraform apply` once after
+import to reconcile.
+
 ## Relationship with `minio_ilm_policy`
 
 Both `minio_s3_bucket_lifecycle` and `minio_ilm_policy` manage the same underlying

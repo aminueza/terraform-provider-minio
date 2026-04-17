@@ -458,6 +458,9 @@ func TestAccMinioS3BucketLifecycle_richConfigImport(t *testing.T) {
 	bucket := acctest.RandomWithPrefix("tfacc-lc")
 	resourceName := "minio_s3_bucket_lifecycle.test"
 
+	// MinIO's GetBucketLifecycle does not round-trip abort_incomplete_multipart_upload
+	// when combined with expiration in the same rule, so import cannot reconstruct it.
+	// Refresh on an already-managed resource preserves the value from prior state.
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
@@ -474,6 +477,12 @@ func TestAccMinioS3BucketLifecycle_richConfigImport(t *testing.T) {
 				ResourceName:      resourceName,
 				ImportState:       true,
 				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"rule.2.abort_incomplete_multipart_upload",
+					"rule.2.abort_incomplete_multipart_upload.#",
+					"rule.2.abort_incomplete_multipart_upload.0.%",
+					"rule.2.abort_incomplete_multipart_upload.0.days_after_initiation",
+				},
 			},
 		},
 	})

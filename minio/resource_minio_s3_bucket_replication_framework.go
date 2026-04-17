@@ -1112,18 +1112,24 @@ func (r *bucketReplicationResource) expandReplicationRule(ctx context.Context, m
 	if !model.DeleteReplication.IsNull() && !model.DeleteReplication.IsUnknown() {
 		if model.DeleteReplication.ValueBool() {
 			rule.DeleteReplication.Status = "Enabled"
+		} else {
+			rule.DeleteReplication.Status = "Disabled"
 		}
 	}
 
 	if !model.DeleteMarkerReplication.IsNull() && !model.DeleteMarkerReplication.IsUnknown() {
 		if model.DeleteMarkerReplication.ValueBool() {
 			rule.DeleteMarkerReplication.Status = "Enabled"
+		} else {
+			rule.DeleteMarkerReplication.Status = "Disabled"
 		}
 	}
 
 	if !model.ExistingObjectReplication.IsNull() && !model.ExistingObjectReplication.IsUnknown() {
 		if model.ExistingObjectReplication.ValueBool() {
 			rule.ExistingObjectReplication.Status = "Enabled"
+		} else {
+			rule.ExistingObjectReplication.Status = "Disabled"
 		}
 	}
 

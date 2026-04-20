@@ -53,6 +53,7 @@ type S3MinioClient struct {
 	S3SSL             bool
 	SkipBucketTagging bool
 	S3CompatMode      bool
+	Edition           string
 
 	RequestTimeoutSeconds int
 	MaxRetries            int

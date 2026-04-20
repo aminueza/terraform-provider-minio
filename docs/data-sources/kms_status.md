@@ -2,12 +2,12 @@
 page_title: "minio_kms_status Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Reports status and connectivity information about the KMS configured on the MinIO server.
+  Reports status and connectivity information about the KMS configured on the MinIO server. version exposes the KMS server version (from the version endpoint); the server-side runtime snapshot in state[0] carries its own version reported by the status endpoint — they may differ.
 ---
 
 # minio_kms_status (Data Source)
 
-Reports status and connectivity information about the KMS configured on the MinIO server.
+Reports status and connectivity information about the KMS configured on the MinIO server. `version` exposes the KMS server version (from the version endpoint); the server-side runtime snapshot in `state[0]` carries its own `version` reported by the status endpoint — they may differ.
 
 ## Example Usage
 
@@ -28,13 +28,13 @@ output "kms_default_key" {
 
 ### Read-Only
 
-- `apis` (List of String) Supported `METHOD PATH` endpoints exposed by the KMS server.
+- `apis` (List of String) Supported `METHOD PATH` endpoints exposed by the KMS server. Empty when the backend does not implement the `/api` endpoint.
 - `default_key_id` (String) Key ID used by the MinIO server when no explicit key is specified.
 - `endpoints` (Map of String) Map of KMS endpoint URLs to their reported state (`online` / `offline` / `init`).
 - `id` (String) The ID of this resource.
 - `name` (String) Name or type of the KMS backend (e.g. `minio-kes`).
 - `state` (List of Object) Current KMS server state snapshot. (see [below for nested schema](#nestedatt--state))
-- `version` (String) Version string reported by the KMS server.
+- `version` (String) Version string reported by the KMS `/version` endpoint. Empty when the backend does not implement this endpoint (e.g. inline `MINIO_KMS_SECRET_KEY`).
 
 <a id="nestedatt--state"></a>
 ### Nested Schema for `state`

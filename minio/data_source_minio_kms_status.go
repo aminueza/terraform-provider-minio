@@ -11,7 +11,9 @@ import (
 
 func dataSourceMinioKMSStatus() *schema.Resource {
 	return &schema.Resource{
-		Description: "Reports status and connectivity information about the KMS configured on the MinIO server.",
+		Description: "Reports status and connectivity information about the KMS configured on the MinIO server. " +
+			"`version` exposes the KMS server version (from the version endpoint); the server-side runtime " +
+			"snapshot in `state[0]` carries its own `version` reported by the status endpoint — they may differ.",
 		ReadContext: dataSourceMinioKMSStatusRead,
 		Schema: map[string]*schema.Schema{
 			"name": {
@@ -27,12 +29,12 @@ func dataSourceMinioKMSStatus() *schema.Resource {
 			"version": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "Version string reported by the KMS server.",
+				Description: "Version string reported by the KMS `/version` endpoint. Empty when the backend does not implement this endpoint (e.g. inline `MINIO_KMS_SECRET_KEY`).",
 			},
 			"apis": {
 				Type:        schema.TypeList,
 				Computed:    true,
-				Description: "Supported `METHOD PATH` endpoints exposed by the KMS server.",
+				Description: "Supported `METHOD PATH` endpoints exposed by the KMS server. Empty when the backend does not implement the `/api` endpoint.",
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"endpoints": {
@@ -47,21 +49,17 @@ func dataSourceMinioKMSStatus() *schema.Resource {
 				Description: "Current KMS server state snapshot.",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
-						"version":             {Type: schema.TypeString, Computed: true},
-						"key_store_reachable": {Type: schema.TypeBool, Computed: true},
-						"keystore_available":  {Type: schema.TypeBool, Computed: true},
-						"key_store_latency_ms": {
-							Type:        schema.TypeInt,
-							Computed:    true,
-							Description: "Key-store probe latency in milliseconds.",
-						},
-						"os":               {Type: schema.TypeString, Computed: true},
-						"arch":             {Type: schema.TypeString, Computed: true},
-						"uptime_seconds":   {Type: schema.TypeInt, Computed: true},
-						"cpus":             {Type: schema.TypeInt, Computed: true},
-						"usable_cpus":      {Type: schema.TypeInt, Computed: true},
-						"heap_alloc_bytes": {Type: schema.TypeInt, Computed: true},
-						"stack_alloc_bytes": {Type: schema.TypeInt, Computed: true},
+						"version":              {Type: schema.TypeString, Computed: true, Description: "Version reported by the KMS status endpoint."},
+						"key_store_reachable":  {Type: schema.TypeBool, Computed: true},
+						"keystore_available":   {Type: schema.TypeBool, Computed: true},
+						"key_store_latency_ms": {Type: schema.TypeInt, Computed: true, Description: "Key-store probe latency in milliseconds."},
+						"os":                   {Type: schema.TypeString, Computed: true},
+						"arch":                 {Type: schema.TypeString, Computed: true},
+						"uptime_seconds":       {Type: schema.TypeInt, Computed: true},
+						"cpus":                 {Type: schema.TypeInt, Computed: true},
+						"usable_cpus":          {Type: schema.TypeInt, Computed: true},
+						"heap_alloc_bytes":     {Type: schema.TypeInt, Computed: true},
+						"stack_alloc_bytes":    {Type: schema.TypeInt, Computed: true},
 					},
 				},
 			},
@@ -71,6 +69,8 @@ func dataSourceMinioKMSStatus() *schema.Resource {
 
 func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
+
+	log.Printf("[DEBUG] Reading KMS status")
 
 	status, err := admin.KMSStatus(ctx)
 	if err != nil {
@@ -104,27 +104,36 @@ func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, m
 	}
 	d.SetId(id)
 
-	_ = d.Set("name", status.Name)
-	_ = d.Set("default_key_id", status.DefaultKeyID)
-	_ = d.Set("version", versionStr)
-	_ = d.Set("apis", apiStrs)
-	_ = d.Set("endpoints", endpoints)
 	heapAlloc, _ := SafeUint64ToInt64(status.State.HeapAlloc)
 	stackAlloc, _ := SafeUint64ToInt64(status.State.StackAlloc)
 
-	_ = d.Set("state", []map[string]interface{}{{
-		"version":              status.State.Version,
-		"key_store_reachable":  status.State.KeyStoreReachable,
-		"keystore_available":   status.State.KeystoreAvailable,
-		"key_store_latency_ms": status.State.KeyStoreLatency.Milliseconds(),
-		"os":                   status.State.OS,
-		"arch":                 status.State.Arch,
-		"uptime_seconds":       int64(status.State.UpTime.Seconds()),
-		"cpus":                 status.State.CPUs,
-		"usable_cpus":          status.State.UsableCPUs,
-		"heap_alloc_bytes":     heapAlloc,
-		"stack_alloc_bytes":    stackAlloc,
-	}})
+	for _, field := range []struct {
+		key   string
+		value interface{}
+	}{
+		{"name", status.Name},
+		{"default_key_id", status.DefaultKeyID},
+		{"version", versionStr},
+		{"apis", apiStrs},
+		{"endpoints", endpoints},
+		{"state", []map[string]interface{}{{
+			"version":              status.State.Version,
+			"key_store_reachable":  status.State.KeyStoreReachable,
+			"keystore_available":   status.State.KeystoreAvailable,
+			"key_store_latency_ms": status.State.KeyStoreLatency.Milliseconds(),
+			"os":                   status.State.OS,
+			"arch":                 status.State.Arch,
+			"uptime_seconds":       int64(status.State.UpTime.Seconds()),
+			"cpus":                 status.State.CPUs,
+			"usable_cpus":          status.State.UsableCPUs,
+			"heap_alloc_bytes":     heapAlloc,
+			"stack_alloc_bytes":    stackAlloc,
+		}}},
+	} {
+		if err := d.Set(field.key, field.value); err != nil {
+			return NewResourceError("setting "+field.key, "kms", err)
+		}
+	}
 
 	return nil
 }

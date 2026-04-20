@@ -305,6 +305,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_server_side_encryption":    resourceMinioBucketServerSideEncryption(),
 			"minio_s3_bucket_cors":                      resourceMinioS3BucketCors(),
 			"minio_s3_bucket_quota":                     resourceMinioBucketQuota(),
+			"minio_s3_bucket_lifecycle":                 resourceMinioS3BucketLifecycle(),
 			"minio_s3_bucket_tags":                      resourceMinioBucketTags(),
 			"minio_s3_object_tags":                      resourceMinioObjectTags(),
 			"minio_s3_object_legal_hold":                resourceMinioObjectLegalHold(),

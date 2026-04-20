@@ -20,6 +20,13 @@ import (
 
 const (
 	minioSecretIDLength = 40
+
+	lifecycleDateFormat = "2006-01-02"
+
+	// Forces Filter.IsNull() to return false so MarshalXML emits an empty
+	// <Filter></Filter>. Never leaks to the wire: MarshalXML only emits
+	// ObjectSizeGreaterThan when > 0.
+	lifecycleEmptyFilterSentinel int64 = -1
 )
 
 func tagsSchema() *schema.Schema {
@@ -273,6 +280,45 @@ func suppressCaseInsensitiveMapDiff(prefix string) schema.SchemaDiffSuppressFunc
 		}
 		return false
 	}
+}
+
+func getStringValue(m map[string]interface{}, k string) (string, bool) {
+	if v, ok := m[k]; ok {
+		if s, ok := v.(string); ok {
+			return s, true
+		}
+	}
+	return "", false
+}
+
+func getIntValue(m map[string]interface{}, k string) int {
+	if v, ok := m[k]; ok {
+		if i, ok := v.(int); ok {
+			return i
+		}
+	}
+	return 0
+}
+
+func convertToStringMap(v interface{}) map[string]string {
+	result := make(map[string]string)
+	if m, ok := v.(map[string]interface{}); ok {
+		for k, v := range m {
+			if s, ok := v.(string); ok {
+				result[k] = s
+			}
+		}
+	}
+	return result
+}
+
+func isLifecycleNotFoundError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "NoSuchLifecycleConfiguration") ||
+		strings.Contains(msg, "The lifecycle configuration does not exist")
 }
 
 // isS3CompatNotSupported returns true if the error indicates an unsupported

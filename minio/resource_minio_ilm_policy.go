@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -13,12 +12,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
-
-// emptyFilterSentinel forces lifecycle.Filter.IsNull() to return false so that
-// MarshalXML emits <Filter><Prefix></Prefix></Filter> for rules with no
-// prefix or tags. MarshalXML only emits ObjectSizeGreaterThan when > 0, so
-// the sentinel never leaks into the XML.
-const emptyFilterSentinel int64 = -1
 
 func resourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
@@ -289,7 +282,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
-	if err != nil && !isNotFoundError(err) {
+	if err != nil && !isLifecycleNotFoundError(err) {
 		return NewResourceError("getting existing lifecycle", bucket, err)
 	}
 
@@ -410,7 +403,7 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 	}
 
 	if filter.IsNull() {
-		filter.ObjectSizeGreaterThan = emptyFilterSentinel
+		filter.ObjectSizeGreaterThan = lifecycleEmptyFilterSentinel
 	}
 
 	expiration, _ := getStringValue(ruleData, "expiration")
@@ -474,7 +467,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			d.SetId("")
 			return nil
 		}
-		if isNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
+		if isLifecycleNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
 			if err = d.Set("bucket", d.Id()); err != nil {
 				return NewResourceError("setting bucket failed", d.Id(), err)
 			}
@@ -763,28 +756,3 @@ func parseILMNoncurrentExpiration(noncurrentExpiration interface{}) lifecycle.No
 	return lifecycle.NoncurrentVersionExpiration{}
 }
 
-func getStringValue(m map[string]interface{}, key string) (string, bool) {
-	if v, ok := m[key]; ok {
-		if s, ok := v.(string); ok {
-			return s, true
-		}
-	}
-	return "", false
-}
-
-// Use this helper for tags conversion
-func convertToStringMap(v interface{}) map[string]string {
-	result := make(map[string]string)
-	if m, ok := v.(map[string]interface{}); ok {
-		for k, v := range m {
-			if s, ok := v.(string); ok {
-				result[k] = s
-			}
-		}
-	}
-	return result
-}
-
-func isNotFoundError(err error) bool {
-	return strings.Contains(err.Error(), "The lifecycle configuration does not exist") || strings.Contains(err.Error(), "NoSuchLifecycleConfiguration")
-}

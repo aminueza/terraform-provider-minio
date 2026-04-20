@@ -1,0 +1,37 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_bucket_lifecycle/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Lifecycle configurations can be imported using the bucket name:
+
+```shell
+terraform import minio_s3_bucket_lifecycle.example my-bucket
+```
+
+After import, `abort_incomplete_multipart_upload` blocks may not appear in state.
+MinIO does not reliably return this field through `GetBucketLifecycle` when it is
+combined with `expiration` on the same rule. Re-run `terraform apply` once after
+import to reconcile.
+
+## Relationship with `minio_ilm_policy`
+
+Both `minio_s3_bucket_lifecycle` and `minio_ilm_policy` manage the same underlying
+S3 bucket lifecycle configuration. **Do not configure both resources for the same
+bucket** — they will fight each other on every plan. New configurations should
+prefer `minio_s3_bucket_lifecycle`, which mirrors the AWS provider schema
+(`aws_s3_bucket_lifecycle_configuration`).

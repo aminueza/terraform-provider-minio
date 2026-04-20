@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -126,10 +127,30 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 		S3SSL:                 config.S3SSL,
 		SkipBucketTagging:     config.SkipBucketTagging,
 		S3CompatMode:          config.S3CompatMode,
+		Edition:               detectEdition(minioAdmin, config.S3CompatMode),
 		RequestTimeoutSeconds: config.RequestTimeoutSeconds,
 		MaxRetries:            config.MaxRetries,
 		RetryDelayMs:          config.RetryDelayMs,
 	}, nil
+}
+
+func detectEdition(admin *madmin.AdminClient, s3CompatMode bool) string {
+	if s3CompatMode {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	info, err := admin.ServerInfo(ctx)
+	if err != nil {
+		log.Printf("[DEBUG] server edition probe failed: %v", err)
+		return ""
+	}
+	for _, srv := range info.Servers {
+		if srv.Edition != "" {
+			return srv.Edition
+		}
+	}
+	return ""
 }
 
 // isValidCertificate checks if the provided bytes represent a valid x509 certificate in PEM format

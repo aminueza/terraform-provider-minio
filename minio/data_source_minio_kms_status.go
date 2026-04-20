@@ -109,6 +109,9 @@ func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, m
 	_ = d.Set("version", versionStr)
 	_ = d.Set("apis", apiStrs)
 	_ = d.Set("endpoints", endpoints)
+	heapAlloc, _ := SafeUint64ToInt64(status.State.HeapAlloc)
+	stackAlloc, _ := SafeUint64ToInt64(status.State.StackAlloc)
+
 	_ = d.Set("state", []map[string]interface{}{{
 		"version":              status.State.Version,
 		"key_store_reachable":  status.State.KeyStoreReachable,
@@ -119,8 +122,8 @@ func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, m
 		"uptime_seconds":       int64(status.State.UpTime.Seconds()),
 		"cpus":                 status.State.CPUs,
 		"usable_cpus":          status.State.UsableCPUs,
-		"heap_alloc_bytes":     int64(status.State.HeapAlloc),
-		"stack_alloc_bytes":    int64(status.State.StackAlloc),
+		"heap_alloc_bytes":     heapAlloc,
+		"stack_alloc_bytes":    stackAlloc,
 	}})
 
 	return nil

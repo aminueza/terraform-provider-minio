@@ -250,6 +250,8 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_users":                           dataSourceIAMUsers(),
 			"minio_server_info":                         dataSourceMinioServerInfo(),
 			"minio_health_status":                       dataSourceMinioHealthStatus(),
+			"minio_kms_status":                          dataSourceMinioKMSStatus(),
+			"minio_kms_metrics":                         dataSourceMinioKMSMetrics(),
 			"minio_prometheus_scrape_config":            dataSourceMinioPrometheusScrapeConfig(),
 			"minio_iam_group":                           dataSourceIAMGroup(),
 			"minio_iam_groups":                          dataSourceIAMGroups(),

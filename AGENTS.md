@@ -602,7 +602,7 @@ tierName := strings.ToUpper("TFACC-TIER-" + acctest.RandString(8))
 
 **Object lock:** Requires versioning enabled. Needs MinIO RELEASE.2025-05-20+ to add after bucket creation.
 
-**LDAP/KMS tests:** Skip automatically if not configured. Set `MINIO_LDAP_ENABLED=1` or `MINIO_KMS_ENABLED=1` to run.
+**LDAP/KMS tests:** Skip automatically if not configured. Set `MINIO_LDAP_ENABLED=1` or `MINIO_KMS_CONFIGURED=1` to run.
 
 **Skipping tests in Docker:** Use `TEST_SKIP` (not `TEST_PATTERN`) for the `-skip` flag: `docker compose run --rm -e TEST_SKIP=TestName test`. `TEST_PATTERN` only supports `-run` patterns.
 

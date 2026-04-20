@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioIAMIdpLdap() *schema.Resource {
@@ -103,8 +102,7 @@ func minioCreateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 
 	log.Printf("[DEBUG] Creating LDAP IDP configuration")
 
-	cfgData := buildIdpLdapCfgData(config)
-	restart, err := config.MinioAdmin.AddOrUpdateIDPConfig(ctx, madmin.LDAPIDPCfg, madmin.Default, cfgData, false)
+	restart, err := config.MinioAdmin.SetConfigKV(ctx, "identity_ldap "+buildIdpLdapCfgData(config))
 	if err != nil {
 		return NewResourceError("creating LDAP IDP configuration", "ldap", err)
 	}
@@ -124,7 +122,7 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 
 	log.Printf("[DEBUG] Reading LDAP IDP configuration")
 
-	cfg, err := minioAdmin.GetIDPConfig(ctx, madmin.LDAPIDPCfg, madmin.Default)
+	rawKV, err := minioAdmin.GetConfigKV(ctx, "identity_ldap")
 	if err != nil {
 		if isIDPConfigNotFound(err) {
 			log.Printf("[WARN] LDAP IDP configuration no longer exists, removing from state")
@@ -134,7 +132,8 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("reading LDAP IDP configuration", "ldap", err)
 	}
 
-	cfgMap := idpCfgInfoToMap(cfg.Info)
+	cfgStr := strings.TrimPrefix(strings.TrimSpace(string(rawKV)), "identity_ldap ")
+	cfgMap := parseConfigParams(cfgStr)
 
 	stringFields := []string{
 		"server_addr",
@@ -152,18 +151,24 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 		}
 	}
 
-	for _, field := range []string{"tls_skip_verify", "server_insecure", "starttls"} {
+	for _, m := range []struct {
+		wire, schemaAttr string
+	}{
+		{"tls_skip_verify", "tls_skip_verify"},
+		{"server_insecure", "server_insecure"},
+		{"server_starttls", "starttls"},
+	} {
 		val := false
-		if v, ok := cfgMap[field]; ok {
+		if v, ok := cfgMap[m.wire]; ok {
 			val = v == "on"
 		}
-		if setErr := d.Set(field, val); setErr != nil {
-			return NewResourceError("setting "+field, "ldap", setErr)
+		if setErr := d.Set(m.schemaAttr, val); setErr != nil {
+			return NewResourceError("setting "+m.schemaAttr, "ldap", setErr)
 		}
 	}
 
 	enableVal := true
-	if v, ok := cfgMap["enable"]; ok {
+	if v, ok := cfgMap["enable"]; ok && v != "" {
 		enableVal = v == "on"
 	}
 	if setErr := d.Set("enable", enableVal); setErr != nil {
@@ -178,8 +183,7 @@ func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 
 	log.Printf("[DEBUG] Updating LDAP IDP configuration")
 
-	cfgData := buildIdpLdapCfgData(config)
-	restart, err := config.MinioAdmin.AddOrUpdateIDPConfig(ctx, madmin.LDAPIDPCfg, madmin.Default, cfgData, true)
+	restart, err := config.MinioAdmin.SetConfigKV(ctx, "identity_ldap "+buildIdpLdapCfgData(config))
 	if err != nil {
 		return NewResourceError("updating LDAP IDP configuration", "ldap", err)
 	}
@@ -198,7 +202,7 @@ func minioDeleteIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 
 	log.Printf("[DEBUG] Deleting LDAP IDP configuration")
 
-	_, err := minioAdmin.DeleteIDPConfig(ctx, madmin.LDAPIDPCfg, madmin.Default)
+	_, err := minioAdmin.DelConfigKV(ctx, "identity_ldap")
 	if err != nil {
 		if isIDPConfigNotFound(err) {
 			log.Printf("[WARN] LDAP IDP configuration already removed")
@@ -243,7 +247,7 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 	addStr("group_search_filter", config.GroupSearchFilter)
 	addBool("tls_skip_verify", config.TLSSkipVerify)
 	addBool("server_insecure", config.ServerInsecure)
-	addBool("starttls", config.StartTLS)
+	addBool("server_starttls", config.StartTLS)
 	addBool("enable", config.Enable)
 
 	return strings.Join(parts, " ")

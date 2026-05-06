@@ -36,7 +36,7 @@ jobs:
 
       - name: Run Gosec Security Scanner
         id: gosec
-        uses: securego/gosec@223e19b8856e00f02cc67804499a83f77e208f3c # v2.25.0
+        uses: securego/gosec@4a3bd8af174872c778439083ded7adbf3747e770 # v2.26.1
         continue-on-error: true
         with:
           args: "-fmt sarif -out gosec.sarif -exclude-dir=vendor -tests=false -exclude=G101 ./..."

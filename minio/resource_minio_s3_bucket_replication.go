@@ -22,7 +22,7 @@ import (
 	"github.com/minio/minio-go/v7/pkg/replication"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/rs/xid"
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 func resourceMinioBucketReplication() *schema.Resource {

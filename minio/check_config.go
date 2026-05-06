@@ -426,3 +426,14 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 		ClientKey:  getOptionalField(d, "client_key", "").(string),
 	}
 }
+
+// IncompleteUploadCleanupConfig extracts incomplete upload cleanup config from resource data.
+func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIncompleteUploadCleanup {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioIncompleteUploadCleanup{
+		MinioClient: m.S3Client,
+		MinioBucket: getOptionalField(d, "bucket", "").(string),
+		MinioPrefix: getOptionalField(d, "prefix", "").(string),
+	}
+}

@@ -43,14 +43,12 @@ func testAccCheckMinioKMSKeyDestroy(s *terraform.State) error {
 			continue
 		}
 
-		status, err := conn.GetKeyStatus(context.Background(), rs.Primary.ID)
+		_, err := conn.GetKeyStatus(context.Background(), rs.Primary.ID)
 		if err != nil {
-			return fmt.Errorf("error checking KMS key: %w", err)
+			return nil
 		}
 
-		if status.KeyID == "" {
-			return fmt.Errorf("KMS key %s still exists", rs.Primary.ID)
-		}
+		return fmt.Errorf("KMS key %s still exists", rs.Primary.ID)
 	}
 
 	return nil

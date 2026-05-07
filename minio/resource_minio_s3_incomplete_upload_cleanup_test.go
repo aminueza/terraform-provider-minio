@@ -2,7 +2,6 @@ package minio
 
 import (
 	"fmt"
-	"log"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -94,14 +93,10 @@ func testAccCheckMinioS3IncompleteUploadCleanupDestroy(s *terraform.State) error
 		if rs.Type != "minio_s3_incomplete_upload_cleanup" {
 			continue
 		}
-
-		// This is a stateless cleanup resource - delete should have cleared the ID
-		// But handle gracefully if ID exists due to errors
 		if rs.Primary.ID != "" {
-			log.Printf("[WARN] Cleanup resource still in state: %s, proceeding anyway", rs.Primary.ID)
+			return fmt.Errorf("incomplete upload cleanup resource was not destroyed: ID still set to %s", rs.Primary.ID)
 		}
 	}
-
 	return nil
 }
 
@@ -128,4 +123,46 @@ resource "minio_s3_incomplete_upload_cleanup" "test" {
   prefix = %[2]q
 }
 `, bucketName, prefix)
+}
+
+func TestAccMinioS3IncompleteUploadCleanup_withTriggers(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_s3_incomplete_upload_cleanup.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3IncompleteUploadCleanupDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccIncompleteUploadCleanupConfig_withTriggers(bucketName, "run1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+					resource.TestCheckResourceAttr(resourceName, "triggers.run", "run1"),
+				),
+			},
+			{
+				Config: testAccIncompleteUploadCleanupConfig_withTriggers(bucketName, "run2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+					resource.TestCheckResourceAttr(resourceName, "triggers.run", "run2"),
+				),
+			},
+		},
+	})
+}
+
+func testAccIncompleteUploadCleanupConfig_withTriggers(bucketName, triggerVal string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket = %[1]q
+}
+
+resource "minio_s3_incomplete_upload_cleanup" "test" {
+  bucket = minio_s3_bucket.test.bucket
+  triggers = {
+    run = %[2]q
+  }
+}
+`, bucketName, triggerVal)
 }

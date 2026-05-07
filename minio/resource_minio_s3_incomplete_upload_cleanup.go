@@ -38,6 +38,14 @@ func resourceMinioS3IncompleteUploadCleanup() *schema.Resource {
 				Optional:    true,
 				Description: "Object prefix to filter incomplete uploads (default: all objects).",
 			},
+			"triggers": {
+				Type:     schema.TypeMap,
+				Optional: true,
+				Elem:     &schema.Schema{Type: schema.TypeString},
+				Description: "Map of arbitrary values. When any value changes, Terraform will " +
+					"re-run the cleanup. Use this to schedule repeated cleanups, e.g. " +
+					`triggers = { run = timestamp() }.`,
+			},
 			"last_cleanup": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -128,13 +136,13 @@ func cleanupIncompleteUploads(ctx context.Context, config *S3MinioIncompleteUplo
 
 	for obj := range incompleteCh {
 		if obj.Err != nil {
-			return obj.Err
+			cleanupErrors = append(cleanupErrors, "listing: "+obj.Err.Error())
+			continue
 		}
 
 		log.Printf("[DEBUG] Removing incomplete upload: %s (UploadID: %s)", obj.Key, obj.UploadID)
 
-		err := config.MinioClient.RemoveIncompleteUpload(ctx, config.MinioBucket, obj.Key)
-		if err != nil {
+		if err := config.MinioClient.RemoveIncompleteUpload(ctx, config.MinioBucket, obj.Key); err != nil {
 			cleanupErrors = append(cleanupErrors, obj.Key+": "+err.Error())
 			continue
 		}

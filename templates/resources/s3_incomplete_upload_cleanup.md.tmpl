@@ -34,3 +34,7 @@ terraform import minio_s3_incomplete_upload_cleanup.example bucket-name/prefix
 - The `last_cleanup` attribute shows when the cleanup was last run
 - This resource is stateless - deleting it only removes it from Terraform state, no API calls are made
 - Incomplete multipart uploads consume storage and can accumulate over time if not cleaned up
+- To run the cleanup again without recreating the resource, change a value in the `triggers` map:
+  ```hcl
+  triggers = { run = "2024-06-01" }
+  ```

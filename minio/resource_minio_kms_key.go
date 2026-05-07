@@ -15,7 +15,13 @@ func resourceMinioKMSKey() *schema.Resource {
 		ReadContext:   minioReadKMSKey,
 		DeleteContext: minioDeleteKMSKey,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+				if err := d.Set("key_id", d.Id()); err != nil {
+					return nil, err
+				}
+
+				return []*schema.ResourceData{d}, nil
+			},
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -35,7 +41,7 @@ func minioCreateKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	keyID := keyConfig.MinioKMSKeyID
 
 	if err := keyConfig.MinioAdmin.CreateKey(ctx, keyID); err != nil {
-		return NewResourceError("error creating service account", keyID, err)
+		return NewResourceError("error creating KMS key", keyID, err)
 	}
 
 	d.SetId(keyID)

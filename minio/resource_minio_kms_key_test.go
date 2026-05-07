@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -10,12 +11,28 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
+func testAccPreCheckKMSKey(t *testing.T) {
+	t.Helper()
+	testAccPreCheckKMS(t)
+
+	admin := testAccKmsProvider.Meta().(*S3MinioClient).S3Admin
+	testKey := fmt.Sprintf("tfacc-precheck-%d", acctest.RandInt())
+
+	if err := admin.CreateKey(context.Background(), testKey); err != nil {
+		if strings.Contains(err.Error(), "not supported") {
+			t.Skip("CreateKey is not supported (static KEK mode); skipping KMS key tests")
+		}
+	} else {
+		_ = admin.DeleteKey(context.Background(), testKey)
+	}
+}
+
 func TestAccMinioKMSKey_basic(t *testing.T) {
 	keyID := fmt.Sprintf("tfacc-kms-key-%d", acctest.RandInt())
 	resourceName := "minio_kms_key.test"
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheckKMS(t) },
+		PreCheck:          func() { testAccPreCheckKMSKey(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioKMSKeyDestroy,
 		Steps: []resource.TestStep{

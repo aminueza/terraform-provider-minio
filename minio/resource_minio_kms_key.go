@@ -41,7 +41,7 @@ func minioCreateKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	keyID := keyConfig.MinioKMSKeyID
 
 	if err := keyConfig.MinioAdmin.CreateKey(ctx, keyID); err != nil {
-		return NewResourceError("error creating service account", keyID, err)
+		return NewResourceError("error creating KMS key", keyID, err)
 	}
 
 	d.SetId(keyID)

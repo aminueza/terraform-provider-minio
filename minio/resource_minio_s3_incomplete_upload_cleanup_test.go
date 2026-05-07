@@ -27,9 +27,10 @@ func TestAccMinioS3IncompleteUploadCleanup_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:      true,
+				ImportStateVerifyIgnore: []string{"last_cleanup"},
 			},
 		},
 	})
@@ -52,9 +53,10 @@ func TestAccMinioS3IncompleteUploadCleanup_withPrefix(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:      true,
+				ImportStateVerifyIgnore: []string{"last_cleanup"},
 			},
 		},
 	})

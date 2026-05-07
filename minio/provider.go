@@ -313,6 +313,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_object_legal_hold":                resourceMinioObjectLegalHold(),
 			"minio_s3_object_retention":                 resourceMinioObjectRetention(),
 			"minio_s3_object":                           resourceMinioObject(),
+			"minio_s3_incomplete_upload_cleanup":       resourceMinioS3IncompleteUploadCleanup(),
 
 			// IAM Operations
 			"minio_iam_group":                   resourceMinioIAMGroup(),

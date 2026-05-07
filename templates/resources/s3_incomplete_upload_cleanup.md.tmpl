@@ -1,0 +1,40 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_s3_incomplete_upload_cleanup/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}
+
+## Import
+
+Import is supported using the following syntax:
+
+```shell
+# Incomplete upload cleanup can be imported using the bucket name
+terraform import minio_s3_incomplete_upload_cleanup.example bucket-name
+
+# Or with prefix
+terraform import minio_s3_incomplete_upload_cleanup.example bucket-name/prefix
+```
+
+## Notes
+
+- This resource uses `ListIncompleteUploads` and `RemoveIncompleteUpload` from the minio-go SDK
+- Running this resource will abort all incomplete multipart uploads in the specified bucket (optionally filtered by prefix)
+- The `last_cleanup` attribute shows when the cleanup was last run
+- This resource is stateless - deleting it only removes it from Terraform state, no API calls are made
+- Incomplete multipart uploads consume storage and can accumulate over time if not cleaned up
+- To run the cleanup again without recreating the resource, change a value in the `triggers` map:
+  ```hcl
+  triggers = { run = "2024-06-01" }
+  ```

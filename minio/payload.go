@@ -420,6 +420,13 @@ type S3MinioIdpOpenId struct {
 	Enable       bool
 }
 
+// S3MinioIncompleteUploadCleanup defines incomplete upload cleanup config
+type S3MinioIncompleteUploadCleanup struct {
+	MinioClient *minio.Client
+	MinioBucket string
+	MinioPrefix string
+}
+
 // S3MinioAuditWebhook defines configuration for an audit webhook target
 type S3MinioAuditWebhook struct {
 	MinioAdmin *madmin.AdminClient

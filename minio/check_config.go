@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -424,5 +425,29 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 		BatchSize:  getOptionalField(d, "batch_size", 0).(int),
 		ClientCert: getOptionalField(d, "client_cert", "").(string),
 		ClientKey:  getOptionalField(d, "client_key", "").(string),
+	}
+}
+
+// IncompleteUploadCleanupConfig extracts incomplete upload cleanup config from resource data.
+func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIncompleteUploadCleanup {
+	m := meta.(*S3MinioClient)
+
+	bucket := getOptionalField(d, "bucket", "").(string)
+	prefix := getOptionalField(d, "prefix", "").(string)
+
+	if bucket == "" && d.Id() != "" {
+		id := d.Id()
+		if idx := strings.Index(id, "/"); idx != -1 {
+			bucket = id[:idx]
+			prefix = id[idx+1:]
+		} else {
+			bucket = id
+		}
+	}
+
+	return &S3MinioIncompleteUploadCleanup{
+		MinioClient: m.S3Client,
+		MinioBucket: bucket,
+		MinioPrefix: prefix,
 	}
 }

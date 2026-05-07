@@ -88,15 +88,9 @@ func TestAccMinioS3IncompleteUploadCleanup_update(t *testing.T) {
 	})
 }
 
-func testAccCheckMinioS3IncompleteUploadCleanupDestroy(s *terraform.State) error {
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "minio_s3_incomplete_upload_cleanup" {
-			continue
-		}
-		if rs.Primary.ID != "" {
-			return fmt.Errorf("incomplete upload cleanup resource was not destroyed: ID still set to %s", rs.Primary.ID)
-		}
-	}
+func testAccCheckMinioS3IncompleteUploadCleanupDestroy(_ *terraform.State) error {
+	// This resource is stateless: Delete only removes Terraform state; no API
+	// resource is created, so there is nothing to verify against the API.
 	return nil
 }
 

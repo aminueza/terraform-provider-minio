@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -9,6 +10,10 @@ import (
 )
 
 func TestAccMinioConfigRestore_basic(t *testing.T) {
+	if os.Getenv("MINIO_CONFIG_HISTORY_ENABLED") == "" {
+		t.Skip("Skipping config restore tests: MINIO_CONFIG_HISTORY_ENABLED not set. Config history requires MinIO Enterprise/AIStor subscription.")
+	}
+
 	resourceName := "minio_config_restore.test"
 
 	resource.ParallelTest(t, resource.TestCase{

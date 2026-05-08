@@ -248,6 +248,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_object":                           dataSourceMinioS3Object(),
 			"minio_iam_user":                            dataSourceIAMUser(),
 			"minio_iam_users":                           dataSourceIAMUsers(),
+			"minio_iam_export":                          dataSourceMinioIAMExport(),
 			"minio_server_info":                         dataSourceMinioServerInfo(),
 			"minio_health_status":                       dataSourceMinioHealthStatus(),
 			"minio_kms_status":                          dataSourceMinioKMSStatus(),
@@ -326,6 +327,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_group_policy_attachment": resourceMinioIAMGroupPolicyAttachment(),
 			"minio_iam_group_user_attachment":   resourceMinioIAMGroupUserAttachment(),
 			"minio_iam_user_group_membership":   resourceMinioIAMUserGroupMembership(),
+			"minio_iam_import":                  resourceMinioIAMImport(),
 
 			// LDAP Operations
 			"minio_iam_ldap_group_policy_attachment": resourceMinioIAMLDAPGroupPolicyAttachment(),

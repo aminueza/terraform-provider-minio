@@ -249,6 +249,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_user":                            dataSourceIAMUser(),
 			"minio_iam_users":                           dataSourceIAMUsers(),
 			"minio_server_info":                         dataSourceMinioServerInfo(),
+			"minio_config_history":                      dataSourceMinioConfigHistory(),
 			"minio_health_status":                       dataSourceMinioHealthStatus(),
 			"minio_kms_status":                          dataSourceMinioKMSStatus(),
 			"minio_kms_metrics":                         dataSourceMinioKMSMetrics(),
@@ -345,6 +346,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 
 			// Server Configuration
 			"minio_config":                      resourceMinioConfig(),
+			"minio_config_restore":              resourceMinioConfigRestore(),
 			"minio_audit_webhook":               resourceMinioAuditWebhook(),
 			"minio_server_config_api":           resourceMinioServerConfigApi(),
 			"minio_server_config_region":        resourceMinioServerConfigRegion(),

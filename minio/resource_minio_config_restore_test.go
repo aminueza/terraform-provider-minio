@@ -1,15 +1,14 @@
 package minio
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioConfigRestore_basic(t *testing.T) {
-	restoreID := acctest.RandString(8)
 	resourceName := "minio_config_restore.test"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -18,9 +17,9 @@ func TestAccMinioConfigRestore_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckMinioConfigRestoreDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccConfigRestoreConfig_basic(restoreID),
+				Config: testAccConfigRestoreConfig_basic(),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "restore_id", restoreID),
+					resource.TestCheckResourceAttrSet(resourceName, "restore_id"),
 				),
 			},
 			{
@@ -37,19 +36,19 @@ func testAccCheckMinioConfigRestoreDestroy(s *terraform.State) error {
 		if rs.Type != "minio_config_restore" {
 			continue
 		}
-
 		if rs.Primary.ID != "" {
-			return nil
+			return fmt.Errorf("minio_config_restore %s still exists in state after destroy", rs.Primary.ID)
 		}
 	}
-
 	return nil
 }
 
-func testAccConfigRestoreConfig_basic(restoreID string) string {
+func testAccConfigRestoreConfig_basic() string {
 	return `
+data "minio_config_history" "test" {}
+
 resource "minio_config_restore" "test" {
-  restore_id = "` + restoreID + `"
+  restore_id = data.minio_config_history.test.entries[0].restore_id
 }
 `
 }

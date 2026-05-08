@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"log"
-	"strconv"
 	"strings"
 	"time"
 
@@ -64,10 +63,14 @@ func dataSourceMinioConfigHistoryRead(ctx context.Context, d *schema.ResourceDat
 			strings.Contains(err.Error(), "mode-server-xl") {
 			log.Printf("[DEBUG] Config history API not available (Enterprise feature)")
 			d.SetId("config_history")
-			if err := d.Set("entries", []interface{}{}); err != nil {
-				return NewResourceError("setting entries", "config_history", err)
+			if setErr := d.Set("entries", []interface{}{}); setErr != nil {
+				return NewResourceError("setting entries", "config_history", setErr)
 			}
-			return nil
+			return diag.Diagnostics{{
+				Severity: diag.Warning,
+				Summary:  "Config history API not available",
+				Detail:   "The config history API is not supported on this MinIO server. This may be an Enterprise-only feature.",
+			}}
 		}
 		return NewResourceError("listing config history", "config_history", err)
 	}
@@ -85,7 +88,7 @@ func dataSourceMinioConfigHistoryRead(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("setting entries", "config_history", err)
 	}
 
-	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
+	d.SetId("config_history")
 	log.Printf("[DEBUG] Listed %d config history entries", len(history))
 
 	return nil

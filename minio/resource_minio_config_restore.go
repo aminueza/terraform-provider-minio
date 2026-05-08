@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"log"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -42,14 +41,7 @@ func minioCreateConfigRestore(ctx context.Context, d *schema.ResourceData, meta 
 
 	log.Printf("[DEBUG] Restoring config from history ID: %s", restoreID)
 
-	err := admin.RestoreConfigHistoryKV(ctx, restoreID)
-	if err != nil {
-		if strings.Contains(err.Error(), "config file not found") ||
-			strings.Contains(err.Error(), "no config history") {
-			log.Printf("[DEBUG] Config history not available (Enterprise feature or no history exists)")
-			d.SetId(restoreID)
-			return minioReadConfigRestore(ctx, d, meta)
-		}
+	if err := admin.RestoreConfigHistoryKV(ctx, restoreID); err != nil {
 		return NewResourceError("restoring config", restoreID, err)
 	}
 
@@ -60,6 +52,7 @@ func minioCreateConfigRestore(ctx context.Context, d *schema.ResourceData, meta 
 }
 
 func minioReadConfigRestore(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	admin := meta.(*S3MinioClient).S3Admin
 	restoreID := d.Id()
 
 	log.Printf("[DEBUG] Reading config restore: %s", restoreID)
@@ -70,6 +63,23 @@ func minioReadConfigRestore(ctx context.Context, d *schema.ResourceData, meta in
 
 	if err := d.Set("restore_id", restoreID); err != nil {
 		return NewResourceError("setting restore_id", restoreID, err)
+	}
+
+	// Fetch history to populate the data field. If the entry has been pruned
+	// from history since the restore, data is left empty rather than erroring.
+	history, err := admin.ListConfigHistoryKV(ctx, -1)
+	if err != nil {
+		log.Printf("[DEBUG] Could not list config history while reading restore %s: %s", restoreID, err)
+		return nil
+	}
+
+	for _, entry := range history {
+		if entry.RestoreID == restoreID {
+			if err := d.Set("data", entry.Data); err != nil {
+				return NewResourceError("setting data", restoreID, err)
+			}
+			break
+		}
 	}
 
 	return nil

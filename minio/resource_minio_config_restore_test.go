@@ -45,7 +45,14 @@ func testAccCheckMinioConfigRestoreDestroy(s *terraform.State) error {
 
 func testAccConfigRestoreConfig_basic() string {
 	return `
-data "minio_config_history" "test" {}
+resource "minio_config" "seed" {
+  key   = "logger_webhook:restore_test"
+  value = "enable=off"
+}
+
+data "minio_config_history" "test" {
+  depends_on = [minio_config.seed]
+}
 
 resource "minio_config_restore" "test" {
   restore_id = data.minio_config_history.test.entries[0].restore_id

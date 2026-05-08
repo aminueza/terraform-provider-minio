@@ -47,7 +47,7 @@ func dataSourceMinioIAMExportRead(ctx context.Context, d *schema.ResourceData, m
 	if err != nil {
 		return NewResourceError("exporting IAM", "iam", err)
 	}
-	defer rc.Close()
+	defer func() { _ = rc.Close() }()
 
 	raw, err := io.ReadAll(rc)
 	if err != nil {

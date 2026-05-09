@@ -15,7 +15,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
+
+// newPrimaryS3ClientFromEnv builds a client from MINIO_* env vars, bypassing
+// testAccProvider.Meta(). Acceptance tests share testAccProvider as a
+// singleton, so a parallel test that configures it with bad credentials
+// (e.g. TestAccMinioS3Bucket_CredentialErrorDoesNotRemoveFromState) leaks
+// SignatureDoesNotMatch into other tests' Check callbacks.
+func newPrimaryS3ClientFromEnv() (*minio.Client, error) {
+	return minio.New(os.Getenv("MINIO_ENDPOINT"), &minio.Options{
+		Creds:  credentials.NewStaticV4(os.Getenv("MINIO_USER"), os.Getenv("MINIO_PASSWORD"), ""),
+		Secure: os.Getenv("MINIO_ENABLE_HTTPS") == "true",
+	})
+}
 
 func TestAccMinioS3Bucket_basic(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
@@ -845,7 +858,10 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC, err := newPrimaryS3ClientFromEnv()
+		if err != nil {
+			return fmt.Errorf("building env-based S3 client: %w", err)
+		}
 
 		maxRetries := 6
 		for i := 0; i < maxRetries; i++ {

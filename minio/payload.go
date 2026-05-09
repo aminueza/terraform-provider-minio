@@ -439,3 +439,9 @@ type S3MinioAuditWebhook struct {
 	ClientCert string
 	ClientKey  string
 }
+
+// S3MinioIAMImport defines configuration for an IAM import operation.
+type S3MinioIAMImport struct {
+	MinioAdmin *madmin.AdminClient
+	IAMData    string
+}

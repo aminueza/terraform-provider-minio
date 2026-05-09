@@ -428,6 +428,15 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 	}
 }
 
+// IAMImportConfig extracts IAM import config from resource data.
+func IAMImportConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMImport {
+	m := meta.(*S3MinioClient)
+	return &S3MinioIAMImport{
+		MinioAdmin: m.S3Admin,
+		IAMData:    getOptionalField(d, "iam_data", "").(string),
+	}
+}
+
 // IncompleteUploadCleanupConfig extracts incomplete upload cleanup config from resource data.
 func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIncompleteUploadCleanup {
 	m := meta.(*S3MinioClient)

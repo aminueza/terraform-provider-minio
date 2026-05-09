@@ -3,21 +3,37 @@ package minio
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v3"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 func testAccPreCheckKMSKey(t *testing.T) {
 	t.Helper()
 	testAccPreCheckKMS(t)
 
-	admin := testAccKmsProvider.Meta().(*S3MinioClient).S3Admin
-	testKey := fmt.Sprintf("tfacc-precheck-%d", acctest.RandInt())
+	endpoint := os.Getenv("KMS_MINIO_ENDPOINT")
+	user := os.Getenv("KMS_MINIO_USER")
+	pass := os.Getenv("KMS_MINIO_PASSWORD")
+	if endpoint == "" || user == "" || pass == "" {
+		t.Skip("KMS_MINIO_ENDPOINT/USER/PASSWORD not set; skipping KMS key tests")
+	}
 
+	admin, err := madmin.NewWithOptions(endpoint, &madmin.Options{
+		Creds:  credentials.NewStaticV4(user, pass, ""),
+		Secure: os.Getenv("KMS_MINIO_ENABLE_HTTPS") == "true",
+	})
+	if err != nil {
+		t.Fatalf("creating KMS admin client: %v", err)
+	}
+
+	testKey := fmt.Sprintf("tfacc-precheck-%d", acctest.RandInt())
 	if err := admin.CreateKey(context.Background(), testKey); err != nil {
 		if strings.Contains(err.Error(), "not supported") {
 			t.Skip("CreateKey is not supported (static KEK mode); skipping KMS key tests")

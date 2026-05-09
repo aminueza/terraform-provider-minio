@@ -49,8 +49,12 @@ output "imported_policies" {
 - `failed_service_accounts` (Number) Number of service accounts that failed to import.
 - `failed_users` (Number) Number of users that failed to import.
 - `id` (String) The ID of this resource.
+- `removed_groups` (Number) Number of groups removed by the last import.
 - `removed_policies` (Number) Number of policies removed by the last import (empty policies are pruned).
+- `removed_service_accounts` (Number) Number of service accounts removed by the last import.
+- `removed_users` (Number) Number of users removed by the last import.
 - `sha256` (String) SHA-256 of the raw (decoded) payload that was last applied.
 - `skipped_groups` (Number) Number of groups skipped by the last import.
 - `skipped_policies` (Number) Number of policies skipped by the last import.
+- `skipped_service_accounts` (Number) Number of service accounts skipped by the last import.
 - `skipped_users` (Number) Number of users skipped by the last import.

@@ -80,7 +80,7 @@ jobs:
           cache: true
 
       - name: Generate docs
-        run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+        run: go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0
 
       - name: Commit updated docs
         run: |

@@ -30,7 +30,7 @@ tasks:
   generate-docs:
     desc: Generate the docs for the provider
     cmds:
-      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0
 
   install:
     desc: Build and install the plugin in the correct folder (resolved automatically based on current Operating System).

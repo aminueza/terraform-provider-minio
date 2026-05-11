@@ -42,7 +42,7 @@ jobs:
           args: "-fmt sarif -out gosec.sarif -exclude-dir=vendor -tests=false -exclude=G101 ./..."
 
       - name: Upload Gosec SARIF file
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
         if: always() && hashFiles('gosec.sarif') != ''
         with:
           sarif_file: gosec.sarif
@@ -75,7 +75,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy SARIF file
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: "trivy-results.sarif"
@@ -172,7 +172,7 @@ jobs:
           publish_results: true
 
       - name: Upload SARIF results to GitHub
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
         with:
           sarif_file: results.sarif
 

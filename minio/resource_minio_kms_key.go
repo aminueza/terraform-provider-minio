@@ -3,10 +3,12 @@ package minio
 import (
 	"context"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioKMSKey() *schema.Resource {
@@ -79,15 +81,22 @@ func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface
 }
 
 func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	var err error
-
 	keyConfig := KMSKeyConfig(d, meta)
 
 	log.Printf("[DEBUG] Deleting KMS key [%s]", d.Id())
 
-	if err = keyConfig.MinioAdmin.DeleteKey(ctx, d.Id()); err != nil {
+	if err := keyConfig.MinioAdmin.DeleteKey(ctx, d.Id()); err != nil {
+		errResp := madmin.ToErrorResponse(err)
+		errStr := err.Error()
+		if strings.HasPrefix(errResp.Code, "4") ||
+			strings.Contains(errStr, "not supported") ||
+			strings.Contains(errStr, "not implemented") {
+			log.Printf("[DEBUG] DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err)
+			_ = d.Set("key_id", "")
+			d.SetId("")
+			return nil
+		}
 		log.Printf("%s", NewResourceErrorStr("unable to remove KMS key", d.Id(), err))
-
 		return NewResourceError("unable to remove KMS key", d.Id(), err)
 	}
 
@@ -96,5 +105,4 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	_ = d.Set("key_id", "")
 
 	return nil
-
 }

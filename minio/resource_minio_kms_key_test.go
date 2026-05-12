@@ -3,12 +3,15 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -118,4 +121,85 @@ resource "minio_kms_key" "test" {
   key_id   = "%s"
 }
 `, keyID)
+}
+
+// TestMinioDeleteKMSKey_externalBackendErrors verifies that DeleteKey errors from
+// external KMS backends (Vault, etc.) are treated as success so that
+// terraform destroy doesn't fail when keys cannot be deleted via the MinIO API.
+func TestMinioDeleteKMSKey_externalBackendErrors(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantErr    bool
+	}{
+		{
+			name:       "NotImplemented error code clears resource",
+			statusCode: http.StatusNotImplemented,
+			body:       `{"Code":"NotImplemented","Message":"key deletion is not supported by this KMS"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "not supported in message clears resource",
+			statusCode: http.StatusBadRequest,
+			body:       `{"Code":"XMinioKMSError","Message":"operation not supported by external KMS backend"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "not implemented in message clears resource",
+			statusCode: http.StatusInternalServerError,
+			body:       `{"Code":"XMinioError","Message":"key deletion not implemented for this backend"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "unrelated error propagates",
+			statusCode: http.StatusForbidden,
+			body:       `{"Code":"AccessDenied","Message":"access denied"}`,
+			wantErr:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tc.statusCode)
+				fmt.Fprint(w, tc.body)
+			}))
+			defer srv.Close()
+
+			host := strings.TrimPrefix(srv.URL, "http://")
+			adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+			})
+			if err != nil {
+				t.Fatalf("creating admin client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioKMSKey().Schema, map[string]interface{}{
+				"key_id": "test-key",
+			})
+			d.SetId("test-key")
+
+			meta := &S3MinioClient{S3Admin: adminClient}
+			diags := minioDeleteKMSKey(context.Background(), d, meta)
+
+			if tc.wantErr {
+				if len(diags) == 0 {
+					t.Error("expected error diagnostics but got none")
+				}
+				if d.Id() == "" {
+					t.Error("expected resource ID to remain set on real error")
+				}
+			} else {
+				if len(diags) > 0 {
+					t.Errorf("expected no error but got: %v", diags)
+				}
+				if d.Id() != "" {
+					t.Errorf("expected resource ID to be cleared, got %q", d.Id())
+				}
+			}
+		})
+	}
 }

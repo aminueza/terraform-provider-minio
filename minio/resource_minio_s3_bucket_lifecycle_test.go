@@ -645,20 +645,37 @@ func testAccCheckS3BucketLifecycleExists(n string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("not found: %s", n)
 		}
-		c := testAccProvider.Meta().(*S3MinioClient).S3Client
-		config, err := c.GetBucketLifecycle(context.Background(), rs.Primary.ID)
+		c, err := newPrimaryS3ClientFromEnv()
 		if err != nil {
-			return fmt.Errorf("lifecycle for %s not found: %w", rs.Primary.ID, err)
+			return fmt.Errorf("building env-based S3 client: %w", err)
 		}
-		if len(config.Rules) == 0 {
-			return fmt.Errorf("lifecycle for %s has no rules", rs.Primary.ID)
+
+		maxRetries := 6
+		for i := 0; i < maxRetries; i++ {
+			config, err := c.GetBucketLifecycle(context.Background(), rs.Primary.ID)
+			if err != nil {
+				if isLifecycleNotFoundError(err) {
+					return fmt.Errorf("lifecycle for %s not found: %w", rs.Primary.ID, err)
+				}
+				if i == maxRetries-1 {
+					return fmt.Errorf("lifecycle for %s get error: %w", rs.Primary.ID, err)
+				}
+				continue
+			}
+			if len(config.Rules) == 0 {
+				return fmt.Errorf("lifecycle for %s has no rules", rs.Primary.ID)
+			}
+			return nil
 		}
 		return nil
 	}
 }
 
 func testAccCheckS3BucketLifecycleDestroy(s *terraform.State) error {
-	c := testAccProvider.Meta().(*S3MinioClient).S3Client
+	c, err := newPrimaryS3ClientFromEnv()
+	if err != nil {
+		return fmt.Errorf("building env-based S3 client: %w", err)
+	}
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_lifecycle" {
 			continue

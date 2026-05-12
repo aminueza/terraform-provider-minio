@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -658,8 +659,9 @@ func testAccCheckS3BucketLifecycleExists(n string) resource.TestCheckFunc {
 					return fmt.Errorf("lifecycle for %s not found: %w", rs.Primary.ID, err)
 				}
 				if i == maxRetries-1 {
-					return fmt.Errorf("lifecycle for %s get error: %w", rs.Primary.ID, err)
+					return fmt.Errorf("lifecycle for %s get error after %d retries: %w", rs.Primary.ID, maxRetries, err)
 				}
+				time.Sleep(5 * time.Second)
 				continue
 			}
 			if len(config.Rules) == 0 {
@@ -667,7 +669,7 @@ func testAccCheckS3BucketLifecycleExists(n string) resource.TestCheckFunc {
 			}
 			return nil
 		}
-		return nil
+		return fmt.Errorf("lifecycle for %s: could not verify after %d retries", rs.Primary.ID, maxRetries)
 	}
 }
 

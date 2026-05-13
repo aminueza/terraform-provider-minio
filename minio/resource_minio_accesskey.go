@@ -148,6 +148,15 @@ func resourceMinioAccessKey() *schema.Resource {
 					"secret_key_version",
 				},
 				Description: "Write-only secret key for the access key.",
+				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+					if d.Id() == "" {
+						return false
+					}
+					if d.HasChange("secret_key_wo_version") {
+						return false
+					}
+					return true
+				},
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
 					if v != "" {

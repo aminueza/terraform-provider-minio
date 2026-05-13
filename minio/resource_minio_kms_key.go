@@ -88,7 +88,9 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	if err := keyConfig.MinioAdmin.DeleteKey(ctx, d.Id()); err != nil {
 		errResp := madmin.ToErrorResponse(err)
 		errStr := err.Error()
-		if strings.Contains(errResp.Code, "NotImplemented") ||
+		if errResp.Code == "BadRequest" ||
+			strings.HasPrefix(errResp.Code, "4") ||
+			strings.Contains(errResp.Code, "NotImplemented") ||
 			strings.Contains(errStr, "not supported") ||
 			strings.Contains(errStr, "not implemented") {
 			log.Printf("[DEBUG] DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err)

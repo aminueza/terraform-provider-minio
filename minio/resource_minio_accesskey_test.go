@@ -487,6 +487,32 @@ func TestAccMinioAccessKey_writeOnlySecretTransition(t *testing.T) {
 	})
 }
 
+func TestAccMinioAccessKey_writeOnlySecretNoDrift(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test"
+	secretKey := acctest.RandString(40)
+	accessKey := acctest.RandString(20)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, accessKey, secretKey, 1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+				),
+			},
+			{
+				Config:             testAccMinioAccessKeyConfigWithWriteOnlyVersion(rName, accessKey, secretKey, 1),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
 func testAccMinioAccessKeyConfigWithVersion(rName, accessKey, secretKey, version string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {

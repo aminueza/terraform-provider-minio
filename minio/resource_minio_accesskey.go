@@ -177,11 +177,8 @@ func resourceMinioAccessKey() *schema.Resource {
 				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
 			},
 			"secret_key_wo_version": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					return true
-				},
+				Type:         schema.TypeInt,
+				Optional:     true,
 				ValidateFunc: validation.IntAtLeast(1),
 				RequiredWith: []string{
 					"secret_key_wo",

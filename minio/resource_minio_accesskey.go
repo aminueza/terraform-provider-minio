@@ -135,29 +135,38 @@ func resourceMinioAccessKey() *schema.Resource {
 					return
 				},
 			},
-			"secret_key_wo": {
-				Type:      schema.TypeString,
-				Optional:  true,
-				WriteOnly: true,
-				Sensitive: true,
-				RequiredWith: []string{
-					"secret_key_wo_version",
-				},
-				ConflictsWith: []string{
-					"secret_key",
-					"secret_key_version",
-				},
-				Description: "Write-only secret key for the access key.",
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						if len(v) < 8 {
-							errs = append(errs, fmt.Errorf("%q must be at least 8 characters when specified", key))
-						}
-					}
-					return
-				},
+"secret_key_wo": {
+			Type:      schema.TypeString,
+			Optional:  true,
+			WriteOnly: true,
+			Sensitive: true,
+			RequiredWith: []string{
+				"secret_key_wo_version",
 			},
+			ConflictsWith: []string{
+				"secret_key",
+				"secret_key_version",
+			},
+			Description: "Write-only secret key for the access key.",
+			DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
+				if d.Id() == "" {
+					return false
+				}
+				if d.HasChange("secret_key_wo_version") {
+					return false
+				}
+				return true
+			},
+			ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+				v := val.(string)
+				if v != "" {
+					if len(v) < 8 {
+						errs = append(errs, fmt.Errorf("%q must be at least 8 characters when specified", key))
+					}
+				}
+				return
+			},
+		},
 			"secret_key_version": {
 				Type:     schema.TypeString,
 				Optional: true,
@@ -327,6 +336,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 
 	// Clear secret_key from state - it's write-only
 	_ = d.Set("secret_key", "")
+	_ = d.Set("secret_key_wo", "")
 
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {

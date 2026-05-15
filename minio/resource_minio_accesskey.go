@@ -93,13 +93,10 @@ func resourceMinioAccessKey() *schema.Resource {
 				Type:     schema.TypeString,
 				Optional: true,
 				Computed: true,
-				// Marked Sensitive so that sourcing the value from another
-				// sensitive value (e.g. random_password.foo.result) does
-				// not cause a sensitivity-mismatch diff on every plan,
-				// where state (untagged) is compared against config (tagged
-				// sensitive) and Terraform reports a perpetual change. An
-				// access key is half of a credential pair; redacting it in
-				// plan output is also a reasonable default.
+				// Sensitive so the marker matches when access_key is sourced
+				// from a sensitive expression (e.g. random_password.result);
+				// otherwise state (untagged) vs config (tagged) is reported
+				// as a diff on every plan even when the value is identical.
 				Sensitive:   true,
 				Description: "The access key. If provided, must be between 8 and 20 characters.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
@@ -342,10 +339,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("access_key", accessKeyID)
 	_ = d.Set("description", info.Description)
 
-	// Clear write-only secret fields from state. Both secret_key and
-	// secret_key_wo are write-only and must not be persisted; clearing them
-	// here keeps the refreshed state aligned with that contract so plans
-	// don't drift on subsequent applies.
+	// Clear write-only secret fields from state.
 	_ = d.Set("secret_key", "")
 	_ = d.Set("secret_key_wo", "")
 

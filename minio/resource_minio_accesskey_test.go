@@ -513,16 +513,11 @@ func TestAccMinioAccessKey_writeOnlySecretNoDrift(t *testing.T) {
 	})
 }
 
-// TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift reproduces
-// the user-reported scenario from issue #941 where both access_key and
-// secret_key_wo are sourced from random_password resources (rather than
-// literal HCL strings) and drift was observed on subsequent plans. The
-// literal-string variant is already covered by
-// TestAccMinioAccessKey_writeOnlySecretNoDrift; this test exercises the
-// reference-through-the-plan-graph path the reporter hit, which exposes
-// (1) a write-only state-clearing gap in Read, and (2) a sensitivity
-// marker mismatch on access_key when its value is sourced from a
-// sensitive expression like random_password.foo.result.
+// TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift covers the
+// issue #941 scenario where access_key and secret_key_wo are sourced from
+// random_password rather than literal HCL strings. This is the reference
+// path that exposed the access_key sensitivity-marker flip and the
+// secret_key_wo state-clearing gap in Read.
 func TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test"
@@ -550,8 +545,8 @@ func TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift(t *testing.T
 				ExpectNonEmptyPlan: false,
 			},
 			{
-				// Run plan-only twice in a row to catch drift that only
-				// appears after the first refresh-after-apply cycle.
+				// Second plan-only to catch drift that only surfaces after
+				// the first refresh-after-apply cycle.
 				Config:             testAccMinioAccessKeyConfigWithRandomPasswordWO(rName, 1),
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: false,

@@ -334,8 +334,12 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("access_key", accessKeyID)
 	_ = d.Set("description", info.Description)
 
-	// Clear secret_key from state - it's write-only
+	// Clear write-only secret fields from state. Both secret_key and
+	// secret_key_wo are write-only and must not be persisted; clearing them
+	// here keeps the refreshed state aligned with that contract so plans
+	// don't drift on subsequent applies.
 	_ = d.Set("secret_key", "")
+	_ = d.Set("secret_key_wo", "")
 
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {

@@ -513,6 +513,69 @@ func TestAccMinioAccessKey_writeOnlySecretNoDrift(t *testing.T) {
 	})
 }
 
+// TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift reproduces
+// the user-reported scenario from issue #941 where secret_key_wo is sourced
+// from a random_password resource (rather than a literal HCL string) and
+// drift was observed on subsequent plans. The literal-string variant is
+// already covered by TestAccMinioAccessKey_writeOnlySecretNoDrift; this test
+// exercises the reference-through-the-plan-graph path that the reporter hit.
+func TestAccMinioAccessKey_writeOnlySecretFromRandomPasswordNoDrift(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test"
+	accessKey := acctest.RandString(20)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		ExternalProviders: map[string]resource.ExternalProvider{
+			"random": {
+				Source: "hashicorp/random",
+			},
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithRandomPasswordWO(rName, accessKey, 1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "secret_key", ""),
+					resource.TestCheckNoResourceAttr(resourceName, "secret_key_wo"),
+				),
+			},
+			{
+				Config:             testAccMinioAccessKeyConfigWithRandomPasswordWO(rName, accessKey, 1),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				// Run plan-only twice in a row to catch drift that only
+				// appears after the first refresh-after-apply cycle.
+				Config:             testAccMinioAccessKeyConfigWithRandomPasswordWO(rName, accessKey, 1),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithRandomPasswordWO(rName, accessKey string, version int) string {
+	return fmt.Sprintf(`
+resource "random_password" "secret" {
+  length  = 40
+  special = false
+}
+
+resource "minio_iam_user" "test" {
+  name = %q
+}
+
+resource "minio_accesskey" "test" {
+  user                  = minio_iam_user.test.name
+  access_key            = %q
+  secret_key_wo         = random_password.secret.result
+  secret_key_wo_version = %d
+}
+`, rName, accessKey, version)
+}
+
 func testAccMinioAccessKeyConfigWithVersion(rName, accessKey, secretKey, version string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test" {

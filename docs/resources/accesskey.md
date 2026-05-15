@@ -92,7 +92,7 @@ The `policy` argument expects a JSON policy document. Use `jsonencode({...})` to
 
 > **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
 
-- `access_key` (String) The access key. If provided, must be between 8 and 20 characters.
+- `access_key` (String, Sensitive) The access key. If provided, must be between 8 and 20 characters.
 - `description` (String) Description for the access key (max 256 characters).
 - `policy` (String) Policy to attach to the access key (policy name or JSON document).
 - `secret_key` (String, Sensitive) The secret key. If provided, must be at least 8 characters. This is a write-only field and will not be stored in state.

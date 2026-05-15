@@ -136,36 +136,23 @@ func resourceMinioAccessKey() *schema.Resource {
 				},
 			},
 			"secret_key_wo": {
-				Type:      schema.TypeString,
-				Optional:  true,
-				WriteOnly: true,
-				Sensitive: true,
-				RequiredWith: []string{
-					"secret_key_wo_version",
-				},
-				ConflictsWith: []string{
-					"secret_key",
-					"secret_key_version",
-				},
-				Description: "Write-only secret key for the access key.",
+				Type:          schema.TypeString,
+				Optional:      true,
+				WriteOnly:     true,
+				Sensitive:     true,
+				RequiredWith:  []string{"secret_key_wo_version"},
+				ConflictsWith: []string{"secret_key", "secret_key_version"},
+				Description:   "Write-only secret key for the access key.",
 				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					if d.Id() == "" {
-						return false
-					}
-					if d.HasChange("secret_key_wo_version") {
-						return false
-					}
-					return true
+					return !d.HasChange("secret_key_wo_version")
 				},
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v != "" {
-						if len(v) < 8 {
-							errs = append(errs, fmt.Errorf("%q must be at least 8 characters when specified", key))
-						}
-					}
-					return
-				},
+			},
+			"secret_key_wo_version": {
+				Type:          schema.TypeInt,
+				Optional:      true,
+				ValidateFunc:  validation.IntAtLeast(1),
+				RequiredWith:  []string{"secret_key_wo"},
+				ConflictsWith: []string{"secret_key", "secret_key_version"},
 			},
 			"secret_key_version": {
 				Type:     schema.TypeString,
@@ -175,22 +162,6 @@ func resourceMinioAccessKey() *schema.Resource {
 					"secret_key_wo_version",
 				},
 				Description: "Version identifier for the secret key. Change this value to trigger a secret key rotation. Can be a hash, version number, timestamp, or any string that changes when the secret changes.",
-			},
-			"secret_key_wo_version": {
-				Type:     schema.TypeInt,
-				Optional: true,
-				DiffSuppressFunc: func(k, old, new string, d *schema.ResourceData) bool {
-					return true
-				},
-				ValidateFunc: validation.IntAtLeast(1),
-				RequiredWith: []string{
-					"secret_key_wo",
-				},
-				ConflictsWith: []string{
-					"secret_key",
-					"secret_key_version",
-				},
-				Description: "Version identifier for secret_key_wo. Increment this integer to trigger rotation when using secret_key_wo.",
 			},
 			"status": {
 				Type:        schema.TypeString,
@@ -339,7 +310,6 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 
 	// Clear secret_key from state - it's write-only
 	_ = d.Set("secret_key", "")
-	_ = d.Set("secret_key_wo", "")
 
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {

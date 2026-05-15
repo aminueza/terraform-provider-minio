@@ -90,9 +90,17 @@ func resourceMinioAccessKey() *schema.Resource {
 				},
 			},
 			"access_key": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				// Marked Sensitive so that sourcing the value from another
+				// sensitive value (e.g. random_password.foo.result) does
+				// not cause a sensitivity-mismatch diff on every plan,
+				// where state (untagged) is compared against config (tagged
+				// sensitive) and Terraform reports a perpetual change. An
+				// access key is half of a credential pair; redacting it in
+				// plan output is also a reasonable default.
+				Sensitive:   true,
 				Description: "The access key. If provided, must be between 8 and 20 characters.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)

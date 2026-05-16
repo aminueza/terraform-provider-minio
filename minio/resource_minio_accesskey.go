@@ -90,9 +90,14 @@ func resourceMinioAccessKey() *schema.Resource {
 				},
 			},
 			"access_key": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				// Sensitive so the marker matches when access_key is sourced
+				// from a sensitive expression (e.g. random_password.result);
+				// otherwise state (untagged) vs config (tagged) is reported
+				// as a diff on every plan even when the value is identical.
+				Sensitive:   true,
 				Description: "The access key. If provided, must be between 8 and 20 characters.",
 				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
 					v := val.(string)
@@ -334,8 +339,9 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	_ = d.Set("access_key", accessKeyID)
 	_ = d.Set("description", info.Description)
 
-	// Clear secret_key from state - it's write-only
+	// Clear write-only secret fields from state.
 	_ = d.Set("secret_key", "")
+	_ = d.Set("secret_key_wo", "")
 
 	// Only set policy in state if it's not implied
 	if !info.ImpliedPolicy {

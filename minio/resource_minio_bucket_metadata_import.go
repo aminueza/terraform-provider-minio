@@ -33,7 +33,13 @@ func resourceMinioBucketMetadataImport() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 				Sensitive:   true,
-				Description: "Base64-encoded zip stream of bucket metadata (from minio_bucket_metadata_export).",
+				Description: "Base64-encoded zip stream of bucket metadata (from minio_bucket_metadata_export). Changing this forces a new import; note that re-exports of the same bucket are not byte-identical due to zip timestamps.",
+				DiffSuppressFunc: func(k, oldVal, newVal string, d *schema.ResourceData) bool {
+					if d.Id() != "" {
+						return true
+					}
+					return oldVal == newVal
+				},
 			},
 			"imported_at": {
 				Type:        schema.TypeString,

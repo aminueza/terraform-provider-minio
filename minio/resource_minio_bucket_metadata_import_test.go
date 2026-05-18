@@ -75,20 +75,18 @@ resource "minio_s3_bucket" "source" {
 
 resource "minio_s3_bucket_policy" "source" {
   bucket = minio_s3_bucket.source.bucket
-  policy = data.minio_iam_policy_document.source.json
-}
-
-data "minio_iam_policy_document" "source" {
-  statement {
-    sid       = "ReadAccess"
-    actions   = ["s3:GetObject"]
-    resources = ["arn:aws:s3:::%s-source/*"]
-    effect    = "Allow"
-    principals {
-      type        = "*"
-      identifiers = ["*"]
-    }
-  }
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "ReadAccess"
+        Action    = "s3:GetObject"
+        Resource  = "arn:aws:s3:::%s-source/*"
+        Effect    = "Allow"
+        Principal = "*"
+      }
+    ]
+  })
 }
 
 resource "minio_s3_bucket_tags" "source" {

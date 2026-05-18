@@ -13,7 +13,7 @@ import (
 
 func resourceMinioServiceAction() *schema.Resource {
 	return &schema.Resource{
-		Description: "Performs a one-shot MinIO service control operation (restart, stop, freeze, or unfreeze). This resource is not stateful — taking it down does not undo the action.",
+		Description: "Performs a one-shot MinIO service control operation (restart, stop, freeze, or unfreeze). This resource is not stateful - taking it down does not undo the action.",
 
 		CreateContext: minioCreateServiceAction,
 		ReadContext:   minioReadServiceAction,
@@ -84,9 +84,12 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 	id := fmt.Sprintf("%s-%s", action, executedAt)
 
 	d.SetId(id)
-	_ = d.Set("executed_at", executedAt)
-	_ = d.Set("result", result)
-	_ = d.Set("action", action)
+	if err := d.Set("executed_at", executedAt); err != nil {
+		return NewResourceError("setting executed_at", id, err)
+	}
+	if err := d.Set("result", result); err != nil {
+		return NewResourceError("setting result", id, err)
+	}
 
 	log.Printf("[DEBUG] Service action %s completed at %s", action, executedAt)
 

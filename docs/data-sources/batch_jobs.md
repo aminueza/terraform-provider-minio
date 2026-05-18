@@ -37,6 +37,7 @@ data "minio_batch_jobs" "expire" {
 
 Read-Only:
 
+- `elapsed` (String)
 - `job_id` (String)
 - `job_type` (String)
 - `started` (String)

@@ -36,11 +36,11 @@ EOF
 
 ### Optional
 
-- `wait_for_status` (String) Block until the job reaches this status (`started`, `completed`, `failed`). If unset, returns immediately after submission.
+- `wait_for_status` (String) Block during Create until the job reaches this status. Only `completed` is supported; `started` is trivially true and `failed` is treated as an error during the wait.
 - `wait_timeout_seconds` (Number) Maximum time in seconds to wait for `wait_for_status`. Defaults to 300.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
 - `job_id` (String) Assigned job ID returned by MinIO.
-- `status` (String) Current job status string.
+- `status` (String) Current job status (`started`, `completed`, or `failed`).

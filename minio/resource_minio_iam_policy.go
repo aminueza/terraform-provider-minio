@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"regexp"
 	"strings"
 
@@ -127,7 +126,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 func minioUpdatePolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	iamPolicyConfig := IAMPolicyConfig(d, meta)
 
-	log.Println("[DEBUG] Update IAM Policy:", d.Id())
+	tflog.Debug(ctx, "Updating IAM policy", map[string]interface{}{"id": d.Id()})
 
 	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, d.Id(), []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"testing"
 )
 
@@ -42,7 +43,7 @@ func FuzzParseBandwidthLimit(f *testing.F) {
 			"bandwidth_limit": bandwidthStr,
 		}
 		// Must not panic regardless of input
-		_, _, _ = ParseBandwidthLimit(target)
+		_, _, _ = ParseBandwidthLimit(context.Background(), target)
 	})
 }
 

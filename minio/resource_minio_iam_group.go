@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"regexp"
 	"strings"
 
@@ -88,7 +87,7 @@ func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 	if d.HasChange(iamGroupConfig.MinioIAMName) {
 		_, nn := d.GetChange(iamGroupConfig.MinioIAMName)
 
-		log.Println("[DEBUG] Update IAM Group:", iamGroupConfig.MinioIAMName)
+		tflog.Debug(ctx, "Updating IAM group", map[string]interface{}{"name": iamGroupConfig.MinioIAMName})
 
 		groupAddRemove := madmin.GroupAddRemove{
 			Group:    iamGroupConfig.MinioIAMName,
@@ -203,7 +202,7 @@ func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
-	log.Println("[DEBUG] Disabling IAM Group request:", iamGroupConfig.MinioIAMName)
+	tflog.Debug(ctx, "Disabling IAM group", map[string]interface{}{"name": iamGroupConfig.MinioIAMName})
 
 	if iamGroupConfig.MinioDisableGroup {
 		minioGroupStatus = madmin.GroupDisabled
@@ -222,7 +221,7 @@ func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 
 func deleteMinioGroup(ctx context.Context, iamGroupConfig *S3MinioIAMGroupConfig, members []string) error {
 
-	log.Println("[DEBUG] deleting IAM Group request:", iamGroupConfig.MinioIAMName)
+	tflog.Debug(ctx, "Deleting IAM group", map[string]interface{}{"name": iamGroupConfig.MinioIAMName})
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupConfig.MinioIAMName,
 		Members:  members,

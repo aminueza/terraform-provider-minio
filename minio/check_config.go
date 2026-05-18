@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -62,10 +63,10 @@ func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBu
 
 // BucketReplicationConfig creates configuration for managing MinIO bucket replication.
 // It sets up replication rules between buckets.
-func BucketReplicationConfig(d *schema.ResourceData, meta interface{}) (*S3MinioBucketReplication, diag.Diagnostics) {
+func BucketReplicationConfig(ctx context.Context, d *schema.ResourceData, meta interface{}) (*S3MinioBucketReplication, diag.Diagnostics) {
 	m := meta.(*S3MinioClient)
 
-	replicationRules, diags := getBucketReplicationConfig(d.Get("rule").([]interface{}), d)
+	replicationRules, diags := getBucketReplicationConfig(ctx, d.Get("rule").([]interface{}), d)
 	if diags.HasError() {
 		return nil, diags
 	}

@@ -539,7 +539,7 @@ func testAccCheckMinioServiceAccountCanLogIn(n string) resource.TestCheckFunc {
 			S3UserSecret:   rs.Primary.Attributes["secret_key"],
 			S3SSL:          map[string]bool{"true": true, "false": false}[os.Getenv("MINIO_ENABLE_HTTPS")],
 		}
-		client, err := cfg.NewClient()
+		client, err := cfg.NewClient(context.Background())
 		if err != nil {
 			return err
 		}

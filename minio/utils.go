@@ -1,9 +1,11 @@
 package minio
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"hash/crc32"
 	"log"
 	"math"
@@ -225,7 +227,7 @@ func SafeInt64ToInt64(val int64) int64 {
 // ParseBandwidthLimit extracts and parses the bandwidth limit from a target map.
 // It handles both the legacy attribute "bandwidth_limt" and the new attribute "bandwidth_limit".
 // Returns the parsed bandwidth value, a boolean indicating success, and any diagnostic errors.
-func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics) {
+func ParseBandwidthLimit(ctx context.Context, target map[string]any) (uint64, bool, diag.Diagnostics) {
 	var ok bool
 	var bandwidthStr string
 	var legacyLimitValue string
@@ -251,14 +253,14 @@ func ParseBandwidthLimit(target map[string]any) (uint64, bool, diag.Diagnostics)
 
 	bandwidth, err := humanize.ParseBytes(bandwidthStr)
 	if err != nil {
-		log.Printf("[WARN] invalid bandwidth value %q: %v", bandwidthStr, err)
+		tflog.Warn(ctx, "invalid bandwidth value", map[string]interface{}{"value": bandwidthStr, "err": err.Error()})
 		errs = append(errs, diag.Errorf("bandwidth_limit is invalid. Make sure to use k, m, g as prefix only")...)
 		return 0, false, errs
 	}
 
 	// Check if bandwidth exceeds maximum int64 value
 	if bandwidth > uint64(math.MaxInt64) {
-		log.Printf("[WARN] Configured bandwidth limit (%s) exceeds maximum supported value (%s)", humanize.Bytes(bandwidth), humanize.Bytes(uint64(math.MaxInt64)))
+		tflog.Warn(ctx, "Configured bandwidth limit exceeds maximum supported value, clamping", map[string]interface{}{"configured": humanize.Bytes(bandwidth), "max": humanize.Bytes(uint64(math.MaxInt64))})
 	}
 
 	return bandwidth, true, nil

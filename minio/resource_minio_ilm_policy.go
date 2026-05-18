@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"time"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -477,7 +476,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			}
 			return nil
 		}
-		log.Println(NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
+		tflog.Error(ctx, NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
 		d.SetId("")
 		return nil
 	}

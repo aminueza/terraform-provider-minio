@@ -9,8 +9,6 @@ description: |-
 
 Performs a one-shot MinIO service control operation (restart, stop, freeze, or unfreeze). This resource is not stateful - taking it down does not undo the action.
 
-~> **Warning:** The `stop` action shuts down the MinIO cluster. Once stopped, the cluster will not restart on its own, and subsequent `terraform plan`/`apply` runs will fail to reach the admin endpoint until you start MinIO again out-of-band. Use with care.
-
 ## Example Usage
 
 ```terraform
@@ -31,6 +29,7 @@ resource "minio_service_action" "restart" {
 
 ### Optional
 
+- `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 - `triggers` (Map of String) Arbitrary map of strings to force re-execution when changed (like the terraform_data pattern).
 
 ### Read-Only
@@ -38,3 +37,10 @@ resource "minio_service_action" "restart" {
 - `executed_at` (String) RFC3339 timestamp of when the action was executed.
 - `id` (String) The ID of this resource.
 - `result` (String) Short text summary of what was done.
+
+<a id="nestedblock--timeouts"></a>
+### Nested Schema for `timeouts`
+
+Optional:
+
+- `create` (String)

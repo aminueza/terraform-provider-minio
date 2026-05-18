@@ -17,6 +17,10 @@ func TestAccDataSourceMinioPoolStatus_basic(t *testing.T) {
 				Config: testAccDataSourceMinioPoolStatusConfig,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet("data.minio_pool_status.test", "pools.#"),
+					resource.TestCheckResourceAttrSet("data.minio_pool_status.test", "pools.0.endpoint"),
+					resource.TestCheckResourceAttrSet("data.minio_pool_status.test", "pools.0.last_update"),
+					resource.TestCheckResourceAttr("data.minio_pool_status.test", "pools.0.state", "active"),
+					resource.TestCheckResourceAttr("data.minio_pool_status.test", "pools.0.decommission_info", ""),
 				),
 			},
 		},

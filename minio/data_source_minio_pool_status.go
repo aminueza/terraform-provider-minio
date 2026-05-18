@@ -34,7 +34,7 @@ func dataSourceMinioPoolStatus() *schema.Resource {
 						"state": {
 							Type:        schema.TypeString,
 							Computed:    true,
-							Description: "Current state of the pool (active, decommissioning, decommissioned).",
+							Description: "Current state of the pool: `active`, `decommissioning`, `decommissioned`, `canceled`, or `failed`.",
 						},
 						"last_update": {
 							Type:        schema.TypeString,

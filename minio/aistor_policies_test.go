@@ -65,27 +65,50 @@ func TestCanonicalPolicyForAccessType_openSourceUnchanged(t *testing.T) {
 	}
 }
 
-func TestCanonicalPolicyForAccessType_aistorFallsBackForUnmappedTypes(t *testing.T) {
+func TestCanonicalPolicyForAccessType_aistorReadWriteAndWriteOnly(t *testing.T) {
 	client := &S3MinioClient{Edition: aistorEdition}
-	for _, at := range []string{"public", "public-read-write", "public-write"} {
-		got, err := canonicalPolicyForAccessType(at, "b", client)
+
+	cases := map[string]string{
+		"public-read-write": aistorPolicyReadWrite,
+		"public":            aistorPolicyReadWrite,
+		"public-write":      aistorPolicyWriteOnly,
+	}
+	for at, want := range cases {
+		got, err := canonicalPolicyForAccessType(at, "any-bucket", client)
 		if err != nil {
 			t.Fatalf("%s: %v", at, err)
 		}
-		if !strings.Contains(got, `"Principal"`) {
-			t.Errorf("%s: expected legacy shape until AIStor templates are confirmed; got: %s", at, got)
+		if strings.Contains(got, `"Principal"`) {
+			t.Errorf("%s: AIStor policy must not contain Principal; got: %s", at, got)
+		}
+		var gotMap, wantMap map[string]interface{}
+		if err := json.Unmarshal([]byte(got), &gotMap); err != nil {
+			t.Fatalf("%s: not valid JSON: %v (%s)", at, err, got)
+		}
+		if err := json.Unmarshal([]byte(want), &wantMap); err != nil {
+			t.Fatalf("%s: want not valid JSON: %v", at, err)
+		}
+		if !reflect.DeepEqual(gotMap, wantMap) {
+			t.Errorf("%s mismatch\nwant: %v\n got: %v", at, wantMap, gotMap)
 		}
 	}
 }
 
-func TestGetAccessTypeFromPolicy_aistorReadOnlyRoundTrip(t *testing.T) {
+func TestGetAccessTypeFromPolicy_aistorAllThreeRoundTrip(t *testing.T) {
 	client := &S3MinioClient{Edition: aistorEdition}
-	at, err := getAccessTypeFromPolicy(aistorPolicyReadOnly, "any-bucket", client)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	cases := map[string]string{
+		"public-read":       aistorPolicyReadOnly,
+		"public-read-write": aistorPolicyReadWrite,
+		"public-write":      aistorPolicyWriteOnly,
 	}
-	if at != "public-read" {
-		t.Errorf("expected public-read for AIStor readonly JSON, got %q", at)
+	for wantAT, policy := range cases {
+		at, err := getAccessTypeFromPolicy(policy, "any-bucket", client)
+		if err != nil {
+			t.Fatalf("%s: %v", wantAT, err)
+		}
+		if at != wantAT {
+			t.Errorf("expected %s for AIStor canned JSON, got %q", wantAT, at)
+		}
 	}
 }
 

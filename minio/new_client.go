@@ -134,16 +134,6 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 	}, nil
 }
 
-// detectEdition probes the server's admin API to figure out which MinIO build
-// is on the other end. Order of precedence:
-//   - explicit user override (provider attribute `minio_edition`);
-//   - ServerInfo.Edition when populated;
-//   - "AIStor" when Edition is empty but ServerInfo carries a License field —
-//     open-source MinIO has no license metadata, so its presence is a
-//     reliable AIStor signal even on builds that omit the Edition string;
-//   - "" otherwise, which routes the provider down the legacy MinIO path.
-//
-// Every branch is logged so users can see what the provider decided.
 func detectEdition(ctx context.Context, admin *madmin.AdminClient, s3CompatMode bool, override string) string {
 	if override != "" {
 		tflog.Info(ctx, "Edition: using provider override", map[string]interface{}{"edition": override})

@@ -357,11 +357,6 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 
 func getAccessTypeFromPolicy(policy string, bucketName string, client *S3MinioClient) (string, error) {
 	if isAIStorClient(client) {
-		// `public` and `public-read-write` both map to AIStor readwrite; on
-		// the way back we resolve to `public-read-write` since it is the
-		// canonical name in the schema. Users who set `public` get a stable
-		// no-op plan because canonicalPolicyForAccessType emits the same
-		// JSON for both.
 		for _, at := range []string{"public-read", "public-read-write", "public-write"} {
 			if p, ok := aistorCannedPolicy(at); ok {
 				if eq, err := awspolicy.PoliciesAreEquivalent(policy, p); err == nil && eq {

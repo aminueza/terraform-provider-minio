@@ -153,9 +153,6 @@ func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) err
 		_ = d.Set("commit", info.Servers[0].CommitID)
 	}
 
-	// Prefer the edition the provider already decided at configure time
-	// (includes manual override + license-based fallback). Falls back to
-	// raw ServerInfo.Edition for backwards compatibility on older clients.
 	edition := m.Edition
 	if edition == "" {
 		for _, srv := range info.Servers {

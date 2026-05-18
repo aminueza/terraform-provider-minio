@@ -152,17 +152,17 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	}
 
 	cfg := &S3MinioConfig{
-		S3HostPort:        getOptionalField(d, "minio_server", "").(string),
-		S3Region:          getOptionalField(d, "minio_region", "us-east-1").(string),
-		S3UserAccess:      user,
-		S3UserSecret:      password,
-		S3SessionToken:    getOptionalField(d, "minio_session_token", "").(string),
-		S3APISignature:    getOptionalField(d, "minio_api_version", "v4").(string),
-		S3SSL:             getOptionalField(d, "minio_ssl", false).(bool),
-		S3SSLCACertFile:   getOptionalField(d, "minio_cacert_file", "").(string),
-		S3SSLCertFile:     getOptionalField(d, "minio_cert_file", "").(string),
-		S3SSLKeyFile:      getOptionalField(d, "minio_key_file", "").(string),
-		S3SSLSkipVerify:   getOptionalField(d, "minio_insecure", false).(bool),
+		S3HostPort:            getOptionalField(d, "minio_server", "").(string),
+		S3Region:              getOptionalField(d, "minio_region", "us-east-1").(string),
+		S3UserAccess:          user,
+		S3UserSecret:          password,
+		S3SessionToken:        getOptionalField(d, "minio_session_token", "").(string),
+		S3APISignature:        getOptionalField(d, "minio_api_version", "v4").(string),
+		S3SSL:                 getOptionalField(d, "minio_ssl", false).(bool),
+		S3SSLCACertFile:       getOptionalField(d, "minio_cacert_file", "").(string),
+		S3SSLCertFile:         getOptionalField(d, "minio_cert_file", "").(string),
+		S3SSLKeyFile:          getOptionalField(d, "minio_key_file", "").(string),
+		S3SSLSkipVerify:       getOptionalField(d, "minio_insecure", false).(bool),
 		SkipBucketTagging:     getOptionalField(d, "skip_bucket_tagging", false).(bool),
 		S3CompatMode:          getOptionalField(d, "s3_compat_mode", false).(bool),
 		RequestTimeoutSeconds: getOptionalField(d, "request_timeout_seconds", 30).(int),
@@ -458,5 +458,16 @@ func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3
 		MinioClient: m.S3Client,
 		MinioBucket: bucket,
 		MinioPrefix: prefix,
+	}
+}
+
+// BatchJobConfig extracts batch job config from resource data.
+func BatchJobConfig(d *schema.ResourceData, meta interface{}) *S3MinioBatchJob {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBatchJob{
+		MinioAdmin: m.S3Admin,
+		JobType:    getOptionalField(d, "job_type", "").(string),
+		JobYAML:    getOptionalField(d, "job_yaml", "").(string),
 	}
 }

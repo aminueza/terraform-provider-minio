@@ -283,6 +283,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_ilm_tier_stats":                      dataSourceMinioILMTierStats(),
 			"minio_s3_objects":                          dataSourceMinioS3Objects(),
 			"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
+			"minio_batch_jobs":                          dataSourceMinioBatchJobs(),
 
 			// Notification Targets
 			"minio_notify_webhook":       dataSourceMinioNotifyWebhook(),
@@ -360,6 +361,9 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_logger_webhook":              resourceMinioLoggerWebhook(),
 			"minio_audit_kafka":                 resourceMinioAuditKafka(),
 			"minio_site_replication":            resourceMinioSiteReplication(),
+
+			// Batch Job Operations
+			"minio_batch_job": resourceMinioBatchJob(),
 
 			// Notification Targets
 			"minio_notify_webhook":          resourceMinioNotifyWebhook(),

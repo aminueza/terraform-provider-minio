@@ -74,7 +74,7 @@ jobs:
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
 
-      - name: Upload Trivy SARIF file
+    - name: Upload Trivy SARIF file
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
@@ -133,7 +133,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run TruffleHog OSS on PR
+    - name: Run TruffleHog OSS on PR
         if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # v3.95.3
         with:
@@ -142,7 +142,7 @@ jobs:
           head: ${{ github.event.pull_request.head.sha }}
           extra_args: --only-verified
 
-      - name: Run TruffleHog OSS on push
+    - name: Run TruffleHog OSS on push
         if: github.event_name != 'pull_request'
         uses: trufflesecurity/trufflehog@37b77001d0174ebec2fcca2bd83ff83a6d45a3ab # v3.95.3
         with:
@@ -171,7 +171,7 @@ jobs:
           results_format: sarif
           publish_results: true
 
-      - name: Upload SARIF results to GitHub
+    - name: Upload SARIF results to GitHub
         uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           sarif_file: results.sarif

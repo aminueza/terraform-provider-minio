@@ -93,7 +93,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "Docs are already up to date."
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-           # main is a protected branch — open a PR instead of pushing directly
+             # main is a protected branch — open a PR instead of pushing directly
             BRANCH="docs/auto-update-$(date +%Y%m%d%H%M%S)"
             git checkout -b "$BRANCH"
             git commit -m "docs: auto-generate provider documentation"

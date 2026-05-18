@@ -3,7 +3,6 @@ package minio
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -12,13 +11,6 @@ import (
 )
 
 func TestAccMinioBatchJob_basic(t *testing.T) {
-	// Batch job tests require multi-cluster replication and source-bucket setup
-	// not available in the shared CI MinIO fixture. Enable manually with
-	// SKIP_BATCH_JOB_TEST=0.
-	if os.Getenv("SKIP_BATCH_JOB_TEST") != "0" {
-		t.Skip("Skipping batch job tests: set SKIP_BATCH_JOB_TEST=0 to run")
-	}
-
 	jobID := fmt.Sprintf("tfacc-batch-job-%d", acctest.RandInt())
 	resourceName := "minio_batch_job.test"
 

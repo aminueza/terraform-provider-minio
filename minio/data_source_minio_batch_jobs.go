@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
+	"golang.org/x/sync/errgroup"
 )
 
 func dataSourceMinioBatchJobs() *schema.Resource {
@@ -81,29 +82,40 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 		return NewResourceError("listing batch jobs", jobType, err)
 	}
 
-	// Build status map from BatchJobStatus for each job
+	// Build status map with bare state (no elapsed suffix) for filtering
 	statusMap := make(map[string]string)
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(10)
+
 	for _, job := range result.Jobs {
-		status, err := admin.BatchJobStatus(ctx, job.ID)
-		if err != nil {
-			log.Printf("[DEBUG] BatchJobStatus unavailable for %s: %v", job.ID, err)
-			continue
-		}
-		statusMap[job.ID] = buildStatusString(status, job.Started, job.Elapsed)
+		job := job
+		g.Go(func() error {
+			status, err := admin.BatchJobStatus(gCtx, job.ID)
+			if err != nil {
+				log.Printf("[DEBUG] BatchJobStatus unavailable for %s: %v", job.ID, err)
+				statusMap[job.ID] = "started"
+				return nil
+			}
+			statusMap[job.ID] = bareStatus(status)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return NewResourceError("fetching batch job statuses", "batch_jobs", err)
 	}
 
 	// Filter jobs in-process by status if requested
 	statusFilter := d.Get("status").(string)
 	var filteredJobs []map[string]interface{}
 	for _, job := range result.Jobs {
-		if statusFilter != "" {
-			jobStatus := statusMap[job.ID]
-			if jobStatus == "" {
-				jobStatus = "started"
-			}
-			if jobStatus != statusFilter {
-				continue
-			}
+		jobStatus := statusMap[job.ID]
+		if jobStatus == "" {
+			jobStatus = "started"
+		}
+
+		if statusFilter != "" && jobStatus != statusFilter {
+			continue
 		}
 
 		startedStr := ""
@@ -111,10 +123,13 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 			startedStr = job.Started.Format(time.RFC3339)
 		}
 
+		// Decorate status with elapsed time for display
+		displayStatus := decorateStatus(jobStatus, job.Elapsed)
+
 		jobMap := map[string]interface{}{
 			"job_id":   job.ID,
 			"job_type": string(job.Type),
-			"status":   statusMap[job.ID],
+			"status":   displayStatus,
 			"user":     job.User,
 			"started":  startedStr,
 		}
@@ -132,19 +147,21 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 	return nil
 }
 
-func buildStatusString(status madmin.BatchJobStatus, started time.Time, elapsed time.Duration) string {
-	if started.IsZero() {
-		return ""
-	}
-	statusStr := "started"
-	if status.LastMetric.Complete {
-		statusStr = "completed"
-	}
+// bareStatus returns the plain status string without elapsed time decoration.
+func bareStatus(status madmin.BatchJobStatus) string {
 	if status.LastMetric.Failed {
-		statusStr = "failed"
+		return "failed"
 	}
+	if status.LastMetric.Complete {
+		return "completed"
+	}
+	return "started"
+}
+
+// decorateStatus appends elapsed time to a bare status string for display.
+func decorateStatus(bareStatus string, elapsed time.Duration) string {
 	if elapsed > 0 {
-		statusStr += " (" + elapsed.String() + ")"
+		return bareStatus + " (" + elapsed.String() + ")"
 	}
-	return statusStr
+	return bareStatus
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
@@ -21,6 +22,7 @@ func resourceMinioBatchJob() *schema.Resource {
 
 		CreateContext: minioCreateBatchJob,
 		ReadContext:   minioReadBatchJob,
+		UpdateContext: minioUpdateBatchJob,
 		DeleteContext: minioDeleteBatchJob,
 
 		Schema: map[string]*schema.Schema{
@@ -46,19 +48,18 @@ func resourceMinioBatchJob() *schema.Resource {
 			"status": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "Current job status string.",
+				Description: "Current job status (`started`, `completed`, or `failed`).",
 			},
 			"wait_for_status": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				ForceNew:    true,
-				Description: "Block until the job reaches this status (`started`, `completed`, `failed`). If unset, returns immediately after submission.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"completed"}, false),
+				Description:  "Block during Create until the job reaches this status. Only `completed` is supported; `started` is trivially true and `failed` is treated as an error during the wait.",
 			},
 			"wait_timeout_seconds": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Default:     300,
-				ForceNew:    true,
 				Description: "Maximum time in seconds to wait for `wait_for_status`. Defaults to 300.",
 			},
 		},
@@ -79,7 +80,6 @@ func minioCreateBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 
 	log.Printf("[DEBUG] Created batch job: %s", result.ID)
 
-	// Optionally wait for the job to reach a desired status
 	if waitFor, ok := d.GetOk("wait_for_status"); ok {
 		timeout := time.Duration(d.Get("wait_timeout_seconds").(int)) * time.Second
 		if diags := waitForBatchJobStatus(ctx, batchConfig, result.ID, waitFor.(string), timeout); diags != nil {
@@ -112,7 +112,6 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("getting batch job status", jobID, err)
 	}
 
-	// Build a descriptive status string
 	statusStr := bareStatus(status)
 
 	if err := d.Set("job_id", jobID); err != nil {
@@ -125,6 +124,13 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 	log.Printf("[DEBUG] Read batch job: %s (status: %s)", jobID, statusStr)
 
 	return nil
+}
+
+// minioUpdateBatchJob is a no-op refresh. wait_for_status and
+// wait_timeout_seconds are Create-time-only knobs; changing them on an existing
+// resource has no operational effect, so Update simply re-reads state.
+func minioUpdateBatchJob(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioReadBatchJob(ctx, d, meta)
 }
 
 func minioDeleteBatchJob(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -149,39 +155,33 @@ func minioDeleteBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	return nil
 }
 
-// waitForBatchJobStatus polls the job status until it reaches the desired state or times out.
+// waitForBatchJobStatus polls until the job reaches targetStatus or the timeout
+// elapses. A "failed" status is always treated as a terminal error.
 func waitForBatchJobStatus(ctx context.Context, config *S3MinioBatchJob, jobID string, targetStatus string, timeout time.Duration) diag.Diagnostics {
 	log.Printf("[DEBUG] Waiting for batch job %s to reach status: %s", jobID, targetStatus)
 
-	deadline := time.Now().Add(timeout)
-	pollInterval := 5 * time.Second
-
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return NewResourceError("waiting for batch job status", jobID, ctx.Err())
-		default:
-		}
-
+	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		status, err := config.MinioAdmin.BatchJobStatus(ctx, jobID)
 		if err != nil {
 			log.Printf("[DEBUG] BatchJobStatus unavailable for %s during wait: %v", jobID, err)
-			time.Sleep(pollInterval)
-			continue
+			return retry.RetryableError(fmt.Errorf("batch job status unavailable: %w", err))
 		}
 
-		currentStatus := bareStatus(status)
-		if currentStatus == targetStatus {
-			log.Printf("[DEBUG] Batch job %s reached status: %s", jobID, targetStatus)
+		current := bareStatus(status)
+		if current == "failed" {
+			return retry.NonRetryableError(fmt.Errorf("batch job %s failed", jobID))
+		}
+		if current == targetStatus {
 			return nil
 		}
 
-		if currentStatus == "failed" && targetStatus != "failed" {
-			return NewResourceError("waiting for batch job status", jobID, fmt.Errorf("job failed unexpectedly"))
-		}
+		return retry.RetryableError(fmt.Errorf("batch job %s is %s, waiting for %s", jobID, current, targetStatus))
+	})
 
-		time.Sleep(pollInterval)
+	if err != nil {
+		return NewResourceError("waiting for batch job status", jobID, err)
 	}
 
-	return NewResourceError("waiting for batch job status", jobID, fmt.Errorf("timed out after %s waiting for status %q", timeout, targetStatus))
+	log.Printf("[DEBUG] Batch job %s reached status: %s", jobID, targetStatus)
+	return nil
 }

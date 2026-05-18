@@ -219,14 +219,14 @@ func resourceMinioX() *schema.Resource {
 func minioCreateX(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
     config := XConfig(d, meta)
 
-    log.Printf("[DEBUG] Creating X: %s", config.MinioXName)
+    tflog.Debug(ctx, "Creating X", map[string]interface{}{"name": config.MinioXName})
 
     if err := applyX(ctx, config); err != nil {
         return NewResourceError("creating X", config.MinioXName, err)
     }
 
     d.SetId(config.MinioXName)
-    log.Printf("[DEBUG] Created X: %s", config.MinioXName)
+    tflog.Debug(ctx, "Created X", map[string]interface{}{"name": config.MinioXName})
 
     return minioReadX(ctx, d, meta)
 }
@@ -292,13 +292,36 @@ NewResourceError(operation string, resourceIdentifier string, err interface{}) d
 
 ### Debug Logging
 
-Add `log.Printf("[DEBUG] ...")` at:
+Use **`tflog`** (`github.com/hashicorp/terraform-plugin-log/tflog`), not `log.Printf`. `tflog` respects `TF_LOG_LEVEL` / `TF_LOG_PROVIDER`, is per-resource filterable, and supports structured fields.
+
+```go
+tflog.Debug(ctx, "Creating bucket", map[string]interface{}{"bucket": bucket})
+tflog.Warn(ctx, fmt.Sprintf("missing %s, recreating", name))
+tflog.Error(ctx, NewResourceErrorStr("op", id, err)) // pass strings directly; no fmt.Sprintf("%s", x)
+```
+
+Level mapping:
+
+| Old | New |
+|---|---|
+| `log.Printf("[DEBUG] …")` | `tflog.Debug(ctx, …)` |
+| `log.Printf("[INFO] …")` | `tflog.Info(ctx, …)` |
+| `log.Printf("[WARN] …")` / `[WARNING]` | `tflog.Warn(ctx, …)` |
+| `log.Printf("[ERROR] …")` | `tflog.Error(ctx, …)` |
+
+Log at:
 
 1. Start/end of Create
 2. Start of Read
 3. Start/end of Update
 4. Start/end of Delete
 5. Before critical API calls
+
+Rules:
+
+- `tflog` **requires `ctx`**. In ctx-less helpers, plumb `ctx` through rather than falling back to `log.Printf`.
+- Prefer the `additionalFields map[string]interface{}` arg for structured key/values over `fmt.Sprintf` interpolation.
+- Never wrap an already-string value in `fmt.Sprintf("%s", x)` — staticcheck S1025.
 
 Use concise, factual logs.
 
@@ -343,14 +366,14 @@ func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{
 func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
     objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 
-    log.Printf("[DEBUG] Creating object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+    tflog.Debug(ctx, "Creating object lock configuration", map[string]interface{}{"bucket": objectLockConfig.MinioBucket})
 
     if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
         return NewResourceError("applying object lock configuration", objectLockConfig.MinioBucket, err)
     }
 
     d.SetId(objectLockConfig.MinioBucket)
-    log.Printf("[DEBUG] Created object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+    tflog.Debug(ctx, "Created object lock configuration", map[string]interface{}{"bucket": objectLockConfig.MinioBucket})
 
     return minioReadObjectLockConfiguration(ctx, d, meta)
 }

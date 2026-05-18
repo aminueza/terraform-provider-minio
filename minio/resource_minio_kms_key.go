@@ -60,7 +60,7 @@ func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface
 
 	status, err := keyConfig.MinioAdmin.GetKeyStatus(ctx, keyConfig.MinioKMSKeyID)
 	if err != nil {
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("error reading KMS key", keyConfig.MinioKMSKeyID, err)))
+		tflog.Error(ctx, NewResourceErrorStr("error reading KMS key", keyConfig.MinioKMSKeyID, err))
 		d.SetId("")
 
 		return nil
@@ -99,7 +99,7 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 			d.SetId("")
 			return nil
 		}
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to remove KMS key", d.Id(), err)))
+		tflog.Error(ctx, NewResourceErrorStr("unable to remove KMS key", d.Id(), err))
 		return NewResourceError("unable to remove KMS key", d.Id(), err)
 	}
 

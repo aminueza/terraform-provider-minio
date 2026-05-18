@@ -310,7 +310,7 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("reading remote tier failed", name, err)
 	}
 	if tier == nil {
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to find tier", name, err)))
+		tflog.Error(ctx, NewResourceErrorStr("unable to find tier", name, err))
 		d.SetId("")
 		return nil
 	}

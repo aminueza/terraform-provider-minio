@@ -210,7 +210,7 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 
 	if errors.As(err, &errResp) {
 		if errResp.Code == "XMinioAdminNoSuchUser" {
-			tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to find user", d.Id(), err)))
+			tflog.Error(ctx, NewResourceErrorStr("unable to find user", d.Id(), err))
 			d.SetId("")
 			return nil
 		}

@@ -206,7 +206,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	})
 
 	if err != nil {
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to create bucket", bucket, err)))
+		tflog.Error(ctx, NewResourceErrorStr("unable to create bucket", bucket, err))
 		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
@@ -370,7 +370,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		tflog.Debug(ctx, fmt.Sprintf("Updating bucket. Bucket: [%s], Region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion))
 
 		if err := minioSetBucketACL(ctx, bucketConfig); err != nil {
-			tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err)))
+			tflog.Error(ctx, NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
 
@@ -445,7 +445,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if err := bucketConfig.MinioClient.RemoveBucket(ctx, bucketName); err != nil {
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to remove bucket", bucketName, err)))
+		tflog.Error(ctx, NewResourceErrorStr("unable to remove bucket", bucketName, err))
 		return NewResourceError("unable to remove bucket", bucketName, err)
 	}
 
@@ -601,7 +601,7 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	// Only some providers support bucket policies, so we skip setting a policy if the bucket policy is empty. See issue #608.
 	if policyString != "" {
 		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
-			tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err)))
+			tflog.Error(ctx, NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
 	}
@@ -687,7 +687,7 @@ func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, buc
 	errResp := minio.ToErrorResponse(err)
 
 	if isCredentialError(errResp) {
-		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("access denied while verifying bucket", bucket, err)))
+		tflog.Error(ctx, NewResourceErrorStr("access denied while verifying bucket", bucket, err))
 		return false, NewResourceError("access denied while verifying bucket", bucket, err)
 	}
 

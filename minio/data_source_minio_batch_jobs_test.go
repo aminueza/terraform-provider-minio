@@ -16,7 +16,7 @@ func TestAccDataSourceMinioBatchJobs_basic(t *testing.T) {
 			{
 				Config: testAccDataSourceMinioBatchJobsConfig(),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet(resourceName, "jobs"),
+					resource.TestCheckResourceAttrSet(resourceName, "jobs.#"),
 				),
 			},
 		},
@@ -33,7 +33,7 @@ func TestAccDataSourceMinioBatchJobs_filterByType(t *testing.T) {
 			{
 				Config: testAccDataSourceMinioBatchJobsFilterByTypeConfig(),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttrSet(resourceName, "jobs"),
+					resource.TestCheckResourceAttrSet(resourceName, "jobs.#"),
 				),
 			},
 		},

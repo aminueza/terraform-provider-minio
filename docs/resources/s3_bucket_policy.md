@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_policy Resource - terraform-provider-minio"
+page_title: "minio_s3_bucket_policy Resource - minio"
 subcategory: ""
 description: |-
   

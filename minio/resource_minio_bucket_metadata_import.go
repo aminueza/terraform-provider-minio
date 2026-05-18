@@ -14,6 +14,7 @@ import (
 
 func resourceMinioBucketMetadataImport() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.",
 		CreateContext: minioCreateBucketMetadataImport,
 		ReadContext:   minioReadBucketMetadataImport,
 		DeleteContext: minioDeleteBucketMetadataImport,

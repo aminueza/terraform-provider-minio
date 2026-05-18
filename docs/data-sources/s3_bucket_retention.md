@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_retention Data Source - terraform-provider-minio"
+page_title: "minio_s3_bucket_retention Data Source - minio"
 subcategory: ""
 description: |-
   Reads the object lock retention configuration of an existing S3 bucket.

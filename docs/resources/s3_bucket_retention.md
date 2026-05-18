@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_retention Resource - terraform-provider-minio"
+page_title: "minio_s3_bucket_retention Resource - minio"
 subcategory: ""
 description: |-
   Manages object lock retention settings for a MinIO bucket. Object locking enforces Write-Once Read-Many (WORM) immutability to protect versioned objects from deletion.

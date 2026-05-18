@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_cors_config Data Source - terraform-provider-minio"
+page_title: "minio_s3_bucket_cors_config Data Source - minio"
 subcategory: ""
 description: |-
   Reads the CORS configuration of an existing S3 bucket.

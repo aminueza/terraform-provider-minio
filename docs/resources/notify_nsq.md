@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_nsq Resource - terraform-provider-minio"
+page_title: "minio_notify_nsq Resource - minio"
 subcategory: ""
 description: |-
   Manages an NSQ notification target for MinIO bucket event notifications.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_service_accounts Data Source - terraform-provider-minio"
+page_title: "minio_iam_service_accounts Data Source - minio"
 subcategory: ""
 description: |-
   Lists service accounts (access keys) for a specific IAM user.

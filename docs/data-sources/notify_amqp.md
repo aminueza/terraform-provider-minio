@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_amqp Data Source - terraform-provider-minio"
+page_title: "minio_notify_amqp Data Source - minio"
 subcategory: ""
 description: |-
   

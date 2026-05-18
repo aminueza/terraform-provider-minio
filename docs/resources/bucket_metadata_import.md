@@ -1,13 +1,13 @@
 ---
-page_title: "minio_bucket_metadata_import Resource - terraform-provider-minio"
+page_title: "minio_bucket_metadata_import Resource - minio"
 subcategory: ""
 description: |-
-  
+  Imports a base64-encoded zip stream of bucket metadata produced by minio_bucket_metadata_export. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.
 ---
 
 # minio_bucket_metadata_import (Resource)
 
-
+Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.
 
 ## Example Usage
 

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_audit_webhook Resource - terraform-provider-minio"
+page_title: "minio_audit_webhook Resource - minio"
 subcategory: ""
 description: |-
   Manages an audit webhook target for MinIO audit logging. Audit webhooks send detailed API audit events to HTTP endpoints for compliance, SIEM integration, and security monitoring.

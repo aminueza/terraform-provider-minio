@@ -1,5 +1,5 @@
 ---
-page_title: "Data Source minio_health_status - terraform-provider-minio"
+page_title: "Data Source minio_health_status - minio"
 subcategory: ""
 description: |-
   Checks MinIO cluster health using unauthenticated health endpoints.

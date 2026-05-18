@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_mysql Resource - terraform-provider-minio"
+page_title: "minio_notify_mysql Resource - minio"
 subcategory: ""
 description: |-
   Manages a MySQL notification target for MinIO bucket event notifications.

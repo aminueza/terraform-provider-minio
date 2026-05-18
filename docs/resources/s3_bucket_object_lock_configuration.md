@@ -1,5 +1,5 @@
 ---
-page_title: "Resource minio_s3_bucket_object_lock_configuration - terraform-provider-minio"
+page_title: "Resource minio_s3_bucket_object_lock_configuration - minio"
 subcategory: ""
 description: |-
   Configures object lock (WORM) retention policies at the bucket level. Sets default retention that applies to all new objects automatically.

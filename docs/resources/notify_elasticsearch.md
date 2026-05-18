@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_elasticsearch Resource - terraform-provider-minio"
+page_title: "minio_notify_elasticsearch Resource - minio"
 subcategory: ""
 description: |-
   Manages an Elasticsearch notification target for MinIO bucket event notifications.

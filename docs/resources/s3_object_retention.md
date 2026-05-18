@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_object_retention Resource - terraform-provider-minio"
+page_title: "minio_s3_object_retention Resource - minio"
 subcategory: ""
 description: |-
   Manages retention policy for individual S3 objects. The bucket must have object locking enabled.

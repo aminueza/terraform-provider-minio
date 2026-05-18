@@ -1,5 +1,5 @@
 ---
-page_title: "minio_ilm_tier_stats Data Source - terraform-provider-minio"
+page_title: "minio_ilm_tier_stats Data Source - minio"
 subcategory: ""
 description: |-
   Returns transition statistics for all configured ILM storage tiers including object counts and total bytes.

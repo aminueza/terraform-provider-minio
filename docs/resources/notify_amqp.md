@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_amqp Resource - terraform-provider-minio"
+page_title: "minio_notify_amqp Resource - minio"
 subcategory: ""
 description: |-
   Manages an AMQP/RabbitMQ notification target for MinIO bucket event notifications.

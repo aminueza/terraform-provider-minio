@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_encryption Data Source - terraform-provider-minio"
+page_title: "minio_s3_bucket_encryption Data Source - minio"
 subcategory: ""
 description: |-
   Reads the server-side encryption configuration of an existing S3 bucket.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_account_info Data Source - terraform-provider-minio"
+page_title: "minio_account_info Data Source - minio"
 subcategory: ""
 description: |-
   Returns storage usage and bucket information for the authenticated account.

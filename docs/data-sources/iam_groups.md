@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_groups Data Source - terraform-provider-minio"
+page_title: "minio_iam_groups Data Source - minio"
 subcategory: ""
 description: |-
   Lists all IAM groups with optional name prefix filtering.

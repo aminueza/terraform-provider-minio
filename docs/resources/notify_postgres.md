@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_postgres Resource - terraform-provider-minio"
+page_title: "minio_notify_postgres Resource - minio"
 subcategory: ""
 description: |-
   Manages a PostgreSQL notification target for MinIO bucket event notifications.

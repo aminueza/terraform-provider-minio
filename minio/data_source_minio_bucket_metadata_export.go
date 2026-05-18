@@ -12,6 +12,7 @@ import (
 
 func dataSourceMinioBucketMetadataExport() *schema.Resource {
 	return &schema.Resource{
+		Description: "Exports a base64-encoded zip stream containing the metadata (policies, tagging, notification, ILM, etc.) for a single bucket. Use together with `minio_bucket_metadata_import` to copy metadata between buckets.",
 		ReadContext: dataSourceMinioBucketMetadataExportRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {

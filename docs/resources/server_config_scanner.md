@@ -1,5 +1,5 @@
 ---
-page_title: "minio_server_config_scanner Resource - terraform-provider-minio"
+page_title: "minio_server_config_scanner Resource - minio"
 subcategory: ""
 description: |-
   Manages MinIO object scanner configuration. The scanner handles background tasks like lifecycle expiration, healing, and versioning cleanup.

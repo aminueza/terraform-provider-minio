@@ -61,9 +61,6 @@ func minioCreateBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	if err := d.Set("job_id", result.ID); err != nil {
 		return NewResourceError("setting job_id", d.Id(), err)
 	}
-	if err := d.Set("job_type", string(result.Type)); err != nil {
-		return NewResourceError("setting job_type", d.Id(), err)
-	}
 
 	log.Printf("[DEBUG] Created batch job: %s", result.ID)
 
@@ -103,9 +100,6 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	if err := d.Set("job_id", jobID); err != nil {
 		return NewResourceError("setting job_id", jobID, err)
-	}
-	if err := d.Set("job_type", d.Get("job_type").(string)); err != nil {
-		return NewResourceError("setting job_type", jobID, err)
 	}
 	if err := d.Set("status", statusStr); err != nil {
 		return NewResourceError("setting status", jobID, err)

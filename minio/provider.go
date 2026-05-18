@@ -376,6 +376,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
 			"minio_pool_rebalance":          resourceMinioPoolRebalance(),
 			"minio_pool_decommission":       resourceMinioPoolDecommission(),
+			"minio_service_action":          resourceMinioServiceAction(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

@@ -3,8 +3,8 @@ package minio
 import (
 	"context"
 	"errors"
-	"log"
-
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7"
@@ -39,10 +39,10 @@ func resourceMinioBucketTags() *schema.Resource {
 func minioCreateBucketTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := BucketConfig(d, meta)
 	bucket := cfg.MinioBucket
-	log.Printf("[DEBUG] Setting tags for bucket %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Setting tags for bucket %s", bucket))
 
 	if shouldSkipBucketTagging(cfg) {
-		log.Printf("[INFO] Bucket tagging is disabled for this provider configuration; skipping tag creation")
+		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; skipping tag creation")
 		preserveBucketTagsState(d)
 		d.SetId(bucket)
 		return nil
@@ -58,7 +58,7 @@ func minioCreateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 			if !IsS3TaggingNotImplemented(err) {
 				return NewResourceError("setting bucket tags", bucket, err)
 			}
-			log.Printf("[INFO] Bucket tagging is not supported by backend; preserving state")
+			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
 			preserveBucketTagsState(d)
 		}
 	}
@@ -71,7 +71,7 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 	bucket := d.Id()
 
 	if shouldSkipBucketTagging(cfg) {
-		log.Printf("[INFO] Bucket tagging is disabled for this provider configuration; preserving state")
+		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; preserving state")
 		preserveBucketTagsState(d)
 		_ = d.Set("bucket", bucket)
 		return nil
@@ -80,7 +80,7 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 	bucketTags, err := cfg.MinioClient.GetBucketTagging(ctx, bucket)
 	if err != nil {
 		if isNoSuchBucketError(err) {
-			log.Printf("[WARN] Bucket %s no longer exists, removing tags from state", bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing tags from state", bucket))
 			d.SetId("")
 			return nil
 		}
@@ -91,7 +91,7 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 			return nil
 		}
 		if IsS3TaggingNotImplemented(err) {
-			log.Printf("[INFO] Bucket tagging is not supported by backend; preserving state")
+			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
 			preserveBucketTagsState(d)
 			_ = d.Set("bucket", bucket)
 			return nil
@@ -110,7 +110,7 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 	bucket := d.Id()
 
 	if shouldSkipBucketTagging(cfg) {
-		log.Printf("[INFO] Bucket tagging is disabled for this provider configuration; preserving state")
+		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; preserving state")
 		preserveBucketTagsState(d)
 		return nil
 	}
@@ -126,7 +126,7 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 				if !IsS3TaggingNotImplemented(err) {
 					return NewResourceError("setting bucket tags", bucket, err)
 				}
-				log.Printf("[INFO] Bucket tagging is not supported by backend; preserving state")
+				tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
 				preserveBucketTagsState(d)
 			}
 		} else {
@@ -134,7 +134,7 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 				if !IsS3TaggingNotImplemented(err) {
 					return NewResourceError("removing bucket tags", bucket, err)
 				}
-				log.Printf("[INFO] Bucket tagging is not supported by backend; preserving state")
+				tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
 				preserveBucketTagsState(d)
 			}
 		}
@@ -147,7 +147,7 @@ func minioDeleteBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 	bucket := d.Id()
 
 	if shouldSkipBucketTagging(cfg) {
-		log.Printf("[INFO] Bucket tagging is disabled for this provider configuration; skipping deletion")
+		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; skipping deletion")
 		return nil
 	}
 
@@ -155,7 +155,7 @@ func minioDeleteBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 		if !IsS3TaggingNotImplemented(err) {
 			return NewResourceError("removing bucket tags", bucket, err)
 		}
-		log.Printf("[INFO] Bucket tagging is not supported by backend; skipping deletion")
+		tflog.Info(ctx, "Bucket tagging is not supported by backend; skipping deletion")
 	}
 	d.SetId("")
 	return nil

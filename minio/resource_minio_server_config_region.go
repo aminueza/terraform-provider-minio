@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -63,7 +63,7 @@ func minioServerConfigRegionSet(ctx context.Context, d *schema.ResourceData, met
 
 	d.SetId("region")
 	_ = d.Set("restart_required", restart)
-	log.Printf("[DEBUG] Set region config (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Set region config (restart_required=%v)", restart))
 
 	if restart {
 		return nil
@@ -80,7 +80,7 @@ func minioServerConfigRegionRead(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	configStr := strings.TrimSpace(string(configData))
-	log.Printf("[DEBUG] Raw config data for region: %s", configStr)
+	tflog.Debug(ctx, fmt.Sprintf("Raw config data for region: %s", configStr))
 	var valueStr string
 	if strings.HasPrefix(configStr, "region ") {
 		parts := strings.SplitN(configStr, " ", 2)

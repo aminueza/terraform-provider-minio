@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -69,7 +69,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		name = id.UniqueId()
 	}
 
-	log.Printf("[DEBUG] Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy)
+	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy))
 
 	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
@@ -78,7 +78,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 
 	d.SetId(fmt.Sprintf("%s:%s", iAMGroupPolicyConfig.MinioIAMGroup, name))
 
-	log.Printf("[DEBUG] Creating IAM Group Policy %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s", d.Id()))
 
 	return minioReadGroupPolicy(ctx, d, meta)
 }
@@ -92,11 +92,11 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Getting IAM Group Policy: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Group Policy: %s", d.Id()))
 
 	info, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, policyName)
 	if info == nil {
-		log.Printf("[WARN] No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err)
+		tflog.Warn(ctx, fmt.Sprintf("No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err))
 		d.SetId("")
 		return nil
 	}
@@ -125,7 +125,7 @@ func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	}
 
 	if d.HasChange("policy") {
-		log.Printf("[DEBUG] Updating IAM Group Policy %s content", policyName)
+		tflog.Debug(ctx, fmt.Sprintf("Updating IAM Group Policy %s content", policyName))
 
 		err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, policyName, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 		if err != nil {

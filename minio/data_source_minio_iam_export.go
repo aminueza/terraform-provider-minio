@@ -5,11 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"io"
-	"log"
-
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"io"
 )
 
 func dataSourceMinioIAMExport() *schema.Resource {
@@ -41,7 +40,7 @@ func dataSourceMinioIAMExport() *schema.Resource {
 func dataSourceMinioIAMExportRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Exporting IAM configuration")
+	tflog.Debug(ctx, "Exporting IAM configuration")
 
 	rc, err := admin.ExportIAM(ctx)
 	if err != nil {

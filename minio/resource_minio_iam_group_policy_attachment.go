@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -56,7 +56,7 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return err
 	}
 	if !Contains(policies, policyName) {
-		log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupName)
+		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to group: %s", policyName, groupName))
 		policies = append(policies, policyName)
 		_, err := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
 			Policies: policies,
@@ -88,7 +88,7 @@ func doMinioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return err
 	}
 	if !Contains(policies, policyName) {
-		log.Printf("[WARN] No such policy by name (%s) found, removing from state", d.Id())
+		tflog.Warn(ctx, fmt.Sprintf("No such policy by name (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil
 	}
@@ -118,7 +118,7 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return nil
 	}
 
-	log.Printf("[DEBUG] Detaching policy %s from group: %s", policyName, groupName)
+	tflog.Debug(ctx, fmt.Sprintf("Detaching policy %s from group: %s", policyName, groupName))
 	_, errIam := minioAdmin.DetachPolicy(ctx, madmin.PolicyAssociationReq{
 		Policies: []string{policyName},
 		Group:    groupName,

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"math"
 	"net/http"
@@ -143,7 +144,7 @@ func customizeBucketDiff(ctx context.Context, d *schema.ResourceDiff, meta inter
 
 		compatible := strings.HasPrefix(existingBucket, prefix) || prefix == existingBucket || prefix == existingBucket+"-"
 		if compatible {
-			log.Printf("[DEBUG] Bucket [%s] is compatible with prefix [%s], suppressing ForceNew", existingBucket, prefix)
+			tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] is compatible with prefix [%s], suppressing ForceNew", existingBucket, prefix))
 			if err := d.SetNew("bucket", existingBucket); err != nil {
 				return err
 			}
@@ -157,7 +158,7 @@ func customizeBucketDiff(ctx context.Context, d *schema.ResourceDiff, meta inter
 	// Case 2: Switching from bucket_prefix to bucket (or changing bucket)
 	if newBucket.(string) != "" && newBucket.(string) == d.Id() {
 		if oldPrefix.(string) != "" && newPrefix.(string) == "" {
-			log.Printf("[DEBUG] New bucket [%s] matches existing ID, suppressing ForceNew", newBucket.(string))
+			tflog.Debug(ctx, fmt.Sprintf("New bucket [%s] matches existing ID, suppressing ForceNew", newBucket.(string)))
 			if err := d.SetNew("bucket_prefix", oldPrefix.(string)); err != nil {
 				return err
 			}
@@ -188,7 +189,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		region = bucketConfig.MinioRegion
 	}
 
-	log.Printf("[DEBUG] Creating bucket: [%s] in region: [%s]", bucket, region)
+	tflog.Debug(ctx, fmt.Sprintf("Creating bucket: [%s] in region: [%s]", bucket, region))
 	if err := s3utils.CheckValidBucketName(bucket); err != nil {
 		return NewResourceError("unable to create bucket", bucket, err)
 	}
@@ -205,7 +206,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	})
 
 	if err != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to create bucket", bucket, err))
+		tflog.Error(ctx, NewResourceErrorStr("unable to create bucket", bucket, err))
 		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
@@ -228,7 +229,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
 			for _, d := range errACL {
 				if strings.Contains(d.Summary, "NoSuchBucket") || strings.Contains(d.Summary, "does not exist") {
-					log.Printf("[DEBUG] Bucket %q not yet available for ACL, retrying...", bucket)
+					tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for ACL, retrying...", bucket))
 					return retry.RetryableError(fmt.Errorf("%s", d.Summary))
 				}
 			}
@@ -239,10 +240,10 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("[ACL] Unable to create bucket", bucket, err)
 	}
 
-	log.Printf("[DEBUG] Created bucket: [%s] in region: [%s]", bucket, region)
+	tflog.Debug(ctx, fmt.Sprintf("Created bucket: [%s] in region: [%s]", bucket, region))
 
 	if shouldSkipBucketTagging(bucketConfig) {
-		log.Printf("[INFO] Bucket [%s] tagging is disabled for this provider configuration; skipping tag creation", bucket)
+		tflog.Info(ctx, fmt.Sprintf("Bucket [%s] tagging is disabled for this provider configuration; skipping tag creation", bucket))
 	} else if v, ok := d.GetOk("tags"); ok {
 		tagsMap := v.(map[string]interface{})
 		bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
@@ -257,7 +258,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 					return nil
 				}
 				if isNoSuchBucketError(err) {
-					log.Printf("[DEBUG] Bucket %q not yet available for tagging, retrying...", bucket)
+					tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for tagging, retrying...", bucket))
 					return retry.RetryableError(err)
 				}
 				return retry.NonRetryableError(err)
@@ -274,7 +275,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketConfig := BucketConfig(d, meta)
 
-	log.Printf("[DEBUG] Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion)
+	tflog.Debug(ctx, fmt.Sprintf("Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion))
 
 	// Retry logic to handle eventual consistency issues with some MinIO implementations
 	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
@@ -292,7 +293,7 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 		found, err = bucketConfig.MinioClient.BucketExists(ctx, d.Id())
 		if err != nil {
-			log.Printf("[ERROR] Error checking if bucket exists: %s", err)
+			tflog.Error(ctx, fmt.Sprintf("Error checking if bucket exists: %s", err))
 			return NewResourceError("error checking bucket existence", d.Id(), err)
 		}
 
@@ -311,25 +312,25 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 			var jitter float64
 			var randomBytes [8]byte
 			if _, err := rand.Read(randomBytes[:]); err != nil {
-				log.Printf("[WARNING] Failed to generate random jitter: %s", err)
+				tflog.Warn(ctx, fmt.Sprintf("Failed to generate random jitter: %s", err))
 				jitter = 0.5
 			} else {
 				jitter = float64(binary.BigEndian.Uint64(randomBytes[:])) / float64(math.MaxUint64)
 			}
 			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
 			sleep := min(time.Duration(backoffSeconds*float64(time.Second)), retryConfig.MaxBackoff)
-			log.Printf("[DEBUG] Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep)
+			tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep))
 			time.Sleep(sleep)
 		}
 	}
 
 	if !found {
-		log.Printf("[INFO] Bucket [%s] not found after %d attempts, removing from state", d.Id(), retryConfig.MaxRetries)
+		tflog.Info(ctx, fmt.Sprintf("Bucket [%s] not found after %d attempts, removing from state", d.Id(), retryConfig.MaxRetries))
 		d.SetId("")
 		return nil
 	}
 
-	log.Printf("[DEBUG] Bucket [%s] exists!", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] exists!", d.Id()))
 
 	if _, ok := d.GetOk("bucket"); !ok {
 		_ = d.Set("bucket", d.Id())
@@ -366,15 +367,14 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	bucketConfig := BucketConfig(d, meta)
 
 	if d.HasChange("acl") {
-		log.Printf("[DEBUG] Updating bucket. Bucket: [%s], Region: [%s]",
-			bucketConfig.MinioBucket, bucketConfig.MinioRegion)
+		tflog.Debug(ctx, fmt.Sprintf("Updating bucket. Bucket: [%s], Region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion))
 
 		if err := minioSetBucketACL(ctx, bucketConfig); err != nil {
-			log.Printf("%s", NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
+			tflog.Error(ctx, NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
 
-		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
+		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] updated!", bucketConfig.MinioBucket))
 		_ = d.Set("acl", bucketConfig.MinioACL)
 	}
 
@@ -403,7 +403,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if d.HasChange("quota") {
-		log.Printf("[DEBUG] Setting bucket quota")
+		tflog.Debug(ctx, "Setting bucket quota")
 		quotaInt := d.Get("quota").(int)
 		if quotaInt < 0 {
 			return diag.Errorf("bucket quota must be a non-negative value, got: %d", quotaInt)
@@ -414,7 +414,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 			return NewResourceError("setting bucket quota", bucketConfig.MinioBucket, err)
 		}
 
-		log.Printf("[DEBUG] Bucket [%s] updated!", bucketConfig.MinioBucket)
+		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] updated!", bucketConfig.MinioBucket))
 		_ = d.Set("quota", bucketQuota.Quota)
 	}
 
@@ -425,7 +425,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	bucketConfig := BucketConfig(d, meta)
 	bucketName := d.Id()
 
-	log.Printf("[DEBUG] Deleting bucket [%s] from region [%s]", bucketName, bucketConfig.MinioRegion)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting bucket [%s] from region [%s]", bucketName, bucketConfig.MinioRegion))
 
 	hasObjects, diagErr := bucketHasObjects(ctx, bucketConfig.MinioClient, bucketName)
 	if diagErr != nil {
@@ -445,11 +445,11 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if err := bucketConfig.MinioClient.RemoveBucket(ctx, bucketName); err != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to remove bucket", bucketName, err))
+		tflog.Error(ctx, NewResourceErrorStr("unable to remove bucket", bucketName, err))
 		return NewResourceError("unable to remove bucket", bucketName, err)
 	}
 
-	log.Printf("[DEBUG] Deleted bucket: [%s] in region: [%s]", bucketName, bucketConfig.MinioRegion)
+	tflog.Debug(ctx, fmt.Sprintf("Deleted bucket: [%s] in region: [%s]", bucketName, bucketConfig.MinioRegion))
 
 	_ = d.Set("bucket_domain_name", "")
 
@@ -473,7 +473,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 // Objects under active legal hold are never force-deleted; the function returns
 // an actionable error asking the user to remove the hold first.
 func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
-	log.Printf("[DEBUG] Force destroying bucket %s - deleting all objects", bucketName)
+	tflog.Debug(ctx, fmt.Sprintf("Force destroying bucket %s - deleting all objects", bucketName))
 
 	// ── Phase 1: bulk delete ──────────────────────────────────────────────
 	objectsCh := make(chan minio.ObjectInfo)
@@ -491,7 +491,7 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 		}) {
 			if object.Err != nil {
 				listErr = object.Err
-				log.Printf("[ERROR] Error listing objects for deletion: %s", object.Err)
+				tflog.Error(ctx, fmt.Sprintf("Error listing objects for deletion: %s", object.Err))
 				return
 			}
 			objectsCh <- object
@@ -508,7 +508,7 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 	var firstRemoveErr minio.RemoveObjectError
 	var hasRemoveErr bool
 	for removeErr := range errorCh {
-		log.Printf("[ERROR] Error deleting object %s: %s", removeErr.ObjectName, removeErr.Err)
+		tflog.Error(ctx, fmt.Sprintf("Error deleting object %s: %s", removeErr.ObjectName, removeErr.Err))
 		if !hasRemoveErr {
 			firstRemoveErr = removeErr
 			hasRemoveErr = true
@@ -563,8 +563,7 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 			// protected — the pre-checks are a UX improvement, not the only guard.
 		}
 
-		log.Printf("[DEBUG] Removing remaining version %s (version: %s) from bucket %s",
-			object.Key, object.VersionID, bucketName)
+		tflog.Debug(ctx, fmt.Sprintf("Removing remaining version %s (version: %s) from bucket %s", object.Key, object.VersionID, bucketName))
 		err := client.RemoveObject(ctx, bucketName, object.Key, minio.RemoveObjectOptions{
 			VersionID:        object.VersionID,
 			GovernanceBypass: true,
@@ -574,7 +573,7 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 		}
 	}
 
-	log.Printf("[DEBUG] All objects deleted from bucket %s", bucketName)
+	tflog.Debug(ctx, fmt.Sprintf("All objects deleted from bucket %s", bucketName))
 	return nil
 }
 
@@ -602,7 +601,7 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	// Only some providers support bucket policies, so we skip setting a policy if the bucket policy is empty. See issue #608.
 	if policyString != "" {
 		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
-			log.Printf("%s", NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
+			tflog.Error(ctx, NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}
 	}
@@ -623,12 +622,12 @@ func removeBucketPolicy(ctx context.Context, bucketConfig *S3MinioBucket) diag.D
 		}
 
 		if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
-			log.Printf("[INFO] Backend does not support removing bucket policies, skipping removal for bucket %q: %v", bucketConfig.MinioBucket, err)
+			tflog.Info(ctx, fmt.Sprintf("Backend does not support removing bucket policies, skipping removal for bucket %q: %v", bucketConfig.MinioBucket, err))
 			return nil
 		}
 
 		if errResp.Code == "MethodNotAllowed" || errResp.StatusCode == http.StatusMethodNotAllowed {
-			log.Printf("[INFO] Backend rejected policy removal request for bucket %q (method not allowed); assuming private policy", bucketConfig.MinioBucket)
+			tflog.Info(ctx, fmt.Sprintf("Backend rejected policy removal request for bucket %q (method not allowed); assuming private policy", bucketConfig.MinioBucket))
 			return nil
 		}
 
@@ -681,14 +680,14 @@ func validateS3BucketName(value string) error {
 func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, bucket string) (bool, diag.Diagnostics) {
 	location, err := bucketConfig.MinioClient.GetBucketLocation(ctx, bucket)
 	if err == nil {
-		log.Printf("[DEBUG] Bucket [%s] location %q confirmed after existence check failure", bucket, location)
+		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] location %q confirmed after existence check failure", bucket, location))
 		return true, nil
 	}
 
 	errResp := minio.ToErrorResponse(err)
 
 	if isCredentialError(errResp) {
-		log.Printf("%s", NewResourceErrorStr("access denied while verifying bucket", bucket, err))
+		tflog.Error(ctx, NewResourceErrorStr("access denied while verifying bucket", bucket, err))
 		return false, NewResourceError("access denied while verifying bucket", bucket, err)
 	}
 
@@ -745,7 +744,7 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 
 		// Retry on NoSuchBucket for eventual consistency
 		if isNoSuchBucketError(err) {
-			log.Printf("[DEBUG] Bucket %q not yet available, retrying...", bucket)
+			tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available, retrying...", bucket))
 			return retry.RetryableError(fmt.Errorf("bucket %q not yet available: %w", bucket, err))
 		}
 

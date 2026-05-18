@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"time"
 
@@ -325,7 +326,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 
 		if hasAbort && !hasSupportedAction {
-			log.Printf("[WARN] Skipping abort-only rule %q: MinIO server doesn't persist AbortIncompleteMultipartUpload-only rules. The configuration is preserved in Terraform state.", id)
+			tflog.Warn(ctx, fmt.Sprintf("Skipping abort-only rule %q: MinIO server doesn't persist AbortIncompleteMultipartUpload-only rules. The configuration is preserved in Terraform state.", id))
 			continue
 		}
 
@@ -463,7 +464,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
 		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			log.Printf("[INFO] Lifecycle rules not supported by backend; skipping")
+			tflog.Info(ctx, "Lifecycle rules not supported by backend; skipping")
 			d.SetId("")
 			return nil
 		}
@@ -755,4 +756,3 @@ func parseILMNoncurrentExpiration(noncurrentExpiration interface{}) lifecycle.No
 
 	return lifecycle.NoncurrentVersionExpiration{}
 }
-

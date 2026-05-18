@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -55,7 +55,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("unable to set bucket policy with invalid JSON: %w", policy, err)
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, put policy: %s", bucketPolicyConfig.MinioBucket, policy)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put policy: %s", bucketPolicyConfig.MinioBucket, policy))
 
 	// Wait for bucket to be ready for eventual consistency
 	timeout := d.Timeout(schema.TimeoutCreate)
@@ -77,7 +77,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, policy)
 		if err != nil {
 			if isNoSuchBucketError(err) {
-				log.Printf("[DEBUG] Bucket %q not yet available for policy, retrying...", bucketPolicyConfig.MinioBucket)
+				tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for policy, retrying...", bucketPolicyConfig.MinioBucket))
 				return retry.RetryableError(err)
 			}
 			return retry.NonRetryableError(err)
@@ -97,7 +97,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		time.Sleep(500 * time.Millisecond)
 		versioningAfter, _ := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
 		if versioningAfter.Status == "" {
-			log.Printf("[WARN] Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket))
 			_ = bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore)
 		}
 	}
@@ -110,14 +110,14 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketPolicyConfig := BucketPolicyConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket policy, read for bucket: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket policy, read for bucket: %s", d.Id()))
 
 	// For new resources, wait for bucket to be ready
 	if d.IsNewResource() {
 		timeout := d.Timeout(schema.TimeoutRead)
 		if err := waitForBucketReady(ctx, bucketPolicyConfig.MinioClient, d.Id(), timeout); err != nil {
 			if isNoSuchBucketError(err) {
-				log.Printf("[WARN] Bucket %s not found after waiting, removing policy resource from state", d.Id())
+				tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found after waiting, removing policy resource from state", d.Id()))
 				d.SetId("")
 				return nil
 			}
@@ -131,7 +131,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 	actualPolicyText, readPolicyErr = bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
 	if readPolicyErr != nil {
 		if isNoSuchBucketError(readPolicyErr) && !d.IsNewResource() {
-			log.Printf("[WARN] Bucket %s no longer exists, removing policy resource from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing policy resource from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -163,7 +163,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 			if d.IsNewResource() {
 				return NewResourceError("failed to load bucket policy", d.Id(), retryErr)
 			}
-			log.Printf("[WARN] Bucket %s policy is empty, assuming deleted externally", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s policy is empty, assuming deleted externally", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -193,7 +193,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 func minioDeleteBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketPolicyConfig := BucketPolicyConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket: %s, delete policy", bucketPolicyConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, delete policy", bucketPolicyConfig.MinioBucket))
 
 	err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, "")
 

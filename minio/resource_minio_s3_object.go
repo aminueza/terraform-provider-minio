@@ -6,8 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -154,7 +154,7 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 		defer func() {
 			err := file.Close()
 			if err != nil {
-				log.Printf("[WARN] Error closing S3 object source (%s): %s", path, err)
+				tflog.Warn(ctx, fmt.Sprintf("Error closing S3 object source (%s): %s", path, err))
 			}
 		}()
 	} else if v, ok := d.GetOk("content"); ok {

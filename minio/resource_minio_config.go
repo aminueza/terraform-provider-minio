@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -86,7 +86,7 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	key := d.Get("key").(string)
 	value := d.Get("value").(string)
 
-	log.Printf("[INFO] Creating/Setting MinIO config: %s", key)
+	tflog.Info(ctx, fmt.Sprintf("Creating/Setting MinIO config: %s", key))
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	var restartRequired bool
@@ -108,7 +108,7 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to set config %s after retries: %s", key, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to set config %s after retries: %s", key, err))
 		return NewResourceError("setting config", key, err)
 	}
 
@@ -117,7 +117,7 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	_ = d.Set("restart_required", restartRequired)
 
 	if restartRequired {
-		log.Printf("[WARN] Config change for %s requires MinIO server restart to take effect", key)
+		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
 	}
 
 	// Verify the config was set by reading it back
@@ -128,7 +128,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 	client := meta.(*S3MinioClient)
 	key := d.Id()
 
-	log.Printf("[INFO] Reading MinIO config: %s", key)
+	tflog.Info(ctx, fmt.Sprintf("Reading MinIO config: %s", key))
 
 	timeout := d.Timeout(schema.TimeoutRead)
 	var configData []byte
@@ -139,7 +139,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 		if err != nil {
 			// Check if config key doesn't exist
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
-				log.Printf("[WARN] Config %s no longer exists", key)
+				tflog.Warn(ctx, fmt.Sprintf("Config %s no longer exists", key))
 				d.SetId("")
 				return nil
 			}
@@ -154,7 +154,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to read config %s after retries: %s", key, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to read config %s after retries: %s", key, err))
 		return NewResourceError("reading config", key, err)
 	}
 
@@ -165,7 +165,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 
 	// Parse the config data to extract the value
 	configStr := strings.TrimSpace(string(configData))
-	log.Printf("[DEBUG] Raw config data for key %s: %s", key, configStr)
+	tflog.Debug(ctx, fmt.Sprintf("Raw config data for key %s: %s", key, configStr))
 
 	// Handle different config formats
 	if strings.HasPrefix(configStr, key+" ") {
@@ -173,7 +173,7 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 		parts := strings.SplitN(configStr, " ", 2)
 		if len(parts) == 2 {
 			fullValue := strings.TrimSpace(parts[1])
-			log.Printf("[DEBUG] Setting full value from MinIO: %s", fullValue)
+			tflog.Debug(ctx, fmt.Sprintf("Setting full value from MinIO: %s", fullValue))
 			_ = d.Set("value", fullValue)
 		}
 	} else {
@@ -192,7 +192,7 @@ func minioUpdateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	key := d.Get("key").(string)
 	value := d.Get("value").(string)
 
-	log.Printf("[INFO] Updating MinIO config: %s", key)
+	tflog.Info(ctx, fmt.Sprintf("Updating MinIO config: %s", key))
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 	var restartRequired bool
@@ -214,14 +214,14 @@ func minioUpdateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to update config %s after retries: %s", key, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to update config %s after retries: %s", key, err))
 		return NewResourceError("updating config", key, err)
 	}
 
 	_ = d.Set("restart_required", restartRequired)
 
 	if restartRequired {
-		log.Printf("[WARN] Config change for %s requires MinIO server restart to take effect", key)
+		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
 	}
 
 	return minioReadConfig(ctx, d, meta)
@@ -231,13 +231,13 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	client := meta.(*S3MinioClient)
 	key := d.Id()
 
-	log.Printf("[INFO] Deleting MinIO config: %s", key)
+	tflog.Info(ctx, fmt.Sprintf("Deleting MinIO config: %s", key))
 
 	// Check if config exists before attempting deletion
 	_, err := client.S3Admin.GetConfigKV(ctx, key)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
-			log.Printf("[WARN] Config %s no longer exists, removing from state", key)
+			tflog.Warn(ctx, fmt.Sprintf("Config %s no longer exists, removing from state", key))
 			d.SetId("")
 			return nil
 		}
@@ -264,12 +264,12 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to delete config %s after retries: %s", key, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to delete config %s after retries: %s", key, err))
 		return NewResourceError("deleting config", key, err)
 	}
 
 	if restart {
-		log.Printf("[WARN] Config deletion for %s requires MinIO server restart to take effect", key)
+		tflog.Warn(ctx, fmt.Sprintf("Config deletion for %s requires MinIO server restart to take effect", key))
 	}
 
 	d.SetId("")

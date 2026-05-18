@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -164,7 +164,7 @@ func minioCreateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("creating OIDC IDP configuration", config.Name, fmt.Errorf("one of client_secret or client_secret_wo must be provided"))
 	}
 
-	log.Printf("[DEBUG] Creating OIDC IDP configuration: %s", config.Name)
+	tflog.Debug(ctx, fmt.Sprintf("Creating OIDC IDP configuration: %s", config.Name))
 
 	cfgData := buildIdpOpenIdCfgData(config)
 	restart, err := config.MinioAdmin.AddOrUpdateIDPConfig(ctx, madmin.OpenidIDPCfg, config.Name, cfgData, false)
@@ -177,7 +177,7 @@ func minioCreateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("setting restart_required", config.Name, setErr)
 	}
 
-	log.Printf("[DEBUG] Created OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart)
+	tflog.Debug(ctx, fmt.Sprintf("Created OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart))
 
 	return minioReadIdpOpenId(ctx, d, meta)
 }
@@ -186,12 +186,12 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	cfgName := d.Id()
 
-	log.Printf("[DEBUG] Reading OIDC IDP configuration: %s", cfgName)
+	tflog.Debug(ctx, fmt.Sprintf("Reading OIDC IDP configuration: %s", cfgName))
 
 	cfg, err := minioAdmin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, cfgName)
 	if err != nil {
 		if isIDPConfigNotFound(err) {
-			log.Printf("[WARN] OIDC IDP configuration %s no longer exists, removing from state", cfgName)
+			tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s no longer exists, removing from state", cfgName))
 			d.SetId("")
 			return nil
 		}
@@ -282,7 +282,7 @@ func minioUpdateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("updating OIDC IDP configuration", config.Name, fmt.Errorf("client_secret_wo must be provided when client_secret_wo_version changes"))
 	}
 
-	log.Printf("[DEBUG] Updating OIDC IDP configuration: %s", config.Name)
+	tflog.Debug(ctx, fmt.Sprintf("Updating OIDC IDP configuration: %s", config.Name))
 
 	cfgData := buildIdpOpenIdCfgData(config)
 	restart, err := config.MinioAdmin.AddOrUpdateIDPConfig(ctx, madmin.OpenidIDPCfg, config.Name, cfgData, true)
@@ -294,7 +294,7 @@ func minioUpdateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("setting restart_required", config.Name, setErr)
 	}
 
-	log.Printf("[DEBUG] Updated OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart)
+	tflog.Debug(ctx, fmt.Sprintf("Updated OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart))
 
 	return minioReadIdpOpenId(ctx, d, meta)
 }
@@ -303,12 +303,12 @@ func minioDeleteIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	cfgName := d.Id()
 
-	log.Printf("[DEBUG] Deleting OIDC IDP configuration: %s", cfgName)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting OIDC IDP configuration: %s", cfgName))
 
 	_, err := minioAdmin.DeleteIDPConfig(ctx, madmin.OpenidIDPCfg, cfgName)
 	if err != nil {
 		if isIDPConfigNotFound(err) {
-			log.Printf("[WARN] OIDC IDP configuration %s already removed", cfgName)
+			tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s already removed", cfgName))
 			d.SetId("")
 			return nil
 		}
@@ -316,7 +316,7 @@ func minioDeleteIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	d.SetId("")
-	log.Printf("[DEBUG] Deleted OIDC IDP configuration: %s", cfgName)
+	tflog.Debug(ctx, fmt.Sprintf("Deleted OIDC IDP configuration: %s", cfgName))
 
 	return nil
 }

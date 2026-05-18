@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"net/http"
 	"strconv"
 	"time"
@@ -61,7 +61,7 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 	endpointURL := m.S3Client.EndpointURL()
 	baseURL := fmt.Sprintf("%s://%s", endpointURL.Scheme, endpointURL.Host)
 
-	log.Printf("[DEBUG] Checking MinIO health at %s", baseURL)
+	tflog.Debug(ctx, fmt.Sprintf("Checking MinIO health at %s", baseURL))
 
 	timeout := 10 * time.Second
 	if m.RequestTimeoutSeconds > 0 {
@@ -98,8 +98,7 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 
 	healthy := live && ready && writeQuorum && readQuorum
 
-	log.Printf("[DEBUG] Health status - live: %v, ready: %v, write_quorum: %v, read_quorum: %v, safe_for_maintenance: %v, healthy: %v",
-		live, ready, writeQuorum, readQuorum, safeForMaintenance, healthy)
+	tflog.Debug(ctx, fmt.Sprintf("Health status - live: %v, ready: %v, write_quorum: %v, read_quorum: %v, safe_for_maintenance: %v, healthy: %v", live, ready, writeQuorum, readQuorum, safeForMaintenance, healthy))
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 

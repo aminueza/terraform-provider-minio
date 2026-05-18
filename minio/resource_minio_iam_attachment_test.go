@@ -26,10 +26,10 @@ func TestAccMinioIAMGroupPolicyAttachment_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s", groupName, policyName),
-				ImportStateVerify:       false,
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s/%s", groupName, policyName),
+				ImportStateVerify: false,
 				ImportStateCheck: func(states []*terraform.InstanceState) error {
 					if len(states) != 1 {
 						return fmt.Errorf("expected 1 state, got %d", len(states))
@@ -65,10 +65,10 @@ func TestAccMinioIAMUserPolicyAttachment_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s", userName, policyName),
-				ImportStateVerify:       false,
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s/%s", userName, policyName),
+				ImportStateVerify: false,
 				ImportStateCheck: func(states []*terraform.InstanceState) error {
 					if len(states) != 1 {
 						return fmt.Errorf("expected 1 state, got %d", len(states))
@@ -104,10 +104,10 @@ func TestAccMinioIAMGroupUserAttachment_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("%s/%s", groupName, userName),
-				ImportStateVerify:       false,
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s/%s", groupName, userName),
+				ImportStateVerify: false,
 				ImportStateCheck: func(states []*terraform.InstanceState) error {
 					if len(states) != 1 {
 						return fmt.Errorf("expected 1 state, got %d", len(states))

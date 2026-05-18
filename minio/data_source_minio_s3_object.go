@@ -2,8 +2,9 @@ package minio
 
 import (
 	"context"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
-	"log"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -131,7 +132,7 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 	defer func() {
 		err := object.Close()
 		if err != nil {
-			log.Printf("[WARN] Error closing S3 object source (%s): %s", objectName, err)
+			tflog.Warn(ctx, fmt.Sprintf("Error closing S3 object source (%s): %s", objectName, err))
 		}
 	}()
 

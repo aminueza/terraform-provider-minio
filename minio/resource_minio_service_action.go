@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -59,7 +59,7 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Creating service action: %s", action)
+	tflog.Debug(ctx, fmt.Sprintf("Creating service action: %s", action))
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -100,18 +100,18 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("setting result", id, err)
 	}
 
-	log.Printf("[DEBUG] Service action %s completed at %s", action, executedAt)
+	tflog.Debug(ctx, fmt.Sprintf("Service action %s completed at %s", action, executedAt))
 
 	return nil
 }
 
 func minioReadServiceAction(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	log.Printf("[DEBUG] Reading service action (no-op): %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Reading service action (no-op): %s", d.Id()))
 	return nil
 }
 
 func minioDeleteServiceAction(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	log.Printf("[DEBUG] Deleting service action (state-only, no API call): %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Deleting service action (state-only, no API call): %s", d.Id()))
 	d.SetId("")
 	return nil
 }

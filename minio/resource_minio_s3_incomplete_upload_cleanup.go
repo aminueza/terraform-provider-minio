@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -58,7 +58,7 @@ func resourceMinioS3IncompleteUploadCleanup() *schema.Resource {
 func minioCreateIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IncompleteUploadCleanupConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating incomplete upload cleanup for bucket: %s", config.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Creating incomplete upload cleanup for bucket: %s", config.MinioBucket))
 
 	if err := cleanupIncompleteUploads(ctx, config); err != nil {
 		return NewResourceError("cleaning up incomplete uploads", config.MinioBucket, err)
@@ -74,21 +74,21 @@ func minioCreateIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceD
 		return NewResourceError("setting last_cleanup", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Created incomplete upload cleanup for: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Created incomplete upload cleanup for: %s", d.Id()))
 	return minioReadIncompleteUploadCleanup(ctx, d, meta)
 }
 
 func minioReadIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IncompleteUploadCleanupConfig(d, meta)
 
-	log.Printf("[DEBUG] Reading incomplete upload cleanup for: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Reading incomplete upload cleanup for: %s", d.Id()))
 
 	exists, err := config.MinioClient.BucketExists(ctx, config.MinioBucket)
 	if err != nil {
 		return NewResourceError("checking bucket existence", config.MinioBucket, err)
 	}
 	if !exists {
-		log.Printf("[WARN] Bucket %s not found, removing from state", config.MinioBucket)
+		tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing from state", config.MinioBucket))
 		d.SetId("")
 		return nil
 	}
@@ -106,7 +106,7 @@ func minioReadIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceDat
 func minioUpdateIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IncompleteUploadCleanupConfig(d, meta)
 
-	log.Printf("[DEBUG] Updating incomplete upload cleanup for: %s", config.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updating incomplete upload cleanup for: %s", config.MinioBucket))
 
 	if err := cleanupIncompleteUploads(ctx, config); err != nil {
 		return NewResourceError("cleaning up incomplete uploads", config.MinioBucket, err)
@@ -116,18 +116,18 @@ func minioUpdateIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceD
 		return NewResourceError("setting last_cleanup", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Updated incomplete upload cleanup for: %s", config.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updated incomplete upload cleanup for: %s", config.MinioBucket))
 	return minioReadIncompleteUploadCleanup(ctx, d, meta)
 }
 
 func minioDeleteIncompleteUploadCleanup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	log.Printf("[DEBUG] Deleting incomplete upload cleanup for: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Deleting incomplete upload cleanup for: %s", d.Id()))
 	d.SetId("")
 	return nil
 }
 
 func cleanupIncompleteUploads(ctx context.Context, config *S3MinioIncompleteUploadCleanup) error {
-	log.Printf("[DEBUG] Listing incomplete uploads for bucket: %s, prefix: %s", config.MinioBucket, config.MinioPrefix)
+	tflog.Debug(ctx, fmt.Sprintf("Listing incomplete uploads for bucket: %s, prefix: %s", config.MinioBucket, config.MinioPrefix))
 
 	incompleteCh := config.MinioClient.ListIncompleteUploads(ctx, config.MinioBucket, config.MinioPrefix, true)
 
@@ -140,7 +140,7 @@ func cleanupIncompleteUploads(ctx context.Context, config *S3MinioIncompleteUplo
 			continue
 		}
 
-		log.Printf("[DEBUG] Removing incomplete upload: %s (UploadID: %s)", obj.Key, obj.UploadID)
+		tflog.Debug(ctx, fmt.Sprintf("Removing incomplete upload: %s (UploadID: %s)", obj.Key, obj.UploadID))
 
 		if err := config.MinioClient.RemoveIncompleteUpload(ctx, config.MinioBucket, obj.Key); err != nil {
 			cleanupErrors = append(cleanupErrors, obj.Key+": "+err.Error())
@@ -153,6 +153,6 @@ func cleanupIncompleteUploads(ctx context.Context, config *S3MinioIncompleteUplo
 		return fmt.Errorf("errors during cleanup: %s", strings.Join(cleanupErrors, "; "))
 	}
 
-	log.Printf("[DEBUG] Cleaned up %d incomplete uploads in bucket %s", cleanedCount, config.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Cleaned up %d incomplete uploads in bucket %s", cleanedCount, config.MinioBucket))
 	return nil
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -56,16 +56,16 @@ func minioCreateLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		return err
 	}
 
-	log.Printf("[DEBUG] '%s' user policies: %v", userDN, policies)
+	tflog.Debug(ctx, fmt.Sprintf("'%s' user policies: %v", userDN, policies))
 
 	if !Contains(policies, policyName) {
-		log.Printf("[DEBUG] Attaching policy %s to user: %s", policyName, userDN)
+		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to user: %s", policyName, userDN))
 		paResp, err := minioAdmin.AttachPolicyLDAP(ctx, madmin.PolicyAssociationReq{
 			Policies: []string{policyName},
 			User:     userDN,
 		})
 
-		log.Printf("[DEBUG] PolicyAssociationResp: %v", paResp)
+		tflog.Debug(ctx, fmt.Sprintf("PolicyAssociationResp: %v", paResp))
 
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("Unable to attach user to policy '%s'", policyName), userDN, err)
@@ -99,9 +99,9 @@ func doMinioReadLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		return NewResourceError(fmt.Sprintf("Failed to query for user policy '%s'", policyName), userDN, err)
 	}
 
-	log.Printf("[DEBUG] PolicyEntityResponse: %v", per)
+	tflog.Debug(ctx, fmt.Sprintf("PolicyEntityResponse: %v", per))
 	if len(per.PolicyMappings) == 0 {
-		log.Printf("[WARN] No such policy association (%s) found, removing from state", d.Id())
+		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil
 	}
@@ -137,7 +137,7 @@ func minioDeleteLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		User:     userDN,
 	})
 
-	log.Printf("[DEBUG] PolicyAssociationResp: %v", paResp)
+	tflog.Debug(ctx, fmt.Sprintf("PolicyAssociationResp: %v", paResp))
 
 	if detachErr != nil {
 		return NewResourceError(fmt.Sprintf("Unable to detach policy '%s'", policyName), userDN, detachErr)

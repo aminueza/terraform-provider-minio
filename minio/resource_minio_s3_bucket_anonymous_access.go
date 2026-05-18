@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -46,7 +46,7 @@ func putAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		err := client.SetBucketPolicy(ctx, bucket, policy)
 		if err != nil {
 			if isNoSuchBucketError(err) {
-				log.Printf("[DEBUG] Bucket %q not yet available for policy, retrying...", bucket)
+				tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for policy, retrying...", bucket))
 				return retry.RetryableError(err)
 			}
 			return retry.NonRetryableError(err)
@@ -67,7 +67,7 @@ func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta
 
 	if err := waitForBucketReady(ctx, client, bucket, timeout); err != nil {
 		if isNoSuchBucketError(err) {
-			log.Printf("[WARN] Bucket %s not found after waiting, removing anonymous policy resource from state", bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found after waiting, removing anonymous policy resource from state", bucket))
 			d.SetId("")
 			return "", nil
 		}
@@ -77,7 +77,7 @@ func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta
 	actualPolicyText, err := client.GetBucketPolicy(ctx, bucket)
 	if err != nil {
 		if isNoSuchBucketError(err) {
-			log.Printf("[WARN] Bucket %s no longer exists, removing anonymous policy resource from state", bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing anonymous policy resource from state", bucket))
 			d.SetId("")
 			return "", nil
 		}
@@ -102,7 +102,7 @@ func deleteAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, me
 
 	if err := client.SetBucketPolicy(ctx, bucket, ""); err != nil {
 		if isNoSuchBucketError(err) {
-			log.Printf("[DEBUG] Bucket %q already deleted, skipping policy removal", bucket)
+			tflog.Debug(ctx, fmt.Sprintf("Bucket %q already deleted, skipping policy removal", bucket))
 			return nil
 		}
 		return NewResourceError("error deleting bucket policy", bucket, err)
@@ -210,7 +210,7 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
-	log.Printf("[DEBUG] Setting anonymous access policy for bucket: %s, policy: %s, access_type: %s", bucketName, normalizedPolicy, accessType)
+	tflog.Debug(ctx, fmt.Sprintf("Setting anonymous access policy for bucket: %s, policy: %s, access_type: %s", bucketName, normalizedPolicy, accessType))
 
 	if diags := putAnonymousBucketPolicy(ctx, d, meta, bucketName, normalizedPolicy); diags.HasError() {
 		return diags
@@ -221,7 +221,7 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 
 func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketName := decodeAnonymousAccessID(d.Id())
-	log.Printf("[DEBUG] Reading anonymous access policy for bucket: %s", bucketName)
+	tflog.Debug(ctx, fmt.Sprintf("Reading anonymous access policy for bucket: %s", bucketName))
 
 	// Ensure the bucket attribute is populated for the shared bucket policy helpers
 	if err := d.Set("bucket", bucketName); err != nil {
@@ -284,7 +284,7 @@ func minioDeleteAnonymousPolicy(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("setting bucket", bucketName, err)
 	}
 
-	log.Printf("[DEBUG] Deleting anonymous access policy for bucket: %s", bucketName)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting anonymous access policy for bucket: %s", bucketName))
 
 	if diags := deleteAnonymousBucketPolicy(ctx, d, meta, bucketName); diags.HasError() {
 		return diags

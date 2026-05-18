@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -69,7 +69,7 @@ func resourceMinioBatchJob() *schema.Resource {
 func minioCreateBatchJob(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	batchConfig := BatchJobConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating batch job of type: %s", batchConfig.JobType)
+	tflog.Debug(ctx, fmt.Sprintf("Creating batch job of type: %s", batchConfig.JobType))
 
 	if diags := validateBatchJobType(ctx, batchConfig.MinioAdmin, batchConfig.JobType); diags != nil {
 		return diags
@@ -82,7 +82,7 @@ func minioCreateBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 
 	d.SetId(result.ID)
 
-	log.Printf("[DEBUG] Created batch job: %s", result.ID)
+	tflog.Debug(ctx, fmt.Sprintf("Created batch job: %s", result.ID))
 
 	if waitFor, ok := d.GetOk("wait_for_status"); ok {
 		timeout := time.Duration(d.Get("wait_timeout_seconds").(int)) * time.Second
@@ -98,13 +98,13 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 	batchConfig := BatchJobConfig(d, meta)
 
 	jobID := d.Id()
-	log.Printf("[DEBUG] Reading batch job: %s", jobID)
+	tflog.Debug(ctx, fmt.Sprintf("Reading batch job: %s", jobID))
 
 	_, err := batchConfig.MinioAdmin.DescribeBatchJob(ctx, jobID)
 	if err != nil {
 		errResp := madmin.ToErrorResponse(err)
 		if errResp.Code == "XMinioBatchJobNotFound" {
-			log.Printf("[DEBUG] Batch job %s not found, removing from state", jobID)
+			tflog.Debug(ctx, fmt.Sprintf("Batch job %s not found, removing from state", jobID))
 			d.SetId("")
 			return nil
 		}
@@ -125,7 +125,7 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("setting status", jobID, err)
 	}
 
-	log.Printf("[DEBUG] Read batch job: %s (status: %s)", jobID, statusStr)
+	tflog.Debug(ctx, fmt.Sprintf("Read batch job: %s (status: %s)", jobID, statusStr))
 
 	return nil
 }
@@ -138,19 +138,19 @@ func minioDeleteBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	batchConfig := BatchJobConfig(d, meta)
 
 	jobID := d.Id()
-	log.Printf("[DEBUG] Deleting (cancelling) batch job: %s", jobID)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting (cancelling) batch job: %s", jobID))
 
 	if err := batchConfig.MinioAdmin.CancelBatchJob(ctx, jobID); err != nil {
 		errResp := madmin.ToErrorResponse(err)
 		if errResp.Code == "XMinioBatchJobNotFound" {
-			log.Printf("[DEBUG] Batch job %s already not found, skipping cancel", jobID)
+			tflog.Debug(ctx, fmt.Sprintf("Batch job %s already not found, skipping cancel", jobID))
 			d.SetId("")
 			return nil
 		}
 		return NewResourceError("cancelling batch job", jobID, err)
 	}
 
-	log.Printf("[DEBUG] Deleted batch job: %s", jobID)
+	tflog.Debug(ctx, fmt.Sprintf("Deleted batch job: %s", jobID))
 	d.SetId("")
 
 	return nil
@@ -167,7 +167,7 @@ func validateBatchJobType(ctx context.Context, admin *madmin.AdminClient, jobTyp
 	}
 
 	if apiUnavailable {
-		log.Printf("[DEBUG] GetSupportedBatchJobTypes unavailable on this MinIO version, accepting job_type %q without server-side validation", jobType)
+		tflog.Debug(ctx, fmt.Sprintf("GetSupportedBatchJobTypes unavailable on this MinIO version, accepting job_type %q without server-side validation", jobType))
 		return nil
 	}
 
@@ -185,12 +185,12 @@ func validateBatchJobType(ctx context.Context, admin *madmin.AdminClient, jobTyp
 }
 
 func waitForBatchJobStatus(ctx context.Context, config *S3MinioBatchJob, jobID string, targetStatus string, timeout time.Duration) diag.Diagnostics {
-	log.Printf("[DEBUG] Waiting for batch job %s to reach status: %s", jobID, targetStatus)
+	tflog.Debug(ctx, fmt.Sprintf("Waiting for batch job %s to reach status: %s", jobID, targetStatus))
 
 	err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		status, err := config.MinioAdmin.BatchJobStatus(ctx, jobID)
 		if err != nil {
-			log.Printf("[DEBUG] BatchJobStatus unavailable for %s during wait: %v", jobID, err)
+			tflog.Debug(ctx, fmt.Sprintf("BatchJobStatus unavailable for %s during wait: %v", jobID, err))
 			return retry.RetryableError(fmt.Errorf("batch job status unavailable: %w", err))
 		}
 
@@ -209,6 +209,6 @@ func waitForBatchJobStatus(ctx context.Context, config *S3MinioBatchJob, jobID s
 		return NewResourceError("waiting for batch job status", jobID, err)
 	}
 
-	log.Printf("[DEBUG] Batch job %s reached status: %s", jobID, targetStatus)
+	tflog.Debug(ctx, fmt.Sprintf("Batch job %s reached status: %s", jobID, targetStatus))
 	return nil
 }

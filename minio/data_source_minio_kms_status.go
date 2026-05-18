@@ -3,8 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
-
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -70,7 +69,7 @@ func dataSourceMinioKMSStatus() *schema.Resource {
 func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading KMS status")
+	tflog.Debug(ctx, "Reading KMS status")
 
 	status, err := admin.KMSStatus(ctx)
 	if err != nil {
@@ -79,14 +78,14 @@ func dataSourceMinioKMSStatusRead(ctx context.Context, d *schema.ResourceData, m
 
 	versionStr := ""
 	if v, err := admin.KMSVersion(ctx); err != nil {
-		log.Printf("[DEBUG] KMSVersion unavailable: %v", err)
+		tflog.Debug(ctx, fmt.Sprintf("KMSVersion unavailable: %v", err))
 	} else if v != nil {
 		versionStr = v.Version
 	}
 
 	apiStrs := []string{}
 	if apis, err := admin.KMSAPIs(ctx); err != nil {
-		log.Printf("[DEBUG] KMSAPIs unavailable: %v", err)
+		tflog.Debug(ctx, fmt.Sprintf("KMSAPIs unavailable: %v", err))
 	} else {
 		for _, a := range apis {
 			apiStrs = append(apiStrs, fmt.Sprintf("%s %s", a.Method, a.Path))

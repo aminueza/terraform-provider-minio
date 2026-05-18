@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
 	"log"
 	"strings"
@@ -64,7 +65,7 @@ func minioCreateBucketMetadataImport(ctx context.Context, d *schema.ResourceData
 	bucket := d.Get("bucket").(string)
 	metadataRaw := d.Get("metadata").(string)
 
-	log.Printf("[DEBUG] Importing metadata for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Importing metadata for bucket: %s", bucket))
 
 	decoded, err := base64.StdEncoding.DecodeString(metadataRaw)
 	if err != nil {
@@ -90,7 +91,7 @@ func minioCreateBucketMetadataImport(ctx context.Context, d *schema.ResourceData
 		return NewResourceError("setting imported_at", bucket, err)
 	}
 
-	log.Printf("[DEBUG] Imported metadata for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Imported metadata for bucket: %s", bucket))
 
 	return minioReadBucketMetadataImport(ctx, d, meta)
 }
@@ -169,7 +170,7 @@ func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, 
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Get("bucket").(string)
 
-	log.Printf("[DEBUG] Reading bucket metadata import for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Reading bucket metadata import for bucket: %s", bucket))
 
 	// Read intentionally does not refresh metadata content: the source zip
 	// is non-deterministic and madmin exposes no per-feature read that
@@ -181,7 +182,7 @@ func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	if !exists {
-		log.Printf("[DEBUG] Bucket %s no longer exists, removing from state", bucket)
+		tflog.Debug(ctx, fmt.Sprintf("Bucket %s no longer exists, removing from state", bucket))
 		d.SetId("")
 		return nil
 	}

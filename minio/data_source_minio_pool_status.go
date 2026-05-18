@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -56,7 +56,7 @@ func dataSourceMinioPoolStatus() *schema.Resource {
 func dataSourceMinioPoolStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading pool status")
+	tflog.Debug(ctx, "Reading pool status")
 
 	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {

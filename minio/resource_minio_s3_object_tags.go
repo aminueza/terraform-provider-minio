@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -64,7 +64,7 @@ func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 		MinioClient: meta.(*S3MinioClient).S3Client,
 	}
 
-	log.Printf("[DEBUG] Setting tags for object %s in bucket %s", objectKey, bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Setting tags for object %s in bucket %s", objectKey, bucket))
 
 	if v, ok := d.GetOk("tags"); ok && len(v.(map[string]interface{})) > 0 {
 		tagsMap := convertToStringMap(v.(map[string]interface{}))

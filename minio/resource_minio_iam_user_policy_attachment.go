@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -57,7 +57,7 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	}
 	if !Contains(policies, policyName) {
 		policies = append(policies, policyName)
-		log.Printf("[DEBUG] Attaching policy %s to user: %s (%v)", policyName, userName, policies)
+		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to user: %s (%v)", policyName, userName, policies))
 		_, err := minioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
 			Policies: policies,
 			User:     userName,
@@ -89,7 +89,7 @@ func doMinioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	}
 
 	if !Contains(policies, policyName) {
-		log.Printf("[WARN] No such policy by name (%s) found, removing from state", d.Id())
+		tflog.Warn(ctx, fmt.Sprintf("No such policy by name (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil
 	}
@@ -119,7 +119,7 @@ func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 		return nil
 	}
 
-	log.Printf("[DEBUG] Detaching policy %s from user: %s", policyName, userName)
+	tflog.Debug(ctx, fmt.Sprintf("Detaching policy %s from user: %s", policyName, userName))
 	_, errIam := minioAdmin.DetachPolicy(ctx, madmin.PolicyAssociationReq{
 		Policies: []string{policyName},
 		User:     userName,
@@ -155,14 +155,14 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 func minioReadUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, userName string) ([]string, diag.Diagnostics) {
 	var isLDAPUser = LDAPUserDistinguishedNamePattern.MatchString(userName)
 
-	log.Printf("[DEBUG] UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser)
+	tflog.Debug(ctx, fmt.Sprintf("UserPolicyAttachment: is user '%s' an LDAP user? %t", userName, isLDAPUser))
 
 	userInfo, errUser := minioAdmin.GetUserInfo(ctx, userName)
 	if errUser != nil {
 		var errUserResponse madmin.ErrorResponse
 		errUserIsResponse := errors.As(errUser, &errUserResponse)
 
-		log.Printf("[DEBUG] UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code)
+		tflog.Debug(ctx, fmt.Sprintf("UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code))
 
 		if errUserIsResponse && strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
 			return nil, nil

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
 	"log"
 
@@ -80,7 +81,7 @@ func countAttr(desc string) *schema.Schema {
 func resourceMinioIAMImportApply(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IAMImportConfig(d, meta)
 
-	log.Printf("[DEBUG] Importing IAM configuration")
+	tflog.Debug(ctx, "Importing IAM configuration")
 
 	raw, err := base64.StdEncoding.DecodeString(config.IAMData)
 	if err != nil {
@@ -99,7 +100,7 @@ func resourceMinioIAMImportApply(ctx context.Context, d *schema.ResourceData, me
 	digest := hex.EncodeToString(sum[:])
 	d.SetId(digest)
 
-	log.Printf("[DEBUG] Imported IAM configuration: sha256=%s", digest)
+	tflog.Debug(ctx, fmt.Sprintf("Imported IAM configuration: sha256=%s", digest))
 
 	return setIAMImportResult(d, &result, digest)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"regexp"
 
@@ -209,7 +210,7 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 
 	if errors.As(err, &errResp) {
 		if errResp.Code == "XMinioAdminNoSuchUser" {
-			log.Printf("%s", NewResourceErrorStr("unable to find user", d.Id(), err))
+			tflog.Error(ctx, NewResourceErrorStr("unable to find user", d.Id(), err))
 			d.SetId("")
 			return nil
 		}
@@ -219,7 +220,7 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 		return NewResourceError("error reading IAM User", d.Id(), err)
 	}
 
-	log.Printf("[WARN] (%v)", output)
+	tflog.Warn(ctx, fmt.Sprintf("(%v)", output))
 
 	if _, ok := d.GetOk("name"); !ok {
 		_ = d.Set("name", d.Id())
@@ -286,7 +287,7 @@ func deleteMinioIamUserGroupMemberships(ctx context.Context, iamUserConfig *S3Mi
 
 	for _, groupMemberOf := range groupsMemberOf {
 
-		log.Printf("[DEBUG] Removing IAM User %s from IAM Group %s", iamUserConfig.MinioIAMName, groupMemberOf)
+		tflog.Debug(ctx, fmt.Sprintf("Removing IAM User %s from IAM Group %s", iamUserConfig.MinioIAMName, groupMemberOf))
 		groupAddRemove := madmin.GroupAddRemove{
 			Group:    groupMemberOf,
 			Members:  []string{iamUserConfig.MinioIAMName},

@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"strings"
 	"time"
@@ -311,7 +312,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("error reading service account %s: %s", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] (%v)", output)
+	tflog.Debug(ctx, fmt.Sprintf("(%v)", output))
 
 	if _, ok := d.GetOk("access_key"); !ok {
 		_ = d.Set("access_key", d.Id())

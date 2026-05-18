@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -78,7 +78,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, put versioning configuration: %v", bucketVersioningConfig.MinioBucket, versioningConfig)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put versioning configuration: %v", bucketVersioningConfig.MinioBucket, versioningConfig))
 
 	// Wait for bucket to be ready for eventual consistency
 	timeout := d.Timeout(schema.TimeoutCreate)
@@ -104,7 +104,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		)
 		if err != nil {
 			if isNoSuchBucketError(err) {
-				log.Printf("[DEBUG] Bucket %q not yet available for versioning, retrying...", bucketVersioningConfig.MinioBucket)
+				tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for versioning, retrying...", bucketVersioningConfig.MinioBucket))
 				return retry.RetryableError(err)
 			}
 			return retry.NonRetryableError(err)
@@ -124,7 +124,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		time.Sleep(500 * time.Millisecond)
 		policyAfter, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
 		if strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
-			log.Printf("[WARN] Bucket %s policy was lost after SetBucketVersioning, restoring", bucketVersioningConfig.MinioBucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s policy was lost after SetBucketVersioning, restoring", bucketVersioningConfig.MinioBucket))
 			_ = bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore)
 		}
 	}
@@ -137,14 +137,14 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketVersioningConfig := BucketVersioningConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket versioning, read for bucket: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket versioning, read for bucket: %s", d.Id()))
 
 	// For new resources, wait for bucket to be ready
 	if d.IsNewResource() {
 		timeout := d.Timeout(schema.TimeoutRead)
 		if err := waitForBucketReady(ctx, bucketVersioningConfig.MinioClient, d.Id(), timeout); err != nil {
 			if isNoSuchBucketError(err) {
-				log.Printf("[WARN] Bucket %s not found after waiting, removing versioning resource from state", d.Id())
+				tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found after waiting, removing versioning resource from state", d.Id()))
 				d.SetId("")
 				return nil
 			}
@@ -157,7 +157,7 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("checking bucket existence", d.Id(), err)
 		}
 		if !exists {
-			log.Printf("[WARN] Bucket %s no longer exists, removing versioning resource from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing versioning resource from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -223,17 +223,17 @@ func minioDeleteBucketVersioning(ctx context.Context, d *schema.ResourceData, me
 	bucketVersioningConfig := BucketVersioningConfig(d, meta)
 
 	if v := getBucketVersioningConfig(d.Get("versioning_configuration").([]interface{})); v != nil && v.Status == minio.Suspended {
-		log.Printf("[DEBUG] Removing bucket versioning for unversioned bucket (%s) from state", d.Id())
+		tflog.Debug(ctx, fmt.Sprintf("Removing bucket versioning for unversioned bucket (%s) from state", d.Id()))
 		return nil
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, suspending versioning", bucketVersioningConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, suspending versioning", bucketVersioningConfig.MinioBucket))
 
 	err := bucketVersioningConfig.MinioClient.SuspendVersioning(ctx, bucketVersioningConfig.MinioBucket)
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "InvalidBucketState" {
-			log.Printf("[WARN] S3 bucket %s: cannot suspend versioning (%s), removing from state anyway", bucketVersioningConfig.MinioBucket, minioErr.Message)
+			tflog.Warn(ctx, fmt.Sprintf("S3 bucket %s: cannot suspend versioning (%s), removing from state anyway", bucketVersioningConfig.MinioBucket, minioErr.Message))
 			return nil
 		}
 		return NewResourceError("error suspending bucket versioning", bucketVersioningConfig.MinioBucket, err)

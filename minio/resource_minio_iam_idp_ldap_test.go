@@ -95,7 +95,6 @@ func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
 	})
 }
 
-
 func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]

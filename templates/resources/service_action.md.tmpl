@@ -9,6 +9,8 @@ description: |-
 
 {{ .Description | trimspace }}
 
+~> **Warning:** The `stop` action shuts down the MinIO cluster. Once stopped, the cluster will not restart on its own, and subsequent `terraform plan`/`apply` runs will fail to reach the admin endpoint until you start MinIO again out-of-band. Use with care.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_service_action/resource.tf" }}

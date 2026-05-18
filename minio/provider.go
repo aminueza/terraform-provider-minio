@@ -284,6 +284,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_objects":                          dataSourceMinioS3Objects(),
 			"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
 			"minio_batch_jobs":                          dataSourceMinioBatchJobs(),
+			"minio_batch_job_template":                  dataSourceMinioBatchJobTemplate(),
 			"minio_pool_status":                         dataSourceMinioPoolStatus(),
 			"minio_bucket_metadata_export":              dataSourceMinioBucketMetadataExport(),
 

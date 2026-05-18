@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -27,11 +28,10 @@ func resourceMinioBatchJob() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"job_type": {
-				Type:         schema.TypeString,
-				Required:     true,
-				ForceNew:     true,
-				ValidateFunc: validation.StringInSlice([]string{"replicate", "expire", "keyrotate"}, false),
-				Description:  "Batch job type. One of `replicate`, `expire`, `keyrotate`.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Batch job type. The provider queries the server's supported types via `GetSupportedBatchJobTypes` at Create time and rejects values the server does not advertise. Typically one of `replicate`, `expire`, `keyrotate`.",
 			},
 			"job_yaml": {
 				Type:        schema.TypeString,
@@ -70,6 +70,10 @@ func minioCreateBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	batchConfig := BatchJobConfig(d, meta)
 
 	log.Printf("[DEBUG] Creating batch job of type: %s", batchConfig.JobType)
+
+	if diags := validateBatchJobType(ctx, batchConfig.MinioAdmin, batchConfig.JobType); diags != nil {
+		return diags
+	}
 
 	result, err := batchConfig.MinioAdmin.StartBatchJob(ctx, batchConfig.JobYAML)
 	if err != nil {
@@ -150,6 +154,34 @@ func minioDeleteBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	d.SetId("")
 
 	return nil
+}
+
+func validateBatchJobType(ctx context.Context, admin *madmin.AdminClient, jobType string) diag.Diagnostics {
+	if jobType == "" {
+		return NewResourceError("validating job_type", jobType, fmt.Errorf("job_type must not be empty"))
+	}
+
+	supported, apiUnavailable, err := admin.GetSupportedBatchJobTypes(ctx)
+	if err != nil {
+		return NewResourceError("listing supported batch job types", jobType, err)
+	}
+
+	if apiUnavailable {
+		log.Printf("[DEBUG] GetSupportedBatchJobTypes unavailable on this MinIO version, accepting job_type %q without server-side validation", jobType)
+		return nil
+	}
+
+	for _, t := range supported {
+		if string(t) == jobType {
+			return nil
+		}
+	}
+
+	names := make([]string, len(supported))
+	for i, t := range supported {
+		names[i] = string(t)
+	}
+	return NewResourceError("validating job_type", jobType, fmt.Errorf("job_type %q is not supported by this MinIO server; supported types: %s", jobType, strings.Join(names, ", ")))
 }
 
 func waitForBatchJobStatus(ctx context.Context, config *S3MinioBatchJob, jobID string, targetStatus string, timeout time.Duration) diag.Diagnostics {

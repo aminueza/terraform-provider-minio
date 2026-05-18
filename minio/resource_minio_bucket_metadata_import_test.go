@@ -1,7 +1,6 @@
 package minio
 
 import (
-	"encoding/base64"
 	"fmt"
 	"testing"
 

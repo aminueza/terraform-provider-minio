@@ -460,3 +460,13 @@ func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3
 		MinioPrefix: prefix,
 	}
 }
+
+func BatchJobConfig(d *schema.ResourceData, meta interface{}) *S3MinioBatchJob {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioBatchJob{
+		MinioAdmin: m.S3Admin,
+		JobType:    getOptionalField(d, "job_type", "").(string),
+		JobYAML:    getOptionalField(d, "job_yaml", "").(string),
+	}
+}

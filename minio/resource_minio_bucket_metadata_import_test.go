@@ -27,8 +27,8 @@ func TestAccMinioBucketMetadataImport_basic(t *testing.T) {
 	})
 }
 
-func TestAccMinioBucketMetadataImport_withMetadata(t *testing.T) {
-	bucketName := fmt.Sprintf("tfacc-import-meta-%d", acctest.RandInt())
+func TestAccMinioBucketMetadataImport_withTags(t *testing.T) {
+	bucketName := fmt.Sprintf("tfacc-import-tags-%d", acctest.RandInt())
 	resourceName := "minio_bucket_metadata_import.test"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -36,7 +36,7 @@ func TestAccMinioBucketMetadataImport_withMetadata(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioBucketMetadataImportWithMetadataConfig(bucketName),
+				Config: testAccMinioBucketMetadataImportWithTagsConfig(bucketName),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet(resourceName, "imported_at"),
 					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
@@ -67,26 +67,10 @@ resource "minio_bucket_metadata_import" "test" {
 `, bucketName, bucketName)
 }
 
-func testAccMinioBucketMetadataImportWithMetadataConfig(bucketName string) string {
+func testAccMinioBucketMetadataImportWithTagsConfig(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "source" {
   bucket = "%s-source"
-}
-
-resource "minio_s3_bucket_policy" "source" {
-  bucket = minio_s3_bucket.source.bucket
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid       = "ReadAccess"
-        Action    = "s3:GetObject"
-        Resource  = "arn:aws:s3:::%s-source/*"
-        Effect    = "Allow"
-        Principal = "*"
-      }
-    ]
-  })
 }
 
 resource "minio_s3_bucket_tags" "source" {
@@ -99,7 +83,7 @@ resource "minio_s3_bucket_tags" "source" {
 
 data "minio_bucket_metadata_export" "source" {
   bucket     = minio_s3_bucket.source.bucket
-  depends_on = [minio_s3_bucket_policy.source, minio_s3_bucket_tags.source]
+  depends_on = [minio_s3_bucket_tags.source]
 }
 
 resource "minio_s3_bucket" "target" {
@@ -110,5 +94,5 @@ resource "minio_bucket_metadata_import" "test" {
   bucket   = minio_s3_bucket.target.bucket
   metadata = data.minio_bucket_metadata_export.source.metadata
 }
-`, bucketName, bucketName, bucketName)
+`, bucketName, bucketName)
 }

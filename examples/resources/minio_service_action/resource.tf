@@ -1,5 +1,5 @@
-resource "minio_service_action" "freeze" {
-  action = "freeze"
+resource "minio_service_action" "restart" {
+  action = "restart"
   triggers = {
     when = "manual-trigger"
   }

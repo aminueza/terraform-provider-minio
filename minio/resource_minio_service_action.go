@@ -21,6 +21,9 @@ func resourceMinioServiceAction() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		Timeouts: &schema.ResourceTimeout{
+			Create: schema.DefaultTimeout(10 * time.Minute),
+		},
 
 		Schema: map[string]*schema.Schema{
 			"action": {
@@ -58,6 +61,10 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 
 	log.Printf("[DEBUG] Creating service action: %s", action)
 
+	timeout := d.Timeout(schema.TimeoutCreate)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	var err error
 	var result string
 
@@ -74,6 +81,8 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 	case "unfreeze":
 		err = admin.ServiceUnfreezeV2(ctx)
 		result = "MinIO cluster unfrozen (S3 API calls resumed)"
+	default:
+		return diag.Errorf("unsupported service action: %q", action)
 	}
 
 	if err != nil {

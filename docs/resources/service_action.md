@@ -9,11 +9,13 @@ description: |-
 
 Performs a one-shot MinIO service control operation (restart, stop, freeze, or unfreeze). This resource is not stateful - taking it down does not undo the action.
 
+~> **Warning:** The `stop` action shuts down the MinIO cluster. Once stopped, the cluster will not restart on its own, and subsequent `terraform plan`/`apply` runs will fail to reach the admin endpoint until you start MinIO again out-of-band. Use with care.
+
 ## Example Usage
 
 ```terraform
-resource "minio_service_action" "freeze" {
-  action = "freeze"
+resource "minio_service_action" "restart" {
+  action = "restart"
   triggers = {
     when = "manual-trigger"
   }

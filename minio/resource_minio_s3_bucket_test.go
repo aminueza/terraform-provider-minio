@@ -1494,7 +1494,6 @@ resource "minio_s3_bucket_versioning" "bucket" {
 `, bucketName)
 }
 
-
 func testAccMinioS3BucketConfigWithBucket(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {

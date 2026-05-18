@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -92,7 +92,7 @@ func minioServerConfigScannerSet(ctx context.Context, d *schema.ResourceData, me
 
 	d.SetId("scanner")
 	_ = d.Set("restart_required", restart)
-	log.Printf("[DEBUG] Set scanner config (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Set scanner config (restart_required=%v)", restart))
 
 	return minioServerConfigScannerRead(ctx, d, meta)
 }

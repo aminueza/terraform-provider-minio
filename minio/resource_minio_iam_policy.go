@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"regexp"
 	"strings"
@@ -69,7 +70,7 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 		name = id.UniqueId()
 	}
 
-	log.Printf("[DEBUG] Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy)
+	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy))
 
 	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
@@ -85,14 +86,14 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	iamPolicyConfig := IAMPolicyConfig(d, meta)
 
-	log.Printf("[DEBUG] Getting IAM Policy: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Policy: %s", d.Id()))
 
 	info, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, d.Id())
 	if err != nil {
 		errResp := madmin.ErrorResponse{}
 		if errors.As(err, &errResp) {
 			if errResp.Code == "XMinioAdminNoSuchPolicy" {
-				log.Printf("[DEBUG] IAM Policy does not exist: [%s]", d.Id())
+				tflog.Debug(ctx, fmt.Sprintf("IAM Policy does not exist: [%s]", d.Id()))
 				d.SetId("")
 				return nil
 			}

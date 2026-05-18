@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -67,7 +67,7 @@ func dataSourceMinioPrometheusScrapeConfigRead(ctx context.Context, d *schema.Re
 	metricsVersion := config.MetricsVersion
 	bearerToken := getOptionalField(d, "bearer_token", "").(string)
 
-	log.Printf("[DEBUG] Generating Prometheus scrape config for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Generating Prometheus scrape config for metric type: %s", metricType))
 
 	scheme := "http"
 	if config.UseSSL {
@@ -105,7 +105,7 @@ func dataSourceMinioPrometheusScrapeConfigRead(ctx context.Context, d *schema.Re
 
 	d.SetId(metricType)
 
-	log.Printf("[DEBUG] Generated Prometheus scrape config for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Generated Prometheus scrape config for metric type: %s", metricType))
 
 	return nil
 }

@@ -61,7 +61,6 @@ func TestAccMinioNotifyWebhook_update(t *testing.T) {
 	})
 }
 
-
 func testAccCheckNotifyTargetExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]

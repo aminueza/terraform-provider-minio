@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -69,11 +69,8 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 		return NewResourceError("failed to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 	if !Contains(groupDesc.Members, iamGroupMembershipConfig.MinioIAMUser) {
-		log.Printf(
-			"[WARN] No such User by name (%s) in Group (%s) found, removing from state",
-			iamGroupMembershipConfig.MinioIAMUser,
-			iamGroupMembershipConfig.MinioIAMGroup,
-		)
+		tflog.Warn(ctx, fmt.Sprintf("No such User by name (%s) in Group (%s) found, removing from state", iamGroupMembershipConfig.MinioIAMUser,
+			iamGroupMembershipConfig.MinioIAMGroup))
 		d.SetId("")
 	}
 	return nil

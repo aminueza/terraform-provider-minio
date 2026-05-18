@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -55,13 +56,13 @@ func dataSourceMinioConfigHistoryRead(ctx context.Context, d *schema.ResourceDat
 	admin := meta.(*S3MinioClient).S3Admin
 	limit := d.Get("limit").(int)
 
-	log.Printf("[DEBUG] Listing config history with limit: %d", limit)
+	tflog.Debug(ctx, fmt.Sprintf("Listing config history with limit: %d", limit))
 
 	history, err := admin.ListConfigHistoryKV(ctx, limit)
 	if err != nil {
 		if strings.Contains(err.Error(), "admin' API is not supported") ||
 			strings.Contains(err.Error(), "mode-server-xl") {
-			log.Printf("[DEBUG] Config history API not available (Enterprise feature)")
+			tflog.Debug(ctx, "Config history API not available (Enterprise feature)")
 			d.SetId("config_history")
 			if setErr := d.Set("entries", []interface{}{}); setErr != nil {
 				return NewResourceError("setting entries", "config_history", setErr)
@@ -89,7 +90,7 @@ func dataSourceMinioConfigHistoryRead(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId("config_history")
-	log.Printf("[DEBUG] Listed %d config history entries", len(history))
+	tflog.Debug(ctx, fmt.Sprintf("Listed %d config history entries", len(history)))
 
 	return nil
 }

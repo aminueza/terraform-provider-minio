@@ -2,8 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
-
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -39,7 +39,7 @@ func minioCreateConfigRestore(ctx context.Context, d *schema.ResourceData, meta 
 	admin := meta.(*S3MinioClient).S3Admin
 	restoreID := d.Get("restore_id").(string)
 
-	log.Printf("[DEBUG] Restoring config from history ID: %s", restoreID)
+	tflog.Debug(ctx, fmt.Sprintf("Restoring config from history ID: %s", restoreID))
 
 	if err := admin.RestoreConfigHistoryKV(ctx, restoreID); err != nil {
 		return NewResourceError("restoring config", restoreID, err)
@@ -47,7 +47,7 @@ func minioCreateConfigRestore(ctx context.Context, d *schema.ResourceData, meta 
 
 	d.SetId(restoreID)
 
-	log.Printf("[DEBUG] Restored config from: %s", restoreID)
+	tflog.Debug(ctx, fmt.Sprintf("Restored config from: %s", restoreID))
 	return minioReadConfigRestore(ctx, d, meta)
 }
 
@@ -55,7 +55,7 @@ func minioReadConfigRestore(ctx context.Context, d *schema.ResourceData, meta in
 	admin := meta.(*S3MinioClient).S3Admin
 	restoreID := d.Id()
 
-	log.Printf("[DEBUG] Reading config restore: %s", restoreID)
+	tflog.Debug(ctx, fmt.Sprintf("Reading config restore: %s", restoreID))
 
 	if restoreID == "" {
 		return nil
@@ -69,7 +69,7 @@ func minioReadConfigRestore(ctx context.Context, d *schema.ResourceData, meta in
 	// from history since the restore, data is left empty rather than erroring.
 	history, err := admin.ListConfigHistoryKV(ctx, -1)
 	if err != nil {
-		log.Printf("[DEBUG] Could not list config history while reading restore %s: %s", restoreID, err)
+		tflog.Debug(ctx, fmt.Sprintf("Could not list config history while reading restore %s: %s", restoreID, err))
 		return nil
 	}
 
@@ -86,7 +86,7 @@ func minioReadConfigRestore(ctx context.Context, d *schema.ResourceData, meta in
 }
 
 func minioDeleteConfigRestore(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	log.Printf("[DEBUG] Deleting config restore resource: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Deleting config restore resource: %s", d.Id()))
 	d.SetId("")
 	return nil
 }

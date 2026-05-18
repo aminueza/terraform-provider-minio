@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -71,7 +71,7 @@ func parseLegalHoldID(id string) (bucket, key, versionID string) {
 func minioCreateObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := ObjectLegalHoldConfig(d, meta)
 
-	log.Printf("[DEBUG] Setting legal hold for object %s in bucket %s to %s", cfg.MinioObjectKey, cfg.MinioBucket, cfg.MinioStatus)
+	tflog.Debug(ctx, fmt.Sprintf("Setting legal hold for object %s in bucket %s to %s", cfg.MinioObjectKey, cfg.MinioBucket, cfg.MinioStatus))
 
 	status := minio.LegalHoldStatus(cfg.MinioStatus)
 	opts := minio.PutObjectLegalHoldOptions{
@@ -107,7 +107,7 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchVersion") {
-			log.Printf("[WARN] Object %s/%s not found, removing from state", bucket, objectKey)
+			tflog.Warn(ctx, fmt.Sprintf("Object %s/%s not found, removing from state", bucket, objectKey))
 			d.SetId("")
 			return nil
 		}
@@ -141,7 +141,7 @@ func minioUpdateObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 	if d.HasChange("status") {
 		cfg := ObjectLegalHoldConfig(d, meta)
 
-		log.Printf("[DEBUG] Updating legal hold for object %s in bucket %s to %s", cfg.MinioObjectKey, cfg.MinioBucket, cfg.MinioStatus)
+		tflog.Debug(ctx, fmt.Sprintf("Updating legal hold for object %s in bucket %s to %s", cfg.MinioObjectKey, cfg.MinioBucket, cfg.MinioStatus))
 
 		status := minio.LegalHoldStatus(cfg.MinioStatus)
 		opts := minio.PutObjectLegalHoldOptions{
@@ -168,7 +168,7 @@ func minioDeleteObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 
 	client := meta.(*S3MinioClient).S3Client
 
-	log.Printf("[DEBUG] Removing legal hold for object %s in bucket %s", objectKey, bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Removing legal hold for object %s in bucket %s", objectKey, bucket))
 
 	status := minio.LegalHoldDisabled
 	opts := minio.PutObjectLegalHoldOptions{

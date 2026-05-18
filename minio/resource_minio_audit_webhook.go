@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strconv"
 	"strings"
 
@@ -84,7 +84,7 @@ func auditWebhookConfigKey(name string) string {
 func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := AuditWebhookConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating audit webhook: %s", config.Name)
+	tflog.Debug(ctx, fmt.Sprintf("Creating audit webhook: %s", config.Name))
 
 	cfgData := buildAuditWebhookCfgData(config)
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
@@ -98,7 +98,7 @@ func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("setting restart_required", config.Name, setErr)
 	}
 
-	log.Printf("[DEBUG] Created audit webhook: %s (restart_required=%v)", config.Name, restart)
+	tflog.Debug(ctx, fmt.Sprintf("Created audit webhook: %s (restart_required=%v)", config.Name, restart))
 
 	return minioReadAuditWebhook(ctx, d, meta)
 }
@@ -107,14 +107,14 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	name := d.Id()
 
-	log.Printf("[DEBUG] Reading audit webhook: %s", name)
+	tflog.Debug(ctx, fmt.Sprintf("Reading audit webhook: %s", name))
 
 	configKey := auditWebhookConfigKey(name)
 	configData, err := minioAdmin.GetConfigKV(ctx, configKey)
 	if err != nil {
 		errMsg := strings.ToLower(err.Error())
 		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
-			log.Printf("[WARN] Audit webhook %s no longer exists, removing from state", name)
+			tflog.Warn(ctx, fmt.Sprintf("Audit webhook %s no longer exists, removing from state", name))
 			d.SetId("")
 			return nil
 		}
@@ -122,7 +122,7 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	configStr := strings.TrimSpace(string(configData))
-	log.Printf("[DEBUG] Raw config data for audit_webhook %s: %s", name, configStr)
+	tflog.Debug(ctx, fmt.Sprintf("Raw config data for audit_webhook %s: %s", name, configStr))
 
 	// Parse the config string: "audit_webhook:NAME key1=value1 key2=value2"
 	var valueStr string
@@ -146,7 +146,6 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 			return NewResourceError("setting endpoint", name, setErr)
 		}
 	}
-
 
 	if v, ok := cfgMap["queue_size"]; ok {
 		if n, parseErr := strconv.Atoi(v); parseErr == nil {
@@ -176,7 +175,7 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := AuditWebhookConfig(d, meta)
 
-	log.Printf("[DEBUG] Updating audit webhook: %s", config.Name)
+	tflog.Debug(ctx, fmt.Sprintf("Updating audit webhook: %s", config.Name))
 
 	cfgData := buildAuditWebhookCfgData(config)
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
@@ -189,7 +188,7 @@ func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("setting restart_required", config.Name, setErr)
 	}
 
-	log.Printf("[DEBUG] Updated audit webhook: %s (restart_required=%v)", config.Name, restart)
+	tflog.Debug(ctx, fmt.Sprintf("Updated audit webhook: %s (restart_required=%v)", config.Name, restart))
 
 	return minioReadAuditWebhook(ctx, d, meta)
 }
@@ -198,14 +197,14 @@ func minioDeleteAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	name := d.Id()
 
-	log.Printf("[DEBUG] Deleting audit webhook: %s", name)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting audit webhook: %s", name))
 
 	configKey := auditWebhookConfigKey(name)
 	_, err := minioAdmin.DelConfigKV(ctx, configKey)
 	if err != nil {
 		errMsg := strings.ToLower(err.Error())
 		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
-			log.Printf("[WARN] Audit webhook %s already removed", name)
+			tflog.Warn(ctx, fmt.Sprintf("Audit webhook %s already removed", name))
 			d.SetId("")
 			return nil
 		}
@@ -213,7 +212,7 @@ func minioDeleteAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	d.SetId("")
-	log.Printf("[DEBUG] Deleted audit webhook: %s", name)
+	tflog.Debug(ctx, fmt.Sprintf("Deleted audit webhook: %s", name))
 
 	return nil
 }

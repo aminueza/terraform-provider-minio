@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -53,7 +53,7 @@ func minioCreateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 	}
 	quota := uint64(quotaInt) //#nosec G115 -- validated non-negative above
 
-	log.Printf("[DEBUG] Setting quota for bucket %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Setting quota for bucket %s", bucket))
 
 	bucketQuota := madmin.BucketQuota{Quota: quota, Type: madmin.HardQuota}
 	if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
@@ -69,13 +69,13 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 	cfg := BucketConfig(d, meta)
 	bucket := d.Id()
 
-	log.Printf("[DEBUG] Reading quota for bucket %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Reading quota for bucket %s", bucket))
 
 	bucketQuota, err := cfg.MinioAdmin.GetBucketQuota(ctx, bucket)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "no such bucket") ||
 			strings.Contains(err.Error(), "does not exist") {
-			log.Printf("[WARN] Bucket %s no longer exists, removing quota from state", bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing quota from state", bucket))
 			d.SetId("")
 			return nil
 		}
@@ -83,7 +83,7 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if bucketQuota.Quota == 0 {
-		log.Printf("[INFO] Bucket quota for %s is 0, removing from state", bucket)
+		tflog.Info(ctx, fmt.Sprintf("Bucket quota for %s is 0, removing from state", bucket))
 		d.SetId("")
 		return nil
 	}
@@ -111,7 +111,7 @@ func minioUpdateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 			return NewResourceError("updating bucket quota", bucket, fmt.Errorf("quota must be a non-negative value, got: %d", quotaInt))
 		}
 		quota := uint64(quotaInt) //#nosec G115 -- validated non-negative above
-		log.Printf("[DEBUG] Updating quota for bucket %s", bucket)
+		tflog.Debug(ctx, fmt.Sprintf("Updating quota for bucket %s", bucket))
 
 		bucketQuota := madmin.BucketQuota{Quota: quota, Type: madmin.HardQuota}
 		if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
@@ -126,7 +126,7 @@ func minioDeleteBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 	cfg := BucketConfig(d, meta)
 	bucket := d.Id()
 
-	log.Printf("[DEBUG] Clearing quota for bucket %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Clearing quota for bucket %s", bucket))
 
 	bucketQuota := madmin.BucketQuota{Quota: 0}
 	if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {

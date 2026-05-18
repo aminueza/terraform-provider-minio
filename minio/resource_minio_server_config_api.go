@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -128,7 +128,7 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 
 	d.SetId("api")
 	_ = d.Set("restart_required", restart)
-	log.Printf("[DEBUG] Set api config (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Set api config (restart_required=%v)", restart))
 
 	return minioServerConfigApiRead(ctx, d, meta)
 }

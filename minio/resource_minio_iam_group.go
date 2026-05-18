@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"regexp"
 	"strings"
@@ -125,14 +126,14 @@ func minioReadGroup(ctx context.Context, d *schema.ResourceData, meta interface{
 	output, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
 	if err != nil {
 		if strings.Contains(err.Error(), "group does not exist") {
-			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("No IAM group by name (%s) found, removing from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
 		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
 	}
 
-	log.Printf("[WARN] (%v)", output)
+	tflog.Warn(ctx, fmt.Sprintf("(%v)", output))
 
 	if err := d.Set("group_name", output.Name); err != nil {
 		return NewResourceError("error reading IAM Group %s: %s", d.Id(), err)
@@ -149,11 +150,11 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
 
-	log.Printf("[DEBUG] Checking if IAM Group %s is empty:", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Checking if IAM Group %s is empty:", d.Id()))
 	groupDesc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
 	if err != nil {
 		if strings.Contains(err.Error(), "not exist") {
-			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("No IAM group by name (%s) found, removing from state", d.Id()))
 			d.SetId("")
 			return nil
 		}

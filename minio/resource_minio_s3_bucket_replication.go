@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"log"
 	"math"
 	"net/url"
@@ -281,7 +282,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 		return diags
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, put replication configuration: %v", bucketReplicationConfig.MinioBucket, replicationConfig)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put replication configuration: %v", bucketReplicationConfig.MinioBucket, replicationConfig))
 
 	cfg, err := convertBucketReplicationConfig(bucketReplicationConfig, replicationConfig)
 
@@ -302,7 +303,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	d.SetId(bucketReplicationConfig.MinioBucket)
 
 	if d.HasChange("resync_version") {
-		log.Printf("[DEBUG] Triggering replication resync for bucket %s", bucketReplicationConfig.MinioBucket)
+		tflog.Debug(ctx, fmt.Sprintf("Triggering replication resync for bucket %s", bucketReplicationConfig.MinioBucket))
 		rcfg, err := bucketReplicationConfig.MinioClient.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 		if err != nil {
 			return NewResourceError("reading replication config for resync", bucketReplicationConfig.MinioBucket, err)
@@ -349,12 +350,12 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
-	log.Printf("[DEBUG] S3 bucket replication, read for bucket: %s", bucketName)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket replication, read for bucket: %s", bucketName))
 
 	// First, gather the bucket replication config
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch bucket replication config for %q: %v", bucketName, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}
 
@@ -367,7 +368,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			ruleIdx = idx
 		}
 		if _, ok = ruleArnMap[rule.Destination.Bucket]; ok {
-			log.Printf("[WARN] Conflict detetcted between two rules containing the same ARN for %q: %q", bucketName, rule.Destination.Bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Conflict detetcted between two rules containing the same ARN for %q: %q", bucketName, rule.Destination.Bucket))
 			return NewResourceError("reading replication rules", bucketName, fmt.Errorf("conflict detected between two rules containing the same ARN: %q", rule.Destination.Bucket))
 		}
 		ruleArnMap[rule.Destination.Bucket] = ruleIdx
@@ -390,7 +391,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			"metadata_sync":               rule.SourceSelectionCriteria.ReplicaModifications.Status == replication.Enabled,
 		}
 
-		log.Printf("[DEBUG] Rule data for rule#%d is: %q", ruleIdx, rule)
+		tflog.Debug(ctx, fmt.Sprintf("Rule data for rule#%d is: %q", ruleIdx, rule))
 
 		if len(rule.Filter.And.Tags) != 0 || rule.Filter.And.Prefix != "" {
 			tags := map[string]string{}
@@ -421,7 +422,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 	// Second, we read the remote bucket config
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch existing remote target config for %q: %v", bucketName, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketName, err))
 		return NewResourceError("reading replication remote target configuration", bucketName, err)
 	}
 
@@ -446,7 +447,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 		pathComponent := strings.Split(remoteTarget.TargetBucket, "/")
 
-		log.Printf("[DEBUG] absolute remote target path is %s", remoteTarget.TargetBucket)
+		tflog.Debug(ctx, fmt.Sprintf("absolute remote target path is %s", remoteTarget.TargetBucket))
 
 		target["bucket"] = pathComponent[len(pathComponent)-1]
 		target["host"] = remoteTarget.Endpoint
@@ -465,7 +466,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		if remoteTarget.BandwidthLimit < 0 {
 			// Bandwidth limit shouldn't be negative, but handle defensively.
 			// Setting to 0 as a safe default.
-			log.Printf("[WARN] Received negative bandwidth limit (%d) from MinIO, treating as 0", remoteTarget.BandwidthLimit)
+			tflog.Warn(ctx, fmt.Sprintf("Received negative bandwidth limit (%d) from MinIO, treating as 0", remoteTarget.BandwidthLimit))
 			bwUint64 = 0
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
@@ -475,16 +476,14 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 		target["access_key"] = remoteTarget.Credentials.AccessKey
 
-		log.Printf("[DEBUG] serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%t, disableProxy=%t",
-			pathComponent[len(pathComponent)-1],
+		tflog.Debug(ctx, fmt.Sprintf("serialised remote target: bucket=%q, host=%q, region=%q, secure=%t, path=%q, path_style=%q, sync=%t, disableProxy=%t", pathComponent[len(pathComponent)-1],
 			remoteTarget.Endpoint,
 			remoteTarget.Region,
 			remoteTarget.Secure,
 			strings.Join(pathComponent[:len(pathComponent)-1], "/"),
 			remoteTarget.Path,
 			remoteTarget.ReplicationSync,
-			remoteTarget.DisableProxy,
-		)
+			remoteTarget.DisableProxy))
 
 		// During import, there is no rules defined. Furthermore, since it is impossible to read the secret from the API, we
 		// default it to an empty string, allowing user to prevent remote changes by also using an empty string or omitting the secret_key
@@ -510,7 +509,7 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 	bucketReplicationConfig, diags := BucketReplicationConfig(d, meta)
 
 	if len(bucketReplicationConfig.ReplicationRules) == 0 && !diags.HasError() {
-		log.Printf("[DEBUG] Removing bucket replication for unversioned bucket (%s) from state", d.Id())
+		tflog.Debug(ctx, fmt.Sprintf("Removing bucket replication for unversioned bucket (%s) from state", d.Id()))
 	} else if diags.HasError() {
 		return diags
 	}
@@ -520,22 +519,22 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("reading bucket replication configuration", bucketReplicationConfig.MinioBucket, err)
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, disabling replication", bucketReplicationConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, disabling replication", bucketReplicationConfig.MinioBucket))
 
 	rcfg.Rules = []replication.Rule{}
 	err = client.SetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, rcfg)
 	if err != nil {
-		log.Printf("[WARN] Unable to set an empty replication config for %q: %v", bucketReplicationConfig.MinioBucket, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to set an empty replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("disabling bucket replication", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, "")
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("reading replication remote target configuration", bucketReplicationConfig.MinioBucket, err)
 	}
 	if len(existingRemoteTargets) != 0 {

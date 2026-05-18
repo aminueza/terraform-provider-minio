@@ -15,7 +15,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
-
 func TestAccMinioS3BucketLifecycle_basic(t *testing.T) {
 	bucket := acctest.RandomWithPrefix("tfacc-lc")
 	resourceName := "minio_s3_bucket_lifecycle.test"

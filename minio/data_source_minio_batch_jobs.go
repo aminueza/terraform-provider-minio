@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -74,7 +75,7 @@ func dataSourceMinioBatchJobs() *schema.Resource {
 func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading batch jobs list")
+	tflog.Debug(ctx, "Reading batch jobs list")
 
 	jobType := d.Get("job_type").(string)
 
@@ -96,7 +97,7 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 		g.Go(func() error {
 			status, err := admin.BatchJobStatus(gCtx, job.ID)
 			if err != nil {
-				log.Printf("[DEBUG] BatchJobStatus unavailable for %s: %v", job.ID, err)
+				tflog.Debug(ctx, fmt.Sprintf("BatchJobStatus unavailable for %s: %v", job.ID, err))
 				statuses[i] = "started"
 				return nil
 			}
@@ -142,7 +143,7 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 
 	d.SetId("batch_jobs")
 
-	log.Printf("[DEBUG] Read %d batch jobs", len(filteredJobs))
+	tflog.Debug(ctx, fmt.Sprintf("Read %d batch jobs", len(filteredJobs)))
 
 	return nil
 }

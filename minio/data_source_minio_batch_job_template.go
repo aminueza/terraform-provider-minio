@@ -2,8 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
-
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
@@ -41,7 +41,7 @@ func dataSourceMinioBatchJobTemplateRead(ctx context.Context, d *schema.Resource
 	jobType := d.Get("job_type").(string)
 	opts := madmin.GenerateBatchJobOpts{Type: madmin.BatchJobType(jobType)}
 
-	log.Printf("[DEBUG] Generating batch job template for type: %s", jobType)
+	tflog.Debug(ctx, fmt.Sprintf("Generating batch job template for type: %s", jobType))
 
 	tmpl, apiUnavailable, err := admin.GenerateBatchJobV2(ctx, opts)
 	source := "server"
@@ -49,7 +49,7 @@ func dataSourceMinioBatchJobTemplateRead(ctx context.Context, d *schema.Resource
 		return NewResourceError("generating batch job template", jobType, err)
 	}
 	if apiUnavailable {
-		log.Printf("[DEBUG] GenerateBatchJobV2 unavailable, falling back to SDK template for type: %s", jobType)
+		tflog.Debug(ctx, fmt.Sprintf("GenerateBatchJobV2 unavailable, falling back to SDK template for type: %s", jobType))
 		tmpl, err = admin.GenerateBatchJob(ctx, opts)
 		if err != nil {
 			return NewResourceError("generating batch job template (fallback)", jobType, err)

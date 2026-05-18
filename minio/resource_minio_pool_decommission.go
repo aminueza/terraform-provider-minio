@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strconv"
 	"strings"
 	"time"
@@ -73,7 +73,7 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 		return NewResourceError("finding pool endpoint", fmt.Sprintf("pool-%d", poolIndex), err)
 	}
 
-	log.Printf("[DEBUG] Starting decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint)
+	tflog.Debug(ctx, fmt.Sprintf("Starting decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint))
 
 	if err := admin.DecommissionPool(ctx, poolEndpoint); err != nil {
 		return NewResourceError("starting decommission", fmt.Sprintf("pool-%d", poolIndex), err)
@@ -86,7 +86,7 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 		return NewResourceError("setting started_at", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Decommission started for pool index %d at %s", poolIndex, now)
+	tflog.Debug(ctx, fmt.Sprintf("Decommission started for pool index %d at %s", poolIndex, now))
 
 	return minioReadPoolDecommission(ctx, d, meta)
 }
@@ -96,7 +96,7 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 
 	poolIndex := d.Get("pool_index").(int)
 
-	log.Printf("[DEBUG] Reading decommission status for pool index %d", poolIndex)
+	tflog.Debug(ctx, fmt.Sprintf("Reading decommission status for pool index %d", poolIndex))
 
 	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {
@@ -105,7 +105,7 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 
 	poolEndpoint, err := findPoolEndpointByID(pools, poolIndex)
 	if err != nil {
-		log.Printf("[DEBUG] Pool index %d no longer found, marking decommission as complete", poolIndex)
+		tflog.Debug(ctx, fmt.Sprintf("Pool index %d no longer found, marking decommission as complete", poolIndex))
 
 		if err := d.Set("state", poolStateDecommissioned); err != nil {
 			return NewResourceError("setting state", d.Id(), err)
@@ -150,7 +150,7 @@ func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {
-		log.Printf("[DEBUG] Could not list pools during delete: %v", err)
+		tflog.Debug(ctx, fmt.Sprintf("Could not list pools during delete: %v", err))
 		d.SetId("")
 
 		return nil
@@ -158,23 +158,23 @@ func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	poolEndpoint, err := findPoolEndpointByID(pools, poolIndex)
 	if err != nil {
-		log.Printf("[DEBUG] Pool index %d not found during delete, treating as gone", poolIndex)
+		tflog.Debug(ctx, fmt.Sprintf("Pool index %d not found during delete, treating as gone", poolIndex))
 		d.SetId("")
 
 		return nil
 	}
 
-	log.Printf("[DEBUG] Cancelling decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint)
+	tflog.Debug(ctx, fmt.Sprintf("Cancelling decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint))
 
 	if err := admin.CancelDecommissionPool(ctx, poolEndpoint); err != nil {
 		if isDecommissionCancelError(err) {
-			log.Printf("[DEBUG] Decommission already complete or not in progress for pool %d: %v", poolIndex, err)
+			tflog.Debug(ctx, fmt.Sprintf("Decommission already complete or not in progress for pool %d: %v", poolIndex, err))
 		} else {
 			return NewResourceError("cancelling decommission", d.Id(), err)
 		}
 	}
 
-	log.Printf("[DEBUG] Decommission cancelled for pool index %d", poolIndex)
+	tflog.Debug(ctx, fmt.Sprintf("Decommission cancelled for pool index %d", poolIndex))
 
 	d.SetId("")
 

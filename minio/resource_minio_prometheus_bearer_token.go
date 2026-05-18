@@ -7,7 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"time"
 
@@ -78,7 +78,7 @@ duration from creation time.`,
 func minioCreatePrometheusBearerToken(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := PrometheusBearerTokenConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating Prometheus bearer token for metric type: %s", config.MetricType)
+	tflog.Debug(ctx, fmt.Sprintf("Creating Prometheus bearer token for metric type: %s", config.MetricType))
 
 	duration, err := time.ParseDuration(config.ExpiresIn)
 	if err != nil {
@@ -108,7 +108,7 @@ func minioCreatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("setting token_expiry", id, err)
 	}
 
-	log.Printf("[DEBUG] Created Prometheus bearer token for metric type: %s", config.MetricType)
+	tflog.Debug(ctx, fmt.Sprintf("Created Prometheus bearer token for metric type: %s", config.MetricType))
 
 	return minioReadPrometheusBearerToken(ctx, d, meta)
 }
@@ -116,7 +116,7 @@ func minioCreatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 func minioReadPrometheusBearerToken(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	metricType := d.Id()
 
-	log.Printf("[DEBUG] Reading Prometheus bearer token for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Reading Prometheus bearer token for metric type: %s", metricType))
 
 	if err := d.Set("metric_type", metricType); err != nil {
 		return NewResourceError("setting metric_type", metricType, err)
@@ -143,7 +143,7 @@ func minioUpdatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 	config := PrometheusBearerTokenConfig(d, meta)
 	metricType := d.Id()
 
-	log.Printf("[DEBUG] Updating Prometheus bearer token for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Updating Prometheus bearer token for metric type: %s", metricType))
 
 	duration, err := time.ParseDuration(config.ExpiresIn)
 	if err != nil {
@@ -170,7 +170,7 @@ func minioUpdatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("setting token_expiry", metricType, err)
 	}
 
-	log.Printf("[DEBUG] Updated Prometheus bearer token for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Updated Prometheus bearer token for metric type: %s", metricType))
 
 	return minioReadPrometheusBearerToken(ctx, d, meta)
 }
@@ -178,7 +178,7 @@ func minioUpdatePrometheusBearerToken(ctx context.Context, d *schema.ResourceDat
 func minioDeletePrometheusBearerToken(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	metricType := d.Id()
 
-	log.Printf("[DEBUG] Deleting Prometheus bearer token for metric type: %s", metricType)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting Prometheus bearer token for metric type: %s", metricType))
 
 	d.SetId("")
 

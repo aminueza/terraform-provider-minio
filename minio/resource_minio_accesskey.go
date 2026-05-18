@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -245,7 +245,7 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	policy := d.Get("policy").(string)
 	description := d.Get("description").(string)
 
-	log.Printf("[INFO] Creating accesskey for user %s", user)
+	tflog.Info(ctx, fmt.Sprintf("Creating accesskey for user %s", user))
 
 	req := madmin.AddServiceAccountReq{
 		SecretKey:   secretKey,
@@ -297,7 +297,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	client := meta.(*S3MinioClient)
 	accessKeyID := d.Id()
 
-	log.Printf("[INFO] Reading accesskey %s", accessKeyID)
+	tflog.Info(ctx, fmt.Sprintf("Reading accesskey %s", accessKeyID))
 
 	timeout := d.Timeout(schema.TimeoutRead)
 	var info madmin.InfoServiceAccountResp
@@ -307,7 +307,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 		info, err = client.S3Admin.InfoServiceAccount(ctx, accessKeyID)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "service account does not exist") {
-				log.Printf("[WARN] AccessKey %s no longer exists", accessKeyID)
+				tflog.Warn(ctx, fmt.Sprintf("AccessKey %s no longer exists", accessKeyID))
 				d.SetId("")
 				return nil
 			}
@@ -318,7 +318,7 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to read accesskey %s after retries: %s", accessKeyID, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to read accesskey %s after retries: %s", accessKeyID, err))
 		return NewResourceError("reading access key", accessKeyID, err)
 	}
 
@@ -401,7 +401,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	hasSecretChange := d.HasChange("secret_key_version") && secretVersion != ""
 	hasDescriptionChange := d.HasChange("description")
 
-	log.Printf("[INFO] Updating accesskey %s (status change: %v, policy change: %v, secret change: %v, description change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange, hasDescriptionChange)
+	tflog.Info(ctx, fmt.Sprintf("Updating accesskey %s (status change: %v, policy change: %v, secret change: %v, description change: %v)", accessKeyID, hasStatusChange, hasPolicyChange, hasSecretChange, hasDescriptionChange))
 
 	timeout := d.Timeout(schema.TimeoutUpdate)
 
@@ -411,7 +411,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			newStatus = "off"
 		}
 
-		log.Printf("[DEBUG] Updating accesskey %s status to %s", accessKeyID, newStatus)
+		tflog.Debug(ctx, fmt.Sprintf("Updating accesskey %s status to %s", accessKeyID, newStatus))
 
 		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus})
@@ -426,7 +426,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		})
 
 		if err != nil {
-			log.Printf("[ERROR] Failed to update accesskey %s status after retries: %s", accessKeyID, err)
+			tflog.Error(ctx, fmt.Sprintf("Failed to update accesskey %s status after retries: %s", accessKeyID, err))
 			return NewResourceError("updating access key status", accessKeyID, err)
 		}
 
@@ -455,7 +455,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if hasPolicyChange {
-		log.Printf("[DEBUG] Updating accesskey %s policy", accessKeyID)
+		tflog.Debug(ctx, fmt.Sprintf("Updating accesskey %s policy", accessKeyID))
 
 		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewPolicy: []byte(policy)})
@@ -470,7 +470,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		})
 
 		if err != nil {
-			log.Printf("[ERROR] Failed to update accesskey %s policy after retries: %s", accessKeyID, err)
+			tflog.Error(ctx, fmt.Sprintf("Failed to update accesskey %s policy after retries: %s", accessKeyID, err))
 			return NewResourceError("updating access key policy", accessKeyID, err)
 		}
 	}
@@ -491,7 +491,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			newSecret = secretWO
 		}
 		if newSecret != "" {
-			log.Printf("[DEBUG] Rotating secret for accesskey %s", accessKeyID)
+			tflog.Debug(ctx, fmt.Sprintf("Rotating secret for accesskey %s", accessKeyID))
 			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 				err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewSecretKey: newSecret})
 				if err != nil {
@@ -503,7 +503,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 				return nil
 			})
 			if err != nil {
-				log.Printf("[ERROR] Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err)
+				tflog.Error(ctx, fmt.Sprintf("Failed to rotate secret for accesskey %s after retries: %s", accessKeyID, err))
 				return NewResourceError("rotating access key secret", accessKeyID, err)
 			}
 			// Clear secret_key from state after rotation
@@ -516,7 +516,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if hasDescriptionChange {
-		log.Printf("[DEBUG] Updating accesskey %s description", accessKeyID)
+		tflog.Debug(ctx, fmt.Sprintf("Updating accesskey %s description", accessKeyID))
 
 		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewDescription: description})
@@ -531,7 +531,7 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		})
 
 		if err != nil {
-			log.Printf("[ERROR] Failed to update accesskey %s description after retries: %s", accessKeyID, err)
+			tflog.Error(ctx, fmt.Sprintf("Failed to update accesskey %s description after retries: %s", accessKeyID, err))
 			return NewResourceError("updating access key description", accessKeyID, err)
 		}
 	}
@@ -543,12 +543,12 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	client := meta.(*S3MinioClient)
 	accessKeyID := d.Id()
 
-	log.Printf("[INFO] Deleting accesskey %s", accessKeyID)
+	tflog.Info(ctx, fmt.Sprintf("Deleting accesskey %s", accessKeyID))
 
 	_, err := client.S3Admin.InfoServiceAccount(ctx, accessKeyID)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "service account does not exist") {
-			log.Printf("[WARN] AccessKey %s no longer exists, removing from state", accessKeyID)
+			tflog.Warn(ctx, fmt.Sprintf("AccessKey %s no longer exists, removing from state", accessKeyID))
 			d.SetId("")
 			return nil
 		}
@@ -573,7 +573,7 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to delete accesskey %s after retries: %s", accessKeyID, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to delete accesskey %s after retries: %s", accessKeyID, err))
 		return NewResourceError("deleting access key", accessKeyID, err)
 	}
 
@@ -591,7 +591,7 @@ func minioDeleteAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	})
 
 	if err != nil {
-		log.Printf("[ERROR] Failed to confirm deletion of accesskey %s: %s", accessKeyID, err)
+		tflog.Error(ctx, fmt.Sprintf("Failed to confirm deletion of accesskey %s: %s", accessKeyID, err))
 		return NewResourceError("confirming access key deletion", accessKeyID, err)
 	}
 

@@ -3,7 +3,8 @@ package minio
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -43,7 +44,7 @@ func resourceMinioPoolRebalance() *schema.Resource {
 func minioCreatePoolRebalance(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Starting pool rebalance")
+	tflog.Debug(ctx, "Starting pool rebalance")
 
 	rebalanceID, err := admin.RebalanceStart(ctx)
 	if err != nil {
@@ -58,7 +59,7 @@ func minioCreatePoolRebalance(ctx context.Context, d *schema.ResourceData, meta 
 
 	d.SetId(rebalanceID)
 
-	log.Printf("[DEBUG] Pool rebalance started with ID %s", rebalanceID)
+	tflog.Debug(ctx, fmt.Sprintf("Pool rebalance started with ID %s", rebalanceID))
 
 	return minioReadPoolRebalance(ctx, d, meta)
 }
@@ -66,7 +67,7 @@ func minioCreatePoolRebalance(ctx context.Context, d *schema.ResourceData, meta 
 func minioReadPoolRebalance(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading pool rebalance status for ID %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Reading pool rebalance status for ID %s", d.Id()))
 
 	status, err := admin.RebalanceStatus(ctx)
 	if err != nil {
@@ -94,19 +95,19 @@ func minioReadPoolRebalance(ctx context.Context, d *schema.ResourceData, meta in
 func minioDeletePoolRebalance(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Stopping pool rebalance (ID: %s)", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Stopping pool rebalance (ID: %s)", d.Id()))
 
 	err := admin.RebalanceStop(ctx)
 	if err != nil {
 		if isRebalanceNotFoundError(err) {
-			log.Printf("[DEBUG] Rebalance already stopped (ID: %s)", d.Id())
+			tflog.Debug(ctx, fmt.Sprintf("Rebalance already stopped (ID: %s)", d.Id()))
 			d.SetId("")
 			return nil
 		}
 		return NewResourceError("stopping pool rebalance", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Pool rebalance stopped (ID: %s)", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Pool rebalance stopped (ID: %s)", d.Id()))
 
 	d.SetId("")
 	return nil

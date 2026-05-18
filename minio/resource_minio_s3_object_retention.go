@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
 
@@ -97,7 +97,7 @@ func minioCreateObjectRetention(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("parsing retain_until_date", key, err)
 	}
 
-	log.Printf("[DEBUG] Setting retention for %s/%s: mode=%s until=%s", bucket, key, modeStr, retainUntil)
+	tflog.Debug(ctx, fmt.Sprintf("Setting retention for %s/%s: mode=%s until=%s", bucket, key, modeStr, retainUntil))
 
 	opts := minio.PutObjectRetentionOptions{
 		GovernanceBypass: bypass,

@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -100,7 +100,7 @@ func resourceMinioIAMIdpLdap() *schema.Resource {
 func minioCreateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IdpLdapConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating LDAP IDP configuration")
+	tflog.Debug(ctx, "Creating LDAP IDP configuration")
 
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, "identity_ldap "+buildIdpLdapCfgData(config))
 	if err != nil {
@@ -112,7 +112,7 @@ func minioCreateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 		return NewResourceError("setting restart_required", "ldap", setErr)
 	}
 
-	log.Printf("[DEBUG] Created LDAP IDP configuration (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Created LDAP IDP configuration (restart_required=%v)", restart))
 
 	return minioReadIdpLdap(ctx, d, meta)
 }
@@ -120,12 +120,12 @@ func minioCreateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading LDAP IDP configuration")
+	tflog.Debug(ctx, "Reading LDAP IDP configuration")
 
 	rawKV, err := minioAdmin.GetConfigKV(ctx, "identity_ldap")
 	if err != nil {
 		if isIDPConfigNotFound(err) {
-			log.Printf("[WARN] LDAP IDP configuration no longer exists, removing from state")
+			tflog.Warn(ctx, "LDAP IDP configuration no longer exists, removing from state")
 			d.SetId("")
 			return nil
 		}
@@ -181,7 +181,7 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := IdpLdapConfig(d, meta)
 
-	log.Printf("[DEBUG] Updating LDAP IDP configuration")
+	tflog.Debug(ctx, "Updating LDAP IDP configuration")
 
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, "identity_ldap "+buildIdpLdapCfgData(config))
 	if err != nil {
@@ -192,7 +192,7 @@ func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 		return NewResourceError("setting restart_required", "ldap", setErr)
 	}
 
-	log.Printf("[DEBUG] Updated LDAP IDP configuration (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Updated LDAP IDP configuration (restart_required=%v)", restart))
 
 	return minioReadIdpLdap(ctx, d, meta)
 }
@@ -200,12 +200,12 @@ func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 func minioDeleteIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Deleting LDAP IDP configuration")
+	tflog.Debug(ctx, "Deleting LDAP IDP configuration")
 
 	_, err := minioAdmin.DelConfigKV(ctx, "identity_ldap")
 	if err != nil {
 		if isIDPConfigNotFound(err) {
-			log.Printf("[WARN] LDAP IDP configuration already removed")
+			tflog.Warn(ctx, "LDAP IDP configuration already removed")
 			d.SetId("")
 			return nil
 		}
@@ -213,7 +213,7 @@ func minioDeleteIdpLdap(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	d.SetId("")
-	log.Printf("[DEBUG] Deleted LDAP IDP configuration")
+	tflog.Debug(ctx, "Deleted LDAP IDP configuration")
 
 	return nil
 }

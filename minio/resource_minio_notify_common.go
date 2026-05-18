@@ -12,9 +12,9 @@ import (
 
 // notifyResourceConfig holds the type-specific configuration for a notification resource.
 type notifyResourceConfig struct {
-	subsystem   string // e.g., "notify_amqp", "notify_kafka"
-	buildCfg    func(*schema.ResourceData, interface{}) string
-	readFields  func(map[string]string, *schema.ResourceData) diag.Diagnostics
+	subsystem  string // e.g., "notify_amqp", "notify_kafka"
+	buildCfg   func(*schema.ResourceData, interface{}) string
+	readFields func(map[string]string, *schema.ResourceData) diag.Diagnostics
 }
 
 func notifyConfigKey(subsystem, name string) string {

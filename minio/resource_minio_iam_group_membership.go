@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -112,7 +112,7 @@ func minioReadGroupMembership(ctx context.Context, d *schema.ResourceData, meta 
 	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 	if err != nil {
 		if strings.Contains(err.Error(), "not exist") {
-			log.Printf("[WARN] No IAM group by name (%s) found, removing from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("No IAM group by name (%s) found, removing from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -155,7 +155,7 @@ func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMem
 
 	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
-	log.Printf("[WARN] Users to add before: %v and after: %v", groupDesc.Members, usersToAdd)
+	tflog.Warn(ctx, fmt.Sprintf("Users to add before: %v and after: %v", groupDesc.Members, usersToAdd))
 
 	users = append(groupDesc.Members, usersToAdd...)
 
@@ -183,7 +183,7 @@ func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroup
 
 	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
-	log.Printf("[WARN] Users to remove before: %v and after: %v", groupDesc.Members, groupAddRemove.Members)
+	tflog.Warn(ctx, fmt.Sprintf("Users to remove before: %v and after: %v", groupDesc.Members, groupAddRemove.Members))
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {

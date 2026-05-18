@@ -3,8 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
-
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -60,7 +59,7 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 		return nil
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, putting encryption configuration", bucketEncryptionConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, putting encryption configuration", bucketEncryptionConfig.MinioBucket))
 
 	err := bucketEncryptionConfig.MinioClient.SetBucketEncryption(
 		ctx,
@@ -73,7 +72,7 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 	}
 
 	d.SetId(bucketEncryptionConfig.MinioBucket)
-	log.Printf("[DEBUG] S3 bucket: %s, encryption configuration applied", bucketEncryptionConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, encryption configuration applied", bucketEncryptionConfig.MinioBucket))
 
 	return minioReadBucketServerSideEncryption(ctx, d, meta)
 }
@@ -81,7 +80,7 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketEncryptionConfig := BucketServerSideEncryptionConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket encryption, read for bucket: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket encryption, read for bucket: %s", d.Id()))
 
 	encryptionConfig, err := bucketEncryptionConfig.MinioClient.GetBucketEncryption(ctx, d.Id())
 	if err != nil {
@@ -112,14 +111,14 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 func minioDeleteBucketServerSideEncryption(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketEncryptionConfig := BucketServerSideEncryptionConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket: %s, removing bucket encryption", bucketEncryptionConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, removing bucket encryption", bucketEncryptionConfig.MinioBucket))
 
 	err := bucketEncryptionConfig.MinioClient.RemoveBucketEncryption(ctx, bucketEncryptionConfig.MinioBucket)
 	if err != nil {
 		return NewResourceError("removing bucket encryption", bucketEncryptionConfig.MinioBucket, err)
 	}
 
-	log.Printf("[DEBUG] S3 bucket: %s, bucket encryption removed", bucketEncryptionConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, bucket encryption removed", bucketEncryptionConfig.MinioBucket))
 
 	return nil
 }

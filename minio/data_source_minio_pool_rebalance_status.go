@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -95,7 +95,7 @@ func dataSourceMinioPoolRebalanceStatus() *schema.Resource {
 func dataSourceMinioPoolRebalanceStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	log.Printf("[DEBUG] Reading pool rebalance status")
+	tflog.Debug(ctx, "Reading pool rebalance status")
 
 	status, err := admin.RebalanceStatus(ctx)
 	if err != nil {

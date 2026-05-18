@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -100,7 +101,7 @@ func minioServerConfigEtcdSet(ctx context.Context, d *schema.ResourceData, meta 
 
 	d.SetId("etcd")
 	_ = d.Set("restart_required", restart)
-	log.Printf("[DEBUG] Set etcd config (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Set etcd config (restart_required=%v)", restart))
 
 	if restart {
 		return nil

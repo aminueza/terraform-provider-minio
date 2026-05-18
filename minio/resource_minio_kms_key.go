@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -55,17 +56,17 @@ func minioCreateKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	keyConfig := KMSKeyConfig(d, meta)
 
-	log.Printf("[DEBUG] Reading KMS key [%s]", keyConfig.MinioKMSKeyID)
+	tflog.Debug(ctx, fmt.Sprintf("Reading KMS key [%s]", keyConfig.MinioKMSKeyID))
 
 	status, err := keyConfig.MinioAdmin.GetKeyStatus(ctx, keyConfig.MinioKMSKeyID)
 	if err != nil {
-		log.Printf("%s", NewResourceErrorStr("error reading KMS key", keyConfig.MinioKMSKeyID, err))
+		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("error reading KMS key", keyConfig.MinioKMSKeyID, err)))
 		d.SetId("")
 
 		return nil
 	}
 
-	log.Printf("[DEBUG] KMS key [%s] exists!", keyConfig.MinioKMSKeyID)
+	tflog.Debug(ctx, fmt.Sprintf("KMS key [%s] exists!", keyConfig.MinioKMSKeyID))
 
 	if status.EncryptionErr != "" {
 		return NewResourceError("KMS key has encryption error", keyConfig.MinioKMSKeyID, status.EncryptionErr)
@@ -83,7 +84,7 @@ func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface
 func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	keyConfig := KMSKeyConfig(d, meta)
 
-	log.Printf("[DEBUG] Deleting KMS key [%s]", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Deleting KMS key [%s]", d.Id()))
 
 	if err := keyConfig.MinioAdmin.DeleteKey(ctx, d.Id()); err != nil {
 		errResp := madmin.ToErrorResponse(err)
@@ -93,16 +94,16 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 			strings.Contains(errResp.Code, "NotImplemented") ||
 			strings.Contains(errStr, "not supported") ||
 			strings.Contains(errStr, "not implemented") {
-			log.Printf("[DEBUG] DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err)
+			tflog.Debug(ctx, fmt.Sprintf("DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err))
 			_ = d.Set("key_id", "")
 			d.SetId("")
 			return nil
 		}
-		log.Printf("%s", NewResourceErrorStr("unable to remove KMS key", d.Id(), err))
+		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to remove KMS key", d.Id(), err)))
 		return NewResourceError("unable to remove KMS key", d.Id(), err)
 	}
 
-	log.Printf("[DEBUG] Deleted KMS key: [%s]", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Deleted KMS key: [%s]", d.Id()))
 
 	_ = d.Set("key_id", "")
 

@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -157,7 +157,7 @@ func minioCreateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("expanding site replication sites", name, err)
 	}
 
-	log.Printf("[DEBUG] Creating site replication: %s with %d sites", name, len(sites))
+	tflog.Debug(ctx, fmt.Sprintf("Creating site replication: %s with %d sites", name, len(sites)))
 
 	opts := madmin.SRAddOptions{
 		ReplicateILMExpiry: d.Get("replicate_ilm_expiry").(bool),
@@ -167,7 +167,7 @@ func minioCreateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("error creating site replication", name, err)
 	}
 
-	log.Printf("[DEBUG] Site replication created: %+v", status)
+	tflog.Debug(ctx, fmt.Sprintf("Site replication created: %+v", status))
 
 	d.SetId(name)
 	return minioReadSiteReplication(ctx, d, meta)
@@ -179,7 +179,7 @@ func minioReadSiteReplication(ctx context.Context, d *schema.ResourceData, meta 
 	info, err := client.SiteReplicationInfo(ctx)
 	if err != nil {
 		if isSiteReplicationError(err) {
-			log.Printf("[WARN] Site replication not configured or disabled, removing from state: %v", err)
+			tflog.Warn(ctx, fmt.Sprintf("Site replication not configured or disabled, removing from state: %v", err))
 			d.SetId("")
 			return nil
 		}
@@ -187,7 +187,7 @@ func minioReadSiteReplication(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	if !info.Enabled {
-		log.Printf("[WARN] Site replication not enabled, removing from state")
+		tflog.Warn(ctx, "Site replication not enabled, removing from state")
 		d.SetId("")
 		return nil
 	}
@@ -241,7 +241,7 @@ func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		diff := calculateSiteDiff(oldSites, newSites)
 
 		if len(diff.toRemove) > 0 {
-			log.Printf("[DEBUG] Removing %d sites from replication: %v", len(diff.toRemove), diff.toRemove)
+			tflog.Debug(ctx, fmt.Sprintf("Removing %d sites from replication: %v", len(diff.toRemove), diff.toRemove))
 			_, err := client.SiteReplicationRemove(ctx, madmin.SRRemoveReq{
 				SiteNames: diff.toRemove,
 			})
@@ -251,14 +251,14 @@ func minioUpdateSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		}
 
 		if len(diff.toAdd) > 0 {
-			log.Printf("[DEBUG] Adding %d sites to replication: %v", len(diff.toAdd),
+			tflog.Debug(ctx, fmt.Sprintf("Adding %d sites to replication: %v", len(diff.toAdd),
 				func() []string {
 					names := make([]string, len(diff.toAdd))
 					for i, site := range diff.toAdd {
 						names[i] = site.Name
 					}
 					return names
-				}())
+				}()))
 			_, err := client.SiteReplicationAdd(ctx, diff.toAdd, madmin.SRAddOptions{})
 			if err != nil {
 				return NewResourceError("error adding sites to replication", d.Id(), err)
@@ -278,7 +278,7 @@ func minioDeleteSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		siteNames[i] = site.Name
 	}
 
-	log.Printf("[DEBUG] Deleting site replication with %d sites: %v", len(siteNames), siteNames)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting site replication with %d sites: %v", len(siteNames), siteNames))
 
 	_, err := client.SiteReplicationRemove(ctx, madmin.SRRemoveReq{
 		SiteNames: siteNames,
@@ -286,7 +286,7 @@ func minioDeleteSiteReplication(ctx context.Context, d *schema.ResourceData, met
 	})
 	if err != nil {
 		if isSiteReplicationError(err) {
-			log.Printf("[INFO] Site replication already removed or not configured: %v", err)
+			tflog.Info(ctx, fmt.Sprintf("Site replication already removed or not configured: %v", err))
 			return nil
 		}
 		return NewResourceError("error deleting site replication", d.Id(), err)

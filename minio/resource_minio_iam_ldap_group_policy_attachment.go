@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -56,16 +56,16 @@ func minioCreateLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		return err
 	}
 
-	log.Printf("[DEBUG] '%s' group policies: %v", groupDN, policies)
+	tflog.Debug(ctx, fmt.Sprintf("'%s' group policies: %v", groupDN, policies))
 
 	if !Contains(policies, policyName) {
-		log.Printf("[DEBUG] Attaching policy %s to group: %s", policyName, groupDN)
+		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to group: %s", policyName, groupDN))
 		paResp, err := minioAdmin.AttachPolicyLDAP(ctx, madmin.PolicyAssociationReq{
 			Policies: []string{policyName},
 			Group:    groupDN,
 		})
 
-		log.Printf("[DEBUG] PolicyAssociationResp: %v", paResp)
+		tflog.Debug(ctx, fmt.Sprintf("PolicyAssociationResp: %v", paResp))
 
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("Unable to attach group to policy '%s'", policyName), groupDN, err)
@@ -99,9 +99,9 @@ func doMinioReadLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		return NewResourceError(fmt.Sprintf("Failed to query for group policy '%s'", policyName), groupDN, err)
 	}
 
-	log.Printf("[DEBUG] PolicyEntityResponse: %v", per)
+	tflog.Debug(ctx, fmt.Sprintf("PolicyEntityResponse: %v", per))
 	if len(per.PolicyMappings) == 0 {
-		log.Printf("[WARN] No such policy association (%s) found, removing from state", d.Id())
+		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil
 	}
@@ -137,7 +137,7 @@ func minioDeleteLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		Group:    groupDN,
 	})
 
-	log.Printf("[DEBUG] PolicyAssociationResp: %v", paResp)
+	tflog.Debug(ctx, fmt.Sprintf("PolicyAssociationResp: %v", paResp))
 
 	if detachErr != nil {
 		return NewResourceError(fmt.Sprintf("Unable to detach policy '%s'", policyName), groupDN, detachErr)

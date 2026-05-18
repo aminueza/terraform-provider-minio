@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -77,7 +78,7 @@ func resourceMinioS3BucketCors() *schema.Resource {
 func minioCreateBucketCors(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketCorsConfig := BucketCorsConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Creating CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	corsConfig := buildCorsConfig(d)
 
@@ -88,7 +89,7 @@ func minioCreateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 
 	d.SetId(bucketCorsConfig.MinioBucket)
 
-	log.Printf("[DEBUG] Created CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Created CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	return minioReadBucketCors(ctx, d, meta)
 }
@@ -96,23 +97,23 @@ func minioCreateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 func minioReadBucketCors(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketCorsConfig := BucketCorsConfig(d, meta)
 
-	log.Printf("[DEBUG] Reading CORS configuration for bucket: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("Reading CORS configuration for bucket: %s", d.Id()))
 
 	client := meta.(*S3MinioClient)
 	corsConfig, err := bucketCorsConfig.MinioClient.GetBucketCors(ctx, d.Id())
 	if err != nil {
 		if isS3CompatNotSupported(client, err) {
-			log.Printf("[INFO] CORS not supported by backend; skipping")
+			tflog.Info(ctx, "CORS not supported by backend; skipping")
 			return nil
 		}
 		if isNoSuchBucketError(err) {
-			log.Printf("[WARN] Bucket %s not found, removing CORS resource from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing CORS resource from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "CORS configuration does not exist") || strings.Contains(errMsg, "NoSuchCORSConfiguration") {
-			log.Printf("[WARN] CORS configuration for bucket %s does not exist, removing from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("CORS configuration for bucket %s does not exist, removing from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -120,7 +121,7 @@ func minioReadBucketCors(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	if corsConfig == nil || len(corsConfig.CORSRules) == 0 {
-		log.Printf("[WARN] CORS configuration for bucket %s is empty, removing from state", d.Id())
+		tflog.Warn(ctx, fmt.Sprintf("CORS configuration for bucket %s is empty, removing from state", d.Id()))
 		d.SetId("")
 		return nil
 	}
@@ -140,7 +141,7 @@ func minioReadBucketCors(ctx context.Context, d *schema.ResourceData, meta inter
 func minioUpdateBucketCors(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketCorsConfig := BucketCorsConfig(d, meta)
 
-	log.Printf("[DEBUG] Updating CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updating CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	if d.HasChange("cors_rule") {
 		corsConfig := buildCorsConfig(d)
@@ -151,7 +152,7 @@ func minioUpdateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	log.Printf("[DEBUG] Updated CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updated CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	return minioReadBucketCors(ctx, d, meta)
 }
@@ -159,7 +160,7 @@ func minioUpdateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 func minioDeleteBucketCors(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketCorsConfig := BucketCorsConfig(d, meta)
 
-	log.Printf("[DEBUG] Deleting CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Deleting CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	emptyConfig := &cors.Config{
 		CORSRules: []cors.Rule{},
@@ -168,13 +169,13 @@ func minioDeleteBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 	err := bucketCorsConfig.MinioClient.SetBucketCors(ctx, bucketCorsConfig.MinioBucket, emptyConfig)
 	if err != nil {
 		if isNoSuchBucketError(err) {
-			log.Printf("[WARN] Bucket %s not found during CORS deletion", bucketCorsConfig.MinioBucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found during CORS deletion", bucketCorsConfig.MinioBucket))
 			return nil
 		}
 		return NewResourceError("deleting CORS configuration", bucketCorsConfig.MinioBucket, err)
 	}
 
-	log.Printf("[DEBUG] Deleted CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Deleted CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
 	return nil
 }

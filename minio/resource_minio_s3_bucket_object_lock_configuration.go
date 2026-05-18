@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"math"
 	"strings"
 
@@ -90,7 +90,7 @@ Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 
-	log.Printf("[DEBUG] Creating object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Creating object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
@@ -101,7 +101,7 @@ func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	}
 
 	d.SetId(objectLockConfig.MinioBucket)
-	log.Printf("[DEBUG] Created object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Created object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 	return minioReadObjectLockConfiguration(ctx, d, meta)
 }
 
@@ -109,7 +109,7 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Id()
 
-	log.Printf("[DEBUG] Reading object lock configuration for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Reading object lock configuration for bucket: %s", bucket))
 
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
@@ -127,7 +127,7 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 			return nil
 		}
 		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			log.Printf("[INFO] Object lock not supported by backend; skipping")
+			tflog.Info(ctx, "Object lock not supported by backend; skipping")
 			d.SetId("")
 			return nil
 		}
@@ -180,7 +180,7 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 	objectLockConfig.MinioBucket = d.Id()
 
-	log.Printf("[DEBUG] Updating object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updating object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
 		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
@@ -190,7 +190,7 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 		return NewResourceError("updating object lock configuration", objectLockConfig.MinioBucket, err)
 	}
 
-	log.Printf("[DEBUG] Updated object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Updated object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 	return minioReadObjectLockConfiguration(ctx, d, meta)
 }
 
@@ -198,14 +198,14 @@ func minioDeleteObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	objectLockConfig := BucketObjectLockConfigurationConfig(d, meta)
 	objectLockConfig.MinioBucket = d.Id()
 
-	log.Printf("[DEBUG] Clearing object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Clearing object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 
 	err := objectLockConfig.MinioClient.SetBucketObjectLockConfig(ctx, objectLockConfig.MinioBucket, nil, nil, nil)
 	if err != nil {
 		return NewResourceError("clearing object lock configuration", objectLockConfig.MinioBucket, err)
 	}
 
-	log.Printf("[DEBUG] Cleared object lock configuration for bucket: %s", objectLockConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("Cleared object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 	d.SetId("")
 	return nil
 }
@@ -279,7 +279,7 @@ func applyObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, c
 		return fmt.Errorf("either days or years must be specified in default_retention")
 	}
 
-	log.Printf("[DEBUG] Applying object lock config to bucket %s: mode=%s, validity=%d, unit=%s", bucket, mode, validity, unit)
+	tflog.Debug(ctx, fmt.Sprintf("Applying object lock config to bucket %s: mode=%s, validity=%d, unit=%s", bucket, mode, validity, unit))
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 	if err != nil {

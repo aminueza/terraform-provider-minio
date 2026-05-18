@@ -2,7 +2,8 @@ package minio
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"strings"
 
@@ -297,7 +298,7 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 		return NewResourceError("adding remote tier failed", name, err)
 	}
 	d.SetId(name)
-	log.Printf("[DEBUG] Created Tier %s", name)
+	tflog.Debug(ctx, fmt.Sprintf("Created Tier %s", name))
 	return minioReadILMTier(ctx, d, meta)
 }
 
@@ -309,11 +310,11 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("reading remote tier failed", name, err)
 	}
 	if tier == nil {
-		log.Printf("%s", NewResourceErrorStr("unable to find tier", name, err))
+		tflog.Error(ctx, fmt.Sprintf("%s", NewResourceErrorStr("unable to find tier", name, err)))
 		d.SetId("")
 		return nil
 	}
-	log.Printf("[DEBUG] Tier [%s] exists!", name)
+	tflog.Debug(ctx, fmt.Sprintf("Tier [%s] exists!", name))
 	d.SetId(tier.Name)
 	if err := d.Set("type", tier.Type.String()); err != nil {
 		return NewResourceError("setting type", name, err)

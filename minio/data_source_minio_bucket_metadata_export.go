@@ -3,12 +3,12 @@ package minio
 import (
 	"context"
 	"encoding/base64"
-	"io"
-	"log"
-
+	"fmt"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"io"
 )
 
 func dataSourceMinioBucketMetadataExport() *schema.Resource {
@@ -36,7 +36,7 @@ func dataSourceMinioBucketMetadataExportRead(ctx context.Context, d *schema.Reso
 	admin := meta.(*S3MinioClient).S3Admin
 	bucket := d.Get("bucket").(string)
 
-	log.Printf("[DEBUG] Exporting metadata for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Exporting metadata for bucket: %s", bucket))
 
 	reader, err := admin.ExportBucketMetadata(ctx, bucket)
 	if err != nil {
@@ -57,7 +57,7 @@ func dataSourceMinioBucketMetadataExportRead(ctx context.Context, d *schema.Reso
 		return NewResourceError("setting metadata", bucket, err)
 	}
 
-	log.Printf("[DEBUG] Exported metadata for bucket: %s", bucket)
+	tflog.Debug(ctx, fmt.Sprintf("Exported metadata for bucket: %s", bucket))
 
 	return nil
 }

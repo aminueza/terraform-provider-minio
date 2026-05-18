@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"time"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -472,12 +472,12 @@ func minioReadS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, met
 	config, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil {
 		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			log.Printf("[INFO] Lifecycle rules not supported by backend; dropping %s from state", bucket)
+			tflog.Info(ctx, fmt.Sprintf("Lifecycle rules not supported by backend; dropping %s from state", bucket))
 			d.SetId("")
 			return nil
 		}
 		if isLifecycleNotFoundError(err) {
-			log.Printf("[WARN] Lifecycle configuration for %s not found; removing from state", bucket)
+			tflog.Warn(ctx, fmt.Sprintf("Lifecycle configuration for %s not found; removing from state", bucket))
 			d.SetId("")
 			return nil
 		}
@@ -824,4 +824,3 @@ func filterIsEffectivelyEmpty(f lifecycle.Filter) bool {
 	}
 	return f.IsNull()
 }
-

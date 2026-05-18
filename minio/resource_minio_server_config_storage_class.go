@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -69,7 +69,7 @@ func minioServerConfigStorageClassSet(ctx context.Context, d *schema.ResourceDat
 
 	d.SetId("storage_class")
 	_ = d.Set("restart_required", restart)
-	log.Printf("[DEBUG] Set storage_class config (restart_required=%v)", restart)
+	tflog.Debug(ctx, fmt.Sprintf("Set storage_class config (restart_required=%v)", restart))
 
 	return minioServerConfigStorageClassRead(ctx, d, meta)
 }

@@ -3,7 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -75,7 +75,7 @@ func resourceMinioBucketNotification() *schema.Resource {
 func minioPutBucketNotification(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketNotificationConfig := BucketNotificationConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket: %s, put notification configuration: %v", bucketNotificationConfig.MinioBucket, bucketNotificationConfig.Configuration)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put notification configuration: %v", bucketNotificationConfig.MinioBucket, bucketNotificationConfig.Configuration))
 
 	err := bucketNotificationConfig.MinioClient.SetBucketNotification(
 		ctx,
@@ -95,17 +95,17 @@ func minioPutBucketNotification(ctx context.Context, d *schema.ResourceData, met
 func minioReadBucketNotification(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketNotificationConfig := BucketNotificationConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket notification configuration, read for bucket: %s", d.Id())
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket notification configuration, read for bucket: %s", d.Id()))
 
 	client := meta.(*S3MinioClient)
 	notificationConfig, err := bucketNotificationConfig.MinioClient.GetBucketNotification(ctx, d.Id())
 	if err != nil {
 		if isS3CompatNotSupported(client, err) {
-			log.Printf("[INFO] Bucket notification not supported by backend; skipping")
+			tflog.Info(ctx, "Bucket notification not supported by backend; skipping")
 			return nil
 		}
 		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
-			log.Printf("[WARN] Bucket %s no longer exists, removing notification resource from state", d.Id())
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing notification resource from state", d.Id()))
 			d.SetId("")
 			return nil
 		}
@@ -124,7 +124,7 @@ func minioReadBucketNotification(ctx context.Context, d *schema.ResourceData, me
 func minioDeleteBucketNotification(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketNotificationConfig := BucketNotificationConfig(d, meta)
 
-	log.Printf("[DEBUG] S3 bucket: %s, removing notification configuration", bucketNotificationConfig.MinioBucket)
+	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, removing notification configuration", bucketNotificationConfig.MinioBucket))
 
 	err := bucketNotificationConfig.MinioClient.SetBucketNotification(
 		ctx,
@@ -134,7 +134,7 @@ func minioDeleteBucketNotification(ctx context.Context, d *schema.ResourceData, 
 
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
-			log.Printf("[WARN] Bucket %s no longer exists, considering notification deletion successful", bucketNotificationConfig.MinioBucket)
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, considering notification deletion successful", bucketNotificationConfig.MinioBucket))
 			return nil
 		}
 		return NewResourceError("error removing bucket notifications: %s", bucketNotificationConfig.MinioBucket, err)

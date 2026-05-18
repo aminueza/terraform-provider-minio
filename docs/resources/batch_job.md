@@ -31,7 +31,7 @@ EOF
 
 ### Required
 
-- `job_type` (String) Batch job type. One of `replicate`, `expire`, `keyrotate`.
+- `job_type` (String) Batch job type. The provider queries the server's supported types via `GetSupportedBatchJobTypes` at Create time and rejects values the server does not advertise. Typically one of `replicate`, `expire`, `keyrotate`.
 - `job_yaml` (String, Sensitive) YAML job definition for the batch operation.
 
 ### Optional

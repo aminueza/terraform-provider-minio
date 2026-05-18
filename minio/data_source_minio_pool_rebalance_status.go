@@ -12,6 +12,7 @@ import (
 
 func dataSourceMinioPoolRebalanceStatus() *schema.Resource {
 	return &schema.Resource{
+		Description: "Reports the current status of a MinIO storage pool rebalance. Returns `stopped` when no rebalance is in progress.",
 		ReadContext: dataSourceMinioPoolRebalanceStatusRead,
 		Schema: map[string]*schema.Schema{
 			"status": {

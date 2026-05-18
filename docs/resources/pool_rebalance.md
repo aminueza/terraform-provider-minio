@@ -2,12 +2,12 @@
 page_title: "minio_pool_rebalance Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  
+  Starts a MinIO storage pool rebalance operation. Destroying the resource stops the rebalance. Only one rebalance can be in progress per cluster.
 ---
 
 # minio_pool_rebalance (Resource)
 
-
+Starts a MinIO storage pool rebalance operation. Destroying the resource stops the rebalance. Only one rebalance can be in progress per cluster.
 
 ## Example Usage
 

@@ -9,10 +9,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioPoolRebalance() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Starts a MinIO storage pool rebalance operation. Destroying the resource stops the rebalance. Only one rebalance can be in progress per cluster.",
 		CreateContext: minioCreatePoolRebalance,
 		ReadContext:   minioReadPoolRebalance,
 		DeleteContext: minioDeletePoolRebalance,
@@ -114,10 +116,16 @@ func isRebalanceNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errResp := madmin.ToErrorResponse(err); errResp.Code != "" {
+		switch errResp.Code {
+		case "XMinioAdminRebalanceNotStarted",
+			"XMinioAdminRebalanceAlreadyStopped",
+			"XMinioAdminNoSuchRebalance":
+			return true
+		}
+	}
+	// Fallback: madmin sometimes returns plain errors without a code.
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "no rebalance") ||
-		strings.Contains(msg, "not running") ||
-		strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "does not exist") ||
-		strings.Contains(msg, "not started")
+	return strings.Contains(msg, "rebalance is not started") ||
+		strings.Contains(msg, "no rebalance")
 }

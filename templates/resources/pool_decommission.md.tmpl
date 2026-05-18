@@ -1,0 +1,18 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+-> **WARNING:** This is a destructive and irreversible operation. Once decommission completes, the pool cannot be recovered. Ensure all data has been migrated before applying.
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_pool_decommission/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}

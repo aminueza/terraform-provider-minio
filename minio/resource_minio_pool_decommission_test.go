@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -9,6 +10,10 @@ import (
 )
 
 func TestAccMinioPoolDecommission_basic(t *testing.T) {
+	if os.Getenv("SKIP_DECOMMISSION_TEST") != "0" {
+		t.Skip("skipping decommission test (requires multi-pool MinIO); set SKIP_DECOMMISSION_TEST=0 to enable")
+	}
+
 	resourceName := "minio_pool_decommission.test"
 
 	resource.ParallelTest(t, resource.TestCase{

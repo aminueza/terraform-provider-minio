@@ -14,9 +14,9 @@ import (
 
 func resourceMinioPoolDecommission() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Decommissions a storage pool from a MinIO cluster.",
 		CreateContext: minioCreatePoolDecommission,
 		ReadContext:   minioReadPoolDecommission,
-		UpdateContext: minioUpdatePoolDecommission,
 		DeleteContext: minioDeletePoolDecommission,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -112,10 +112,6 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	return nil
-}
-
-func minioUpdatePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return minioReadPoolDecommission(ctx, d, meta)
 }
 
 func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

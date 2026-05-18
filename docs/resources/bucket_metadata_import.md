@@ -2,12 +2,14 @@
 page_title: "minio_bucket_metadata_import Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Imports a base64-encoded zip stream of bucket metadata produced by minio_bucket_metadata_export. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.
+  Imports a base64-encoded zip stream of bucket metadata produced by minio_bucket_metadata_export. Destroying this resource only removes Terraform state; the imported metadata remains on the bucket. Use the triggers map to force a re-import.
 ---
 
 # minio_bucket_metadata_import (Resource)
 
-Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.
+Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Destroying this resource only removes Terraform state; the imported metadata remains on the bucket. Use the `triggers` map to force a re-import.
+
+~> **NOTE:** This resource has one-shot semantics. It imports metadata into the bucket on create and does not track drift. If metadata is modified outside Terraform, this resource will not detect the change. Destroying the resource only removes it from Terraform state; the imported metadata remains on the bucket. The full metadata zip (which may contain sensitive configuration such as notification credentials) is persisted in Terraform state; use a secure state backend.
 
 ## Example Usage
 
@@ -28,7 +30,11 @@ resource "minio_bucket_metadata_import" "example" {
 ### Required
 
 - `bucket` (String) Name of the bucket to import metadata into.
-- `metadata` (String, Sensitive) Base64-encoded zip stream of bucket metadata (from minio_bucket_metadata_export).
+- `metadata` (String, Sensitive) Base64-encoded zip stream of bucket metadata (from `minio_bucket_metadata_export`). Bytes are not compared after the initial import because re-exports of the same bucket are not byte-identical (zip timestamps); use `triggers` to force a re-import.
+
+### Optional
+
+- `triggers` (Map of String) Map of arbitrary strings that, when changed, force re-import of the metadata.
 
 ### Read-Only
 

@@ -12,34 +12,43 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioBucketMetadataImport() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state; the imported metadata remains on the bucket.",
+		Description:   "Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Destroying this resource only removes Terraform state; the imported metadata remains on the bucket. Use the `triggers` map to force a re-import.",
 		CreateContext: minioCreateBucketMetadataImport,
 		ReadContext:   minioReadBucketMetadataImport,
+		UpdateContext: minioReadBucketMetadataImport,
 		DeleteContext: minioDeleteBucketMetadataImport,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "Name of the bucket to import metadata into.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringLenBetween(3, 63),
+				Description:  "Name of the bucket to import metadata into.",
 			},
 			"metadata": {
 				Type:        schema.TypeString,
 				Required:    true,
-				ForceNew:    true,
 				Sensitive:   true,
-				Description: "Base64-encoded zip stream of bucket metadata (from minio_bucket_metadata_export). Changing this forces a new import; note that re-exports of the same bucket are not byte-identical due to zip timestamps.",
+				Description: "Base64-encoded zip stream of bucket metadata (from `minio_bucket_metadata_export`). Bytes are not compared after the initial import because re-exports of the same bucket are not byte-identical (zip timestamps); use `triggers` to force a re-import.",
 				DiffSuppressFunc: func(k, oldVal, newVal string, d *schema.ResourceData) bool {
-					if d.Id() != "" {
-						return true
-					}
-					return oldVal == newVal
+					return d.Id() != ""
 				},
+			},
+			"triggers": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "Map of arbitrary strings that, when changed, force re-import of the metadata.",
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"imported_at": {
 				Type:        schema.TypeString,
@@ -89,9 +98,29 @@ func minioCreateBucketMetadataImport(ctx context.Context, d *schema.ResourceData
 func checkBucketMetaImportErrs(bucket string, result madmin.BucketMetaImportErrs) diag.Diagnostics {
 	bucketStatus, ok := result.Buckets[bucket]
 	if !ok {
-		return nil
+		// Server may key the response by the bucket name inside the zip
+		// rather than the request target. If there's exactly one entry,
+		// use it; otherwise aggregate.
+		switch len(result.Buckets) {
+		case 0:
+			return nil
+		case 1:
+			for _, v := range result.Buckets {
+				bucketStatus = v
+			}
+		default:
+			var diags diag.Diagnostics
+			for k, v := range result.Buckets {
+				diags = append(diags, statusDiagnostics(k, v)...)
+			}
+			return diags
+		}
 	}
 
+	return statusDiagnostics(bucket, bucketStatus)
+}
+
+func statusDiagnostics(bucket string, bucketStatus madmin.BucketStatus) diag.Diagnostics {
 	var diags diag.Diagnostics
 
 	if bucketStatus.Err != "" {
@@ -142,6 +171,10 @@ func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, 
 
 	log.Printf("[DEBUG] Reading bucket metadata import for bucket: %s", bucket)
 
+	// Read intentionally does not refresh metadata content: the source zip
+	// is non-deterministic and madmin exposes no per-feature read that
+	// reconstructs the same bytes. Drift on the bucket is detected by the
+	// dedicated resources (policy, tagging, lifecycle, ...) instead.
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
 		return NewResourceError("checking bucket existence", bucket, err)
@@ -156,7 +189,7 @@ func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func minioDeleteBucketMetadataImport(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func minioDeleteBucketMetadataImport(_ context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	bucket := d.Get("bucket").(string)
 
 	log.Printf("[DEBUG] Removing bucket metadata import from state for bucket: %s", bucket)

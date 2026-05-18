@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func dataSourceMinioBucketMetadataExport() *schema.Resource {
@@ -16,9 +17,10 @@ func dataSourceMinioBucketMetadataExport() *schema.Resource {
 		ReadContext: dataSourceMinioBucketMetadataExportRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Name of the bucket to export metadata from.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validation.StringLenBetween(3, 63),
+				Description:  "Name of the bucket to export metadata from.",
 			},
 			"metadata": {
 				Type:        schema.TypeString,
@@ -40,7 +42,7 @@ func dataSourceMinioBucketMetadataExportRead(ctx context.Context, d *schema.Reso
 	if err != nil {
 		return NewResourceError("exporting bucket metadata", bucket, err)
 	}
-	defer func() { _ = reader.Close() }()
+	defer reader.Close()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {

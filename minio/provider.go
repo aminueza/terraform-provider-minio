@@ -282,6 +282,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_data_usage":                          dataSourceMinioDataUsage(),
 			"minio_ilm_tier_stats":                      dataSourceMinioILMTierStats(),
 			"minio_s3_objects":                          dataSourceMinioS3Objects(),
+			"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
 
 			// Notification Targets
 			"minio_notify_webhook":       dataSourceMinioNotifyWebhook(),
@@ -315,7 +316,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_object_legal_hold":                resourceMinioObjectLegalHold(),
 			"minio_s3_object_retention":                 resourceMinioObjectRetention(),
 			"minio_s3_object":                           resourceMinioObject(),
-			"minio_s3_incomplete_upload_cleanup":       resourceMinioS3IncompleteUploadCleanup(),
+			"minio_s3_incomplete_upload_cleanup":        resourceMinioS3IncompleteUploadCleanup(),
 
 			// IAM Operations
 			"minio_iam_group":                   resourceMinioIAMGroup(),
@@ -372,6 +373,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_notify_elasticsearch":    resourceMinioNotifyElasticsearch(),
 			"minio_notify_redis":            resourceMinioNotifyRedis(),
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
+			"minio_pool_rebalance":          resourceMinioPoolRebalance(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

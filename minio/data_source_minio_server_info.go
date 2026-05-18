@@ -39,6 +39,11 @@ func dataSourceMinioServerInfo() *schema.Resource {
 				Computed:    true,
 				Description: "Deployment ID of the MinIO cluster",
 			},
+			"edition": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "Edition the provider decided to use for this run (`AIStor` for licensed builds, empty for open-source MinIO). Reflects the manual override, ServerInfo.Edition, and License-based fallback — query this if a bug-report asks what AIStor mode is active.",
+			},
 			"servers": {
 				Type:        schema.TypeList,
 				Computed:    true,
@@ -147,6 +152,17 @@ func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) err
 		_ = d.Set("version", info.Servers[0].Version)
 		_ = d.Set("commit", info.Servers[0].CommitID)
 	}
+
+	edition := m.Edition
+	if edition == "" {
+		for _, srv := range info.Servers {
+			if srv.Edition != "" {
+				edition = srv.Edition
+				break
+			}
+		}
+	}
+	_ = d.Set("edition", edition)
 
 	region := info.Region
 	if region == "" {

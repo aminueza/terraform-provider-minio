@@ -26,6 +26,7 @@ type S3MinioConfig struct {
 	S3SSLSkipVerify   bool
 	SkipBucketTagging bool
 	S3CompatMode      bool
+	Edition           string
 
 	AssumeRoleARN         string
 	AssumeRoleSessionName string

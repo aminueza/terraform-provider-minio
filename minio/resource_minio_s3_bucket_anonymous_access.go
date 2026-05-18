@@ -357,9 +357,11 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 
 func getAccessTypeFromPolicy(policy string, bucketName string, client *S3MinioClient) (string, error) {
 	if isAIStorClient(client) {
-		if p, ok := aistorCannedPolicy("public-read"); ok {
-			if eq, err := awspolicy.PoliciesAreEquivalent(policy, p); err == nil && eq {
-				return "public-read", nil
+		for _, at := range []string{"public-read", "public-read-write", "public-write"} {
+			if p, ok := aistorCannedPolicy(at); ok {
+				if eq, err := awspolicy.PoliciesAreEquivalent(policy, p); err == nil && eq {
+					return at, nil
+				}
 			}
 		}
 	}

@@ -96,7 +96,7 @@ jobs:
             # main is a protected branch — open a PR instead of pushing directly
             BRANCH="docs/auto-update-$(date +%Y%m%d%H%M%S)"
             git checkout -b "$BRANCH"
-            git commit -m "docs: auto-generate provider documentation [skip ci]"
+            git commit -m "docs: auto-generate provider documentation"
             git push origin "$BRANCH"
             gh pr create \
               --title "docs: auto-generate provider documentation" \
@@ -104,7 +104,7 @@ jobs:
               --head "$BRANCH" \
               --base main
           else
-            git commit -m "docs: auto-generate provider documentation [skip ci]"
+            git commit -m "docs: auto-generate provider documentation"
             git push
           fi
 

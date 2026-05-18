@@ -282,7 +282,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_data_usage":                          dataSourceMinioDataUsage(),
 			"minio_ilm_tier_stats":                      dataSourceMinioILMTierStats(),
 			"minio_s3_objects":                          dataSourceMinioS3Objects(),
-			"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
+		"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
 
 			// Notification Targets
 			"minio_notify_webhook":       dataSourceMinioNotifyWebhook(),
@@ -373,7 +373,10 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_notify_elasticsearch":    resourceMinioNotifyElasticsearch(),
 			"minio_notify_redis":            resourceMinioNotifyRedis(),
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
-			"minio_pool_rebalance":          resourceMinioPoolRebalance(),
+		"minio_pool_rebalance":          resourceMinioPoolRebalance(),
+
+			// Service Control
+			"minio_service_action": resourceMinioServiceAction(),
 		},
 
 		ConfigureContextFunc: providerConfigure,

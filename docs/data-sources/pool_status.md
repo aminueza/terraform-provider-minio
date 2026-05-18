@@ -29,7 +29,7 @@ data "minio_pool_status" "example" {}
 Read-Only:
 
 - `decommission_info` (String)
-- `endpoints` (String)
+- `endpoint` (String)
 - `index` (Number)
 - `last_update` (String)
 - `state` (String)

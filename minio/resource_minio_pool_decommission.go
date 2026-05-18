@@ -67,7 +67,12 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	d.SetId(fmt.Sprintf("pool-%d", poolIndex))
 
-	log.Printf("[DEBUG] Decommission started for pool index %d", poolIndex)
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := d.Set("started_at", now); err != nil {
+		return NewResourceError("setting started_at", d.Id(), err)
+	}
+
+	log.Printf("[DEBUG] Decommission started for pool index %d at %s", poolIndex, now)
 
 	return minioReadPoolDecommission(ctx, d, meta)
 }
@@ -95,6 +100,12 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 
 		if err := d.Set("status", string(statusJSON)); err != nil {
 			return NewResourceError("setting status", d.Id(), err)
+		}
+
+		if _, ok := d.GetOk("started_at"); !ok {
+			if err := d.Set("started_at", time.Now().UTC().Format(time.RFC3339)); err != nil {
+				return NewResourceError("setting started_at", d.Id(), err)
+			}
 		}
 
 		return nil
@@ -210,5 +221,5 @@ func isDecommissionCancelError(err error) bool {
 		strings.Contains(msg, "already complete") ||
 		strings.Contains(msg, "canceled") ||
 		strings.Contains(msg, "cancelled") ||
-		strings.Contains(msg, "not found")
+		strings.Contains(msg, "pool not found")
 }

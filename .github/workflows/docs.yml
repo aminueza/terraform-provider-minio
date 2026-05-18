@@ -55,13 +55,6 @@ jobs:
 
   generate-docs:
     name: Generate Docs
-    # Only runs after a merge to main — never on PRs.
-    # Generating docs on a PR branch would push a bot commit with the default
-    # GITHUB_TOKEN, which silently suppresses downstream CI (tests, security)
-    # on that commit because GITHUB_TOKEN pushes don't fire workflow triggers.
-    # Contributors should run `task generate-docs` locally and include the
-    # generated docs in their PR; the check-templates job above guards that
-    # every resource/data source has a template.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

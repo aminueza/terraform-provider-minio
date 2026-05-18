@@ -2,12 +2,20 @@
 page_title: "minio_pool_decommission Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Decommissions a storage pool from a MinIO cluster.
+  Decommissions a storage pool from a MinIO cluster. WARNING: this is a destructive and irreversible operation — once decommission completes, MinIO removes the pool and the data on it cannot be recovered via Terraform. Ensure all data has been migrated before applying.
+  Create returns as soon as MinIO accepts the request; the decommission then runs asynchronously on the server. Refresh the resource (or read the minio_pool_status data source) to observe progress in the state and status attributes.
+  Destroying the resource cancels an in-progress decommission (no-op once the pool has already been removed).
 ---
 
 # minio_pool_decommission (Resource)
 
-Decommissions a storage pool from a MinIO cluster.
+Decommissions a storage pool from a MinIO cluster. WARNING: this is a destructive and irreversible operation — once decommission completes, MinIO removes the pool and the data on it cannot be recovered via Terraform. Ensure all data has been migrated before applying.
+
+Create returns as soon as MinIO accepts the request; the decommission then runs asynchronously on the server. Refresh the resource (or read the `minio_pool_status` data source) to observe progress in the `state` and `status` attributes.
+
+Destroying the resource cancels an in-progress decommission (no-op once the pool has already been removed).
+
+-> **WARNING:** This is a destructive and irreversible operation. Once decommission completes, the pool cannot be recovered. Ensure all data has been migrated before applying.
 
 ## Example Usage
 
@@ -22,10 +30,11 @@ resource "minio_pool_decommission" "example" {
 
 ### Required
 
-- `pool_index` (Number) Index of the pool to decommission.
+- `pool_index` (Number) Pool ID to decommission, as reported by the `index` attribute of the `minio_pool_status` data source.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `started_at` (String) RFC3339 timestamp when decommission started.
-- `status` (String) JSON representation of the decommission status.
+- `started_at` (String) RFC3339 timestamp when decommission started. Empty when imported after the pool has already been removed.
+- `state` (String) Current state of the decommission: `decommissioning`, `decommissioned`, `canceled`, or `failed`.
+- `status` (String) JSON-marshalled MinIO `PoolDecommissionInfo` snapshot, or an empty string when the pool has already been removed from the cluster.

@@ -42,7 +42,7 @@ func dataSourceMinioBucketMetadataExportRead(ctx context.Context, d *schema.Reso
 	if err != nil {
 		return NewResourceError("exporting bucket metadata", bucket, err)
 	}
-	defer reader.Close()
+	defer func() { _ = reader.Close() }()
 
 	data, err := io.ReadAll(reader)
 	if err != nil {

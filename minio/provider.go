@@ -153,6 +153,14 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 					prefix + "MINIO_S3_COMPAT_MODE",
 				}, false),
 			},
+			"minio_edition": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Override the auto-detected MinIO edition (e.g. `AIStor` to force AIStor-shaped behaviors). Leave empty to auto-detect from `ServerInfo`. Set this only when the provider misclassifies your server — for example an AIStor build whose `ServerInfo` response does not surface the `edition` field.",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					prefix + "MINIO_EDITION",
+				}, ""),
+			},
 			"request_timeout_seconds": {
 				Type:        schema.TypeInt,
 				Optional:    true,

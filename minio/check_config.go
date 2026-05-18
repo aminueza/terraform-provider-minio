@@ -166,6 +166,7 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 		S3SSLSkipVerify:       getOptionalField(d, "minio_insecure", false).(bool),
 		SkipBucketTagging:     getOptionalField(d, "skip_bucket_tagging", false).(bool),
 		S3CompatMode:          getOptionalField(d, "s3_compat_mode", false).(bool),
+		Edition:               getOptionalField(d, "minio_edition", "").(string),
 		RequestTimeoutSeconds: getOptionalField(d, "request_timeout_seconds", 30).(int),
 		MaxRetries:            getOptionalField(d, "max_retries", 6).(int),
 		RetryDelayMs:          getOptionalField(d, "retry_delay_ms", 1000).(int),

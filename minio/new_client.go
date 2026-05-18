@@ -127,29 +127,51 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 		S3SSL:                 config.S3SSL,
 		SkipBucketTagging:     config.SkipBucketTagging,
 		S3CompatMode:          config.S3CompatMode,
-		Edition:               detectEdition(minioAdmin, config.S3CompatMode),
+		Edition:               detectEdition(ctx, minioAdmin, config.S3CompatMode, config.Edition),
 		RequestTimeoutSeconds: config.RequestTimeoutSeconds,
 		MaxRetries:            config.MaxRetries,
 		RetryDelayMs:          config.RetryDelayMs,
 	}, nil
 }
 
-func detectEdition(admin *madmin.AdminClient, s3CompatMode bool) string {
+// detectEdition probes the server's admin API to figure out which MinIO build
+// is on the other end. Order of precedence:
+//   - explicit user override (provider attribute `minio_edition`);
+//   - ServerInfo.Edition when populated;
+//   - "AIStor" when Edition is empty but ServerInfo carries a License field —
+//     open-source MinIO has no license metadata, so its presence is a
+//     reliable AIStor signal even on builds that omit the Edition string;
+//   - "" otherwise, which routes the provider down the legacy MinIO path.
+//
+// Every branch is logged so users can see what the provider decided.
+func detectEdition(ctx context.Context, admin *madmin.AdminClient, s3CompatMode bool, override string) string {
+	if override != "" {
+		tflog.Info(ctx, "Edition: using provider override", map[string]interface{}{"edition": override})
+		return override
+	}
 	if s3CompatMode {
+		tflog.Info(ctx, "Edition: detection skipped (s3_compat_mode=true)")
 		return ""
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	info, err := admin.ServerInfo(ctx)
+	info, err := admin.ServerInfo(probeCtx)
 	if err != nil {
-		tflog.Debug(ctx, "server edition probe failed", map[string]interface{}{"err": err.Error()})
+		tflog.Warn(ctx, "Edition: ServerInfo probe failed; falling back to legacy MinIO path", map[string]interface{}{"err": err.Error()})
 		return ""
 	}
 	for _, srv := range info.Servers {
+		hasLicense := srv.License != nil
 		if srv.Edition != "" {
+			tflog.Info(ctx, "Edition: detected from ServerInfo.Edition", map[string]interface{}{"edition": srv.Edition, "license_present": hasLicense})
 			return srv.Edition
 		}
+		if hasLicense {
+			tflog.Info(ctx, "Edition: ServerInfo.Edition empty but License present; assuming AIStor", map[string]interface{}{"edition": aistorEdition})
+			return aistorEdition
+		}
 	}
+	tflog.Info(ctx, "Edition: no AIStor markers found; using legacy MinIO path")
 	return ""
 }
 

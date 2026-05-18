@@ -284,6 +284,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_objects":                          dataSourceMinioS3Objects(),
 			"minio_pool_rebalance_status":               dataSourceMinioPoolRebalanceStatus(),
 			"minio_batch_jobs":                          dataSourceMinioBatchJobs(),
+			"minio_bucket_metadata_export":              dataSourceMinioBucketMetadataExport(),
 
 			// Notification Targets
 			"minio_notify_webhook":       dataSourceMinioNotifyWebhook(),
@@ -378,6 +379,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_notify_redis":            resourceMinioNotifyRedis(),
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
 			"minio_pool_rebalance":          resourceMinioPoolRebalance(),
+			"minio_bucket_metadata_import":  resourceMinioBucketMetadataImport(),
 
 			// Service Control
 			"minio_service_action": resourceMinioServiceAction(),

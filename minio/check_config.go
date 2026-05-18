@@ -460,13 +460,3 @@ func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3
 		MinioPrefix: prefix,
 	}
 }
-
-// PoolDecommissionConfig extracts pool decommission config from resource data.
-func PoolDecommissionConfig(d *schema.ResourceData, meta interface{}) *S3MinioPoolDecommission {
-	m := meta.(*S3MinioClient)
-
-	return &S3MinioPoolDecommission{
-		MinioAdmin: m.S3Admin,
-		PoolIndex:  getOptionalField(d, "pool_index", 0).(int),
-	}
-}

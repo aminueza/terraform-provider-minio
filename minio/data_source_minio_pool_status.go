@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -25,7 +26,7 @@ func dataSourceMinioPoolStatus() *schema.Resource {
 							Computed:    true,
 							Description: "Pool index.",
 						},
-						"endpoints": {
+						"endpoint": {
 							Type:        schema.TypeString,
 							Computed:    true,
 							Description: "Pool endpoint command line string.",
@@ -89,9 +90,9 @@ func dataSourceMinioPoolStatusRead(ctx context.Context, d *schema.ResourceData, 
 
 		poolList = append(poolList, map[string]interface{}{
 			"index":             p.ID,
-			"endpoints":         p.CmdLine,
+			"endpoint":          p.CmdLine,
 			"state":             state,
-			"last_update":       p.LastUpdate.Format("2006-01-02T15:04:05Z07:00"),
+			"last_update":       p.LastUpdate.Format(time.RFC3339),
 			"decommission_info": decommissionJSON,
 		})
 	}

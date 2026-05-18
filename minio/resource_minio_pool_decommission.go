@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -14,12 +16,13 @@ import (
 
 func resourceMinioPoolDecommission() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Decommissions a storage pool from a MinIO cluster.",
+		Description:   "Decommissions a storage pool from a MinIO cluster. WARNING: This is a destructive and irreversible operation. Once decommission completes, the pool cannot be recovered via Terraform. Ensure you have migrated all data before applying.",
 		CreateContext: minioCreatePoolDecommission,
 		ReadContext:   minioReadPoolDecommission,
+		UpdateContext: minioUpdatePoolDecommission,
 		DeleteContext: minioDeletePoolDecommission,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: minioImportPoolDecommission,
 		},
 		Schema: map[string]*schema.Schema{
 			"pool_index": {
@@ -43,11 +46,11 @@ func resourceMinioPoolDecommission() *schema.Resource {
 }
 
 func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	poolConfig := PoolDecommissionConfig(d, meta)
+	admin := meta.(*S3MinioClient).S3Admin
 
-	poolIndex := poolConfig.PoolIndex
+	poolIndex := d.Get("pool_index").(int)
 
-	pools, err := poolConfig.MinioAdmin.ListPoolsStatus(ctx)
+	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {
 		return NewResourceError("listing pools", fmt.Sprintf("pool-%d", poolIndex), err)
 	}
@@ -59,7 +62,7 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	log.Printf("[DEBUG] Starting decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint)
 
-	if err := poolConfig.MinioAdmin.DecommissionPool(ctx, poolEndpoint); err != nil {
+	if err := admin.DecommissionPool(ctx, poolEndpoint); err != nil {
 		return NewResourceError("starting decommission", fmt.Sprintf("pool-%d", poolIndex), err)
 	}
 
@@ -71,11 +74,13 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 }
 
 func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	poolConfig := PoolDecommissionConfig(d, meta)
+	admin := meta.(*S3MinioClient).S3Admin
 
-	poolIndex := poolConfig.PoolIndex
+	poolIndex := d.Get("pool_index").(int)
 
-	pools, err := poolConfig.MinioAdmin.ListPoolsStatus(ctx)
+	log.Printf("[DEBUG] Reading decommission status for pool index %d", poolIndex)
+
+	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {
 		return NewResourceError("listing pools for read", d.Id(), err)
 	}
@@ -84,14 +89,19 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 	if err != nil {
 		log.Printf("[DEBUG] Pool index %d no longer found, marking decommission as complete", poolIndex)
 
-		if err := d.Set("status", "complete"); err != nil {
+		statusJSON, marshalErr := json.Marshal(map[string]string{"state": "complete"})
+		if marshalErr != nil {
+			return NewResourceError("marshaling complete status", d.Id(), marshalErr)
+		}
+
+		if err := d.Set("status", string(statusJSON)); err != nil {
 			return NewResourceError("setting status", d.Id(), err)
 		}
 
 		return nil
 	}
 
-	poolStatus, err := poolConfig.MinioAdmin.StatusPool(ctx, poolEndpoint)
+	poolStatus, err := admin.StatusPool(ctx, poolEndpoint)
 	if err != nil {
 		return NewResourceError("reading pool status", d.Id(), err)
 	}
@@ -106,7 +116,7 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	if poolStatus.Decommission != nil {
-		if err := d.Set("started_at", poolStatus.Decommission.StartTime.Format("2006-01-02T15:04:05Z07:00")); err != nil {
+		if err := d.Set("started_at", poolStatus.Decommission.StartTime.Format(time.RFC3339)); err != nil {
 			return NewResourceError("setting started_at", d.Id(), err)
 		}
 	}
@@ -114,12 +124,16 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 	return nil
 }
 
+func minioUpdatePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioReadPoolDecommission(ctx, d, meta)
+}
+
 func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	poolConfig := PoolDecommissionConfig(d, meta)
+	admin := meta.(*S3MinioClient).S3Admin
 
-	poolIndex := poolConfig.PoolIndex
+	poolIndex := d.Get("pool_index").(int)
 
-	pools, err := poolConfig.MinioAdmin.ListPoolsStatus(ctx)
+	pools, err := admin.ListPoolsStatus(ctx)
 	if err != nil {
 		log.Printf("[DEBUG] Could not list pools during delete: %v", err)
 		d.SetId("")
@@ -137,16 +151,10 @@ func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	log.Printf("[DEBUG] Cancelling decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint)
 
-	if err := poolConfig.MinioAdmin.CancelDecommissionPool(ctx, poolEndpoint); err != nil {
-		errStr := err.Error()
-		if strings.Contains(errStr, "not in progress") ||
-			strings.Contains(errStr, "already complete") ||
-			strings.Contains(errStr, "canceled") ||
-			strings.Contains(errStr, "not found") {
+	if err := admin.CancelDecommissionPool(ctx, poolEndpoint); err != nil {
+		if isDecommissionCancelError(err) {
 			log.Printf("[DEBUG] Decommission already complete or not in progress for pool %d: %v", poolIndex, err)
 		} else {
-			log.Printf("%s", NewResourceErrorStr("cancelling decommission", d.Id(), err))
-
 			return NewResourceError("cancelling decommission", d.Id(), err)
 		}
 	}
@@ -158,6 +166,27 @@ func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 	return nil
 }
 
+func minioImportPoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	id := d.Id()
+
+	if !strings.HasPrefix(id, "pool-") {
+		return nil, fmt.Errorf("invalid import ID %q, expected format: pool-N (e.g., pool-0)", id)
+	}
+
+	poolIndexStr := strings.TrimPrefix(id, "pool-")
+
+	poolIndex, err := strconv.Atoi(poolIndexStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid pool index in import ID %q: %w", id, err)
+	}
+
+	if err := d.Set("pool_index", poolIndex); err != nil {
+		return nil, err
+	}
+
+	return []*schema.ResourceData{d}, nil
+}
+
 func findPoolEndpointByID(pools []madmin.PoolStatus, poolIndex int) (string, error) {
 	for _, p := range pools {
 		if p.ID == poolIndex {
@@ -166,4 +195,25 @@ func findPoolEndpointByID(pools []madmin.PoolStatus, poolIndex int) (string, err
 	}
 
 	return "", fmt.Errorf("pool with index %d not found", poolIndex)
+}
+
+func isDecommissionCancelError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errResp := madmin.ToErrorResponse(err); errResp.Code != "" {
+		switch errResp.Code {
+		case "XMinioAdminDecommissionNotInProgress",
+			"XMinioAdminDecommissionAlreadyComplete",
+			"XMinioAdminDecommissionCanceled",
+			"XMinioAdminPoolNotFound":
+			return true
+		}
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not in progress") ||
+		strings.Contains(msg, "already complete") ||
+		strings.Contains(msg, "canceled") ||
+		strings.Contains(msg, "cancelled") ||
+		strings.Contains(msg, "not found")
 }

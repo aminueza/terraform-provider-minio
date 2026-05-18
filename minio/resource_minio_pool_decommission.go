@@ -19,7 +19,6 @@ func resourceMinioPoolDecommission() *schema.Resource {
 		Description:   "Decommissions a storage pool from a MinIO cluster. WARNING: This is a destructive and irreversible operation. Once decommission completes, the pool cannot be recovered via Terraform. Ensure you have migrated all data before applying.",
 		CreateContext: minioCreatePoolDecommission,
 		ReadContext:   minioReadPoolDecommission,
-		UpdateContext: minioUpdatePoolDecommission,
 		DeleteContext: minioDeletePoolDecommission,
 		Importer: &schema.ResourceImporter{
 			StateContext: minioImportPoolDecommission,
@@ -122,10 +121,6 @@ func minioReadPoolDecommission(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	return nil
-}
-
-func minioUpdatePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	return minioReadPoolDecommission(ctx, d, meta)
 }
 
 func minioDeletePoolDecommission(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
-	"log"
 	"strings"
 	"time"
 
@@ -190,10 +189,10 @@ func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, 
 	return nil
 }
 
-func minioDeleteBucketMetadataImport(_ context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+func minioDeleteBucketMetadataImport(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
 	bucket := d.Get("bucket").(string)
 
-	log.Printf("[DEBUG] Removing bucket metadata import from state for bucket: %s", bucket)
+	tflog.Debug(ctx, "Removing bucket metadata import from state", map[string]interface{}{"bucket": bucket})
 
 	d.SetId("")
 

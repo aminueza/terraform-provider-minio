@@ -9,12 +9,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"io"
-	"log"
-
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v3"
+	"io"
 )
 
 func resourceMinioIAMImport() *schema.Resource {
@@ -124,10 +122,10 @@ func resourceMinioIAMImportRead(_ context.Context, d *schema.ResourceData, _ int
 	return nil
 }
 
-func resourceMinioIAMImportDelete(_ context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
-	log.Printf("[DEBUG] Deleting IAM import (no-op): %s", d.Id())
+func resourceMinioIAMImportDelete(ctx context.Context, d *schema.ResourceData, _ interface{}) diag.Diagnostics {
+	tflog.Debug(ctx, "Deleting IAM import (no-op)", map[string]interface{}{"id": d.Id()})
 	d.SetId("")
-	log.Printf("[DEBUG] Deleted IAM import")
+	tflog.Debug(ctx, "Deleted IAM import")
 	return nil
 }
 

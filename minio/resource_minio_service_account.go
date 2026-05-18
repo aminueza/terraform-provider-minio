@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"strings"
 	"time"
 
@@ -367,7 +366,7 @@ func minioDeleteServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 }
 
 func deleteMinioServiceAccount(ctx context.Context, serviceAccountConfig *S3MinioServiceAccountConfig) (err error) {
-	log.Println("[DEBUG] Deleting service account request:", serviceAccountConfig.MinioAccessKey)
+	tflog.Debug(ctx, "Deleting service account", map[string]interface{}{"access_key": serviceAccountConfig.MinioAccessKey})
 	err = serviceAccountConfig.MinioAdmin.DeleteServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
 	if err == nil {
 		return

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"testing"
 	"time"
 )
@@ -10,7 +11,7 @@ func TestCustomTransport_DefaultTimeout(t *testing.T) {
 		RequestTimeoutSeconds: 30,
 	}
 
-	tr, err := config.customTransport()
+	tr, err := config.customTransport(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -25,7 +26,7 @@ func TestCustomTransport_CustomTimeout(t *testing.T) {
 		RequestTimeoutSeconds: 60,
 	}
 
-	tr, err := config.customTransport()
+	tr, err := config.customTransport(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -40,7 +41,7 @@ func TestCustomTransport_ZeroTimeout(t *testing.T) {
 		RequestTimeoutSeconds: 0,
 	}
 
-	tr, err := config.customTransport()
+	tr, err := config.customTransport(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -57,7 +58,7 @@ func TestCustomTransport_SSLWithTimeout(t *testing.T) {
 		RequestTimeoutSeconds: 45,
 	}
 
-	tr, err := config.customTransport()
+	tr, err := config.customTransport(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -81,7 +82,7 @@ func TestNewClient_PropagatesRetryConfig(t *testing.T) {
 		RetryDelayMs:          2000,
 	}
 
-	client, err := config.NewClient()
+	client, err := config.NewClient(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

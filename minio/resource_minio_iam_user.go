@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"regexp"
 
 	"github.com/hashicorp/go-cty/cty"
@@ -268,7 +267,7 @@ func validateMinioIamUserName(v interface{}, k string) (ws []string, errors []er
 }
 
 func deleteMinioIamUser(ctx context.Context, iamUserConfig *S3MinioIAMUserConfig) error {
-	log.Println("[DEBUG] Deleting IAM User request:", iamUserConfig.MinioIAMName)
+	tflog.Debug(ctx, "Deleting IAM user", map[string]interface{}{"name": iamUserConfig.MinioIAMName})
 	err := iamUserConfig.MinioAdmin.RemoveUser(ctx, iamUserConfig.MinioIAMName)
 	if err != nil {
 		return err

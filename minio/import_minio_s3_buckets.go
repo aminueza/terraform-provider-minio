@@ -35,18 +35,18 @@ func resourceMinioS3BucketImportState(
 		return []*schema.ResourceData{d}, nil
 	}
 
-	_ = d.Set("acl", policyToACLName(bucketConfig, pol))
+	_ = d.Set("acl", policyToACLName(ctx, bucketConfig, pol))
 
 	return []*schema.ResourceData{d}, nil
 }
 
-func policyToACLName(bucketConfig *S3MinioBucket, pol string) string {
+func policyToACLName(ctx context.Context, bucketConfig *S3MinioBucket, pol string) string {
 
 	defaultPolicies := map[string]string{
-		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(ctx, ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-write":      exportPolicyString(ctx, WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read-write": exportPolicyString(ctx, ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public":            exportPolicyString(ctx, PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
 	}
 
 	for name, defaultPolicy := range defaultPolicies {

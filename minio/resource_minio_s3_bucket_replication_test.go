@@ -996,7 +996,7 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limt": "200M",
 			}
 
-			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			bandwidth, ok, _ := ParseBandwidthLimit(context.Background(), target)
 			if !ok {
 				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
@@ -1013,7 +1013,7 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limit": "300M",
 			}
 
-			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			bandwidth, ok, _ := ParseBandwidthLimit(context.Background(), target)
 			if !ok {
 				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
@@ -1031,7 +1031,7 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limit": "300M",
 			}
 
-			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			bandwidth, ok, _ := ParseBandwidthLimit(context.Background(), target)
 			if !ok {
 				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}
@@ -1052,7 +1052,7 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 				"bandwidth_limit": "400M",
 			}
 
-			bandwidth, ok, _ := ParseBandwidthLimit(target)
+			bandwidth, ok, _ := ParseBandwidthLimit(context.Background(), target)
 			if !ok {
 				t.Fatalf("Expected bandwidth to be parsed successfully")
 			}

@@ -3,9 +3,9 @@ package minio
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -26,7 +26,7 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
 
-		log.Printf("[DEBUG] Creating %s: %s", nrc.subsystem, name)
+		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		cfgData := nrc.buildCfg(d, meta)
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
@@ -38,7 +38,7 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 		d.SetId(name)
 		_ = d.Set("restart_required", restart)
 
-		log.Printf("[DEBUG] Created %s: %s (restart_required=%v)", nrc.subsystem, name, restart)
+		tflog.Debug(ctx, "Created notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "restart_required": restart})
 
 		return notifyRead(nrc)(ctx, d, meta)
 	}
@@ -49,16 +49,16 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Id()
 
-		log.Printf("[DEBUG] Reading %s: %s", nrc.subsystem, name)
+		tflog.Debug(ctx, "Reading notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		configKey := notifyConfigKey(nrc.subsystem, name)
 		configData, err := admin.GetConfigKV(ctx, configKey)
 		if err != nil {
-			return handleNotifyReadError(err, nrc.subsystem, name, d)
+			return handleNotifyReadError(ctx, err, nrc.subsystem, name, d)
 		}
 
 		configStr := strings.TrimSpace(string(configData))
-		log.Printf("[DEBUG] Raw config data for %s %s: %s", nrc.subsystem, name, configStr)
+		tflog.Debug(ctx, "Raw notification target config", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "raw": configStr})
 
 		var valueStr string
 		for _, line := range strings.Split(configStr, "\n") {
@@ -94,7 +94,7 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
 
-		log.Printf("[DEBUG] Updating %s: %s", nrc.subsystem, name)
+		tflog.Debug(ctx, "Updating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		cfgData := nrc.buildCfg(d, meta)
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
@@ -105,7 +105,7 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 
 		_ = d.Set("restart_required", restart)
 
-		log.Printf("[DEBUG] Updated %s: %s (restart_required=%v)", nrc.subsystem, name, restart)
+		tflog.Debug(ctx, "Updated notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "restart_required": restart})
 
 		return notifyRead(nrc)(ctx, d, meta)
 	}
@@ -116,7 +116,7 @@ func notifyDelete(nrc notifyResourceConfig) schema.DeleteContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Id()
 
-		log.Printf("[DEBUG] Deleting %s: %s", nrc.subsystem, name)
+		tflog.Debug(ctx, "Deleting notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		configKey := notifyConfigKey(nrc.subsystem, name)
 		_, err := admin.DelConfigKV(ctx, configKey)
@@ -124,7 +124,7 @@ func notifyDelete(nrc notifyResourceConfig) schema.DeleteContextFunc {
 			errMsg := strings.ToLower(err.Error())
 			if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") ||
 				strings.Contains(errMsg, "there is no target") {
-				log.Printf("[WARN] %s %s already removed", nrc.subsystem, name)
+				tflog.Warn(ctx, "Notification target already removed", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 				d.SetId("")
 				return nil
 			}
@@ -132,21 +132,21 @@ func notifyDelete(nrc notifyResourceConfig) schema.DeleteContextFunc {
 		}
 
 		d.SetId("")
-		log.Printf("[DEBUG] Deleted %s: %s", nrc.subsystem, name)
+		tflog.Debug(ctx, "Deleted notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		return nil
 	}
 }
 
-func handleNotifyReadError(err error, subsystem, name string, d *schema.ResourceData) diag.Diagnostics {
+func handleNotifyReadError(ctx context.Context, err error, subsystem, name string, d *schema.ResourceData) diag.Diagnostics {
 	errMsg := strings.ToLower(err.Error())
 	if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
-		log.Printf("[WARN] %s %s no longer exists, removing from state", subsystem, name)
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": subsystem, "name": name})
 		d.SetId("")
 		return nil
 	}
 	if strings.Contains(errMsg, "there is no target") {
-		log.Printf("[WARN] %s %s not yet active (server restart may be required)", subsystem, name)
+		tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": subsystem, "name": name})
 		_ = d.Set("name", name)
 		return nil
 	}

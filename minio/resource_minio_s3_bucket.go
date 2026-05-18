@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -586,10 +585,10 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Di
 	}
 
 	defaultPolicies := map[string]string{
-		"public-write":      exportPolicyString(WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read":       exportPolicyString(ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read-write": exportPolicyString(ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public":            exportPolicyString(PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-write":      exportPolicyString(ctx, WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read":       exportPolicyString(ctx, ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public-read-write": exportPolicyString(ctx, ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
+		"public":            exportPolicyString(ctx, PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
 	}
 
 	policyString, policyExists := defaultPolicies[bucketConfig.MinioACL]
@@ -637,10 +636,10 @@ func removeBucketPolicy(ctx context.Context, bucketConfig *S3MinioBucket) diag.D
 	return nil
 }
 
-func exportPolicyString(policyStruct BucketPolicy, bucketName string) string {
+func exportPolicyString(ctx context.Context, policyStruct BucketPolicy, bucketName string) string {
 	policyJSON, err := json.Marshal(policyStruct)
 	if err != nil {
-		log.Printf("%s", NewResourceErrorStr("unable to parse bucket policy", bucketName, err))
+		tflog.Error(ctx, NewResourceErrorStr("unable to parse bucket policy", bucketName, err))
 		return NewResourceError("unable to parse bucket policy", bucketName, err)[0].Summary
 	}
 	return string(policyJSON)

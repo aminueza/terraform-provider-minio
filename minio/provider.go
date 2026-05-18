@@ -408,7 +408,7 @@ func validateAPIVersion(v interface{}, k string) (ws []string, errors []error) {
 
 func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}, diag.Diagnostics) {
 	minioConfig := NewConfig(d)
-	client, err := minioConfig.NewClient()
+	client, err := minioConfig.NewClient(ctx)
 	if err != nil {
 		return nil, NewResourceError("Failed to create MinIO client", "client_creation", err)
 	}

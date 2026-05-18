@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"log"
 	"math"
 	"net/url"
 	"path"
@@ -275,7 +274,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 }
 
 func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	bucketReplicationConfig, diags := BucketReplicationConfig(d, meta)
+	bucketReplicationConfig, diags := BucketReplicationConfig(ctx, d, meta)
 	replicationConfig := bucketReplicationConfig.ReplicationRules
 
 	if replicationConfig == nil || diags.HasError() {
@@ -284,7 +283,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put replication configuration: %v", bucketReplicationConfig.MinioBucket, replicationConfig))
 
-	cfg, err := convertBucketReplicationConfig(bucketReplicationConfig, replicationConfig)
+	cfg, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
 		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
@@ -325,7 +324,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 }
 
 func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	bucketReplicationConfig, diags := BucketReplicationConfig(d, meta)
+	bucketReplicationConfig, diags := BucketReplicationConfig(ctx, d, meta)
 
 	if diags.HasError() {
 		return diags
@@ -506,7 +505,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 }
 
 func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	bucketReplicationConfig, diags := BucketReplicationConfig(d, meta)
+	bucketReplicationConfig, diags := BucketReplicationConfig(ctx, d, meta)
 
 	if len(bucketReplicationConfig.ReplicationRules) == 0 && !diags.HasError() {
 		tflog.Debug(ctx, fmt.Sprintf("Removing bucket replication for unversioned bucket (%s) from state", d.Id()))
@@ -550,29 +549,27 @@ func toEnableFlag(b bool) string {
 	return "disable"
 }
 
-func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplication, c []S3MinioBucketReplicationRule) (rcfg replication.Config, err error) {
+func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, c []S3MinioBucketReplicationRule) (rcfg replication.Config, err error) {
 	client := bucketReplicationConfig.MinioClient
 	admclient := bucketReplicationConfig.MinioAdmin
 
-	ctx := context.Background()
-
 	rcfg, err = client.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return
 	}
 
 	usedARNs := make([]string, len(c))
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, "")
 	if err != nil {
-		log.Printf("[WARN] Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err)
+		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return
 	}
 
 	for i, rule := range c {
 		err = s3utils.CheckValidBucketName(rule.Target.Bucket)
 		if err != nil {
-			log.Printf("[WARN] Invalid bucket name for %q: %v", rule.Target.Bucket, err)
+			tflog.Warn(ctx, fmt.Sprintf("Invalid bucket name for %q: %v", rule.Target.Bucket, err))
 			return
 		}
 
@@ -580,7 +577,7 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 		if rule.Target.Path != "" {
 			tgtBucket = path.Clean("./" + rule.Target.Path + "/" + tgtBucket)
 		}
-		log.Printf("[DEBUG] Full path to target bucket is %s", tgtBucket)
+		tflog.Debug(ctx, fmt.Sprintf("Full path to target bucket is %s", tgtBucket))
 
 		creds := &madmin.Credentials{AccessKey: rule.Target.AccessKey, SecretKey: rule.Target.SecretKey}
 		bktTarget := &madmin.BucketTarget{
@@ -598,7 +595,7 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 			HealthCheckDuration: rule.Target.HealthCheckPeriod,
 		}
 		targets, _ := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, string(madmin.ReplicationService))
-		log.Printf("[DEBUG] Existing remote targets %q: %v", bucketReplicationConfig.MinioBucket, targets)
+		tflog.Debug(ctx, fmt.Sprintf("Existing remote targets %q: %v", bucketReplicationConfig.MinioBucket, targets))
 		var arn string
 
 		var existingRemoteTarget *madmin.BucketTarget
@@ -615,18 +612,16 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 
 		if existingRemoteTarget == nil || existingRemoteTarget.ReplicationSync != bktTarget.ReplicationSync {
 			if existingRemoteTarget != nil {
-				log.Printf("[DEBUG] Synchronous mode change detected (current: %t, new: %t). Re-creating remote target for bucket %q", existingRemoteTarget.ReplicationSync, bktTarget.ReplicationSync, bucketReplicationConfig.MinioBucket)
+				tflog.Debug(ctx, fmt.Sprintf("Synchronous mode change detected (current: %t, new: %t). Re-creating remote target for bucket %q", existingRemoteTarget.ReplicationSync, bktTarget.ReplicationSync, bucketReplicationConfig.MinioBucket))
 			} else {
-				log.Printf("[DEBUG] Adding new remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget))
+				tflog.Debug(ctx, fmt.Sprintf("Adding new remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget)))
 			}
 			arn, err = admclient.SetRemoteTarget(ctx, bucketReplicationConfig.MinioBucket, bktTarget)
 			if err != nil {
-				log.Printf("[WARN] Unable to configure remote target for bucket %q and targetBucket=%q at endpoint=%q: %v",
-					bucketReplicationConfig.MinioBucket,
+				tflog.Warn(ctx, fmt.Sprintf("Unable to configure remote target for bucket %q and targetBucket=%q at endpoint=%q: %v", bucketReplicationConfig.MinioBucket,
 					bktTarget.TargetBucket,
 					bktTarget.Endpoint,
-					err,
-				)
+					err))
 				return
 			}
 		} else {
@@ -656,15 +651,13 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 				existingRemoteTarget.Path = bktTarget.Path
 				remoteTargetUpdate = append(remoteTargetUpdate, madmin.PathUpdateType)
 			}
-			log.Printf("[DEBUG] Editing remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget))
+			tflog.Debug(ctx, fmt.Sprintf("Editing remote target for bucket %q: %s", bucketReplicationConfig.MinioBucket, formatBucketTargetForLog(bktTarget)))
 			arn, err = admclient.UpdateRemoteTarget(ctx, existingRemoteTarget, remoteTargetUpdate...)
 			if err != nil {
-				log.Printf("[WARN] Unable to update remote target for bucket %q and targetBucket=%q at endpoint=%q: %v",
-					bucketReplicationConfig.MinioBucket,
+				tflog.Warn(ctx, fmt.Sprintf("Unable to update remote target for bucket %q and targetBucket=%q at endpoint=%q: %v", bucketReplicationConfig.MinioBucket,
 					bktTarget.TargetBucket,
 					bktTarget.Endpoint,
-					err,
-				)
+					err))
 				return
 			}
 		}
@@ -698,11 +691,11 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 			rule.Id = xid.New().String()
 			opts.ID = rule.Id
 			opts.Op = replication.AddOption
-			log.Printf("[DEBUG] Adding replication option for rule#%d: %v", i, opts)
+			tflog.Debug(ctx, fmt.Sprintf("Adding replication option for rule#%d: %v", i, opts))
 			err = rcfg.AddRule(opts)
 		} else {
 			opts.Op = replication.SetOption
-			log.Printf("[DEBUG] Editing replication option for rule#%d: %v", i, opts)
+			tflog.Debug(ctx, fmt.Sprintf("Editing replication option for rule#%d: %v", i, opts))
 			err = rcfg.EditRule(opts)
 		}
 
@@ -725,7 +718,7 @@ func convertBucketReplicationConfig(bucketReplicationConfig *S3MinioBucketReplic
 	return
 }
 
-func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result []S3MinioBucketReplicationRule, errs diag.Diagnostics) {
+func getBucketReplicationConfig(ctx context.Context, v []interface{}, d *schema.ResourceData) (result []S3MinioBucketReplicationRule, errs diag.Diagnostics) {
 	if len(v) == 0 || v[0] == nil {
 		return
 	}
@@ -738,26 +731,26 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 			errs = append(errs, diag.Errorf("Unable to extra the rule %d", i)...)
 			continue
 		}
-		log.Printf("[DEBUG] rule[%d] contains %v", i, tfMap)
+		tflog.Debug(ctx, fmt.Sprintf("rule[%d] contains %v", i, tfMap))
 
 		result[i].Arn, _ = tfMap["arn"].(string)
 		result[i].Id, _ = tfMap["id"].(string)
 
 		if result[i].Enabled, ok = tfMap["enabled"].(bool); !ok {
-			log.Printf("[DEBUG] rule[%d].enabled omitted. Defaulting to true", i)
+			tflog.Debug(ctx, fmt.Sprintf("rule[%d].enabled omitted. Defaulting to true", i))
 			result[i].Enabled = true
 		}
 
 		if result[i].Priority, ok = tfMap["priority"].(int); !ok || result[i].Priority == 0 {
 			// Since priorities are always positive, we use a negative value to indicate they were automatically generated
 			result[i].Priority = -len(v) + i
-			log.Printf("[DEBUG] rule[%d].priority omitted. Defaulting to index (%d)", i, -result[i].Priority)
+			tflog.Debug(ctx, fmt.Sprintf("rule[%d].priority omitted. Defaulting to index (%d)", i, -result[i].Priority))
 		}
 
 		result[i].Prefix, _ = tfMap["prefix"].(string)
 
 		if tags, ok := tfMap["tags"].(map[string]interface{}); ok {
-			log.Printf("[DEBUG] rule[%d].tags map contains: %v", i, tags)
+			tflog.Debug(ctx, fmt.Sprintf("rule[%d].tags map contains: %v", i, tags))
 			tagMap := map[string]string{}
 			for k, val := range tags {
 				var valOk bool
@@ -771,7 +764,7 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 			errs = append(errs, diag.Errorf("unable to extarct rule[%d].tags of type %s", i, reflect.TypeOf(tfMap["tags"]))...)
 		}
 
-		log.Printf("[DEBUG] rule[%d].tags are: %v", i, result[i].Tags)
+		tflog.Debug(ctx, fmt.Sprintf("rule[%d].tags are: %v", i, result[i].Tags))
 
 		result[i].DeleteReplication, ok = tfMap["delete_replication"].(bool)
 		result[i].DeleteReplication = result[i].DeleteReplication && ok
@@ -865,7 +858,7 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 
 		var bandwidth uint64
 		var err error
-		bandwidth, ok, parseDiags := ParseBandwidthLimit(target)
+		bandwidth, ok, parseDiags := ParseBandwidthLimit(ctx, target)
 		if len(parseDiags) > 0 {
 			errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as prefix only", i)...)
 		}
@@ -873,7 +866,7 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 		if ok {
 			var bwLimit int64
 			if bandwidth > uint64(math.MaxInt64) {
-				log.Printf("[WARN] Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64))
+				tflog.Warn(ctx, fmt.Sprintf("Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64)))
 				bwLimit = math.MaxInt64 // Clamp to max int64 if overflow would occur
 			} else {
 				bwLimit = int64(bandwidth)
@@ -885,7 +878,7 @@ func getBucketReplicationConfig(v []interface{}, d *schema.ResourceData) (result
 		if healthcheckDuration, ok = target["health_check_period"].(string); ok {
 			result[i].Target.HealthCheckPeriod, err = time.ParseDuration(healthcheckDuration)
 			if err != nil {
-				log.Printf("[WARN] invalid healthcheck value %q: %v", result[i].Target.HealthCheckPeriod, err)
+				tflog.Warn(ctx, fmt.Sprintf("invalid healthcheck value %q: %v", result[i].Target.HealthCheckPeriod, err))
 				errs = append(errs, diag.Errorf("rule[%d].target.health_check_period is invalid. Make sure to use a valid golang time duration notation", i)...)
 			}
 		}

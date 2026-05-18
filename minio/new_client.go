@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"log"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"net"
 	"net/http"
 	"os"
@@ -24,9 +24,9 @@ const (
 
 // NewClient creates and configures both S3 and admin clients for MinIO
 // It handles the setup of credentials, SSL/TLS configuration, and custom transport options
-func (config *S3MinioConfig) NewClient() (interface{}, error) {
+func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error) {
 	// Set up custom transport with SSL/TLS configuration
-	tr, err := config.customTransport()
+	tr, err := config.customTransport(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure transport: %w", err)
 	}
@@ -64,7 +64,7 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 			return nil, fmt.Errorf("failed to assume role: %w", err)
 		}
 		minioCredentials = stsCreds
-		log.Printf("[DEBUG] Using STS AssumeRole credentials (role=%s, session=%s)", config.AssumeRoleARN, config.AssumeRoleSessionName)
+		tflog.Debug(ctx, "Using STS AssumeRole credentials", map[string]interface{}{"role": config.AssumeRoleARN, "session": config.AssumeRoleSessionName})
 	}
 
 	if config.WebIdentityToken != "" || config.WebIdentityTokenFile != "" {
@@ -94,7 +94,7 @@ func (config *S3MinioConfig) NewClient() (interface{}, error) {
 			return nil, fmt.Errorf("failed to assume role with web identity: %w", err)
 		}
 		minioCredentials = wiCreds
-		log.Printf("[DEBUG] Using STS WebIdentity credentials")
+		tflog.Debug(ctx, "Using STS WebIdentity credentials")
 	}
 
 	// Initialize S3 client
@@ -142,7 +142,7 @@ func detectEdition(admin *madmin.AdminClient, s3CompatMode bool) string {
 	defer cancel()
 	info, err := admin.ServerInfo(ctx)
 	if err != nil {
-		log.Printf("[DEBUG] server edition probe failed: %v", err)
+		tflog.Debug(ctx, "server edition probe failed", map[string]interface{}{"err": err.Error()})
 		return ""
 	}
 	for _, srv := range info.Servers {
@@ -165,7 +165,7 @@ func isValidCertificate(certBytes []byte) bool {
 
 // customTransport creates and configures an HTTP transport with SSL/TLS settings
 // It handles CA certificates, client certificates, and verification settings
-func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
+func (config *S3MinioConfig) customTransport(ctx context.Context) (*http.Transport, error) {
 	timeout := time.Duration(config.RequestTimeoutSeconds) * time.Second
 
 	// If SSL is disabled, return default transport with timeout settings
@@ -221,7 +221,7 @@ func (config *S3MinioConfig) customTransport() (*http.Transport, error) {
 	tr.TLSHandshakeTimeout = timeout
 	tr.ResponseHeaderTimeout = timeout
 
-	log.Printf("[DEBUG] MinIO SSL client transport configured successfully")
+	tflog.Debug(ctx, "MinIO SSL client transport configured successfully")
 	return tr, nil
 }
 

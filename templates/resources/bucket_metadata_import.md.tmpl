@@ -1,0 +1,18 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: ""
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+~> **NOTE:** This resource has one-shot semantics. It imports metadata into the bucket on create and does not track drift. If metadata is modified outside Terraform, this resource will not detect the change. Destroying the resource only removes it from Terraform state; the imported metadata remains on the bucket. The full metadata zip (which may contain sensitive configuration such as notification credentials) is persisted in Terraform state; use a secure state backend.
+
+## Example Usage
+
+{{ tffile "examples/resources/minio_bucket_metadata_import/resource.tf" }}
+
+{{ .SchemaMarkdown | trimspace }}

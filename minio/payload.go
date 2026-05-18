@@ -446,7 +446,6 @@ type S3MinioIAMImport struct {
 	IAMData    string
 }
 
-// S3MinioBatchJob defines configuration for a batch job resource.
 type S3MinioBatchJob struct {
 	MinioAdmin *madmin.AdminClient
 	JobType    string

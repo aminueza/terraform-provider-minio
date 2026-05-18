@@ -461,7 +461,6 @@ func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3
 	}
 }
 
-// BatchJobConfig extracts batch job config from resource data.
 func BatchJobConfig(d *schema.ResourceData, meta interface{}) *S3MinioBatchJob {
 	m := meta.(*S3MinioClient)
 

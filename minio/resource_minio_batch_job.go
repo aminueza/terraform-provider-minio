@@ -126,9 +126,6 @@ func minioReadBatchJob(ctx context.Context, d *schema.ResourceData, meta interfa
 	return nil
 }
 
-// minioUpdateBatchJob is a no-op refresh. wait_for_status and
-// wait_timeout_seconds are Create-time-only knobs; changing them on an existing
-// resource has no operational effect, so Update simply re-reads state.
 func minioUpdateBatchJob(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return minioReadBatchJob(ctx, d, meta)
 }
@@ -155,8 +152,6 @@ func minioDeleteBatchJob(ctx context.Context, d *schema.ResourceData, meta inter
 	return nil
 }
 
-// waitForBatchJobStatus polls until the job reaches targetStatus or the timeout
-// elapses. A "failed" status is always treated as a terminal error.
 func waitForBatchJobStatus(ctx context.Context, config *S3MinioBatchJob, jobID string, targetStatus string, timeout time.Duration) diag.Diagnostics {
 	log.Printf("[DEBUG] Waiting for batch job %s to reach status: %s", jobID, targetStatus)
 

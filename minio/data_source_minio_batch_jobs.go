@@ -87,9 +87,6 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 		return NewResourceError("listing batch jobs", jobType, err)
 	}
 
-	// Fetch per-job status concurrently into a pre-allocated slice indexed by job
-	// position. Writing into distinct slice indexes from separate goroutines is
-	// race-free; a shared map would not be.
 	statuses := make([]string, len(result.Jobs))
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(10)
@@ -109,7 +106,6 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 	}
 	_ = g.Wait()
 
-	// Filter jobs in-process by status if requested
 	statusFilter := d.Get("status").(string)
 	var filteredJobs []map[string]interface{}
 	for i, job := range result.Jobs {
@@ -151,7 +147,6 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 	return nil
 }
 
-// bareStatus returns the plain status string for a batch job.
 func bareStatus(status madmin.BatchJobStatus) string {
 	if status.LastMetric.Failed {
 		return "failed"

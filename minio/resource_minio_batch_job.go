@@ -51,12 +51,14 @@ func resourceMinioBatchJob() *schema.Resource {
 			"wait_for_status": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				ForceNew:    true,
 				Description: "Block until the job reaches this status (`started`, `completed`, `failed`). If unset, returns immediately after submission.",
 			},
 			"wait_timeout_seconds": {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Default:     300,
+				ForceNew:    true,
 				Description: "Maximum time in seconds to wait for `wait_for_status`. Defaults to 300.",
 			},
 		},

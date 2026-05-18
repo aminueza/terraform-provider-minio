@@ -4,17 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v3"
 )
 
 func resourceMinioBucketMetadataImport() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state — the imported metadata remains on the bucket.",
+		Description:   "Imports a base64-encoded zip stream of bucket metadata produced by `minio_bucket_metadata_export`. Note: destroying this resource only removes Terraform state; the imported metadata remains on the bucket.",
 		CreateContext: minioCreateBucketMetadataImport,
 		ReadContext:   minioReadBucketMetadataImport,
 		DeleteContext: minioDeleteBucketMetadataImport,
@@ -31,13 +34,6 @@ func resourceMinioBucketMetadataImport() *schema.Resource {
 				ForceNew:    true,
 				Sensitive:   true,
 				Description: "Base64-encoded zip stream of bucket metadata (from minio_bucket_metadata_export).",
-				DiffSuppressFunc: func(k, oldVal, newVal string, d *schema.ResourceData) bool {
-					// After the import has succeeded once (d.Id() is set), suppress any
-					// drift in the input bytes — re-exports of the same bucket are not
-					// byte-identical (zip ordering / timestamps) but the imported
-					// metadata is unchanged on the server.
-					return d.Id() != ""
-				},
 			},
 			"imported_at": {
 				Type:        schema.TypeString,
@@ -62,9 +58,13 @@ func minioCreateBucketMetadataImport(ctx context.Context, d *schema.ResourceData
 
 	reader := io.NopCloser(bytes.NewReader(decoded))
 
-	_, err = admin.ImportBucketMetadata(ctx, bucket, reader)
+	result, err := admin.ImportBucketMetadata(ctx, bucket, reader)
 	if err != nil {
 		return NewResourceError("importing bucket metadata", bucket, err)
+	}
+
+	if diags := checkBucketMetaImportErrs(bucket, result); diags != nil {
+		return diags
 	}
 
 	d.SetId(bucket)
@@ -78,6 +78,56 @@ func minioCreateBucketMetadataImport(ctx context.Context, d *schema.ResourceData
 	log.Printf("[DEBUG] Imported metadata for bucket: %s", bucket)
 
 	return minioReadBucketMetadataImport(ctx, d, meta)
+}
+
+func checkBucketMetaImportErrs(bucket string, result madmin.BucketMetaImportErrs) diag.Diagnostics {
+	bucketStatus, ok := result.Buckets[bucket]
+	if !ok {
+		return nil
+	}
+
+	var diags diag.Diagnostics
+
+	if bucketStatus.Err != "" {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Error,
+			Summary:  fmt.Sprintf("importing bucket metadata for %q", bucket),
+			Detail:   bucketStatus.Err,
+		})
+	}
+
+	type metaField struct {
+		name string
+		ms   madmin.MetaStatus
+	}
+	fields := []metaField{
+		{"object lock", bucketStatus.ObjectLock},
+		{"versioning", bucketStatus.Versioning},
+		{"policy", bucketStatus.Policy},
+		{"tagging", bucketStatus.Tagging},
+		{"SSE config", bucketStatus.SSEConfig},
+		{"lifecycle", bucketStatus.Lifecycle},
+		{"notification", bucketStatus.Notification},
+		{"quota", bucketStatus.Quota},
+		{"CORS", bucketStatus.Cors},
+	}
+
+	var warnings []string
+	for _, f := range fields {
+		if f.ms.IsSet && f.ms.Err != "" {
+			warnings = append(warnings, fmt.Sprintf("%s: %s", f.name, f.ms.Err))
+		}
+	}
+
+	if len(warnings) > 0 {
+		diags = append(diags, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  fmt.Sprintf("partial import for bucket %q; some features failed", bucket),
+			Detail:   "Failed features:\n" + strings.Join(warnings, "\n"),
+		})
+	}
+
+	return diags
 }
 
 func minioReadBucketMetadataImport(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

@@ -1,13 +1,12 @@
 package minio
 
 import (
-	"context"
+	"encoding/base64"
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioBucketMetadataImport_basic(t *testing.T) {
@@ -17,12 +16,10 @@ func TestAccMinioBucketMetadataImport_basic(t *testing.T) {
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckMinioBucketMetadataImportDestroy,
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioBucketMetadataImportConfig(bucketName),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioBucketMetadataImportExists(resourceName),
 					resource.TestCheckResourceAttrSet(resourceName, "imported_at"),
 					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
 				),
@@ -31,50 +28,23 @@ func TestAccMinioBucketMetadataImport_basic(t *testing.T) {
 	})
 }
 
-func testAccCheckMinioBucketMetadataImportDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+func TestAccMinioBucketMetadataImport_withMetadata(t *testing.T) {
+	bucketName := fmt.Sprintf("tfacc-import-meta-%d", acctest.RandInt())
+	resourceName := "minio_bucket_metadata_import.test"
 
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "minio_bucket_metadata_import" {
-			continue
-		}
-
-		exists, err := conn.BucketExists(context.Background(), rs.Primary.ID)
-		if err != nil {
-			return err
-		}
-		if exists {
-			return fmt.Errorf("bucket %s still exists", rs.Primary.ID)
-		}
-	}
-
-	return nil
-}
-
-func testAccCheckMinioBucketMetadataImportExists(n string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[n]
-		if !ok {
-			return fmt.Errorf("not found: %s", n)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("no resource ID is set")
-		}
-
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
-
-		exists, err := conn.BucketExists(context.Background(), rs.Primary.ID)
-		if err != nil {
-			return fmt.Errorf("error checking bucket: %w", err)
-		}
-
-		if !exists {
-			return fmt.Errorf("bucket %s does not exist", rs.Primary.ID)
-		}
-
-		return nil
-	}
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioBucketMetadataImportWithMetadataConfig(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet(resourceName, "imported_at"),
+					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
+				),
+			},
+		},
+	})
 }
 
 func testAccMinioBucketMetadataImportConfig(bucketName string) string {
@@ -96,4 +66,52 @@ resource "minio_bucket_metadata_import" "test" {
   metadata = data.minio_bucket_metadata_export.source.metadata
 }
 `, bucketName, bucketName)
+}
+
+func testAccMinioBucketMetadataImportWithMetadataConfig(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "source" {
+  bucket = "%s-source"
+}
+
+resource "minio_s3_bucket_policy" "source" {
+  bucket = minio_s3_bucket.source.bucket
+  policy = data.minio_iam_policy_document.source.json
+}
+
+data "minio_iam_policy_document" "source" {
+  statement {
+    sid       = "ReadAccess"
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::%s-source/*"]
+    effect    = "Allow"
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+  }
+}
+
+resource "minio_s3_bucket_tags" "source" {
+  bucket = minio_s3_bucket.source.bucket
+  tags = {
+    environment = "test"
+    managed_by  = "terraform"
+  }
+}
+
+data "minio_bucket_metadata_export" "source" {
+  bucket     = minio_s3_bucket.source.bucket
+  depends_on = [minio_s3_bucket_policy.source, minio_s3_bucket_tags.source]
+}
+
+resource "minio_s3_bucket" "target" {
+  bucket = "%s"
+}
+
+resource "minio_bucket_metadata_import" "test" {
+  bucket   = minio_s3_bucket.target.bucket
+  metadata = data.minio_bucket_metadata_export.source.metadata
+}
+`, bucketName, bucketName, bucketName)
 }

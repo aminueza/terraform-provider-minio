@@ -60,6 +60,7 @@ output "all_servers_online" {
 
 - `commit` (String) Git commit hash of the server build
 - `deployment_id` (String) Deployment ID of the MinIO cluster
+- `edition` (String) Edition the provider decided to use for this run (`AIStor` for licensed builds, empty for open-source MinIO). Reflects the manual override, ServerInfo.Edition, and License-based fallback — query this if a bug-report asks what AIStor mode is active.
 - `id` (String) The ID of this resource.
 - `region` (String) Server region
 - `servers` (List of Object) List of servers in the cluster (see [below for nested schema](#nestedatt--servers))

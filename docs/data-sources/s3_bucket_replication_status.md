@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_replication_status Data Source - minio"
+page_title: "minio_s3_bucket_replication_status Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads replication status and metrics for a bucket including rule count, replicated/pending sizes, and error counts.

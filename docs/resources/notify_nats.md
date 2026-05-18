@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_nats Resource - minio"
+page_title: "minio_notify_nats Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages a NATS notification target for MinIO bucket event notifications.

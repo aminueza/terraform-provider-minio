@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_buckets Data Source - minio"
+page_title: "minio_s3_buckets Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Lists all S3 buckets with optional name prefix filtering.

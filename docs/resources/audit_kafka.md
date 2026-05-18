@@ -1,5 +1,5 @@
 ---
-page_title: "minio_audit_kafka Resource - minio"
+page_title: "minio_audit_kafka Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages a Kafka target for MinIO audit log forwarding. Audit events are published to the specified Kafka topic.

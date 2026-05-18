@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_group Data Source - minio"
+page_title: "minio_iam_group Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Retrieves information about a specific IAM group by name.

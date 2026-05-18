@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_user_policies Data Source - minio"
+page_title: "minio_iam_user_policies Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Returns all IAM policies effective for a user, including policies attached directly and inherited from group membership.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_object_lock_configuration Data Source - minio"
+page_title: "minio_s3_bucket_object_lock_configuration Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads the object lock configuration of an existing S3 bucket.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_nsq Data Source - minio"
+page_title: "minio_notify_nsq Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   

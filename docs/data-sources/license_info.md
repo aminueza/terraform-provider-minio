@@ -1,5 +1,5 @@
 ---
-page_title: "minio_license_info Data Source - minio"
+page_title: "minio_license_info Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Retrieves MinIO license information.

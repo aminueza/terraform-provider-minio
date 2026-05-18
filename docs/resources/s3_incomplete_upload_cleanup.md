@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_incomplete_upload_cleanup Resource - minio"
+page_title: "minio_s3_incomplete_upload_cleanup Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Cleans up incomplete/stuck multipart uploads in a MinIO bucket. Uses ListIncompleteUploads and RemoveIncompleteUpload to find and abort multipart uploads that were never completed.

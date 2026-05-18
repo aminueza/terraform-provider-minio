@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_versioning Data Source - minio"
+page_title: "minio_s3_bucket_versioning Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads the versioning configuration of an existing S3 bucket.

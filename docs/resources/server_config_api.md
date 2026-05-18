@@ -1,5 +1,5 @@
 ---
-page_title: "minio_server_config_api Resource - minio"
+page_title: "minio_server_config_api Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages MinIO API server configuration including request throttling, CORS, transition workers, and stale upload cleanup.

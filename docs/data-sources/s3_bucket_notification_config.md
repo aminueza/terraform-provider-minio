@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_notification_config Data Source - minio"
+page_title: "minio_s3_bucket_notification_config Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads the event notification configuration of an existing S3 bucket.

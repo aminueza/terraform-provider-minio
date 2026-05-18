@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_kafka Data Source - minio"
+page_title: "minio_notify_kafka Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   

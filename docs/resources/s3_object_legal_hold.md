@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_object_legal_hold Resource - minio"
+page_title: "minio_s3_object_legal_hold Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages legal hold status for S3 objects in a MinIO bucket. The bucket must have object locking enabled.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_config_restore Resource - minio"
+page_title: "minio_config_restore Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Restores MinIO configuration from a previous point in history. Use with minio_config_history data source to identify restore points.

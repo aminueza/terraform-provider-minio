@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_policy Data Source - minio"
+page_title: "minio_s3_bucket_policy Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Reads the bucket policy document for an existing S3 bucket.

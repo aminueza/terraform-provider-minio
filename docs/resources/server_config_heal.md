@@ -1,5 +1,5 @@
 ---
-page_title: "minio_server_config_heal Resource - minio"
+page_title: "minio_server_config_heal Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages MinIO object healing configuration. Controls background bitrot scanning and data repair settings.

@@ -1,5 +1,5 @@
 ---
-page_title: "minio_server_config_region Resource - minio"
+page_title: "minio_server_config_region Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages MinIO server region/site name configuration.

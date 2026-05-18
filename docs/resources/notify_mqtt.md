@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_mqtt Resource - minio"
+page_title: "minio_notify_mqtt Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Manages an MQTT notification target for MinIO bucket event notifications.

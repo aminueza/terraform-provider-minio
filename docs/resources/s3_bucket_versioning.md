@@ -1,5 +1,5 @@
 ---
-page_title: "minio_s3_bucket_versioning Resource - minio"
+page_title: "minio_s3_bucket_versioning Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   

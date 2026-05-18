@@ -1,5 +1,5 @@
 ---
-page_title: "minio_notify_postgres Data Source - minio"
+page_title: "minio_notify_postgres Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   

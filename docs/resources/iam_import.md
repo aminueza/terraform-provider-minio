@@ -1,5 +1,5 @@
 ---
-page_title: "minio_iam_import Resource - minio"
+page_title: "minio_iam_import Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
   Imports an IAM configuration into the MinIO server (users, groups, policies, service accounts). Pair with data.minio_iam_export for cross-cluster migration or backup/restore. MinIO's export embeds non-deterministic zip metadata, so chaining data.minio_iam_export -> minio_iam_import in the same root module shows drift on every plan even when IAM is unchanged. For stable plans, run export and import in separate states, or set lifecycle { ignore_changes = [iam_data] } once the initial import has succeeded. Delete is a no-op: MinIO does not provide a primitive to undo an import. To purge imported entities, manage them as individual minio_iam_* resources or remove them out-of-band.

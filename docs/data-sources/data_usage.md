@@ -1,5 +1,5 @@
 ---
-page_title: "minio_data_usage Data Source - minio"
+page_title: "minio_data_usage Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Returns cluster-wide data usage statistics including total objects, size, and per-bucket breakdown.

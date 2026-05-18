@@ -1,5 +1,5 @@
 ---
-page_title: "minio_storage_info Data Source - minio"
+page_title: "minio_storage_info Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Returns disk and drive status for all MinIO server nodes. Essential for capacity planning and health monitoring.

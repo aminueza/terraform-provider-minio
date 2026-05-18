@@ -1,5 +1,5 @@
 ---
-page_title: "minio_bucket_metadata_export Data Source - minio"
+page_title: "minio_bucket_metadata_export Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
   Exports a base64-encoded zip stream containing the metadata (policies, tagging, notification, ILM, etc.) for a single bucket. Use together with minio_bucket_metadata_import to copy metadata between buckets.

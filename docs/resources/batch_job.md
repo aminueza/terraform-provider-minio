@@ -2,12 +2,12 @@
 page_title: "minio_batch_job Resource - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Manages a MinIO batch job (replicate, expire, or keyrotate).
+  Manages a MinIO batch job (replicate, expire, or keyrotate). Batch jobs are asynchronous; this resource submits the job and tracks its status. Use wait_for_status to optionally block until the job reaches a desired state. Import is not supported because the job YAML definition cannot be retrieved from the MinIO API.
 ---
 
 # minio_batch_job (Resource)
 
-Manages a MinIO batch job (replicate, expire, or keyrotate).
+Manages a MinIO batch job (replicate, expire, or keyrotate). Batch jobs are asynchronous; this resource submits the job and tracks its status. Use `wait_for_status` to optionally block until the job reaches a desired state. Import is not supported because the job YAML definition cannot be retrieved from the MinIO API.
 
 ## Example Usage
 
@@ -32,7 +32,12 @@ EOF
 ### Required
 
 - `job_type` (String) Batch job type. One of `replicate`, `expire`, `keyrotate`.
-- `job_yaml` (String) YAML job definition for the batch operation.
+- `job_yaml` (String, Sensitive) YAML job definition for the batch operation.
+
+### Optional
+
+- `wait_for_status` (String) Block until the job reaches this status (`started`, `completed`, `failed`). If unset, returns immediately after submission.
+- `wait_timeout_seconds` (Number) Maximum time in seconds to wait for `wait_for_status`. Defaults to 300.
 
 ### Read-Only
 

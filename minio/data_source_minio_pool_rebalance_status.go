@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -46,17 +47,17 @@ func dataSourceMinioPoolRebalanceStatus() *schema.Resource {
 							Elem: &schema.Resource{
 								Schema: map[string]*schema.Schema{
 									"num_objects": {
-										Type:        schema.TypeInt,
+										Type:        schema.TypeString,
 										Computed:    true,
 										Description: "Number of objects rebalanced so far.",
 									},
 									"num_versions": {
-										Type:        schema.TypeInt,
+										Type:        schema.TypeString,
 										Computed:    true,
 										Description: "Number of object versions rebalanced so far.",
 									},
 									"bytes": {
-										Type:        schema.TypeInt,
+										Type:        schema.TypeString,
 										Computed:    true,
 										Description: "Number of bytes rebalanced so far.",
 									},
@@ -117,23 +118,10 @@ func dataSourceMinioPoolRebalanceStatusRead(ctx context.Context, d *schema.Resou
 			"used":  p.Used,
 		}
 
-		objects, ok := SafeUint64ToInt64(p.Progress.NumObjects)
-		if !ok {
-			objects = int64(p.Progress.NumObjects)
-		}
-		versions, ok := SafeUint64ToInt64(p.Progress.NumVersions)
-		if !ok {
-			versions = int64(p.Progress.NumVersions)
-		}
-		bytes, ok := SafeUint64ToInt64(p.Progress.Bytes)
-		if !ok {
-			bytes = int64(p.Progress.Bytes)
-		}
-
 		poolMap["progress"] = []map[string]interface{}{{
-			"num_objects":  objects,
-			"num_versions": versions,
-			"bytes":        bytes,
+			"num_objects":  strconv.FormatUint(p.Progress.NumObjects, 10),
+			"num_versions": strconv.FormatUint(p.Progress.NumVersions, 10),
+			"bytes":        strconv.FormatUint(p.Progress.Bytes, 10),
 			"bucket":       p.Progress.Bucket,
 			"object":       p.Progress.Object,
 			"elapsed":      p.Progress.Elapsed.String(),

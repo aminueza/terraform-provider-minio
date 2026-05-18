@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -11,6 +12,10 @@ import (
 // single-pool environment the operation is a no-op but the resource
 // lifecycle (create/read/delete) still exercises the API correctly.
 func TestAccMinioPoolRebalance_basic(t *testing.T) {
+	if os.Getenv("SKIP_REBALANCE_TEST") != "0" {
+		t.Skip("skipping rebalance test (requires multi-pool MinIO); set SKIP_REBALANCE_TEST=0 to enable")
+	}
+
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,

@@ -118,5 +118,6 @@ func isRebalanceNotFoundError(err error) bool {
 	return strings.Contains(msg, "no rebalance") ||
 		strings.Contains(msg, "not running") ||
 		strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "does not exist")
+		strings.Contains(msg, "does not exist") ||
+		strings.Contains(msg, "not started")
 }

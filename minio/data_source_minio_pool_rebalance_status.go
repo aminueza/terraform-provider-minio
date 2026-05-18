@@ -98,6 +98,16 @@ func dataSourceMinioPoolRebalanceStatusRead(ctx context.Context, d *schema.Resou
 
 	status, err := admin.RebalanceStatus(ctx)
 	if err != nil {
+		if isRebalanceNotFoundError(err) {
+			if err := d.Set("status", "stopped"); err != nil {
+				return NewResourceError("setting status", "pool_rebalance_status", err)
+			}
+			if err := d.Set("pools", []interface{}{}); err != nil {
+				return NewResourceError("setting pools", "pool_rebalance_status", err)
+			}
+			d.SetId("pool_rebalance_status")
+			return nil
+		}
 		return NewResourceError("reading pool rebalance status", "pool_rebalance_status", err)
 	}
 

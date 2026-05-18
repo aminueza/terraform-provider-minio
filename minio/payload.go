@@ -445,3 +445,9 @@ type S3MinioIAMImport struct {
 	MinioAdmin *madmin.AdminClient
 	IAMData    string
 }
+
+// S3MinioPoolDecommission defines configuration for pool decommission.
+type S3MinioPoolDecommission struct {
+	MinioAdmin *madmin.AdminClient
+	PoolIndex  int
+}

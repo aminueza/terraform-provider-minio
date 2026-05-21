@@ -46,6 +46,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 			"sasl_mechanism": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "SASL mechanism (plain, scram-sha-256, scram-sha-512).",
 			},
 			"tls": {
@@ -108,7 +109,7 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["sasl_username"]; ok && v != "" {
 		_ = d.Set("sasl_username", v)
 	}
-	if v, ok := cfgMap["sasl_mechanism"]; ok && v != "" {
+	if v, ok := cfgMap["sasl_mechanism"]; ok {
 		_ = d.Set("sasl_mechanism", v)
 	}
 	if v, ok := cfgMap["client_tls_cert"]; ok && v != "" {

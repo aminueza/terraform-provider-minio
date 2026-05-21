@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -136,6 +137,62 @@ resource "minio_server_config_heal" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "bitrotscan", "on"),
 					resource.TestCheckResourceAttr(resourceName, "max_sleep", "250ms"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioServerConfigStorageClass_basic(t *testing.T) {
+	resourceName := "minio_server_config_storage_class.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `resource "minio_server_config_storage_class" "test" {}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttrSet(resourceName, "id"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+// TestAccMinioServerConfigEtcd_basic requires TF_ACC_ETCD_ENDPOINTS to be set.
+// No etcd is available in the standard CI environment, so this is skipped by default.
+func TestAccMinioServerConfigEtcd_basic(t *testing.T) {
+	endpoints := os.Getenv("TF_ACC_ETCD_ENDPOINTS")
+	if endpoints == "" {
+		t.Skip("TF_ACC_ETCD_ENDPOINTS not set — skipping etcd config acceptance test")
+	}
+
+	resourceName := "minio_server_config_etcd.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_etcd" "test" {
+  endpoints = "` + endpoints + `"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "endpoints", endpoints),
 				),
 			},
 			{

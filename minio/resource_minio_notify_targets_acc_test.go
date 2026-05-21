@@ -2,18 +2,26 @@ package minio
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// All notify target acceptance tests use enable=false so the MinIO server
-// stores the configuration without attempting to connect to the target service.
-// This allows the tests to run in the standard CI environment without requiring
-// external message brokers or databases.
+// All broker-based notify target acceptance tests are guarded by an environment
+// variable so they can be skipped in CI environments where the external service
+// is not available.
+//
+// HTTP-based targets (logger_webhook) do not establish a persistent connection
+// on config apply and therefore work with any URL when enable=false.
 
 func TestAccMinioNotifyAmqp_basic(t *testing.T) {
+	amqpURL := os.Getenv("TF_ACC_AMQP_URL")
+	if amqpURL == "" {
+		t.Skip("TF_ACC_AMQP_URL not set — skipping AMQP notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_amqp.test"
 
@@ -23,16 +31,15 @@ func TestAccMinioNotifyAmqp_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyAmqpConfig(name),
+				Config: testAccMinioNotifyAmqpConfig(name, amqpURL),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "url", "amqp://guest:guest@localhost:5672"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
 			},
 			{
-				Config: testAccMinioNotifyAmqpConfigUpdate(name),
+				Config: testAccMinioNotifyAmqpConfigUpdate(name, amqpURL),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "exchange", "my-exchange"),
 					resource.TestCheckResourceAttr(resourceName, "routing_key", "events"),
@@ -43,6 +50,11 @@ func TestAccMinioNotifyAmqp_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyKafka_basic(t *testing.T) {
+	brokers := os.Getenv("TF_ACC_KAFKA_BROKERS")
+	if brokers == "" {
+		t.Skip("TF_ACC_KAFKA_BROKERS not set — skipping Kafka notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_kafka.test"
 
@@ -52,11 +64,11 @@ func TestAccMinioNotifyKafka_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyKafkaConfig(name),
+				Config: testAccMinioNotifyKafkaConfig(name, brokers),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "brokers", "localhost:9092"),
+					resource.TestCheckResourceAttr(resourceName, "brokers", brokers),
 					resource.TestCheckResourceAttr(resourceName, "topic", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
@@ -66,6 +78,11 @@ func TestAccMinioNotifyKafka_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyMqtt_basic(t *testing.T) {
+	broker := os.Getenv("TF_ACC_MQTT_BROKER")
+	if broker == "" {
+		t.Skip("TF_ACC_MQTT_BROKER not set — skipping MQTT notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_mqtt.test"
 
@@ -75,11 +92,11 @@ func TestAccMinioNotifyMqtt_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyMqttConfig(name),
+				Config: testAccMinioNotifyMqttConfig(name, broker),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "broker", "tcp://localhost:1883"),
+					resource.TestCheckResourceAttr(resourceName, "broker", broker),
 					resource.TestCheckResourceAttr(resourceName, "topic", "minio/events"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
@@ -89,6 +106,11 @@ func TestAccMinioNotifyMqtt_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyNats_basic(t *testing.T) {
+	address := os.Getenv("TF_ACC_NATS_ADDRESS")
+	if address == "" {
+		t.Skip("TF_ACC_NATS_ADDRESS not set — skipping NATS notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_nats.test"
 
@@ -98,11 +120,11 @@ func TestAccMinioNotifyNats_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyNatsConfig(name),
+				Config: testAccMinioNotifyNatsConfig(name, address),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "address", "localhost:4222"),
+					resource.TestCheckResourceAttr(resourceName, "address", address),
 					resource.TestCheckResourceAttr(resourceName, "subject", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
@@ -112,6 +134,11 @@ func TestAccMinioNotifyNats_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyNsq_basic(t *testing.T) {
+	nsqdAddress := os.Getenv("TF_ACC_NSQ_ADDRESS")
+	if nsqdAddress == "" {
+		t.Skip("TF_ACC_NSQ_ADDRESS not set — skipping NSQ notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_nsq.test"
 
@@ -121,11 +148,11 @@ func TestAccMinioNotifyNsq_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyNsqConfig(name),
+				Config: testAccMinioNotifyNsqConfig(name, nsqdAddress),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "nsqd_address", "localhost:4150"),
+					resource.TestCheckResourceAttr(resourceName, "nsqd_address", nsqdAddress),
 					resource.TestCheckResourceAttr(resourceName, "topic", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
@@ -135,6 +162,11 @@ func TestAccMinioNotifyNsq_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyMysql_basic(t *testing.T) {
+	dsn := os.Getenv("TF_ACC_MYSQL_DSN")
+	if dsn == "" {
+		t.Skip("TF_ACC_MYSQL_DSN not set — skipping MySQL notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_mysql.test"
 
@@ -144,7 +176,7 @@ func TestAccMinioNotifyMysql_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyMysqlConfig(name),
+				Config: testAccMinioNotifyMysqlConfig(name, dsn),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
@@ -158,6 +190,11 @@ func TestAccMinioNotifyMysql_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyPostgres_basic(t *testing.T) {
+	dsn := os.Getenv("TF_ACC_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("TF_ACC_POSTGRES_DSN not set — skipping PostgreSQL notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_postgres.test"
 
@@ -167,7 +204,7 @@ func TestAccMinioNotifyPostgres_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyPostgresConfig(name),
+				Config: testAccMinioNotifyPostgresConfig(name, dsn),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
@@ -181,6 +218,11 @@ func TestAccMinioNotifyPostgres_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyElasticsearch_basic(t *testing.T) {
+	esURL := os.Getenv("TF_ACC_ELASTICSEARCH_URL")
+	if esURL == "" {
+		t.Skip("TF_ACC_ELASTICSEARCH_URL not set — skipping Elasticsearch notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_elasticsearch.test"
 
@@ -190,11 +232,11 @@ func TestAccMinioNotifyElasticsearch_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyElasticsearchConfig(name),
+				Config: testAccMinioNotifyElasticsearchConfig(name, esURL),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "url", "http://localhost:9200"),
+					resource.TestCheckResourceAttr(resourceName, "url", esURL),
 					resource.TestCheckResourceAttr(resourceName, "index", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "format", "namespace"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
@@ -205,6 +247,11 @@ func TestAccMinioNotifyElasticsearch_basic(t *testing.T) {
 }
 
 func TestAccMinioNotifyRedis_basic(t *testing.T) {
+	address := os.Getenv("TF_ACC_REDIS_ADDRESS")
+	if address == "" {
+		t.Skip("TF_ACC_REDIS_ADDRESS not set — skipping Redis notify target acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_redis.test"
 
@@ -214,11 +261,11 @@ func TestAccMinioNotifyRedis_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioNotifyRedisConfig(name),
+				Config: testAccMinioNotifyRedisConfig(name, address),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "address", "localhost:6379"),
+					resource.TestCheckResourceAttr(resourceName, "address", address),
 					resource.TestCheckResourceAttr(resourceName, "key", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "format", "namespace"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
@@ -242,7 +289,7 @@ func TestAccMinioLoggerWebhook_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://log-collector:8080/logs"),
+					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://log-collector.example.com/logs"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
 			},
@@ -257,6 +304,11 @@ func TestAccMinioLoggerWebhook_basic(t *testing.T) {
 }
 
 func TestAccMinioAuditKafka_basic(t *testing.T) {
+	brokers := os.Getenv("TF_ACC_KAFKA_BROKERS")
+	if brokers == "" {
+		t.Skip("TF_ACC_KAFKA_BROKERS not set — skipping audit_kafka acceptance test")
+	}
+
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_audit_kafka.test"
 
@@ -266,11 +318,11 @@ func TestAccMinioAuditKafka_basic(t *testing.T) {
 		CheckDestroy:      testAccCheckNotifyTargetDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccMinioAuditKafkaConfig(name),
+				Config: testAccMinioAuditKafkaConfig(name, brokers),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "brokers", "localhost:9092"),
+					resource.TestCheckResourceAttr(resourceName, "brokers", brokers),
 					resource.TestCheckResourceAttr(resourceName, "topic", "minio-audit"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
@@ -279,125 +331,125 @@ func TestAccMinioAuditKafka_basic(t *testing.T) {
 	})
 }
 
-func testAccMinioNotifyAmqpConfig(name string) string {
+func testAccMinioNotifyAmqpConfig(name, amqpURL string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_amqp" "test" {
   name   = %[1]q
-  url    = "amqp://guest:guest@localhost:5672"
+  url    = %[2]q
   enable = false
 }
-`, name)
+`, name, amqpURL)
 }
 
-func testAccMinioNotifyAmqpConfigUpdate(name string) string {
+func testAccMinioNotifyAmqpConfigUpdate(name, amqpURL string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_amqp" "test" {
   name        = %[1]q
-  url         = "amqp://guest:guest@localhost:5672"
+  url         = %[2]q
   exchange    = "my-exchange"
   routing_key = "events"
   enable      = false
 }
-`, name)
+`, name, amqpURL)
 }
 
-func testAccMinioNotifyKafkaConfig(name string) string {
+func testAccMinioNotifyKafkaConfig(name, brokers string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_kafka" "test" {
   name    = %[1]q
-  brokers = "localhost:9092"
+  brokers = %[2]q
   topic   = "minio-events"
   enable  = false
 }
-`, name)
+`, name, brokers)
 }
 
-func testAccMinioNotifyMqttConfig(name string) string {
+func testAccMinioNotifyMqttConfig(name, broker string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_mqtt" "test" {
   name   = %[1]q
-  broker = "tcp://localhost:1883"
+  broker = %[2]q
   topic  = "minio/events"
   enable = false
 }
-`, name)
+`, name, broker)
 }
 
-func testAccMinioNotifyNatsConfig(name string) string {
+func testAccMinioNotifyNatsConfig(name, address string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_nats" "test" {
   name    = %[1]q
-  address = "localhost:4222"
+  address = %[2]q
   subject = "minio-events"
   enable  = false
 }
-`, name)
+`, name, address)
 }
 
-func testAccMinioNotifyNsqConfig(name string) string {
+func testAccMinioNotifyNsqConfig(name, nsqdAddress string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_nsq" "test" {
   name         = %[1]q
-  nsqd_address = "localhost:4150"
+  nsqd_address = %[2]q
   topic        = "minio-events"
   enable       = false
 }
-`, name)
+`, name, nsqdAddress)
 }
 
-func testAccMinioNotifyMysqlConfig(name string) string {
+func testAccMinioNotifyMysqlConfig(name, dsn string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_mysql" "test" {
   name              = %[1]q
-  connection_string = "root:password@tcp(localhost:3306)/minio"
+  connection_string = %[2]q
   table             = "minio_events"
   format            = "namespace"
   enable            = false
 }
-`, name)
+`, name, dsn)
 }
 
-func testAccMinioNotifyPostgresConfig(name string) string {
+func testAccMinioNotifyPostgresConfig(name, dsn string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_postgres" "test" {
   name              = %[1]q
-  connection_string = "postgres://postgres:password@localhost:5432/minio?sslmode=disable"
+  connection_string = %[2]q
   table             = "minio_events"
   format            = "namespace"
   enable            = false
 }
-`, name)
+`, name, dsn)
 }
 
-func testAccMinioNotifyElasticsearchConfig(name string) string {
+func testAccMinioNotifyElasticsearchConfig(name, esURL string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_elasticsearch" "test" {
   name   = %[1]q
-  url    = "http://localhost:9200"
+  url    = %[2]q
   index  = "minio-events"
   format = "namespace"
   enable = false
 }
-`, name)
+`, name, esURL)
 }
 
-func testAccMinioNotifyRedisConfig(name string) string {
+func testAccMinioNotifyRedisConfig(name, address string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_redis" "test" {
   name    = %[1]q
-  address = "localhost:6379"
+  address = %[2]q
   key     = "minio-events"
   format  = "namespace"
   enable  = false
 }
-`, name)
+`, name, address)
 }
 
 func testAccMinioLoggerWebhookConfig(name string) string {
 	return fmt.Sprintf(`
 resource "minio_logger_webhook" "test" {
   name     = %[1]q
-  endpoint = "http://log-collector:8080/logs"
+  endpoint = "http://log-collector.example.com/logs"
   enable   = false
 }
 `, name)
@@ -407,20 +459,20 @@ func testAccMinioLoggerWebhookConfigUpdate(name string) string {
 	return fmt.Sprintf(`
 resource "minio_logger_webhook" "test" {
   name       = %[1]q
-  endpoint   = "http://log-collector:8080/logs"
+  endpoint   = "http://log-collector.example.com/logs"
   batch_size = 100
   enable     = false
 }
 `, name)
 }
 
-func testAccMinioAuditKafkaConfig(name string) string {
+func testAccMinioAuditKafkaConfig(name, brokers string) string {
 	return fmt.Sprintf(`
 resource "minio_audit_kafka" "test" {
   name    = %[1]q
-  brokers = "localhost:9092"
+  brokers = %[2]q
   topic   = "minio-audit"
   enable  = false
 }
-`, name)
+`, name, brokers)
 }

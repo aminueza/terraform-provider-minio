@@ -62,19 +62,20 @@ func TestAccMinioS3ObjectRetention_update(t *testing.T) {
 func testAccS3ObjectRetentionConfig(bucket, retainUntil string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
-  bucket        = %[1]q
+  bucket         = %[1]q
   object_locking = true
+  force_destroy  = true
 }
 
 resource "minio_s3_object" "test" {
-  bucket  = minio_s3_bucket.test.id
-  key     = "test-object.txt"
-  content = "hello"
+  bucket_name = minio_s3_bucket.test.id
+  object_name = "test-object.txt"
+  content     = "hello"
 }
 
 resource "minio_s3_object_retention" "test" {
   bucket            = minio_s3_bucket.test.id
-  key               = minio_s3_object.test.key
+  key               = minio_s3_object.test.object_name
   mode              = "GOVERNANCE"
   retain_until_date = %[2]q
 }
@@ -84,19 +85,20 @@ resource "minio_s3_object_retention" "test" {
 func testAccS3ObjectRetentionConfigGovernanceBypass(bucket, retainUntil string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
-  bucket        = %[1]q
+  bucket         = %[1]q
   object_locking = true
+  force_destroy  = true
 }
 
 resource "minio_s3_object" "test" {
-  bucket  = minio_s3_bucket.test.id
-  key     = "test-object.txt"
-  content = "hello"
+  bucket_name = minio_s3_bucket.test.id
+  object_name = "test-object.txt"
+  content     = "hello"
 }
 
 resource "minio_s3_object_retention" "test" {
   bucket            = minio_s3_bucket.test.id
-  key               = minio_s3_object.test.key
+  key               = minio_s3_object.test.object_name
   mode              = "GOVERNANCE"
   retain_until_date = %[2]q
   governance_bypass = true

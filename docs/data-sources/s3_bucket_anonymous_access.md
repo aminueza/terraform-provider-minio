@@ -2,12 +2,12 @@
 page_title: "minio_s3_bucket_anonymous_access Data Source - terraform-provider-minio"
 subcategory: ""
 description: |-
-  Reads the anonymous access policy for an existing MinIO bucket, returning the raw policy JSON and the derived canned access type.
+  Reads the anonymous access policy for an existing MinIO bucket, returning the raw policy JSON and the derived canned access type when the policy matches one of the known canned forms.
 ---
 
 # minio_s3_bucket_anonymous_access (Data Source)
 
-Reads the anonymous access policy for an existing MinIO bucket, returning the raw policy JSON and the derived canned access type when the policy matches one of the known canned forms (`public`, `public-read`, `public-read-write`, `public-write`).
+Reads the anonymous access policy for an existing MinIO bucket, returning the raw policy JSON and the derived canned access type when the policy matches one of the known canned forms.
 
 ## Example Usage
 

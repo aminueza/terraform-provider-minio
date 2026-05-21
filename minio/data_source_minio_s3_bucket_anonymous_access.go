@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
 )
 
 func dataSourceMinioS3BucketAnonymousAccess() *schema.Resource {
@@ -46,11 +47,16 @@ func dataSourceMinioS3BucketAnonymousAccessRead(ctx context.Context, d *schema.R
 
 	d.SetId(bucket)
 
-	if err := d.Set("policy", policy); err != nil {
+	normalizedPolicy, err := structure.NormalizeJsonString(policy)
+	if err != nil {
+		return NewResourceError("normalizing policy JSON", bucket, err)
+	}
+
+	if err := d.Set("policy", normalizedPolicy); err != nil {
 		return NewResourceError("setting policy", bucket, err)
 	}
 
-	accessType, err := getAccessTypeFromPolicy(policy, bucket, client)
+	accessType, err := getAccessTypeFromPolicy(normalizedPolicy, bucket, client)
 	if err != nil {
 		return NewResourceError("determining access_type", bucket, err)
 	}

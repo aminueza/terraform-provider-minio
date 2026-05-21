@@ -284,6 +284,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_replication":               dataSourceMinioS3BucketReplication(),
 			"minio_ilm_policy":                          dataSourceMinioILMPolicy(),
 			"minio_iam_user_policies":                   dataSourceIAMUserPolicies(),
+			"minio_s3_bucket_anonymous_access":          dataSourceMinioS3BucketAnonymousAccess(),
 			"minio_s3_bucket_policy":                    dataSourceMinioS3BucketPolicy(),
 			"minio_account_info":                        dataSourceMinioAccountInfo(),
 			"minio_storage_info":                        dataSourceMinioStorageInfo(),

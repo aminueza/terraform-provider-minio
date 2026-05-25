@@ -1,0 +1,76 @@
+name: Update Go Toolchain
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 6am UTC, same cadence as Dependabot
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-toolchain:
+    name: Bump toolchain directive to latest patch
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@900f2210b1d28bbbd0bd22d17926b9e224e8f231 # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version-file: "go.mod"
+          cache: false
+
+      - name: Bump toolchain to latest patch
+        run: |
+          go get toolchain@patch
+          go mod tidy
+
+      - name: Check for changes
+        id: diff
+        run: |
+          if git diff --quiet go.mod go.sum; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            # After `go get toolchain@patch`, go.mod will have a `toolchain goX.Y.Z` line
+            # when the new patch differs from the `go` minimum directive.
+            # If `go` and `toolchain` are equal, tidy removes the toolchain line and
+            # updates the `go` line instead.
+            TOOLCHAIN=$(grep '^toolchain' go.mod | awk '{print $2}')
+            if [ -z "$TOOLCHAIN" ]; then
+              TOOLCHAIN=$(grep '^go ' go.mod | awk '{print "go"$2}')
+            fi
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "toolchain=${TOOLCHAIN}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TOOLCHAIN="${{ steps.diff.outputs.toolchain }}"
+          BRANCH="chore/toolchain-${TOOLCHAIN}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${BRANCH}"
+          git add go.mod go.sum
+          git commit -m "chore: update Go toolchain to ${TOOLCHAIN}"
+          git push origin "${BRANCH}"
+
+          gh pr create \
+            --title "chore: update Go toolchain to ${TOOLCHAIN}" \
+            --body "Automated weekly toolchain bump.
+
+Bumps the \`toolchain\` directive to the latest patch of the current Go minor via \`go get toolchain@patch\`. Once the toolchain diverges from the \`go\` minimum, both directives coexist — the \`go\` line stays pinned as the minimum API guarantee while \`toolchain\` tracks the actual build toolchain." \
+            --head "${BRANCH}" \
+            --base main \
+            --reviewer aminueza \
+            --label "dependencies"

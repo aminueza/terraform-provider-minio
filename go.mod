@@ -1,8 +1,6 @@
 module github.com/aminueza/terraform-provider-minio/v3
 
-go 1.25.10
-
-toolchain go1.26.3
+go 1.26.3
 
 require (
 	github.com/dustin/go-humanize v1.0.1

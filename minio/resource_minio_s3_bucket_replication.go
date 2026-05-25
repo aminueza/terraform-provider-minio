@@ -390,7 +390,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			"metadata_sync":               rule.SourceSelectionCriteria.ReplicaModifications.Status == replication.Enabled,
 		}
 
-		tflog.Debug(ctx, fmt.Sprintf("Rule data for rule#%d is: %q", ruleIdx, rule))
+		tflog.Debug(ctx, fmt.Sprintf("Rule data for rule#%d is: %+v", ruleIdx, rule))
 
 		if len(rule.Filter.And.Tags) != 0 || rule.Filter.And.Prefix != "" {
 			tags := map[string]string{}

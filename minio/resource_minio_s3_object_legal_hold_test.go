@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -98,8 +99,18 @@ func testAccCheckMinioObjectLegalHoldDestroy(s *terraform.State) error {
 		status, err := client.S3Client.GetObjectLegalHold(ctx, bucket, key, minio.GetObjectLegalHoldOptions{})
 		if err != nil {
 			var minioErr minio.ErrorResponse
-			if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchVersion" || minioErr.Code == "NoSuchBucket") {
-				continue
+			if errors.As(err, &minioErr) {
+				switch minioErr.Code {
+				case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
+					continue
+				case "InvalidRequest":
+					// MinIO returns InvalidRequest with "Bucket is missing ObjectLockConfiguration"
+					// when the bucket was deleted (object-lock metadata is gone before the bucket
+					// entry itself). Treat as absent.
+					if strings.Contains(minioErr.Message, "ObjectLockConfiguration") {
+						continue
+					}
+				}
 			}
 			return fmt.Errorf("error checking legal hold for %s: %s", rs.Primary.ID, err)
 		}

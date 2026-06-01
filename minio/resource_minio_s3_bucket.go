@@ -681,9 +681,15 @@ func validateS3BucketName(value string) error {
 }
 
 func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, bucket string) (bool, diag.Diagnostics) {
-	location, err := bucketConfig.MinioClient.GetBucketLocation(ctx, bucket)
+	// GetBucketLocation short-circuits when the client has an explicit region set,
+	// returning the configured region without querying the server. This makes it
+	// useless as an existence check when minio_region is set. Use StatObject instead:
+	// it always hits the server and distinguishes NoSuchBucket (bucket gone) from
+	// NoSuchKey (bucket present, probe object just doesn't exist).
+	_, err := bucketConfig.MinioClient.StatObject(ctx, bucket, "__bucket_existence_probe__", minio.StatObjectOptions{})
 	if err == nil {
-		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] location %q confirmed after existence check failure", bucket, location))
+		// Probe object somehow exists — bucket is definitely present.
+		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] confirmed via StatObject probe", bucket))
 		return true, nil
 	}
 
@@ -698,7 +704,15 @@ func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, buc
 		return false, nil
 	}
 
-	return false, NewResourceError("error verifying bucket existence", bucket, err)
+	if errResp.Code == "NoSuchKey" {
+		// Probe object doesn't exist but the bucket does — bucket is present.
+		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] confirmed after existence check failure", bucket))
+		return true, nil
+	}
+
+	// Unknown error — conservative: treat as absent and let the retry loop decide.
+	tflog.Warn(ctx, fmt.Sprintf("Unexpected error probing bucket [%s]: %s", bucket, err))
+	return false, nil
 }
 
 func isCredentialError(errResp minio.ErrorResponse) bool {

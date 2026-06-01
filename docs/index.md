@@ -87,7 +87,7 @@ The following arguments are supported in the `provider` block:
 
 * `minio_session_token` - (Optional, Sensitive) Session token for temporary credentials. Can be sourced from `MINIO_SESSION_TOKEN`.
 
-* `minio_region` - (Optional) MinIO region (default: `us-east-1`).
+* `minio_region` - (Optional) Region used for request signing by the S3 client (default: `us-east-1`). Set this to match the region your server expects. S3-compatible stores that enforce a custom region (e.g. Versity Gateway, Hetzner Object Storage) will reject requests signed with the wrong region — set `minio_region` to whatever value your backend is configured with.
 
 * `minio_api_version` - (Optional) MinIO API version (`v2` or `v4`, default: `v4`).
 
@@ -210,6 +210,9 @@ All non-MinIO backends should use `s3_compat_mode = true`. This single flag hand
 | **Cloudflare R2** | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ | ❌ | ✅ |
 | **Backblaze B2** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | **DigitalOcean Spaces** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ |
+| **Versity Gateway** | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ❌ | ✅ | ❌ |
+
+-> **Note on region:** Some backends (including Versity Gateway and Hetzner) reject requests signed with the wrong region. Set `minio_region` to whatever region your backend is configured with — for example `minio_region = "us-east-1"` for Hetzner, or `minio_region = "custom-region"` for Versity if configured that way.
 
 ✅ = Fully supported
 ⚠️ = Partial support (may return errors on some operations)

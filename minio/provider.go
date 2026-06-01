@@ -29,10 +29,13 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 				}, nil),
 			},
 			"minio_region": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "us-east-1",
-				Description: "MinIO server region (default: us-east-1)",
+				Type:     schema.TypeString,
+				Optional: true,
+				Default:  "us-east-1",
+				Description: "Region used for request signing and sent to the S3 client. " +
+					"Defaults to `us-east-1`. Set this to match the region configured on your " +
+					"server, or to any non-empty string when using S3-compatible stores that " +
+					"require a specific region (e.g. Versity Gateway, Hetzner Object Storage).",
 			},
 			"minio_user": {
 				Type:        schema.TypeString,

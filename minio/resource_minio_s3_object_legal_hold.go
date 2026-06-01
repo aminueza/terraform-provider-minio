@@ -106,10 +106,19 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 	status, err := client.GetObjectLegalHold(ctx, bucket, objectKey, opts)
 	if err != nil {
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchVersion") {
-			tflog.Warn(ctx, fmt.Sprintf("Object %s/%s not found, removing from state", bucket, objectKey))
-			d.SetId("")
-			return nil
+		if errors.As(err, &minioErr) {
+			switch minioErr.Code {
+			case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
+				tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing from state", bucket, objectKey))
+				d.SetId("")
+				return nil
+			case "InvalidRequest":
+				if strings.Contains(minioErr.Message, "ObjectLockConfiguration") {
+					tflog.Warn(ctx, fmt.Sprintf("Bucket %s missing object lock config, removing from state", bucket))
+					d.SetId("")
+					return nil
+				}
+			}
 		}
 		return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), err)
 	}
@@ -178,8 +187,15 @@ func minioDeleteObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 
 	if err := client.PutObjectLegalHold(ctx, bucket, objectKey, opts); err != nil {
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchVersion") {
-			return nil
+		if errors.As(err, &minioErr) {
+			switch minioErr.Code {
+			case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
+				return nil
+			case "InvalidRequest":
+				if strings.Contains(minioErr.Message, "ObjectLockConfiguration") {
+					return nil
+				}
+			}
 		}
 		return NewResourceError("deleting object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), err)
 	}

@@ -71,6 +71,37 @@ func TestCustomTransport_SSLWithTimeout(t *testing.T) {
 	}
 }
 
+func TestNewClient_PropagatesRegion(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		region string
+	}{
+		{"default us-east-1", "us-east-1"},
+		{"custom region", "eu-central-1"},
+		{"arbitrary S3-compat region", "my-custom-region"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			config := &S3MinioConfig{
+				S3HostPort:     "localhost:9000",
+				S3UserAccess:   "minioadmin",
+				S3UserSecret:   "minioadmin",
+				S3APISignature: "v4",
+				S3Region:       tc.region,
+			}
+
+			client, err := config.NewClient(context.Background())
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			mc := client.(*S3MinioClient)
+			if mc.S3Region != tc.region {
+				t.Errorf("expected S3Region %q, got %q", tc.region, mc.S3Region)
+			}
+		})
+	}
+}
+
 func TestNewClient_PropagatesRetryConfig(t *testing.T) {
 	config := &S3MinioConfig{
 		S3HostPort:            "localhost:9000",

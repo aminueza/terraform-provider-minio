@@ -1433,6 +1433,25 @@ func TestIsNoSuchBucketError(t *testing.T) {
 	}
 }
 
+func TestBucketHasObjects_NoSuchBucket(t *testing.T) {
+	// bucketHasObjects must return (false, nil) when the bucket no longer exists,
+	// so that minioDeleteBucket treats an already-deleted bucket as a no-op rather
+	// than a fatal error. This is the condition that caused "disappears" acceptance
+	// tests to fail with "[FATAL] error listing bucket objects: NoSuchBucket".
+	//
+	// We cannot call bucketHasObjects directly without a real client, but we can
+	// verify that isNoSuchBucketError (the guard we added) correctly classifies
+	// the error returned by minio-go's ListObjects channel for a missing bucket.
+	noSuchBucket := minio.ErrorResponse{
+		Code:       "NoSuchBucket",
+		Message:    "The specified bucket does not exist",
+		StatusCode: http.StatusNotFound,
+	}
+	if !isNoSuchBucketError(noSuchBucket) {
+		t.Fatal("isNoSuchBucketError should return true for NoSuchBucket ErrorResponse")
+	}
+}
+
 func TestAccMinioS3Bucket_withPolicyAndVersioning(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
 

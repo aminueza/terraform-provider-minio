@@ -102,6 +102,7 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 		Creds:     minioCredentials,
 		Secure:    config.S3SSL,
 		Transport: tr,
+		Region:    config.S3Region,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create S3 client: %w", err)

@@ -444,6 +444,10 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	if err := bucketConfig.MinioClient.RemoveBucket(ctx, bucketName); err != nil {
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %q already absent — skipping delete", bucketName))
+			return nil
+		}
 		tflog.Error(ctx, NewResourceErrorStr("unable to remove bucket", bucketName, err))
 		return NewResourceError("unable to remove bucket", bucketName, err)
 	}
@@ -766,6 +770,9 @@ func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName stri
 		return false, nil
 	}
 	if obj.Err != nil {
+		if isNoSuchBucketError(obj.Err) {
+			return false, nil
+		}
 		return false, NewResourceError("error listing bucket objects", bucketName, obj.Err)
 	}
 	return true, nil

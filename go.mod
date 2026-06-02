@@ -10,7 +10,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.10.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1
 	github.com/minio/madmin-go/v3 v3.0.110
-	github.com/minio/minio-go/v7 v7.1.0
+	github.com/minio/minio-go/v7 v7.2.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0
 	golang.org/x/sync v0.20.0
@@ -25,7 +25,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/fatih/color v1.19.0 // indirect
-	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
@@ -97,4 +96,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260519071638-aa98bba5eb94 // indirect
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	gopkg.in/ini.v1 v1.67.2 // indirect
 )

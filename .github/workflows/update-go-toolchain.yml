@@ -67,9 +67,7 @@ jobs:
 
           gh pr create \
             --title "chore: update Go toolchain to ${TOOLCHAIN}" \
-            --body "Automated weekly toolchain bump.
-
-Bumps the \`toolchain\` directive to the latest patch of the current Go minor via \`go get toolchain@patch\`. Once the toolchain diverges from the \`go\` minimum, both directives coexist — the \`go\` line stays pinned as the minimum API guarantee while \`toolchain\` tracks the actual build toolchain." \
+            --body 'Automated weekly toolchain bump via `go get toolchain@patch`.' \
             --head "${BRANCH}" \
             --base main \
             --reviewer aminueza \

@@ -101,6 +101,24 @@ variable "minio_password" {
 }
 ```
 
+## Claude Code Skill
+
+This repository ships a [Claude Code](https://docs.claude.com/en/docs/claude-code) skill in [`skills/terraform-minio`](./skills/terraform-minio) that turns natural-language requests (e.g. *"give this app a read-only key for the backups bucket"*) into correct `aminueza/minio` HCL and drives Terraform through a safe **plan → confirm → apply** workflow.
+
+It knows every resource and data source, the exact argument names, and the provider's auth options (STS, OIDC, mTLS, `s3_compat_mode`). Read operations (`terraform plan`, `mc ls`) run freely, while mutating operations (`apply`, `destroy`, `import`) are gated behind a reviewed plan and explicit confirmation.
+
+**Install it:**
+
+```sh
+# Global (available in every project):
+cp -R skills/terraform-minio ~/.claude/skills/
+
+# Or per-project (auto-loaded when you open a repo in Claude Code):
+mkdir -p .claude/skills && cp -R skills/terraform-minio .claude/skills/
+```
+
+Then just ask Claude Code to create or change MinIO buckets, users, policies, or service accounts — it picks up the skill automatically.
+
 ## Testing
 
 The project uses Docker Compose to run acceptance tests against multiple MinIO instances. Docker is required.

@@ -58,14 +58,12 @@ Use `secret_key_wo` with `secret_key_wo_version` to rotate service account secre
 
 ### Optional
 
-> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
-
 - `description` (String) Description of service account (256 bytes max), can't be cleared once set
 - `disable_user` (Boolean) Disable service account
 - `expiration` (String) Expiration of service account in RFC3339 format. Must be between NOW+15min & NOW+365d. If not set, the service account will not expire.
 - `name` (String) Name of service account (32 bytes max), can't be cleared once set
 - `policy` (String) policy of service account as encoded JSON string
-- `secret_key_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) write-only secret key of service account
+- `secret_key_wo` (String, Sensitive) write-only secret key of service account
 - `secret_key_wo_version` (Number) Version identifier for secret_key_wo. Change this value to trigger secret key rotation when using secret_key_wo.
 - `update_secret` (Boolean) rotate secret key
 

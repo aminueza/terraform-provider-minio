@@ -46,6 +46,7 @@ resource "minio_s3_bucket" "customer" {
 ```
 
 - Bucket tagging requires support from the underlying S3-compatible endpoint. If your endpoint does not support tagging, you can set `skip_bucket_tagging = true` in the provider configuration to disable tagging operations and prevent errors.
+- To remove all tags, set `tags = {}` explicitly. Omitting the `tags` argument no longer clears existing tags: `tags` is a computed attribute, so Terraform retains the last known value to avoid perpetual drift during refresh-only plans.
 
 ## Argument Reference
 

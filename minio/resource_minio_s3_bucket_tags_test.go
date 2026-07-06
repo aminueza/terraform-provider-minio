@@ -102,6 +102,49 @@ func TestAccMinioS3BucketTags_deletedBucket(t *testing.T) {
 	})
 }
 
+func TestAccMinioS3BucketTags_emptyTagsNoDrift(t *testing.T) {
+	bucketName := "tfacc-tags-nodrift-" + acctest.RandString(8)
+	resourceName := "minio_s3_bucket_tags.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioBucketTagsDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketTagsConfigEmpty(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketTagsExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateId:     bucketName,
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketTagsConfigEmpty(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
+}
+
+resource "minio_s3_bucket_tags" "test" {
+  bucket = minio_s3_bucket.bucket.id
+  tags   = {}
+}
+`, bucketName)
+}
+
 func testAccMinioS3BucketTagsConfig(bucketName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {

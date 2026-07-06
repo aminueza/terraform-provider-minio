@@ -121,6 +121,7 @@ func resourceMinioBucket() *schema.Resource {
 			"tags": {
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Computed:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "A map of tags to assign to the bucket",
 			},

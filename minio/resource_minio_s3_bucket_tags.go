@@ -29,6 +29,7 @@ func resourceMinioBucketTags() *schema.Resource {
 			"tags": {
 				Type:        schema.TypeMap,
 				Optional:    true,
+				Computed:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "Map of tags to assign to the bucket",
 			},
@@ -79,15 +80,15 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 
 	bucketTags, err := cfg.MinioClient.GetBucketTagging(ctx, bucket)
 	if err != nil {
-		if isNoSuchBucketError(err) {
-			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing tags from state", bucket))
-			d.SetId("")
-			return nil
-		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			_ = d.Set("bucket", bucket)
 			_ = d.Set("tags", map[string]string{})
+			return nil
+		}
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing tags from state", bucket))
+			d.SetId("")
 			return nil
 		}
 		if IsS3TaggingNotImplemented(err) {

@@ -1226,7 +1226,7 @@ func TestAccMinioS3Bucket_tags(t *testing.T) {
 				),
 			},
 			{
-				Config: testAccMinioS3BucketConfigBasic(rInt),
+				Config: testAccMinioS3BucketConfigWithTags(rInt, map[string]string{}),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
 					testAccCheckMinioS3BucketTagsRemoved(resourceName),
@@ -1623,6 +1623,71 @@ func TestAccMinioS3Bucket_SkipBucketTagging(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestAccMinioS3Bucket_tagsNoDrift(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_bucket.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy",
+				},
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_emptyTagsNoDrift(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_bucket.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigEmptyTags(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy",
+				},
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigEmptyTags(rInt int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+	bucket = "test-bucket-%d"
+	tags   = {}
+}
+`, rInt)
 }
 
 func testAccMinioS3BucketConfigWithSkipTagging(randInt string) string {

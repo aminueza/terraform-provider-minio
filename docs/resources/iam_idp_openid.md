@@ -86,10 +86,12 @@ Prefer `client_secret_wo` with `client_secret_wo_version` for secret rotation wi
 
 ### Optional
 
+> **NOTE**: [Write-only arguments](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments) are supported in Terraform 1.11 and later.
+
 - `claim_name` (String) JWT claim attribute used to identify the policy for the authenticated user. Defaults to 'policy'. Cannot be set together with role_policy.
 - `claim_prefix` (String) Prefix to apply to JWT claim values when looking up policies. Cannot be set together with role_policy.
 - `client_secret` (String, Sensitive) OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.
-- `client_secret_wo` (String, Sensitive) Write-only OAuth2 client secret for this OIDC configuration.
+- `client_secret_wo` (String, Sensitive, [Write-only](https://developer.hashicorp.com/terraform/language/resources/ephemeral#write-only-arguments)) Write-only OAuth2 client secret for this OIDC configuration.
 - `client_secret_wo_version` (Number) Version identifier for client_secret_wo. Change this value to trigger updates when using client_secret_wo.
 - `comment` (String) Comment or description for this OIDC configuration.
 - `display_name` (String) Display name for this identity provider shown on the MinIO login screen.

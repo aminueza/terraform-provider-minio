@@ -352,7 +352,8 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			_ = d.Set("tags", map[string]string{})
 		} else if IsS3TaggingNotImplemented(err) {
-			return nil
+			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
+			preserveBucketTagsState(d)
 		} else {
 			return NewResourceError("error reading bucket tags", d.Id(), err)
 		}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -1706,4 +1708,72 @@ resource "minio_s3_bucket" "bucket" {
   }
 }
 `, randInt)
+}
+
+// TestMinioReadBucket_taggingNotImplemented verifies that Read still writes
+// tags into state when the backend does not implement bucket tagging (e.g.
+// Hetzner Object Storage / Ceph RGW). If tags never exists in state, the
+// Optional+Computed attribute is planned as unknown on every run and never converges.
+func TestMinioReadBucket_taggingNotImplemented(t *testing.T) {
+	cases := []struct {
+		name      string
+		rawConfig map[string]interface{}
+		wantAttrs map[string]string
+	}{
+		{
+			name:      "no tags writes empty map into state",
+			rawConfig: map[string]interface{}{"bucket": "test-bucket"},
+			wantAttrs: map[string]string{"tags.%": "0"},
+		},
+		{
+			name: "known tags are preserved",
+			rawConfig: map[string]interface{}{
+				"bucket": "test-bucket",
+				"tags":   map[string]interface{}{"env": "prod"},
+			},
+			wantAttrs: map[string]string{"tags.%": "1", "tags.env": "prod"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Has("tagging") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotImplemented)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, tc.rawConfig)
+			d.SetId("test-bucket")
+
+			meta := &S3MinioClient{S3Client: s3Client}
+			if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+				t.Fatalf("read returned diagnostics: %v", diags)
+			}
+
+			state := d.State()
+			if state == nil {
+				t.Fatal("expected non-nil state after read")
+			}
+			for k, want := range tc.wantAttrs {
+				if got := state.Attributes[k]; got != want {
+					t.Errorf("state attribute %q = %q, want %q", k, got, want)
+				}
+			}
+		})
+	}
 }

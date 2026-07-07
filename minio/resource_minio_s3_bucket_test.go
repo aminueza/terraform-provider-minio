@@ -1713,8 +1713,7 @@ resource "minio_s3_bucket" "bucket" {
 // TestMinioReadBucket_taggingNotImplemented verifies that Read still writes
 // tags into state when the backend does not implement bucket tagging (e.g.
 // Hetzner Object Storage / Ceph RGW). If tags never exists in state, the
-// Optional+Computed attribute is planned as unknown on every run and never
-// converges (regression reported in #1000 against 3.38.2).
+// Optional+Computed attribute is planned as unknown on every run and never converges.
 func TestMinioReadBucket_taggingNotImplemented(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -1745,7 +1744,6 @@ func TestMinioReadBucket_taggingNotImplemented(t *testing.T) {
 					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`)
 					return
 				}
-				// BucketExists (HEAD) succeeds.
 				w.WriteHeader(http.StatusOK)
 			}))
 			defer srv.Close()

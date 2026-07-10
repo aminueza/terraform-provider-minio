@@ -89,6 +89,19 @@ go build -o terraform-provider-minio
    task test
    ```
 
+### MinIO Consoles
+
+`docker compose up -d` starts six MinIO instances, each exposing its web console on `localhost`. All use the root user `minio`; passwords come from `docker-compose.yml`:
+
+| Instance | Purpose | Console | Root password |
+|----------|---------|---------|---------------|
+| `minio` | Primary | [http://localhost:9001](http://localhost:9001) | `minio123` |
+| `secondminio` | Bucket replication | [http://localhost:9003](http://localhost:9003) | `minio321` |
+| `thirdminio` | Bucket replication | [http://localhost:9005](http://localhost:9005) | `minio456` |
+| `fourthminio` | Bucket replication | [http://localhost:9007](http://localhost:9007) | `minio654` |
+| `kmsminio` | Server-side encryption | [http://localhost:9009](http://localhost:9009) | `minio789` |
+| `ldapminio` | LDAP identity provider | [http://localhost:9011](http://localhost:9011) | `minio999` |
+
 ### Project Structure
 
 ```

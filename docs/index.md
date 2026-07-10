@@ -5,7 +5,13 @@ description: Manage Minio with Terraform.
 
 # Minio Provider
 
-This is a terraform provider plugin for managing [Minio](https://min.io/) S3 buckets and IAM users.
+The Minio provider manages [MinIO](https://min.io/) object storage with Terraform, from bucket and object operations to identity management and server configuration. It talks to both the MinIO S3 API and the Admin API, so a single configuration can provision storage and administer the server behind it.
+
+It ships a broad set of resources and data sources. On the storage side, it manages S3 buckets with versioning, policies, lifecycle (ILM), replication, object locking and retention, tagging, CORS, quotas, and encryption, along with objects and their metadata. On the administration side, it covers IAM users, groups, policies, service accounts, and LDAP or OpenID identity providers; bucket and site replication; event notifications for targets such as Kafka, AMQP, MQTT, Elasticsearch, and webhooks; and server settings including audit and logger targets, scanner, heal, and storage classes.
+
+For authentication, the provider accepts static credentials or environment variables and supports STS AssumeRole, OIDC web identity for CI/CD pipelines, and mutual TLS.
+
+Although built for MinIO, the provider also works with other S3-compatible stores. Set `s3_compat_mode` to gracefully skip features a backend does not implement; tested backends include Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage.
 
 ## Example Provider Configuration
 

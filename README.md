@@ -181,6 +181,15 @@ TEST_PATTERN=TestAccMinioS3Bucket_basic docker compose run --rm test
 
 Full setup, project layout, and the MinIO consoles used during testing are covered in [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
+## Community & support
+
+| What | Where |
+|--|--|
+| Documentation | [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest/docs) |
+| Issues | [Report a bug or request a feature](https://github.com/aminueza/terraform-provider-minio/issues) |
+| Discussions | [Ask questions and share ideas](https://github.com/aminueza/terraform-provider-minio/discussions) |
+| Security | [Report a vulnerability](./.github/SECURITY.md) |
+
 ## Contributing
 
 Contributions are welcome, from bug reports and feature requests to documentation and new resources. Start with [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for the development setup and conventions, and see [GOVERNANCE.md](./.github/GOVERNANCE.md) for how decisions are made.
@@ -188,15 +197,6 @@ Contributions are welcome, from bug reports and feature requests to documentatio
 <a href="https://github.com/aminueza/terraform-provider-minio/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=aminueza/terraform-provider-minio" alt="Contributors">
 </a>
-
-## Community & support
-
-| | |
-|--|--|
-| 📖 Documentation | [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest/docs) |
-| 🐛 Issues | [Report a bug or request a feature](https://github.com/aminueza/terraform-provider-minio/issues) |
-| 💬 Discussions | [Ask questions and share ideas](https://github.com/aminueza/terraform-provider-minio/discussions) |
-| 🔒 Security | [Report a vulnerability](./.github/SECURITY.md) |
 
 ## License
 

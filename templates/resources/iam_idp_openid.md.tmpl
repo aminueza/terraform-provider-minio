@@ -13,6 +13,8 @@ MinIO supports multiple named OIDC configurations. The `name` attribute identifi
 
 **NOTE:** MinIO must be able to reach the `config_url` discovery document endpoint when applying the configuration. See the [MinIO OIDC documentation](https://min.io/docs/minio/linux/operations/external-iam/configure-openid-external-identity-management.html).
 
+**NOTE:** MinIO may require a server restart before a newly written OIDC configuration becomes active — check the `restart_required` attribute after apply. Until the server is restarted, MinIO does not report the configuration back, so a `terraform plan` run before the restart may propose recreating the resource. Restart the MinIO server (or wait for the next rolling restart) and the plan will converge.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_iam_idp_openid/resource.tf" }}

@@ -179,10 +179,18 @@ func minioCreateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 
 	tflog.Debug(ctx, fmt.Sprintf("Created OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart))
 
-	return minioReadIdpOpenId(ctx, d, meta)
+	return minioReadIdpOpenIdAfterWrite(ctx, d, meta)
 }
 
 func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioReadIdpOpenIdConfig(ctx, d, meta, false)
+}
+
+func minioReadIdpOpenIdAfterWrite(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return minioReadIdpOpenIdConfig(ctx, d, meta, true)
+}
+
+func minioReadIdpOpenIdConfig(ctx context.Context, d *schema.ResourceData, meta interface{}, afterWrite bool) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	cfgName := d.Id()
 
@@ -191,6 +199,10 @@ func minioReadIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interf
 	cfg, err := minioAdmin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, cfgName)
 	if err != nil {
 		if isIDPConfigNotFound(err) {
+			if afterWrite {
+				tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s was accepted but is not yet visible; a MinIO server restart may be required for it to take effect. Keeping configured values in state", cfgName))
+				return nil
+			}
 			tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s no longer exists, removing from state", cfgName))
 			d.SetId("")
 			return nil
@@ -296,7 +308,7 @@ func minioUpdateIdpOpenId(ctx context.Context, d *schema.ResourceData, meta inte
 
 	tflog.Debug(ctx, fmt.Sprintf("Updated OIDC IDP configuration: %s (restart_required=%v)", config.Name, restart))
 
-	return minioReadIdpOpenId(ctx, d, meta)
+	return minioReadIdpOpenIdAfterWrite(ctx, d, meta)
 }
 
 func minioDeleteIdpOpenId(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

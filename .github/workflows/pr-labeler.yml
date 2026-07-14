@@ -1,0 +1,74 @@
+# Labels pull requests from their Conventional Commit title prefix so that
+# GitHub's auto-generated release notes can bucket them into the categories
+# defined in .github/release.yml (which matches on labels, not titles).
+#
+# Uses pull_request_target so it can label PRs opened from forks (the default
+# pull_request token is read-only for forks). This is safe here because the
+# workflow never checks out or runs PR code; it only reads the PR title from
+# the event payload and calls the labels API.
+name: PR Labeler
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # required to add labels to the PR
+    steps:
+      - name: Label from Conventional Commit title
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title || "";
+
+            // Conventional Commit type -> repo label. Each label lives in a
+            // category in .github/release.yml; keep the two in sync.
+            const typeToLabel = {
+              feat: "enhancement",
+              feature: "enhancement",
+              fix: "bug",
+              bugfix: "bug",
+              docs: "documentation",
+              chore: "maintenance",
+              refactor: "maintenance",
+              build: "maintenance",
+              ci: "maintenance",
+              perf: "performance",
+              test: "test",
+              deps: "dependencies",
+              security: "security",
+            };
+
+            // Matches "type:", "type(scope):" and "type!:" (breaking change).
+            const m = title.match(/^([a-zA-Z]+)(?:\([^)]*\))?!?:/);
+            if (!m) {
+              core.info(`No Conventional Commit prefix in title: "${title}"`);
+              return;
+            }
+
+            const type = m[1].toLowerCase();
+            const label = typeToLabel[type];
+            if (!label) {
+              core.info(`No label mapped for type "${type}"`);
+              return;
+            }
+
+            if (pr.labels.some((l) => l.name === label)) {
+              core.info(`Label "${label}" already present; nothing to do`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: [label],
+            });
+            core.info(`Applied "${label}" for type "${type}"`);

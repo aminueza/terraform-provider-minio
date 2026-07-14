@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -242,10 +244,19 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 			continue
 		}
 
-		if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID); info != nil {
-			return fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID)
+		// MinIO's IAM subsystem is eventually consistent under concurrent load,
+		// so a just-deleted canned policy can briefly still be returned by
+		// InfoCannedPolicyV2. Poll for a short while before declaring the policy
+		// leaked to avoid flaky CheckDestroy failures.
+		err := retry.RetryContext(context.Background(), 10*time.Second, func() *retry.RetryError {
+			if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID); info != nil {
+				return retry.RetryableError(fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID))
+			}
+			return nil
+		})
+		if err != nil {
+			return err
 		}
-
 	}
 
 	return nil

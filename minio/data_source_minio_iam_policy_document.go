@@ -273,7 +273,7 @@ func dataSourceMinioIAMPolicyDocumentReplaceVarsInList(in interface{}, version s
 		}
 		return out, nil
 	default:
-		panic("dataSourceAwsIamPolicyDocumentReplaceVarsInList: input not string nor []string")
+		return nil, fmt.Errorf("unexpected type %T in policy document variable replacement, expected string or []string", in)
 	}
 }
 

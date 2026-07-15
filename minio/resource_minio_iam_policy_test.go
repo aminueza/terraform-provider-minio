@@ -248,7 +248,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 		// so a just-deleted canned policy can briefly still be returned by
 		// InfoCannedPolicyV2. Poll for a short while before declaring the policy
 		// leaked to avoid flaky CheckDestroy failures.
-		err := retry.RetryContext(context.Background(), 10*time.Second, func() *retry.RetryError {
+		err := retry.RetryContext(context.Background(), 30*time.Second, func() *retry.RetryError {
 			if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID); info != nil {
 				return retry.RetryableError(fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID))
 			}

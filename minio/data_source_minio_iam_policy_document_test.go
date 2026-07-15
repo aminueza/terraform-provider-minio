@@ -2,10 +2,24 @@ package minio
 
 import (
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
+
+func TestDataSourceMinioIAMPolicyDocumentReplaceVarsInList_unexpectedType(t *testing.T) {
+	out, err := dataSourceMinioIAMPolicyDocumentReplaceVarsInList(42, "2012-10-17")
+	if err == nil {
+		t.Fatalf("expected an error for unexpected input type, got result: %#v", out)
+	}
+	if out != nil {
+		t.Errorf("expected nil result on error, got: %#v", out)
+	}
+	if !strings.Contains(err.Error(), "int") {
+		t.Errorf("expected error message to name the offending type, got: %q", err.Error())
+	}
+}
 
 func TestAccMinioDataSourceIAMPolicyDocument_basic(t *testing.T) {
 	// This really ought to be able to be a unit test rather than an

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -176,11 +178,16 @@ func testAccCheckMinioAuditWebhookExists(resourceName string) resource.TestCheck
 
 		minioC := testAccProvider.Meta().(*S3MinioClient)
 		configKey := auditWebhookConfigKey(rs.Primary.ID)
-		_, err := minioC.S3Admin.GetConfigKV(context.Background(), configKey)
-		if err != nil {
-			return fmt.Errorf("audit webhook %s not found: %w", rs.Primary.ID, err)
-		}
-		return nil
+		// The admin config API can return transient errors (e.g. signature
+		// mismatches) while parallel tests churn server configuration, so
+		// poll briefly instead of failing on the first attempt.
+		err := retry.RetryContext(context.Background(), 10*time.Second, func() *retry.RetryError {
+			if _, err := minioC.S3Admin.GetConfigKV(context.Background(), configKey); err != nil {
+				return retry.RetryableError(fmt.Errorf("audit webhook %s not found: %w", rs.Primary.ID, err))
+			}
+			return nil
+		})
+		return err
 	}
 }
 

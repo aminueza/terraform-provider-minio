@@ -23,7 +23,7 @@ func TestAccMinioNotifyWebhook_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckNotifyTargetExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", name),
-					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://minio:9000"),
+					resource.TestCheckResourceAttr(resourceName, "endpoint", testAccEndpointURL("")),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
 				),
 			},
@@ -83,19 +83,19 @@ func testAccMinioNotifyWebhookBasic(name string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_webhook" "test" {
   name     = %[1]q
-  endpoint = "http://minio:9000"
+  endpoint = %[2]q
   enable   = false
 }
-`, name)
+`, name, testAccEndpointURL(""))
 }
 
 func testAccMinioNotifyWebhookWithOptions(name string, queueLimit int) string {
 	return fmt.Sprintf(`
 resource "minio_notify_webhook" "test" {
   name        = %[1]q
-  endpoint    = "http://minio:9000"
+  endpoint    = %[3]q
   enable      = false
   queue_limit = %[2]d
 }
-`, name, queueLimit)
+`, name, queueLimit, testAccEndpointURL(""))
 }

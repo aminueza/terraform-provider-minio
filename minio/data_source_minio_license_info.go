@@ -3,13 +3,15 @@ package minio
 import (
 	"context"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioLicenseInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Retrieves MinIO license information.",
-		Read:        dataSourceMinioLicenseInfoRead,
+		ReadContext: dataSourceMinioLicenseInfoRead,
 		Schema: map[string]*schema.Schema{
 			"license_id":   {Type: schema.TypeString, Computed: true},
 			"organization": {Type: schema.TypeString, Computed: true},
@@ -21,23 +23,41 @@ func dataSourceMinioLicenseInfo() *schema.Resource {
 	}
 }
 
-func dataSourceMinioLicenseInfoRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioLicenseInfoRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	info, err := admin.GetLicenseInfo(context.Background())
+	tflog.Debug(ctx, "Reading license info")
+
+	info, err := admin.GetLicenseInfo(ctx)
 	if err != nil {
+		// Servers without a license subsystem (community MinIO) report the
+		// unlicensed state instead of failing the read.
 		d.SetId("unlicensed")
-		_ = d.Set("plan", "")
+		if err := d.Set("plan", ""); err != nil {
+			return NewResourceError("setting plan", d.Id(), err)
+		}
 		return nil
 	}
 
 	d.SetId(info.ID)
-	_ = d.Set("license_id", info.ID)
-	_ = d.Set("organization", info.Organization)
-	_ = d.Set("plan", info.Plan)
-	_ = d.Set("issued_at", info.IssuedAt.String())
-	_ = d.Set("expires_at", info.ExpiresAt.String())
-	_ = d.Set("trial", info.Trial)
+	if err := d.Set("license_id", info.ID); err != nil {
+		return NewResourceError("setting license_id", d.Id(), err)
+	}
+	if err := d.Set("organization", info.Organization); err != nil {
+		return NewResourceError("setting organization", d.Id(), err)
+	}
+	if err := d.Set("plan", info.Plan); err != nil {
+		return NewResourceError("setting plan", d.Id(), err)
+	}
+	if err := d.Set("issued_at", info.IssuedAt.String()); err != nil {
+		return NewResourceError("setting issued_at", d.Id(), err)
+	}
+	if err := d.Set("expires_at", info.ExpiresAt.String()); err != nil {
+		return NewResourceError("setting expires_at", d.Id(), err)
+	}
+	if err := d.Set("trial", info.Trial); err != nil {
+		return NewResourceError("setting trial", d.Id(), err)
+	}
 
 	return nil
 }

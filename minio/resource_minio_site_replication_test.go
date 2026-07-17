@@ -6,6 +6,7 @@ import (
 	"os"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -94,6 +95,13 @@ func testAccPreCheckSiteReplication(t *testing.T) {
 func cleanupAllBuckets(t *testing.T) {
 	t.Helper()
 
+	// resource.Test only skips on a missing TF_ACC after this cleanup has already
+	// run, so guard here too: without it, unit-only runs (TF_ACC unset) dial the
+	// configured endpoints and, with valid credentials, would wipe their buckets.
+	if os.Getenv("TF_ACC") == "" {
+		t.Skip("skipping site replication bucket cleanup: TF_ACC not set")
+	}
+
 	cleanupBucketsForEndpoint(t, testAccEndpoint(""), os.Getenv("MINIO_USER"), os.Getenv("MINIO_PASSWORD"))
 
 	cleanupBucketsForEndpoint(t, testAccEndpoint("SECOND_"), os.Getenv("SECOND_MINIO_USER"), os.Getenv("SECOND_MINIO_PASSWORD"))
@@ -111,7 +119,11 @@ func cleanupBucketsForEndpoint(t *testing.T, endpoint, accessKey, secretKey stri
 		return
 	}
 
-	ctx := context.Background()
+	// Bound each endpoint's cleanup so a slow or unreachable instance cannot
+	// stall the suite past the default 10m test binary timeout: minio-go retries
+	// with backoff, and this runs for 3 endpoints x 5 tests.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	buckets, err := minioClient.ListBuckets(ctx)
 	if err != nil {
 		t.Logf("Warning: Failed to list buckets for %s: %v", endpoint, err)

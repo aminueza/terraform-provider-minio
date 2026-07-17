@@ -94,11 +94,11 @@ func testAccPreCheckSiteReplication(t *testing.T) {
 func cleanupAllBuckets(t *testing.T) {
 	t.Helper()
 
-	cleanupBucketsForEndpoint(t, "minio:9000", os.Getenv("MINIO_USER"), os.Getenv("MINIO_PASSWORD"))
+	cleanupBucketsForEndpoint(t, testAccEndpoint(""), os.Getenv("MINIO_USER"), os.Getenv("MINIO_PASSWORD"))
 
-	cleanupBucketsForEndpoint(t, "secondminio:9000", os.Getenv("SECOND_MINIO_USER"), os.Getenv("SECOND_MINIO_PASSWORD"))
+	cleanupBucketsForEndpoint(t, testAccEndpoint("SECOND_"), os.Getenv("SECOND_MINIO_USER"), os.Getenv("SECOND_MINIO_PASSWORD"))
 
-	cleanupBucketsForEndpoint(t, "thirdminio:9000", os.Getenv("THIRD_MINIO_USER"), os.Getenv("THIRD_MINIO_PASSWORD"))
+	cleanupBucketsForEndpoint(t, testAccEndpoint("THIRD_"), os.Getenv("THIRD_MINIO_USER"), os.Getenv("THIRD_MINIO_PASSWORD"))
 }
 
 func cleanupBucketsForEndpoint(t *testing.T, endpoint, accessKey, secretKey string) {
@@ -150,11 +150,11 @@ func TestAccMinioSiteReplication_basic(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioEndpoint := testAccEndpointURL("SECOND_")
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
@@ -201,15 +201,15 @@ func TestAccMinioSiteReplication_threeSites(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-3")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioEndpoint := testAccEndpointURL("SECOND_")
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
-	thirdMinioEndpoint := "http://thirdminio:9000"
+	thirdMinioEndpoint := testAccEndpointURL("THIRD_")
 	thirdMinioUser := os.Getenv("THIRD_MINIO_USER")
 	thirdMinioPassword := os.Getenv("THIRD_MINIO_PASSWORD")
 
@@ -246,11 +246,11 @@ func TestAccMinioSiteReplication_writeOnlyCredentials(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-wo")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioEndpoint := testAccEndpointURL("SECOND_")
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
@@ -284,11 +284,11 @@ func TestAccMinioSiteReplication_writeOnlyCredentials_transition(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-wo-transition")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioEndpoint := testAccEndpointURL("SECOND_")
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
@@ -342,11 +342,11 @@ func TestAccMinioSiteReplication_update(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-update")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 
-	secondaryMinioEndpoint := "http://secondminio:9000"
+	secondaryMinioEndpoint := testAccEndpointURL("SECOND_")
 	secondaryMinioUser := os.Getenv("SECOND_MINIO_USER")
 	secondaryMinioPassword := os.Getenv("SECOND_MINIO_PASSWORD")
 
@@ -508,7 +508,7 @@ func TestAccMinioSiteReplication_errorConditions(t *testing.T) {
 
 	replicationName := acctest.RandomWithPrefix("tf-acc-site-repl-error")
 
-	primaryMinioEndpoint := "http://minio:9000"
+	primaryMinioEndpoint := testAccEndpointURL("")
 	primaryMinioUser := os.Getenv("MINIO_USER")
 	primaryMinioPassword := os.Getenv("MINIO_PASSWORD")
 

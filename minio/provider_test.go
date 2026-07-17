@@ -2,6 +2,8 @@ package minio
 
 import (
 	"os"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -74,20 +76,34 @@ var kEnvVarNeeded = []string{
 }
 
 func testAccPreCheck(t *testing.T) {
-	valid := true
-
 	if v, _ := os.LookupEnv("TF_ACC"); v == "" {
-		valid = false
+		t.Fatal("TF_ACC must be set for acceptance tests")
 	}
 
+	var missing []string
 	for _, envvar := range kEnvVarNeeded {
 		if _, ok := os.LookupEnv(envvar); !ok {
-			valid = false
-			break
+			missing = append(missing, envvar)
 		}
 	}
 
-	if !valid {
-		t.Fatal("you must to set env variables for integration tests!")
+	if len(missing) > 0 {
+		t.Fatalf("missing environment variables for acceptance tests: %s (see the \"test\" service in docker-compose.yml for the full set)", strings.Join(missing, ", "))
 	}
+}
+
+// testAccEndpoint returns the endpoint (host:port) of the MinIO test instance
+// configured by the given env var prefix ("", "SECOND_", "THIRD_", ...).
+func testAccEndpoint(prefix string) string {
+	return os.Getenv(prefix + "MINIO_ENDPOINT")
+}
+
+// testAccEndpointURL returns the endpoint of the MinIO test instance as a URL,
+// with the scheme derived from <prefix>MINIO_ENABLE_HTTPS.
+func testAccEndpointURL(prefix string) string {
+	scheme := "http"
+	if enabled, _ := strconv.ParseBool(os.Getenv(prefix + "MINIO_ENABLE_HTTPS")); enabled {
+		scheme = "https"
+	}
+	return scheme + "://" + testAccEndpoint(prefix)
 }

@@ -17,7 +17,7 @@ Thank you for considering contributing to the Terraform Provider for MinIO! This
 
 ### Prerequisites
 
-- [Go](https://golang.org/doc/install) 1.25 or later
+- [Go](https://golang.org/doc/install) 1.26.4 or later (see `go.mod`)
 - [Docker](https://www.docker.com/get-started) and Docker Compose
 - [Task](https://taskfile.dev/docs/installation) (recommended) or Make
 - [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
@@ -72,6 +72,34 @@ go build -o terraform-provider-minio
    # Specific test
    TEST_PATTERN=TestAccMinioS3Bucket_basic docker compose run --rm test
    ```
+
+   To run acceptance tests directly with `go test` (outside the Docker Compose test runner), export the environment variables for all four MinIO instances first — `testAccPreCheck` requires the full set. The `test` service in `docker-compose.yml` is the source of truth; for local runs against the published ports:
+
+   ```bash
+   export TF_ACC=1
+   export MINIO_ENDPOINT=localhost:9000
+   export MINIO_USER=minio
+   export MINIO_PASSWORD=minio123
+   export MINIO_ENABLE_HTTPS=false
+   export SECOND_MINIO_ENDPOINT=localhost:9002
+   export SECOND_MINIO_USER=minio
+   export SECOND_MINIO_PASSWORD=minio321
+   export SECOND_MINIO_ENABLE_HTTPS=false
+   export THIRD_MINIO_ENDPOINT=localhost:9004
+   export THIRD_MINIO_USER=minio
+   export THIRD_MINIO_PASSWORD=minio456
+   export THIRD_MINIO_ENABLE_HTTPS=false
+   export FOURTH_MINIO_ENDPOINT=localhost:9006
+   export FOURTH_MINIO_USER=minio
+   export FOURTH_MINIO_PASSWORD=minio654
+   export FOURTH_MINIO_ENABLE_HTTPS=false
+
+   # Single-instance tests only need the primary instance running
+   docker compose up -d minio
+   TF_ACC=1 go test ./minio -run 'TestAccMinioS3Bucket_basic$'
+   ```
+
+   Multi-instance tests (replication, site replication) need their instances reachable from the MinIO servers themselves, so run those via `docker compose run --rm test`.
 
 3. **Development Workflow**
 

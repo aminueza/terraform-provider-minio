@@ -57,12 +57,12 @@ func testAccDataSourceNotifyWebhookConfig(name string) string {
 	return fmt.Sprintf(`
 resource "minio_notify_webhook" "test" {
   name     = %[1]q
-  endpoint = "http://minio:9000"
+  endpoint = %[2]q
   enable   = false
 }
 
 data "minio_notify_webhook" "test" {
   name = minio_notify_webhook.test.name
 }
-`, name)
+`, name, testAccEndpointURL(""))
 }

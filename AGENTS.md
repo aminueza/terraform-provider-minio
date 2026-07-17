@@ -587,13 +587,29 @@ ResourcesMap: map[string]*schema.Resource{
 
 **Environment variables:**
 
+`testAccPreCheck` requires the variables for all four instances to be set, even if a test only talks to the primary one. The `test` service in `docker-compose.yml` is the source of truth for the full set. For local runs against the published ports:
+
 ```bash
 export TF_ACC=1
 export MINIO_ENDPOINT=localhost:9000
 export MINIO_USER=minio
 export MINIO_PASSWORD=minio123
 export MINIO_ENABLE_HTTPS=false
+export SECOND_MINIO_ENDPOINT=localhost:9002
+export SECOND_MINIO_USER=minio
+export SECOND_MINIO_PASSWORD=minio321
+export SECOND_MINIO_ENABLE_HTTPS=false
+export THIRD_MINIO_ENDPOINT=localhost:9004
+export THIRD_MINIO_USER=minio
+export THIRD_MINIO_PASSWORD=minio456
+export THIRD_MINIO_ENABLE_HTTPS=false
+export FOURTH_MINIO_ENDPOINT=localhost:9006
+export FOURTH_MINIO_USER=minio
+export FOURTH_MINIO_PASSWORD=minio654
+export FOURTH_MINIO_ENABLE_HTTPS=false
 ```
+
+With these set, single-instance tests (e.g. `TestAccMinioS3Bucket_basic`) only need the primary instance running: `docker compose up -d minio`. Multi-instance tests (replication, site replication) additionally need their instances up and reachable from the MinIO servers themselves, so they are best run via `docker compose run --rm test`.
 
 ### Running Tests
 

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -69,13 +70,13 @@ data "minio_s3_bucket_replication_status" "test" {
 }
 
 func testAccDataSourceBucketReplicationStatusConfig(bucketName string) string {
-	return `
+	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
-  bucket = "` + bucketName + `"
+  bucket = %[1]q
 }
 
 data "minio_s3_bucket_replication_status" "test" {
   bucket = minio_s3_bucket.test.bucket
 }
-`
+`, bucketName)
 }

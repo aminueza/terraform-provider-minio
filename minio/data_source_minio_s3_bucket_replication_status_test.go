@@ -45,7 +45,7 @@ func TestAccDataSourceMinioS3BucketReplicationStatus_withReplication(t *testing.
 
 	// Not parallel: remote target endpoints conflict across replication tests.
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{

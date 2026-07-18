@@ -402,6 +402,10 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 }`
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -472,6 +476,10 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_resync(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -512,6 +520,10 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -753,6 +765,10 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 	})
 }
 func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
@@ -882,6 +898,10 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -989,6 +1009,10 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	})
 }
 func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	t.Run("TestBandwidthAttributeMigration", func(t *testing.T) {
 		// Test with old attribute (bandwidth_limt)
 		{
@@ -1066,6 +1090,10 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")

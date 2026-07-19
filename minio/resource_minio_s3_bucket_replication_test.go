@@ -21,11 +21,12 @@ import (
 // available when SECOND_MINIO_ENDPOINT is set (as it is under docker compose).
 func testAccReplicationPreCheck(t *testing.T) {
 	t.Helper()
-	testAccPreCheck(t)
 
 	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
 		t.Skip("Skipping replication acceptance tests: SECOND_MINIO_ENDPOINT is not set")
 	}
+
+	testAccPreCheck(t)
 }
 
 const kOneWayComplexResource = `

@@ -16,6 +16,19 @@ import (
 	"github.com/minio/minio-go/v7/pkg/replication"
 )
 
+// testAccReplicationPreCheck skips the test when a second MinIO instance is not
+// configured. Replication acceptance tests need a remote target, which is only
+// available when SECOND_MINIO_ENDPOINT is set (as it is under docker compose).
+func testAccReplicationPreCheck(t *testing.T) {
+	t.Helper()
+
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance tests: SECOND_MINIO_ENDPOINT is not set")
+	}
+
+	testAccPreCheck(t)
+}
+
 const kOneWayComplexResource = `
 resource "minio_s3_bucket_replication" "replication_in_all" {
   bucket     = minio_s3_bucket.my_bucket_in_a.bucket
@@ -402,10 +415,6 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 }`
 
 func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -415,7 +424,7 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
@@ -476,10 +485,6 @@ func TestAccS3BucketReplication_oneway_simple(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_resync(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -488,7 +493,7 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
@@ -520,10 +525,6 @@ func TestAccS3BucketReplication_resync(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -533,7 +534,7 @@ func TestAccS3BucketReplication_oneway_simple_update(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
@@ -765,10 +766,6 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 	})
 }
 func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
@@ -782,7 +779,7 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
@@ -898,10 +895,6 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -911,7 +904,7 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{
@@ -1086,10 +1079,6 @@ func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
 }
 
 func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
 	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
@@ -1103,7 +1092,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 
 	// Test in parallel cannot work as remote target endpoint would conflict
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{

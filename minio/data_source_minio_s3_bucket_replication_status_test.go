@@ -31,10 +31,6 @@ func TestAccDataSourceMinioS3BucketReplicationStatus_basic(t *testing.T) {
 }
 
 func TestAccDataSourceMinioS3BucketReplicationStatus_withReplication(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	bucketName := acctest.RandomWithPrefix("tf-acc-ds-replstatus-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-ds-replstatus-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")
@@ -45,7 +41,7 @@ func TestAccDataSourceMinioS3BucketReplicationStatus_withReplication(t *testing.
 
 	// Not parallel: remote target endpoints conflict across replication tests.
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
 		Steps: []resource.TestStep{

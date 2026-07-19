@@ -1009,10 +1009,6 @@ func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	})
 }
 func TestAccS3BucketReplication_attribute_migration(t *testing.T) {
-	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
-		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
-	}
-
 	t.Run("TestBandwidthAttributeMigration", func(t *testing.T) {
 		// Test with old attribute (bandwidth_limt)
 		{

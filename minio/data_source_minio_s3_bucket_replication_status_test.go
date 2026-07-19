@@ -31,6 +31,10 @@ func TestAccDataSourceMinioS3BucketReplicationStatus_basic(t *testing.T) {
 }
 
 func TestAccDataSourceMinioS3BucketReplicationStatus_withReplication(t *testing.T) {
+	if os.Getenv("SECOND_MINIO_ENDPOINT") == "" {
+		t.Skip("Skipping replication acceptance test: SECOND_MINIO_ENDPOINT is not set")
+	}
+
 	bucketName := acctest.RandomWithPrefix("tf-acc-ds-replstatus-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-ds-replstatus-b")
 	username := acctest.RandomWithPrefix("tf-acc-usr")

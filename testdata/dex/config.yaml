@@ -1,0 +1,14 @@
+issuer: http://dex:5556
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+staticClients:
+  - id: minio-client
+    redirectURIs:
+      - http://localhost:10000/oauth/callback/minio
+    name: MinIO
+    secret: minio-client-secret
+enablePasswordDB: false
+oauth2:
+  skipApprovalScreen: true

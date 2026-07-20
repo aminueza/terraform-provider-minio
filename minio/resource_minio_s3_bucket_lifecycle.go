@@ -574,7 +574,7 @@ func buildLifecycleConfig(d *schema.ResourceData) (*lifecycle.Configuration, dia
 		}
 		built, err := buildLifecycleRule(rule)
 		if err != nil {
-			return nil, diag.FromErr(err)
+			return nil, NewResourceError("building lifecycle rule", fmt.Sprintf("rule[%d]", i), err)
 		}
 		config.Rules = append(config.Rules, built)
 	}

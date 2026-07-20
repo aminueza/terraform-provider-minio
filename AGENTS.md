@@ -278,7 +278,13 @@ if err := d.Set("name", name); err != nil {
 
 ```go
 return diag.FromErr(err)
-return diag.Errorf("error: %v", err)
+```
+
+**Validation errors (acceptable with `diag.Errorf`):** Pure input validation messages where the NewResourceError shape doesn't fit naturally:
+
+```go
+return diag.Errorf("bucket quota must be a non-negative value, got: %d", quotaInt)
+return diag.Errorf("retention mode must be either GOVERNANCE or COMPLIANCE, got: %s", mode)
 ```
 
 **Pattern:**

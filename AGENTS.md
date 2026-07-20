@@ -587,7 +587,7 @@ ResourcesMap: map[string]*schema.Resource{
 
 **Environment variables:**
 
-`testAccPreCheck` requires the variables for all four instances to be set, even if a test only talks to the primary one. The `test` service in `docker-compose.yml` is the source of truth for the full set. For local runs against the published ports:
+`testAccPreCheck` requires the 16 variables below for the four core instances (primary, SECOND_, THIRD_, FOURTH_). The `test` service in `docker-compose.yml` also defines `KMS_MINIO_*` and `LDAP_MINIO_*` variables — these are optional and only needed when running the KMS key or LDAP identity provider test suites. For local runs against the published ports:
 
 ```bash
 export TF_ACC=1

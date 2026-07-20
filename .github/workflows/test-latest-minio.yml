@@ -1,0 +1,82 @@
+name: Test Against Latest MinIO
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 6am UTC, same cadence as Dependabot
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  test-latest:
+    name: Test against latest MinIO release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GOARCH: amd64
+      GOOS: linux
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6.0.2
+
+      - name: Fetch latest MinIO release tag
+        id: minio
+        run: |
+          TAG=$(curl -sL https://api.github.com/repos/minio/minio/releases/latest | jq -r '.tag_name')
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Latest MinIO release: ${TAG}"
+
+      - name: Override MinIO image in docker-compose.yml
+        run: |
+          TAG="${{ steps.minio.outputs.tag }}"
+          sed -i "s|minio/minio:RELEASE\.[^\"']*|minio/minio:${TAG}|" docker-compose.yml
+          echo "Updated MinIO image to minio/minio:${TAG}"
+          grep "minio/minio:" docker-compose.yml
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Build test environment
+        run: |
+          docker compose build
+          docker compose up -d
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for MinIO services to be ready..."
+          timeout 120 bash -c 'until docker compose exec -T minio mc admin info --json local >/dev/null 2>&1; do sleep 2; done'
+          echo "All services are ready!"
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        run: docker compose run --rm test
+
+      - name: Cleanup test environment
+        if: always()
+        run: docker compose down -v
+
+      - name: Create issue on failure
+        if: steps.tests.outcome == 'failure'
+        uses: actions/github-script@a3e7071a34d7e1f219a8b4c9ac9b1b7e88b937ab # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = '${{ steps.minio.outputs.tag }}';
+            const runUrl = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            const title = `Tests failing against MinIO ${tag}`;
+            const body = `Acceptance tests failed against the latest MinIO release (${tag}).
+
+            See run: ${runUrl}
+
+            This is an automated notification from the weekly "Test Against Latest MinIO" workflow.
+            Investigate whether the provider needs changes to work with this MinIO release.`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['test', 'github_actions']
+            });

@@ -49,6 +49,14 @@ jobs:
             echo "toolchain=${TOOLCHAIN}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Update docker-compose.yml Go image
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          TOOLCHAIN="${{ steps.diff.outputs.toolchain }}"
+          # Strip the 'go' prefix for the image tag: go1.27.3 -> 1.27.3
+          TAG="${TOOLCHAIN#go}"
+          sed -i "s/^    image: golang:.*/    image: golang:${TAG}/" docker-compose.yml
+
       - name: Open pull request
         if: steps.diff.outputs.changed == 'true'
         env:
@@ -61,7 +69,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "${BRANCH}"
-          git add go.mod go.sum
+          git add go.mod go.sum docker-compose.yml
           git commit -m "chore: update Go toolchain to ${TOOLCHAIN}"
           git push origin "${BRANCH}"
 

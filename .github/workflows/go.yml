@@ -39,7 +39,7 @@ jobs:
 
       - name: Run Gosec Security Scanner
         id: gosec
-        uses: securego/gosec@9e6a9843d7a4a6e3e9a8539b02612c8a4aa3f889 # v2.27.1
+        uses: securego/gosec@9e75c0576c9878035d4221392108d458abe10fc3 # v2.28.0
         continue-on-error: true
         env:
           GOTOOLCHAIN: auto

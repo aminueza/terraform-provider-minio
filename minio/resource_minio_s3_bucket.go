@@ -225,6 +225,22 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	bucketConfig = BucketConfig(d, meta)
 
+	if diagErr := applyInitialBucketACL(ctx, bucketConfig, bucket, waitTimeout); diagErr != nil {
+		return diagErr
+	}
+
+	tflog.Debug(ctx, fmt.Sprintf("Created bucket: [%s] in region: [%s]", bucket, region))
+
+	if diagErr := applyInitialBucketTags(ctx, d, bucketConfig, bucket, waitTimeout); diagErr != nil {
+		return diagErr
+	}
+
+	return minioUpdateBucket(ctx, d, meta)
+}
+
+// applyInitialBucketACL sets the bucket ACL right after creation, retrying while the
+// bucket is not yet visible to the backend (eventual consistency).
+func applyInitialBucketACL(ctx context.Context, bucketConfig *S3MinioBucket, bucket string, waitTimeout time.Duration) diag.Diagnostics {
 	if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
 		if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
 			for _, d := range errACL {
@@ -239,37 +255,46 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	}); err != nil {
 		return NewResourceError("[ACL] Unable to create bucket", bucket, err)
 	}
+	return nil
+}
 
-	tflog.Debug(ctx, fmt.Sprintf("Created bucket: [%s] in region: [%s]", bucket, region))
-
+// applyInitialBucketTags sets the configured tags right after creation, retrying
+// while the bucket is not yet visible to the backend (eventual consistency). It is
+// a no-op when tagging is disabled for the provider or no tags are configured.
+func applyInitialBucketTags(ctx context.Context, d *schema.ResourceData, bucketConfig *S3MinioBucket, bucket string, waitTimeout time.Duration) diag.Diagnostics {
 	if shouldSkipBucketTagging(bucketConfig) {
 		tflog.Info(ctx, fmt.Sprintf("Bucket [%s] tagging is disabled for this provider configuration; skipping tag creation", bucket))
-	} else if v, ok := d.GetOk("tags"); ok {
-		tagsMap := v.(map[string]interface{})
-		bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
-		if err != nil {
-			return NewResourceError("error creating bucket tags", bucket, err)
-		}
-
-		if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
-			err := bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
-			if err != nil {
-				if IsS3TaggingNotImplemented(err) {
-					return nil
-				}
-				if isNoSuchBucketError(err) {
-					tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for tagging, retrying...", bucket))
-					return retry.RetryableError(err)
-				}
-				return retry.NonRetryableError(err)
-			}
-			return nil
-		}); err != nil {
-			return NewResourceError("error setting bucket tags", bucket, err)
-		}
+		return nil
 	}
 
-	return minioUpdateBucket(ctx, d, meta)
+	v, ok := d.GetOk("tags")
+	if !ok {
+		return nil
+	}
+
+	tagsMap := v.(map[string]interface{})
+	bucketTags, err := tags.NewTags(convertToStringMap(tagsMap), false)
+	if err != nil {
+		return NewResourceError("error creating bucket tags", bucket, err)
+	}
+
+	if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
+		err := bucketConfig.MinioClient.SetBucketTagging(ctx, bucket, bucketTags)
+		if err != nil {
+			if IsS3TaggingNotImplemented(err) {
+				return nil
+			}
+			if isNoSuchBucketError(err) {
+				tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for tagging, retrying...", bucket))
+				return retry.RetryableError(err)
+			}
+			return retry.NonRetryableError(err)
+		}
+		return nil
+	}); err != nil {
+		return NewResourceError("error setting bucket tags", bucket, err)
+	}
+	return nil
 }
 
 func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -277,51 +302,10 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 
 	tflog.Debug(ctx, fmt.Sprintf("Reading bucket [%s] in region [%s]", d.Id(), bucketConfig.MinioRegion))
 
-	// Retry logic to handle eventual consistency issues with some MinIO implementations
-	// (e.g., Hetzner's MinIO may report bucket as not existing immediately after creation)
-	// Use truncated exponential backoff with jitter as in AWS SDKs:
-	// seconds_to_sleep_i = min(b*r^i, MAX_BACKOFF)
-	// where b = random number between 0 and 1; r = 2; MAX_BACKOFF = 20 seconds for most SDKs
-	var found bool
-	var err error
 	retryConfig := getRetryConfig(meta.(*S3MinioClient))
-
-	for i := 0; i < retryConfig.MaxRetries; i++ {
-		if ctx.Err() != nil {
-			return NewResourceError("context cancelled during bucket existence check", d.Id(), ctx.Err())
-		}
-
-		found, err = bucketConfig.MinioClient.BucketExists(ctx, d.Id())
-		if err != nil {
-			tflog.Error(ctx, fmt.Sprintf("Error checking if bucket exists: %s", err))
-			return NewResourceError("error checking bucket existence", d.Id(), err)
-		}
-
-		if found {
-			break
-		}
-
-		if checkFound, diagErr := diagnoseMissingBucket(ctx, bucketConfig, d.Id()); diagErr != nil {
-			return diagErr
-		} else if checkFound {
-			found = true
-			break
-		}
-
-		if i < retryConfig.MaxRetries-1 {
-			var jitter float64
-			var randomBytes [8]byte
-			if _, err := rand.Read(randomBytes[:]); err != nil {
-				tflog.Warn(ctx, fmt.Sprintf("Failed to generate random jitter: %s", err))
-				jitter = 0.5
-			} else {
-				jitter = float64(binary.BigEndian.Uint64(randomBytes[:])) / float64(math.MaxUint64)
-			}
-			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
-			sleep := min(time.Duration(backoffSeconds*float64(time.Second)), retryConfig.MaxBackoff)
-			tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] not found on attempt %d/%d, retrying in %v...", d.Id(), i+1, retryConfig.MaxRetries, sleep))
-			time.Sleep(sleep)
-		}
+	found, diagErr := waitForBucketExistence(ctx, bucketConfig, d.Id(), retryConfig)
+	if diagErr != nil {
+		return diagErr
 	}
 
 	if !found {
@@ -362,6 +346,58 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	return nil
+}
+
+// waitForBucketExistence polls for a bucket's existence, handling eventual
+// consistency issues with some MinIO implementations (e.g., Hetzner's MinIO may
+// report a bucket as not existing immediately after creation).
+//
+// It uses truncated exponential backoff with jitter as in AWS SDKs:
+// seconds_to_sleep_i = min(b*r^i, MAX_BACKOFF)
+// where b = random number between 0 and 1; r = 2; MAX_BACKOFF = 20 seconds for most SDKs
+func waitForBucketExistence(ctx context.Context, bucketConfig *S3MinioBucket, bucket string, retryConfig RetryConfig) (bool, diag.Diagnostics) {
+	var found bool
+	var err error
+
+	for i := 0; i < retryConfig.MaxRetries; i++ {
+		if ctx.Err() != nil {
+			return false, NewResourceError("context cancelled during bucket existence check", bucket, ctx.Err())
+		}
+
+		found, err = bucketConfig.MinioClient.BucketExists(ctx, bucket)
+		if err != nil {
+			tflog.Error(ctx, fmt.Sprintf("Error checking if bucket exists: %s", err))
+			return false, NewResourceError("error checking bucket existence", bucket, err)
+		}
+
+		if found {
+			break
+		}
+
+		if checkFound, diagErr := diagnoseMissingBucket(ctx, bucketConfig, bucket); diagErr != nil {
+			return false, diagErr
+		} else if checkFound {
+			found = true
+			break
+		}
+
+		if i < retryConfig.MaxRetries-1 {
+			var jitter float64
+			var randomBytes [8]byte
+			if _, err := rand.Read(randomBytes[:]); err != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Failed to generate random jitter: %s", err))
+				jitter = 0.5
+			} else {
+				jitter = float64(binary.BigEndian.Uint64(randomBytes[:])) / float64(math.MaxUint64)
+			}
+			backoffSeconds := jitter * math.Pow(retryConfig.BackoffBase, float64(i))
+			sleep := min(time.Duration(backoffSeconds*float64(time.Second)), retryConfig.MaxBackoff)
+			tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] not found on attempt %d/%d, retrying in %v...", bucket, i+1, retryConfig.MaxRetries, sleep))
+			time.Sleep(sleep)
+		}
+	}
+
+	return found, nil
 }
 
 func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -480,7 +516,22 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
 	tflog.Debug(ctx, fmt.Sprintf("Force destroying bucket %s - deleting all objects", bucketName))
 
-	// ── Phase 1: bulk delete ──────────────────────────────────────────────
+	if diagErr := bulkDeleteBucketObjects(ctx, client, bucketName); diagErr != nil {
+		return diagErr
+	}
+
+	if diagErr := removeRemainingObjectVersions(ctx, client, bucketName); diagErr != nil {
+		return diagErr
+	}
+
+	tflog.Debug(ctx, fmt.Sprintf("All objects deleted from bucket %s", bucketName))
+	return nil
+}
+
+// bulkDeleteBucketObjects is phase 1 of force destroy: it bulk-deletes objects via
+// RemoveObjects with GovernanceBypass, efficiently removing most objects in batches
+// of up to 1000.
+func bulkDeleteBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
 	objectsCh := make(chan minio.ObjectInfo)
 	var listErr error
 
@@ -528,7 +579,16 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 		return NewResourceError("error listing objects for deletion", bucketName, listErr)
 	}
 
-	// ── Phase 2: per-object fallback ──────────────────────────────────────
+	return nil
+}
+
+// removeRemainingObjectVersions is phase 2 of force destroy: it re-lists the bucket
+// and removes per-object any versions the bulk API silently skipped (the minio-go
+// bulk delete swallows InvalidArgument and NoSuchVersion per-object errors, which
+// leaves locked object versions behind on object-lock-enabled buckets). Objects
+// under active compliance retention or legal hold are never force-deleted; an
+// actionable error is returned instead.
+func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
 	// Re-list the bucket. For non-lock buckets the list will be empty (bulk
 	// delete handled everything). For object-lock-enabled buckets any
 	// versions that the bulk API silently skipped will appear here.
@@ -578,7 +638,6 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 		}
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("All objects deleted from bucket %s", bucketName))
 	return nil
 }
 

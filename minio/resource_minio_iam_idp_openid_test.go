@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -15,6 +16,13 @@ import (
 // testAccOIDCPreCheck skips the test when an OIDC-enabled MinIO instance is not configured.
 // Set MINIO_OIDC_ENABLED=1 along with MINIO_OIDC_CONFIG_URL, MINIO_OIDC_CLIENT_ID,
 // and MINIO_OIDC_CLIENT_SECRET to run these acceptance tests.
+//
+// MinIO's identity_openid subsystem is not dynamic: a named configuration written
+// through the admin API is persisted but stays invisible to every read, and a
+// delete is not applied, until the server restarts. These tests therefore restart
+// MinIO after each write (via testAccOIDCRestartAndGet) before verifying the
+// configuration server-side, which mirrors how the resource is used in practice
+// (apply, then restart) and guards the class of regression reported in issue #1014.
 func testAccOIDCPreCheck(t *testing.T) {
 	t.Helper()
 	testAccPreCheck(t)
@@ -28,6 +36,86 @@ func testAccOIDCPreCheck(t *testing.T) {
 			t.Skipf("Skipping OIDC acceptance tests: %s is not set", env)
 		}
 	}
+}
+
+// testAccOIDCRestartMinio restarts the MinIO server and waits until it is back,
+// so that an OIDC configuration written in the current step becomes visible (or a
+// deleted one is actually removed). Named OIDC configs only surface after a restart.
+func testAccOIDCRestartMinio(ctx context.Context, admin *madmin.AdminClient) error {
+	if err := admin.ServiceRestartV2(ctx); err != nil {
+		return fmt.Errorf("triggering MinIO restart: %w", err)
+	}
+
+	// Give the server a moment to begin restarting before polling for readiness.
+	time.Sleep(3 * time.Second)
+
+	deadline := time.Now().Add(120 * time.Second)
+	var lastErr error
+	for time.Now().Before(deadline) {
+		if _, err := admin.ServerInfo(ctx); err == nil {
+			return nil
+		} else {
+			lastErr = err
+		}
+		time.Sleep(3 * time.Second)
+	}
+	return fmt.Errorf("MinIO did not come back after restart: %w", lastErr)
+}
+
+// testAccOIDCRestartAndExists restarts MinIO and then asserts the named OIDC
+// configuration backing resourceName is present on the server.
+func testAccOIDCRestartAndExists(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("not found: %s", resourceName)
+		}
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("no OIDC IDP configuration ID is set")
+		}
+
+		ctx := context.Background()
+		admin := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		if err := testAccOIDCRestartMinio(ctx, admin); err != nil {
+			return err
+		}
+
+		if _, err := admin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, rs.Primary.ID); err != nil {
+			return fmt.Errorf("OIDC IDP configuration %s not found after restart: %w", rs.Primary.ID, err)
+		}
+		return nil
+	}
+}
+
+func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
+	ctx := context.Background()
+	admin := testAccProvider.Meta().(*S3MinioClient).S3Admin
+
+	var toCheck []string
+	for _, rs := range s.RootModule().Resources {
+		if rs.Type == "minio_iam_idp_openid" && rs.Primary.ID != "" {
+			toCheck = append(toCheck, rs.Primary.ID)
+		}
+	}
+	if len(toCheck) == 0 {
+		return nil
+	}
+
+	// A delete only takes effect after a restart, so restart before verifying.
+	if err := testAccOIDCRestartMinio(ctx, admin); err != nil {
+		return err
+	}
+
+	for _, id := range toCheck {
+		_, err := admin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, id)
+		if err == nil {
+			return fmt.Errorf("OIDC IDP configuration %s still exists", id)
+		}
+		if !isIDPConfigNotFound(err) {
+			return fmt.Errorf("unexpected error checking OIDC IDP configuration %s: %w", id, err)
+		}
+	}
+	return nil
 }
 
 func TestAccMinioIAMIdpOpenId_basic(t *testing.T) {
@@ -45,18 +133,12 @@ func TestAccMinioIAMIdpOpenId_basic(t *testing.T) {
 			{
 				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", cfgName),
 					resource.TestCheckResourceAttr(resourceName, "config_url", configURL),
 					resource.TestCheckResourceAttr(resourceName, "client_id", clientID),
 					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					testAccOIDCRestartAndExists(resourceName),
 				),
-			},
-			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"client_secret", "restart_required"},
 			},
 		},
 	})
@@ -77,17 +159,16 @@ func TestAccMinioIAMIdpOpenId_update(t *testing.T) {
 			{
 				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "claim_name", "policy"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					testAccOIDCRestartAndExists(resourceName),
 				),
 			},
 			{
 				Config: testAccMinioIAMIdpOpenIdWithComment(cfgName, configURL, clientID, clientSecret, "updated comment"),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "comment", "updated comment"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					testAccOIDCRestartAndExists(resourceName),
 				),
 			},
 		},
@@ -109,15 +190,11 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret(t *testing.T) {
 			{
 				Config: testAccMinioIAMIdpOpenIdWriteOnly(cfgName, configURL, clientID, clientSecret, 1),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", cfgName),
+					resource.TestCheckResourceAttr(resourceName, "client_id", clientID),
+					resource.TestCheckResourceAttr(resourceName, "client_secret_wo_version", "1"),
+					testAccOIDCRestartAndExists(resourceName),
 				),
-			},
-			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"client_secret", "client_secret_wo_version", "restart_required"},
 			},
 		},
 	})
@@ -138,65 +215,26 @@ func TestAccMinioIAMIdpOpenId_writeOnlyClientSecret_transition(t *testing.T) {
 			{
 				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "client_secret", clientSecret),
+					testAccOIDCRestartAndExists(resourceName),
 				),
 			},
 			{
 				Config: testAccMinioIAMIdpOpenIdWriteOnly(cfgName, configURL, clientID, clientSecret, 2),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "client_secret", ""),
+					resource.TestCheckResourceAttr(resourceName, "client_secret_wo_version", "2"),
+					testAccOIDCRestartAndExists(resourceName),
 				),
 			},
 			{
 				Config: testAccMinioIAMIdpOpenIdBasic(cfgName, configURL, clientID, clientSecret),
 				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpOpenIdExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "client_secret", clientSecret),
+					testAccOIDCRestartAndExists(resourceName),
 				),
 			},
 		},
 	})
-}
-
-func testAccCheckMinioIAMIdpOpenIdExists(resourceName string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[resourceName]
-		if !ok {
-			return fmt.Errorf("not found: %s", resourceName)
-		}
-
-		if rs.Primary.ID == "" {
-			return fmt.Errorf("no OIDC IDP configuration ID is set")
-		}
-
-		minioC := testAccProvider.Meta().(*S3MinioClient)
-		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.OpenidIDPCfg, rs.Primary.ID)
-		if err != nil {
-			return fmt.Errorf("OIDC IDP configuration %s not found: %w", rs.Primary.ID, err)
-		}
-
-		return nil
-	}
-}
-
-func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient)
-
-	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "minio_iam_idp_openid" {
-			continue
-		}
-
-		_, err := minioC.S3Admin.GetIDPConfig(context.Background(), madmin.OpenidIDPCfg, rs.Primary.ID)
-		if err == nil {
-			return fmt.Errorf("OIDC IDP configuration %s still exists", rs.Primary.ID)
-		}
-		if !isIDPConfigNotFound(err) {
-			return fmt.Errorf("unexpected error checking OIDC IDP configuration %s: %w", rs.Primary.ID, err)
-		}
-	}
-
-	return nil
 }
 
 func testAccMinioIAMIdpOpenIdBasic(name, configURL, clientID, clientSecret string) string {

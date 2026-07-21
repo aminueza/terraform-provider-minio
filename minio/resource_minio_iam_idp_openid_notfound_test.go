@@ -15,12 +15,13 @@ import (
 
 func TestMinioReadIdpOpenIdNotFound(t *testing.T) {
 	cases := []struct {
-		name       string
-		afterWrite bool
-		statusCode int
-		body       string
-		wantErr    bool
-		wantID     string
+		name            string
+		afterWrite      bool
+		restartRequired bool
+		statusCode      int
+		body            string
+		wantErr         bool
+		wantID          string
 	}{
 		{
 			name:       "not found after write keeps resource in state",
@@ -37,6 +38,15 @@ func TestMinioReadIdpOpenIdNotFound(t *testing.T) {
 			body:       `{"Code":"XMinioAdminIDPCfgNotFound","Message":"IDP configuration 'tfacc-oidc' not found"}`,
 			wantErr:    false,
 			wantID:     "",
+		},
+		{
+			name:            "not found on refresh keeps resource while restart pending",
+			afterWrite:      false,
+			restartRequired: true,
+			statusCode:      http.StatusNotFound,
+			body:            `{"Code":"XMinioAdminIDPCfgNotFound","Message":"IDP configuration 'tfacc-oidc' not found"}`,
+			wantErr:         false,
+			wantID:          "tfacc-oidc",
 		},
 		{
 			name:       "unrelated error propagates after write",
@@ -75,10 +85,11 @@ func TestMinioReadIdpOpenIdNotFound(t *testing.T) {
 			}
 
 			d := schema.TestResourceDataRaw(t, resourceMinioIAMIdpOpenId().Schema, map[string]interface{}{
-				"name":          "tfacc-oidc",
-				"config_url":    "http://idp.example.com/.well-known/openid-configuration",
-				"client_id":     "client",
-				"client_secret": "secret",
+				"name":             "tfacc-oidc",
+				"config_url":       "http://idp.example.com/.well-known/openid-configuration",
+				"client_id":        "client",
+				"client_secret":    "secret",
+				"restart_required": tc.restartRequired,
 			})
 			d.SetId("tfacc-oidc")
 

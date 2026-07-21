@@ -199,8 +199,14 @@ func minioReadIdpOpenIdConfig(ctx context.Context, d *schema.ResourceData, meta 
 	cfg, err := minioAdmin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, cfgName)
 	if err != nil {
 		if isIDPConfigNotFound(err) {
-			if afterWrite {
-				tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s was accepted but is not yet visible; a MinIO server restart may be required for it to take effect. Keeping configured values in state", cfgName))
+			// MinIO's identity_openid subsystem does not surface a newly written
+			// named configuration through GetIDPConfig until the server restarts.
+			// Treat not-found as "pending restart" both right after a write and on
+			// any later refresh while a restart is still outstanding, so a plan
+			// that runs before the operator restarts MinIO does not spuriously drop
+			// the resource from state (which previously surfaced as issue #1014).
+			if afterWrite || d.Get("restart_required").(bool) {
+				tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s is not yet visible; a MinIO server restart is required for it to take effect. Keeping configured values in state", cfgName))
 				return nil
 			}
 			tflog.Warn(ctx, fmt.Sprintf("OIDC IDP configuration %s no longer exists, removing from state", cfgName))

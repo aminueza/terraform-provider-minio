@@ -83,6 +83,12 @@ services:
       timeout: 5s
       retries: 6
       start_period: 10s
+  dex:
+    image: dexidp/dex:v2.41.1
+    volumes:
+      - ./testdata/dex/config.yaml:/etc/dex/config.docker.yaml
+    ports:
+      - "5556:5556"
   secondminio: #  This is used to test bucket replication
     image: *minio_image
     ports:
@@ -195,6 +201,10 @@ services:
       LDAP_MINIO_ENABLE_HTTPS: "false"
       MINIO_LDAP_TEST_USER_DN: "cn=testuser,ou=users,dc=example,dc=com"
       MINIO_LDAP_TEST_GROUP_DN: "cn=testgroup,ou=groups,dc=example,dc=com"
+      MINIO_OIDC_ENABLED: "1"
+      MINIO_OIDC_CONFIG_URL: "http://dex:5556/.well-known/openid-configuration"
+      MINIO_OIDC_CLIENT_ID: "minio-client"
+      MINIO_OIDC_CLIENT_SECRET: "minio-client-secret"
     depends_on:
       minio:
         condition: service_healthy
@@ -208,6 +218,12 @@ services:
         condition: service_healthy
       fourthminio:
         condition: service_healthy
+      dex:
+        # Dex ships as a distroless image with no shell, so it cannot run a
+        # container healthcheck. It binds its HTTP listener within a second of
+        # startup and the OIDC tests only reach it minutes later, so waiting for
+        # the container to start is enough.
+        condition: service_started
     profiles:
       - test
 

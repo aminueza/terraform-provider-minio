@@ -76,10 +76,6 @@ var kEnvVarNeeded = []string{
 }
 
 func testAccPreCheck(t *testing.T) {
-	if v, _ := os.LookupEnv("TF_ACC"); v == "" {
-		t.Fatal("TF_ACC must be set for acceptance tests")
-	}
-
 	var missing []string
 	for _, envvar := range kEnvVarNeeded {
 		if _, ok := os.LookupEnv(envvar); !ok {

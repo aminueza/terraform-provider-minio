@@ -29,8 +29,8 @@ updates:
       prefix: "deps:"
     open-pull-requests-limit: 10
 
-  # Enable version updates for Docker
-  - package-ecosystem: "docker"
+  # Enable version updates for Docker Compose images
+  - package-ecosystem: "docker-compose"
     directory: "/"
     schedule:
       interval: "weekly"

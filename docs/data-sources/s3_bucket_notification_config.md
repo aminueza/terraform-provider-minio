@@ -22,7 +22,7 @@ data "minio_s3_bucket_notification_config" "example" {
 
 ### Required
 
-- `bucket` (String)
+- `bucket` (String) Bucket name
 
 ### Read-Only
 

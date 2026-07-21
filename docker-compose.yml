@@ -89,6 +89,16 @@ services:
       - ./testdata/dex/config.yaml:/etc/dex/config.docker.yaml
     ports:
       - "5556:5556"
+  redis: # This is used to test the notify_redis target
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
   secondminio: #  This is used to test bucket replication
     image: *minio_image
     ports:
@@ -205,6 +215,7 @@ services:
       MINIO_OIDC_CONFIG_URL: "http://dex:5556/.well-known/openid-configuration"
       MINIO_OIDC_CLIENT_ID: "minio-client"
       MINIO_OIDC_CLIENT_SECRET: "minio-client-secret"
+      TF_ACC_REDIS_ADDRESS: "redis:6379"
     depends_on:
       minio:
         condition: service_healthy
@@ -224,6 +235,8 @@ services:
         # startup and the OIDC tests only reach it minutes later, so waiting for
         # the container to start is enough.
         condition: service_started
+      redis:
+        condition: service_healthy
     profiles:
       - test
 

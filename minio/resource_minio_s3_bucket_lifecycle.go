@@ -67,196 +67,210 @@ func bucketLifecycleRuleSchema() map[string]*schema.Schema {
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Filter identifying one or more objects to which the rule applies. Omit to match all objects in the bucket.",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"prefix": {
-						Type:        schema.TypeString,
-						Optional:    true,
-						Description: "Prefix identifying one or more objects to which the rule applies. Cannot be combined with `tag` at the top level; use `and` for composite filters.",
-					},
-					"tag": {
-						Type:        schema.TypeList,
-						Optional:    true,
-						MaxItems:    1,
-						Description: "Single tag to match. Use `and` for multi-tag or prefix+tag composite filters.",
-						Elem: &schema.Resource{
-							Schema: map[string]*schema.Schema{
-								"key": {
-									Type:         schema.TypeString,
-									Required:     true,
-									ValidateFunc: validation.StringLenBetween(1, 128),
-								},
-								"value": {
-									Type:         schema.TypeString,
-									Required:     true,
-									ValidateFunc: validation.StringLenBetween(0, 256),
-								},
-							},
-						},
-					},
-					"object_size_greater_than": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Minimum object size in bytes for the rule to apply.",
-					},
-					"object_size_less_than": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Maximum object size in bytes for the rule to apply.",
-					},
-					"and": {
-						Type:        schema.TypeList,
-						Optional:    true,
-						MaxItems:    1,
-						Description: "Composite filter (AND of prefix, tags, and object size bounds). Use when combining more than one condition.",
-						Elem: &schema.Resource{
-							Schema: map[string]*schema.Schema{
-								"prefix": {
-									Type:     schema.TypeString,
-									Optional: true,
-								},
-								"tags": {
-									Type:     schema.TypeMap,
-									Optional: true,
-									Elem:     &schema.Schema{Type: schema.TypeString},
-								},
-								"object_size_greater_than": {
-									Type:         schema.TypeInt,
-									Optional:     true,
-									ValidateFunc: validation.IntAtLeast(0),
-								},
-								"object_size_less_than": {
-									Type:         schema.TypeInt,
-									Optional:     true,
-									ValidateFunc: validation.IntAtLeast(0),
-								},
-							},
-						},
-					},
-				},
-			},
+			Elem:        &schema.Resource{Schema: lifecycleFilterSchema()},
 		},
 		"expiration": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Expiration for current object versions.",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"days": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(1),
-						Description:  "Number of days after object creation before expiration.",
-					},
-					"date": {
-						Type:             schema.TypeString,
-						Optional:         true,
-						ValidateDiagFunc: validateLifecycleDate,
-						Description:      "Absolute date (YYYY-MM-DD) after which objects expire. Mutually exclusive with `days`.",
-					},
-					"expired_object_delete_marker": {
-						Type:        schema.TypeBool,
-						Optional:    true,
-						Description: "If true, remove expired-object delete markers when the object has no remaining non-current versions.",
-					},
-				},
-			},
+			Elem:        &schema.Resource{Schema: lifecycleExpirationSchema()},
 		},
 		"transition": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Transition for current object versions to another storage class. Only one transition per rule; add additional rules for multi-stage transitions.",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"days": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Number of days after object creation before transition.",
-					},
-					"date": {
-						Type:             schema.TypeString,
-						Optional:         true,
-						ValidateDiagFunc: validateLifecycleDate,
-						Description:      "Absolute date (YYYY-MM-DD) after which transition occurs. Mutually exclusive with `days`.",
-					},
-					"storage_class": {
-						Type:         schema.TypeString,
-						Required:     true,
-						ValidateFunc: validation.StringLenBetween(1, 256),
-						Description:  "Target storage class for the transition (e.g. `GLACIER`, `STANDARD_IA`, or a custom MinIO tier).",
-					},
-				},
-			},
+			Elem:        &schema.Resource{Schema: lifecycleTransitionSchema()},
 		},
 		"noncurrent_version_expiration": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Expiration for non-current object versions. Requires versioning enabled on the bucket.",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"noncurrent_days": {
-						Type:         schema.TypeInt,
-						Required:     true,
-						ValidateFunc: validation.IntAtLeast(1),
-						Description:  "Number of days after which non-current versions expire.",
-					},
-					"newer_noncurrent_versions": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Number of non-current versions to retain regardless of `noncurrent_days`.",
-					},
-				},
-			},
+			Elem:        &schema.Resource{Schema: lifecycleNoncurrentExpirationSchema()},
 		},
 		"noncurrent_version_transition": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Transition for non-current object versions to another storage class. Requires versioning enabled on the bucket.",
-			Elem: &schema.Resource{
-				Schema: map[string]*schema.Schema{
-					"noncurrent_days": {
-						Type:         schema.TypeInt,
-						Required:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Number of days after becoming non-current before the transition applies.",
-					},
-					"newer_noncurrent_versions": {
-						Type:         schema.TypeInt,
-						Optional:     true,
-						ValidateFunc: validation.IntAtLeast(0),
-						Description:  "Number of non-current versions to retain in the current class.",
-					},
-					"storage_class": {
-						Type:         schema.TypeString,
-						Required:     true,
-						ValidateFunc: validation.StringLenBetween(1, 256),
-					},
-				},
-			},
+			Elem:        &schema.Resource{Schema: lifecycleNoncurrentTransitionSchema()},
 		},
 		"abort_incomplete_multipart_upload": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
 			Description: "Aborts and cleans up incomplete multipart uploads after a configurable number of days. Cannot be combined with tag-based filters on the rule.",
+			Elem:        &schema.Resource{Schema: lifecycleAbortSchema()},
+		},
+	}
+}
+
+func lifecycleFilterSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"prefix": {
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "Prefix identifying one or more objects to which the rule applies. Cannot be combined with `tag` at the top level; use `and` for composite filters.",
+		},
+		"tag": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "Single tag to match. Use `and` for multi-tag or prefix+tag composite filters.",
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
-					"days_after_initiation": {
-						Type:         schema.TypeInt,
+					"key": {
+						Type:         schema.TypeString,
 						Required:     true,
-						ValidateFunc: validation.IntAtLeast(1),
-						Description:  "Number of days since upload initiation after which the multipart upload is aborted.",
+						ValidateFunc: validation.StringLenBetween(1, 128),
+					},
+					"value": {
+						Type:         schema.TypeString,
+						Required:     true,
+						ValidateFunc: validation.StringLenBetween(0, 256),
 					},
 				},
 			},
+		},
+		"object_size_greater_than": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Minimum object size in bytes for the rule to apply.",
+		},
+		"object_size_less_than": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Maximum object size in bytes for the rule to apply.",
+		},
+		"and": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "Composite filter (AND of prefix, tags, and object size bounds). Use when combining more than one condition.",
+			Elem:        &schema.Resource{Schema: lifecycleFilterAndSchema()},
+		},
+	}
+}
+
+func lifecycleFilterAndSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"prefix": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"tags": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"object_size_greater_than": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+		},
+		"object_size_less_than": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+		},
+	}
+}
+
+func lifecycleExpirationSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(1),
+			Description:  "Number of days after object creation before expiration.",
+		},
+		"date": {
+			Type:             schema.TypeString,
+			Optional:         true,
+			ValidateDiagFunc: validateLifecycleDate,
+			Description:      "Absolute date (YYYY-MM-DD) after which objects expire. Mutually exclusive with `days`.",
+		},
+		"expired_object_delete_marker": {
+			Type:        schema.TypeBool,
+			Optional:    true,
+			Description: "If true, remove expired-object delete markers when the object has no remaining non-current versions.",
+		},
+	}
+}
+
+func lifecycleTransitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Number of days after object creation before transition.",
+		},
+		"date": {
+			Type:             schema.TypeString,
+			Optional:         true,
+			ValidateDiagFunc: validateLifecycleDate,
+			Description:      "Absolute date (YYYY-MM-DD) after which transition occurs. Mutually exclusive with `days`.",
+		},
+		"storage_class": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.StringLenBetween(1, 256),
+			Description:  "Target storage class for the transition (e.g. `GLACIER`, `STANDARD_IA`, or a custom MinIO tier).",
+		},
+	}
+}
+
+func lifecycleNoncurrentExpirationSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"noncurrent_days": {
+			Type:         schema.TypeInt,
+			Required:     true,
+			ValidateFunc: validation.IntAtLeast(1),
+			Description:  "Number of days after which non-current versions expire.",
+		},
+		"newer_noncurrent_versions": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Number of non-current versions to retain regardless of `noncurrent_days`.",
+		},
+	}
+}
+
+func lifecycleNoncurrentTransitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"noncurrent_days": {
+			Type:         schema.TypeInt,
+			Required:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Number of days after becoming non-current before the transition applies.",
+		},
+		"newer_noncurrent_versions": {
+			Type:         schema.TypeInt,
+			Optional:     true,
+			ValidateFunc: validation.IntAtLeast(0),
+			Description:  "Number of non-current versions to retain in the current class.",
+		},
+		"storage_class": {
+			Type:         schema.TypeString,
+			Required:     true,
+			ValidateFunc: validation.StringLenBetween(1, 256),
+		},
+	}
+}
+
+func lifecycleAbortSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days_after_initiation": {
+			Type:         schema.TypeInt,
+			Required:     true,
+			ValidateFunc: validation.IntAtLeast(1),
+			Description:  "Number of days since upload initiation after which the multipart upload is aborted.",
 		},
 	}
 }

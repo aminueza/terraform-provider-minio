@@ -19,24 +19,7 @@ func resourceMinioILMPolicy() *schema.Resource {
 		ReadContext:   minioReadILMPolicy,
 		DeleteContext: minioDeleteILMPolicy,
 		UpdateContext: minioUpdateILMPolicy,
-		CustomizeDiff: func(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
-			rulesRaw, ok := d.Get("rule").([]interface{})
-			if !ok {
-				return fmt.Errorf("invalid rule format")
-			}
-
-			for _, ruleI := range rulesRaw {
-				ruleData, ok := ruleI.(map[string]interface{})
-				if !ok {
-					return fmt.Errorf("invalid rule format")
-				}
-				if err := validateILMRuleConflicts(ruleData); err != nil {
-					return err
-				}
-			}
-
-			return nil
-		},
+		CustomizeDiff: customizeDiffILMPolicy,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -54,139 +37,170 @@ func resourceMinioILMPolicy() *schema.Resource {
 				Required:    true,
 				Description: "List of lifecycle rules.",
 				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"id": {
-							Type:        schema.TypeString,
-							Required:    true,
-							Description: "Unique identifier for the rule.",
-						},
-						"status": {
-							Type:         schema.TypeString,
-							Optional:     true,
-							Default:      "Enabled",
-							ValidateFunc: validation.StringInSlice([]string{"Enabled", "Disabled"}, false),
-							Description:  "Status of the rule. Can be either 'Enabled' or 'Disabled'. Defaults to 'Enabled'.",
-						},
-						"expiration": {
-							Type:             schema.TypeString,
-							Optional:         true,
-							Description:      "Value may be duration (5d) or date (1970-01-01) to expire objects",
-							ValidateDiagFunc: validateILMExpiration,
-						},
-						"expired_object_delete_marker": {
-							Type:        schema.TypeBool,
-							Optional:    true,
-							Default:     false,
-							Description: "Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).",
-						},
-						"transition": {
-							Type:        schema.TypeList,
-							MaxItems:    1,
-							Optional:    true,
-							Description: "Transition configuration for current object versions.",
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"days": {
-										Type:             schema.TypeString,
-										Optional:         true,
-										ValidateDiagFunc: validateILMDays,
-										Description:      "Number of days after object creation to transition, in format 'Nd'.",
-									},
-									"date": {
-										Type:             schema.TypeString,
-										Optional:         true,
-										ValidateDiagFunc: validateILMDate,
-										Description:      "Date after which objects are transitioned, in format 'YYYY-MM-DD'.",
-									},
-									"storage_class": {
-										Type:        schema.TypeString,
-										Required:    true,
-										Description: "Target storage class for the transition.",
-									},
-								},
-							},
-						},
-						"noncurrent_transition": {
-							Type:        schema.TypeList,
-							MaxItems:    1,
-							Optional:    true,
-							Description: "Transition configuration for noncurrent object versions.",
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"storage_class": {
-										Type:        schema.TypeString,
-										Required:    true,
-										Description: "Target storage class for noncurrent version transition.",
-									},
-									"days": {
-										Type:             schema.TypeString,
-										Required:         true,
-										ValidateDiagFunc: validateILMDays,
-										Description:      "Number of days after becoming noncurrent to transition, in format 'Nd'.",
-									},
-									"newer_versions": {
-										Type:             schema.TypeInt,
-										Optional:         true,
-										ValidateDiagFunc: validateILMVersions,
-										Description:      "Number of newer versions to retain.",
-									},
-								},
-							},
-						},
-						"noncurrent_expiration": {
-							Type:        schema.TypeList,
-							MaxItems:    1,
-							Optional:    true,
-							Description: "Expiration configuration for noncurrent object versions.",
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"days": {
-										Type:             schema.TypeString,
-										Required:         true,
-										ValidateDiagFunc: validateILMDays,
-										Description:      "Number of days after becoming noncurrent to expire, in format 'Nd'.",
-									},
-									"newer_versions": {
-										Type:             schema.TypeInt,
-										Optional:         true,
-										ValidateDiagFunc: validateILMVersions,
-										Description:      "Number of newer versions to retain.",
-									},
-								},
-							},
-						},
-						"abort_incomplete_multipart_upload": {
-							Type:        schema.TypeList,
-							MaxItems:    1,
-							Optional:    true,
-							Description: "Configuration for aborting incomplete multipart uploads.",
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"days_after_initiation": {
-										Type:             schema.TypeString,
-										Required:         true,
-										ValidateDiagFunc: validateILMDays,
-										Description:      "Number of days after which incomplete multipart uploads should be aborted, in format 'Nd'.",
-									},
-								},
-							},
-						},
-						"filter": {
-							Type:        schema.TypeString,
-							Optional:    true,
-							Description: "Object key prefix to filter which objects the rule applies to.",
-						},
-						"tags": {
-							Type:        schema.TypeMap,
-							Optional:    true,
-							Description: "Key-value map of object tags to filter which objects the rule applies to.",
-							Elem: &schema.Schema{
-								Type: schema.TypeString,
-							},
-						},
-					},
+					Schema: ilmPolicyRuleSchema(),
 				},
 			},
+		},
+	}
+}
+
+func customizeDiffILMPolicy(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	rulesRaw, ok := d.Get("rule").([]interface{})
+	if !ok {
+		return fmt.Errorf("invalid rule format")
+	}
+
+	for _, ruleI := range rulesRaw {
+		ruleData, ok := ruleI.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("invalid rule format")
+		}
+		if err := validateILMRuleConflicts(ruleData); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func ilmPolicyRuleSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"id": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Description: "Unique identifier for the rule.",
+		},
+		"status": {
+			Type:         schema.TypeString,
+			Optional:     true,
+			Default:      "Enabled",
+			ValidateFunc: validation.StringInSlice([]string{"Enabled", "Disabled"}, false),
+			Description:  "Status of the rule. Can be either 'Enabled' or 'Disabled'. Defaults to 'Enabled'.",
+		},
+		"expiration": {
+			Type:             schema.TypeString,
+			Optional:         true,
+			Description:      "Value may be duration (5d) or date (1970-01-01) to expire objects",
+			ValidateDiagFunc: validateILMExpiration,
+		},
+		"expired_object_delete_marker": {
+			Type:        schema.TypeBool,
+			Optional:    true,
+			Default:     false,
+			Description: "Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).",
+		},
+		"transition": {
+			Type:        schema.TypeList,
+			MaxItems:    1,
+			Optional:    true,
+			Description: "Transition configuration for current object versions.",
+			Elem:        &schema.Resource{Schema: ilmTransitionSchema()},
+		},
+		"noncurrent_transition": {
+			Type:        schema.TypeList,
+			MaxItems:    1,
+			Optional:    true,
+			Description: "Transition configuration for noncurrent object versions.",
+			Elem:        &schema.Resource{Schema: ilmNoncurrentTransitionSchema()},
+		},
+		"noncurrent_expiration": {
+			Type:        schema.TypeList,
+			MaxItems:    1,
+			Optional:    true,
+			Description: "Expiration configuration for noncurrent object versions.",
+			Elem:        &schema.Resource{Schema: ilmNoncurrentExpirationSchema()},
+		},
+		"abort_incomplete_multipart_upload": {
+			Type:        schema.TypeList,
+			MaxItems:    1,
+			Optional:    true,
+			Description: "Configuration for aborting incomplete multipart uploads.",
+			Elem:        &schema.Resource{Schema: ilmAbortSchema()},
+		},
+		"filter": {
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "Object key prefix to filter which objects the rule applies to.",
+		},
+		"tags": {
+			Type:        schema.TypeMap,
+			Optional:    true,
+			Description: "Key-value map of object tags to filter which objects the rule applies to.",
+			Elem: &schema.Schema{
+				Type: schema.TypeString,
+			},
+		},
+	}
+}
+
+func ilmTransitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days": {
+			Type:             schema.TypeString,
+			Optional:         true,
+			ValidateDiagFunc: validateILMDays,
+			Description:      "Number of days after object creation to transition, in format 'Nd'.",
+		},
+		"date": {
+			Type:             schema.TypeString,
+			Optional:         true,
+			ValidateDiagFunc: validateILMDate,
+			Description:      "Date after which objects are transitioned, in format 'YYYY-MM-DD'.",
+		},
+		"storage_class": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Description: "Target storage class for the transition.",
+		},
+	}
+}
+
+func ilmNoncurrentTransitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"storage_class": {
+			Type:        schema.TypeString,
+			Required:    true,
+			Description: "Target storage class for noncurrent version transition.",
+		},
+		"days": {
+			Type:             schema.TypeString,
+			Required:         true,
+			ValidateDiagFunc: validateILMDays,
+			Description:      "Number of days after becoming noncurrent to transition, in format 'Nd'.",
+		},
+		"newer_versions": {
+			Type:             schema.TypeInt,
+			Optional:         true,
+			ValidateDiagFunc: validateILMVersions,
+			Description:      "Number of newer versions to retain.",
+		},
+	}
+}
+
+func ilmNoncurrentExpirationSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days": {
+			Type:             schema.TypeString,
+			Required:         true,
+			ValidateDiagFunc: validateILMDays,
+			Description:      "Number of days after becoming noncurrent to expire, in format 'Nd'.",
+		},
+		"newer_versions": {
+			Type:             schema.TypeInt,
+			Optional:         true,
+			ValidateDiagFunc: validateILMVersions,
+			Description:      "Number of newer versions to retain.",
+		},
+	}
+}
+
+func ilmAbortSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days_after_initiation": {
+			Type:             schema.TypeString,
+			Required:         true,
+			ValidateDiagFunc: validateILMDays,
+			Description:      "Number of days after which incomplete multipart uploads should be aborted, in format 'Nd'.",
 		},
 	}
 }
@@ -436,29 +450,7 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 	rules := make([]map[string]interface{}, 0)
 
 	existingRulesRaw, _ := d.Get("rule").([]interface{})
-	rulesFromState := make([]map[string]interface{}, 0, len(existingRulesRaw))
-	hasAnySupportedAction := false
-	for _, ri := range existingRulesRaw {
-		if rm, ok := ri.(map[string]interface{}); ok {
-			rulesFromState = append(rulesFromState, rm)
-			if exp, _ := getStringValue(rm, "expiration"); exp != "" {
-				hasAnySupportedAction = true
-				continue
-			}
-			if t, ok := rm["transition"].([]interface{}); ok && len(t) > 0 {
-				hasAnySupportedAction = true
-				continue
-			}
-			if nce, ok := rm["noncurrent_expiration"].([]interface{}); ok && len(nce) > 0 {
-				hasAnySupportedAction = true
-				continue
-			}
-			if nct, ok := rm["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
-				hasAnySupportedAction = true
-				continue
-			}
-		}
-	}
+	rulesFromState, hasAnySupportedAction := ilmRulesFromState(existingRulesRaw)
 
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
@@ -487,8 +479,54 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 
 	// Capture existing state to preserve user-specified fields that MinIO doesn't support yet,
 	// such as abort_incomplete_multipart_upload and DeleteMarker vs ExpiredObjectDeleteMarker distinction.
-	stateAbortByID := map[string][]map[string]interface{}{}
-	stateExpirationByID := map[string]string{}
+	stateAbortByID, stateExpirationByID := ilmStateOverrides(d)
+
+	for _, r := range config.Rules {
+		rules = append(rules, flattenILMRule(r, stateAbortByID, stateExpirationByID))
+	}
+
+	if err := d.Set("rule", rules); err != nil {
+		return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
+	}
+
+	return nil
+}
+
+// ilmRulesFromState returns the rules currently held in state, plus whether any of
+// them declares a server-supported action. It drives the fallback used when the
+// bucket's lifecycle configuration is missing on the server.
+func ilmRulesFromState(existingRulesRaw []interface{}) (rulesFromState []map[string]interface{}, hasAnySupportedAction bool) {
+	rulesFromState = make([]map[string]interface{}, 0, len(existingRulesRaw))
+	for _, ri := range existingRulesRaw {
+		if rm, ok := ri.(map[string]interface{}); ok {
+			rulesFromState = append(rulesFromState, rm)
+			if exp, _ := getStringValue(rm, "expiration"); exp != "" {
+				hasAnySupportedAction = true
+				continue
+			}
+			if t, ok := rm["transition"].([]interface{}); ok && len(t) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+			if nce, ok := rm["noncurrent_expiration"].([]interface{}); ok && len(nce) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+			if nct, ok := rm["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+		}
+	}
+	return
+}
+
+// ilmStateOverrides captures user-specified fields that MinIO does not round-trip,
+// keyed by rule ID: the abort-incomplete-multipart-upload block and the DeleteMarker
+// expiration marker.
+func ilmStateOverrides(d *schema.ResourceData) (stateAbortByID map[string][]map[string]interface{}, stateExpirationByID map[string]string) {
+	stateAbortByID = map[string][]map[string]interface{}{}
+	stateExpirationByID = map[string]string{}
 	if v, ok := d.GetOk("rule"); ok {
 		if oldRules, ok := v.([]interface{}); ok {
 			for _, ri := range oldRules {
@@ -519,106 +557,101 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			}
 		}
 	}
+	return
+}
 
-	for _, r := range config.Rules {
-		var expiration string
-		var expiredObjectDeleteMarker bool
+// flattenILMRule converts a lifecycle rule returned by MinIO into the state
+// representation, applying the state overrides captured by ilmStateOverrides.
+func flattenILMRule(r lifecycle.Rule, stateAbortByID map[string][]map[string]interface{}, stateExpirationByID map[string]string) map[string]interface{} {
+	var expiration string
+	var expiredObjectDeleteMarker bool
 
-		if preserved, ok := stateExpirationByID[r.ID]; ok && preserved == "DeleteMarker" {
-			expiration = "DeleteMarker"
-		} else if r.Expiration.IsDeleteMarkerExpirationEnabled() {
-			expiredObjectDeleteMarker = true
-			if r.Expiration.Days != 0 {
-				expiration = fmt.Sprintf("%dd", r.Expiration.Days)
-			} else if !r.Expiration.Date.IsZero() {
-				expiration = r.Expiration.Date.Format("2006-01-02")
-			}
-		} else if r.Expiration.Days != 0 {
+	if preserved, ok := stateExpirationByID[r.ID]; ok && preserved == "DeleteMarker" {
+		expiration = "DeleteMarker"
+	} else if r.Expiration.IsDeleteMarkerExpirationEnabled() {
+		expiredObjectDeleteMarker = true
+		if r.Expiration.Days != 0 {
 			expiration = fmt.Sprintf("%dd", r.Expiration.Days)
-		} else if bool(r.Expiration.DeleteMarker) && r.Expiration.Days == 0 {
-			if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
-				expiredObjectDeleteMarker = true
-			} else {
-				expiration = "DeleteMarker"
-			}
-		} else if !r.Expiration.IsNull() {
+		} else if !r.Expiration.Date.IsZero() {
 			expiration = r.Expiration.Date.Format("2006-01-02")
 		}
-
-		transitions := make([]map[string]interface{}, 0)
-		if !r.Transition.IsNull() {
-			transition := map[string]interface{}{}
-			if !r.Transition.IsDaysNull() {
-				transition["days"] = fmt.Sprintf("%dd", r.Transition.Days)
-			} else if !r.Transition.IsDateNull() {
-				transition["date"] = r.Transition.Date.Format("2006-01-02")
-			}
-			transition["storage_class"] = r.Transition.StorageClass
-			transitions = append(transitions, transition)
-		}
-
-		noncurrentExpiration := make([]map[string]interface{}, 0)
+	} else if r.Expiration.Days != 0 {
+		expiration = fmt.Sprintf("%dd", r.Expiration.Days)
+	} else if bool(r.Expiration.DeleteMarker) && r.Expiration.Days == 0 {
 		if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
-			noncurrentExpiration = append(noncurrentExpiration, map[string]interface{}{
-				"days":           fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays),
-				"newer_versions": r.NoncurrentVersionExpiration.NewerNoncurrentVersions,
-			})
-		}
-
-		noncurrentTransition := make([]map[string]interface{}, 0)
-		if r.NoncurrentVersionTransition.NoncurrentDays != 0 {
-			noncurrentTransition = append(noncurrentTransition, map[string]interface{}{
-				"days":           fmt.Sprintf("%dd", r.NoncurrentVersionTransition.NoncurrentDays),
-				"storage_class":  r.NoncurrentVersionTransition.StorageClass,
-				"newer_versions": r.NoncurrentVersionTransition.NewerNoncurrentVersions,
-			})
-		}
-
-		abortIncompleteMultipartUpload := make([]map[string]interface{}, 0)
-		if !r.AbortIncompleteMultipartUpload.IsDaysNull() {
-			abortIncompleteMultipartUpload = append(abortIncompleteMultipartUpload, map[string]interface{}{
-				"days_after_initiation": fmt.Sprintf("%dd", r.AbortIncompleteMultipartUpload.DaysAfterInitiation),
-			})
-		} else if preserved, ok := stateAbortByID[r.ID]; ok && len(preserved) > 0 {
-			abortIncompleteMultipartUpload = preserved
-		}
-
-		if preserved, ok := stateExpirationByID[r.ID]; ok && preserved == "DeleteMarker" {
+			expiredObjectDeleteMarker = true
+		} else {
 			expiration = "DeleteMarker"
 		}
-
-		var prefix string
-		tags := map[string]string{}
-		if len(r.RuleFilter.And.Tags) > 0 {
-			prefix = r.RuleFilter.And.Prefix
-			for _, tag := range r.RuleFilter.And.Tags {
-				tags[tag.Key] = tag.Value
-			}
-		} else {
-			prefix = r.RuleFilter.Prefix
-		}
-
-		rule := map[string]interface{}{
-			"id":                                r.ID,
-			"expiration":                        expiration,
-			"expired_object_delete_marker":      expiredObjectDeleteMarker,
-			"transition":                        transitions,
-			"noncurrent_expiration":             noncurrentExpiration,
-			"noncurrent_transition":             noncurrentTransition,
-			"abort_incomplete_multipart_upload": abortIncompleteMultipartUpload,
-			"status":                            r.Status,
-			"filter":                            prefix,
-			"tags":                              tags,
-		}
-
-		rules = append(rules, rule)
+	} else if !r.Expiration.IsNull() {
+		expiration = r.Expiration.Date.Format("2006-01-02")
 	}
 
-	if err := d.Set("rule", rules); err != nil {
-		return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
+	transitions := make([]map[string]interface{}, 0)
+	if !r.Transition.IsNull() {
+		transition := map[string]interface{}{}
+		if !r.Transition.IsDaysNull() {
+			transition["days"] = fmt.Sprintf("%dd", r.Transition.Days)
+		} else if !r.Transition.IsDateNull() {
+			transition["date"] = r.Transition.Date.Format("2006-01-02")
+		}
+		transition["storage_class"] = r.Transition.StorageClass
+		transitions = append(transitions, transition)
 	}
 
-	return nil
+	noncurrentExpiration := make([]map[string]interface{}, 0)
+	if r.NoncurrentVersionExpiration.NoncurrentDays != 0 {
+		noncurrentExpiration = append(noncurrentExpiration, map[string]interface{}{
+			"days":           fmt.Sprintf("%dd", r.NoncurrentVersionExpiration.NoncurrentDays),
+			"newer_versions": r.NoncurrentVersionExpiration.NewerNoncurrentVersions,
+		})
+	}
+
+	noncurrentTransition := make([]map[string]interface{}, 0)
+	if r.NoncurrentVersionTransition.NoncurrentDays != 0 {
+		noncurrentTransition = append(noncurrentTransition, map[string]interface{}{
+			"days":           fmt.Sprintf("%dd", r.NoncurrentVersionTransition.NoncurrentDays),
+			"storage_class":  r.NoncurrentVersionTransition.StorageClass,
+			"newer_versions": r.NoncurrentVersionTransition.NewerNoncurrentVersions,
+		})
+	}
+
+	abortIncompleteMultipartUpload := make([]map[string]interface{}, 0)
+	if !r.AbortIncompleteMultipartUpload.IsDaysNull() {
+		abortIncompleteMultipartUpload = append(abortIncompleteMultipartUpload, map[string]interface{}{
+			"days_after_initiation": fmt.Sprintf("%dd", r.AbortIncompleteMultipartUpload.DaysAfterInitiation),
+		})
+	} else if preserved, ok := stateAbortByID[r.ID]; ok && len(preserved) > 0 {
+		abortIncompleteMultipartUpload = preserved
+	}
+
+	if preserved, ok := stateExpirationByID[r.ID]; ok && preserved == "DeleteMarker" {
+		expiration = "DeleteMarker"
+	}
+
+	var prefix string
+	tags := map[string]string{}
+	if len(r.RuleFilter.And.Tags) > 0 {
+		prefix = r.RuleFilter.And.Prefix
+		for _, tag := range r.RuleFilter.And.Tags {
+			tags[tag.Key] = tag.Value
+		}
+	} else {
+		prefix = r.RuleFilter.Prefix
+	}
+
+	return map[string]interface{}{
+		"id":                                r.ID,
+		"expiration":                        expiration,
+		"expired_object_delete_marker":      expiredObjectDeleteMarker,
+		"transition":                        transitions,
+		"noncurrent_expiration":             noncurrentExpiration,
+		"noncurrent_transition":             noncurrentTransition,
+		"abort_incomplete_multipart_upload": abortIncompleteMultipartUpload,
+		"status":                            r.Status,
+		"filter":                            prefix,
+		"tags":                              tags,
+	}
 }
 
 func minioUpdateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

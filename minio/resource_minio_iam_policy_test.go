@@ -236,6 +236,34 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 	}
 }
 
+// TestAccMinioIAMPolicy_destroyToleratesResurrectedPolicy guards the CheckDestroy
+// self-heal: MinIO's IAM cache can re-surface a just-deleted canned policy, so the
+// destroy check must re-issue the delete and converge instead of reporting a leak.
+func TestAccMinioIAMPolicy_destroyToleratesResurrectedPolicy(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	const policyBody = `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket"],"Effect":"Allow","Resource":["arn:aws:s3:::*"]}]}`
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: func(s *terraform.State) error {
+			// Re-add the policy after Terraform deleted it to mimic the IAM-cache
+			// resurrection; the destroy check must still return nil.
+			iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+			if err := iamconn.AddCannedPolicy(context.Background(), rName, []byte(policyBody)); err != nil {
+				return fmt.Errorf("seeding resurrected policy: %w", err)
+			}
+			return testAccCheckMinioIAMPolicyDestroy(s)
+		},
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMPolicyConfigName(rName),
+				Check:  testAccCheckMinioIAMPolicyExists("minio_iam_policy.test"),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 	iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
@@ -244,15 +272,18 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 			continue
 		}
 
-		// MinIO's IAM subsystem is eventually consistent under concurrent load,
-		// so a just-deleted canned policy can briefly still be returned by
-		// InfoCannedPolicyV2. Poll for a short while before declaring the policy
-		// leaked to avoid flaky CheckDestroy failures.
+		// MinIO's IAM cache can resurrect a just-deleted canned policy under
+		// concurrent churn (InfoCannedPolicyV2 keeps returning it until the next
+		// full IAM reload, which can take minutes). Re-issue the delete on each
+		// poll so the check converges instead of waiting the cache out; a policy
+		// that truly cannot be removed still fails once the window elapses.
 		err := retry.RetryContext(context.Background(), 30*time.Second, func() *retry.RetryError {
-			if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID); info != nil {
-				return retry.RetryableError(fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID))
+			info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID)
+			if info == nil {
+				return nil
 			}
-			return nil
+			_ = iamconn.RemoveCannedPolicy(context.Background(), rs.Primary.ID)
+			return retry.RetryableError(fmt.Errorf("iAM Policy (%s) still exists", rs.Primary.ID))
 		})
 		if err != nil {
 			return err

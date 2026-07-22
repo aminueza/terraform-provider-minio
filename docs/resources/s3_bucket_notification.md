@@ -53,7 +53,7 @@ Optional:
 
 - `filter_prefix` (String) Object key name prefix to filter notifications.
 - `filter_suffix` (String) Object key name suffix to filter notifications.
-- `id` (String) Unique identifier for the queue notification.
+- `id` (String) Unique identifier for the queue notification. Must be unique across all resources targeting the same bucket.
 
 ## Import
 
@@ -63,3 +63,5 @@ Import is supported using the following syntax:
 # S3 bucket notifications can be imported using the bucket name
 terraform import minio_s3_bucket_notification.example bucket-name
 ```
+
+Note: Importing replaces the entire notification configuration for the bucket. If multiple notification resources target the same bucket, only the imported resource's queue targets will be present after import.

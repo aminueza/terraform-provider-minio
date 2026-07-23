@@ -231,7 +231,7 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		_, err := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID)
+		_, err := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID)
 		return err
 	}
 }
@@ -278,7 +278,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 		// poll so the check converges instead of waiting the cache out; a policy
 		// that truly cannot be removed still fails once the window elapses.
 		err := retry.RetryContext(context.Background(), 30*time.Second, func() *retry.RetryError {
-			info, _ := iamconn.InfoCannedPolicyV2(context.Background(), rs.Primary.ID)
+			info, _ := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID)
 			if info == nil {
 				return nil
 			}
@@ -297,7 +297,7 @@ func testAccCheckMinioIAMPolicyDisappears(resource string) resource.TestCheckFun
 	return func(s *terraform.State) error {
 		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
 
-		if info, _ := iamconn.InfoCannedPolicyV2(context.Background(), resource); info == nil {
+		if info, _ := iamconn.InfoCannedPolicy(context.Background(), resource); info == nil {
 
 			if err := iamconn.RemoveCannedPolicy(context.Background(), resource); err != nil {
 				return err

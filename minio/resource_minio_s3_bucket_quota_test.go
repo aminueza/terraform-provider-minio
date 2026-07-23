@@ -71,8 +71,8 @@ func testAccCheckMinioBucketQuotaDestroy(s *terraform.State) error {
 		if err != nil {
 			continue
 		}
-		if quota.Quota != 0 {
-			return fmt.Errorf("bucket quota still exists for %s: %d", bucket, quota.Quota)
+		if quota.Size != 0 {
+			return fmt.Errorf("bucket quota still exists for %s: %d", bucket, quota.Size)
 		}
 	}
 	return nil

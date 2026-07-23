@@ -21,7 +21,7 @@ func dataSourceIAMPolicyRead(d *schema.ResourceData, meta interface{}) error {
 	admin := meta.(*S3MinioClient).S3Admin
 
 	name := d.Get("name").(string)
-	info, err := admin.InfoCannedPolicyV2(context.Background(), name)
+	info, err := admin.InfoCannedPolicy(context.Background(), name)
 	if err != nil {
 		return err
 	}

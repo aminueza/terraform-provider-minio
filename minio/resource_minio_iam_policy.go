@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
@@ -87,7 +87,7 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Policy: %s", d.Id()))
 
-	info, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, d.Id())
+	info, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, d.Id())
 	if err != nil {
 		errResp := madmin.ErrorResponse{}
 		if errors.As(err, &errResp) {

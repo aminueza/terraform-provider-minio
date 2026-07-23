@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 )
 
 func resourceMinioBucketQuota() *schema.Resource {
@@ -55,7 +55,7 @@ func minioCreateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 
 	tflog.Debug(ctx, fmt.Sprintf("Setting quota for bucket %s", bucket))
 
-	bucketQuota := madmin.BucketQuota{Quota: quota, Type: madmin.HardQuota}
+	bucketQuota := madmin.BucketQuota{Size: quota, Type: madmin.HardQuota}
 	if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
 		return NewResourceError("setting bucket quota", bucket, err)
 	}
@@ -82,7 +82,7 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("reading bucket quota", bucket, err)
 	}
 
-	if bucketQuota.Quota == 0 {
+	if bucketQuota.Size == 0 {
 		tflog.Info(ctx, fmt.Sprintf("Bucket quota for %s is 0, removing from state", bucket))
 		d.SetId("")
 		return nil
@@ -91,9 +91,9 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 	if err := d.Set("bucket", bucket); err != nil {
 		return NewResourceError("setting bucket", bucket, err)
 	}
-	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Quota)
+	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
 	if !ok {
-		return NewResourceError("reading bucket quota", bucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Quota))
+		return NewResourceError("reading bucket quota", bucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
 	}
 	_ = d.Set("quota", int(quotaVal))
 	_ = d.Set("type", string(bucketQuota.Type))
@@ -113,7 +113,7 @@ func minioUpdateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 		quota := uint64(quotaInt) //#nosec G115 -- validated non-negative above
 		tflog.Debug(ctx, fmt.Sprintf("Updating quota for bucket %s", bucket))
 
-		bucketQuota := madmin.BucketQuota{Quota: quota, Type: madmin.HardQuota}
+		bucketQuota := madmin.BucketQuota{Size: quota, Type: madmin.HardQuota}
 		if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
 			return NewResourceError("updating bucket quota", bucket, err)
 		}
@@ -128,7 +128,7 @@ func minioDeleteBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 
 	tflog.Debug(ctx, fmt.Sprintf("Clearing quota for bucket %s", bucket))
 
-	bucketQuota := madmin.BucketQuota{Quota: 0}
+	bucketQuota := madmin.BucketQuota{Size: 0}
 	if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
 		return NewResourceError("deleting bucket quota", bucket, err)
 	}

@@ -75,7 +75,7 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	tflog.Debug(ctx, fmt.Sprintf("Starting decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint))
 
-	if err := admin.DecommissionPool(ctx, poolEndpoint); err != nil {
+	if err := admin.DecommissionPoolWithOptions(ctx, poolEndpoint, madmin.DecommissionPoolOptions{}); err != nil {
 		return NewResourceError("starting decommission", fmt.Sprintf("pool-%d", poolIndex), err)
 	}
 

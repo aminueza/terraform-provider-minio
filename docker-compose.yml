@@ -84,7 +84,7 @@ services:
       retries: 6
       start_period: 10s
   dex:
-    image: dexidp/dex:v2.41.1
+    image: dexidp/dex:v2.45.1
     volumes:
       - ./testdata/dex/config.yaml:/etc/dex/config.docker.yaml
     ports:

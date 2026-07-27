@@ -90,7 +90,7 @@ services:
     ports:
       - "5556:5556"
   redis: # This is used to test the notify_redis target
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
       - "6379:6379"
     healthcheck:

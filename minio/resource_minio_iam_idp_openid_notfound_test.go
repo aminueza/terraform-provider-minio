@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 

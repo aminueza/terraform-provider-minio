@@ -11,7 +11,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 )
 
 const (
@@ -75,7 +75,7 @@ func minioCreatePoolDecommission(ctx context.Context, d *schema.ResourceData, me
 
 	tflog.Debug(ctx, fmt.Sprintf("Starting decommission for pool index %d (endpoint: %s)", poolIndex, poolEndpoint))
 
-	if err := admin.DecommissionPool(ctx, poolEndpoint); err != nil {
+	if err := admin.DecommissionPoolWithOptions(ctx, poolEndpoint, madmin.DecommissionPoolOptions{}); err != nil {
 		return NewResourceError("starting decommission", fmt.Sprintf("pool-%d", poolIndex), err)
 	}
 

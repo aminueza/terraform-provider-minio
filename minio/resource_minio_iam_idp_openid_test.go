@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 )
 
 // testAccOIDCPreCheck skips the test when an OIDC-enabled MinIO instance is not configured.
@@ -42,7 +42,7 @@ func testAccOIDCPreCheck(t *testing.T) {
 // so that an OIDC configuration written in the current step becomes visible (or a
 // deleted one is actually removed). Named OIDC configs only surface after a restart.
 func testAccOIDCRestartMinio(ctx context.Context, admin *madmin.AdminClient) error {
-	if err := admin.ServiceRestartV2(ctx); err != nil {
+	if err := admin.ServiceRestart(ctx); err != nil {
 		return fmt.Errorf("triggering MinIO restart: %w", err)
 	}
 

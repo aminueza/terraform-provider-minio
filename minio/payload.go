@@ -3,7 +3,7 @@ package minio
 import (
 	"time"
 
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
 	"github.com/minio/minio-go/v7/pkg/policy"

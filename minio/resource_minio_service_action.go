@@ -70,16 +70,16 @@ func minioCreateServiceAction(ctx context.Context, d *schema.ResourceData, meta 
 
 	switch action {
 	case "restart":
-		err = admin.ServiceRestartV2(ctx)
+		err = admin.ServiceRestart(ctx)
 		result = "MinIO cluster restarted"
 	case "stop":
-		err = admin.ServiceStopV2(ctx)
+		err = admin.ServiceStop(ctx)
 		result = "MinIO cluster stopped"
 	case "freeze":
-		err = admin.ServiceFreezeV2(ctx)
+		err = admin.ServiceFreeze(ctx)
 		result = "MinIO cluster frozen (all S3 API calls suspended)"
 	case "unfreeze":
-		err = admin.ServiceUnfreezeV2(ctx)
+		err = admin.ServiceUnfreeze(ctx)
 		result = "MinIO cluster unfrozen (S3 API calls resumed)"
 	default:
 		return diag.Errorf("unsupported service action: %q", action)

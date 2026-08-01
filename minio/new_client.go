@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -110,13 +110,13 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 
 	// Initialize admin client
 	minioAdmin, err := madmin.NewWithOptions(config.S3HostPort, &madmin.Options{
-		Creds:  minioCredentials,
-		Secure: config.S3SSL,
+		Creds:     minioCredentials,
+		Secure:    config.S3SSL,
+		Transport: tr,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create admin client: %w", err)
 	}
-	minioAdmin.SetCustomTransport(tr)
 
 	return &S3MinioClient{
 		S3UserAccess:          config.S3UserAccess,

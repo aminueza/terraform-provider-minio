@@ -52,7 +52,9 @@ jobs:
       - name: Run tests
         id: tests
         continue-on-error: true
-        run: docker compose run --rm test
+        # The latest MinIO speaks admin API v4, so let madmin-go start at v4
+        # instead of the v3 default used against the pinned image.
+        run: MADMIN_API_VERSION=v4 docker compose run --rm test
 
       - name: Cleanup test environment
         if: always()

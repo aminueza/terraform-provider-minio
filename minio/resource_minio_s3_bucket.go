@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/minio/madmin-go/v3"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/tags"
@@ -445,14 +445,14 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		if quotaInt < 0 {
 			return diag.Errorf("bucket quota must be a non-negative value, got: %d", quotaInt)
 		}
-		bucketQuota := madmin.BucketQuota{Quota: uint64(quotaInt), Type: madmin.HardQuota}
+		bucketQuota := madmin.BucketQuota{Size: uint64(quotaInt), Type: madmin.HardQuota}
 
 		if err := bucketConfig.MinioAdmin.SetBucketQuota(ctx, bucketConfig.MinioBucket, &bucketQuota); err != nil {
 			return NewResourceError("setting bucket quota", bucketConfig.MinioBucket, err)
 		}
 
 		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] updated!", bucketConfig.MinioBucket))
-		_ = d.Set("quota", bucketQuota.Quota)
+		_ = d.Set("quota", bucketQuota.Size)
 	}
 
 	return minioReadBucket(ctx, d, meta)

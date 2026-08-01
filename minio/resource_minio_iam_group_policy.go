@@ -94,7 +94,7 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Group Policy: %s", d.Id()))
 
-	info, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, policyName)
+	info, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
 	if info == nil {
 		tflog.Warn(ctx, fmt.Sprintf("No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err))
 		d.SetId("")
@@ -144,7 +144,7 @@ func minioDeleteGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	info, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicyV2(ctx, policyName)
+	info, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
 	if info == nil {
 		return nil
 	}

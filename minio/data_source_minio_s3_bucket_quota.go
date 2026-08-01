@@ -26,15 +26,15 @@ func dataSourceMinioS3BucketQuotaRead(d *schema.ResourceData, meta interface{}) 
 	d.SetId(bucket)
 
 	bucketQuota, err := admin.GetBucketQuota(context.Background(), bucket)
-	if err != nil || bucketQuota.Quota == 0 {
+	if err != nil || bucketQuota.Size == 0 {
 		_ = d.Set("quota", 0)
 		_ = d.Set("type", "")
 		return nil
 	}
 
-	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Quota)
+	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
 	if !ok {
-		return fmt.Errorf("quota value overflows int64: %d", bucketQuota.Quota)
+		return fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size)
 	}
 	_ = d.Set("quota", int(quotaVal))
 	_ = d.Set("type", string(bucketQuota.Type))

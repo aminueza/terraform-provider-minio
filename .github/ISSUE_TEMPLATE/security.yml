@@ -13,7 +13,7 @@ body:
         
         For non-security issues, please use the [Bug Report](../new?assignees=&labels=bug&template=bug_report.yml) template instead.
         
-        If you prefer to report via email, contact us at security@aminueza.com
+        For a fully private channel, use [GitHub Private Vulnerability Reporting](https://github.com/aminueza/terraform-provider-minio/security/advisories/new) instead.
 
   - type: textarea
     id: vulnerability-type

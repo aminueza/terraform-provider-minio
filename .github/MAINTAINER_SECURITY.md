@@ -119,7 +119,6 @@ All maintainers with privileged access to the project **must** enable Multi-Fact
 
 #### Private Reporting
 - Use GitHub private vulnerability reporting
-- Email: security@aminueza.com
 - Never discuss vulnerabilities publicly until fixed
 
 #### Coordination
@@ -247,8 +246,7 @@ All maintainers with privileged access to the project **must** enable Multi-Fact
 ## Contact Information
 
 ### Security Team
-- **Primary**: security@aminueza.com
-- **GitHub**: Private vulnerability reporting
+- **Primary**: GitHub private vulnerability reporting
 - **Emergency**: Contact Project Lead directly
 
 ### Questions and Support

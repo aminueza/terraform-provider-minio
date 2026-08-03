@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/minio-go/v7/pkg/policy"
 )
 
 func TestAccS3BucketAnonymousAccess_basic(t *testing.T) {
@@ -121,6 +123,77 @@ func TestAccS3BucketAnonymousAccess_customPolicy(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestAccS3BucketAnonymousAccess_public(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckAnonymousAccessGrantsDataAccessOnly("minio_s3_bucket_anonymous_access.access"),
+				),
+			},
+			{
+				ResourceName:      "minio_s3_bucket_anonymous_access.access",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+// Reads the policy back off the server and asserts what a MinIO client makes of it, rather than
+// comparing it to the builder that wrote it.
+func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+
+		bucket := decodeAnonymousAccessID(rs.Primary.ID)
+		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), bucket)
+		if err != nil {
+			return fmt.Errorf("error on GetBucketPolicy: %v", err)
+		}
+
+		var parsed policy.BucketAccessPolicy
+		if err := json.Unmarshal([]byte(actualPolicyText), &parsed); err != nil {
+			return fmt.Errorf("policy on server is not valid JSON: %v (%s)", err, actualPolicyText)
+		}
+
+		if got := policy.GetPolicy(parsed.Statements, bucket, ""); got != policy.BucketPolicyReadWrite {
+			return fmt.Errorf("expected the server policy to classify as %q, got %q (mc would report this as `custom`): %s",
+				policy.BucketPolicyReadWrite, got, actualPolicyText)
+		}
+
+		for _, statement := range parsed.Statements {
+			for _, action := range []string{
+				"s3:CreateBucket",
+				"s3:DeleteBucket",
+				"s3:DeleteBucketPolicy",
+				"s3:PutBucketPolicy",
+				"s3:GetBucketPolicy",
+				"s3:GetBucketNotification",
+				"s3:PutBucketNotification",
+				"s3:ListenBucketNotification",
+			} {
+				if statement.Actions.Contains(action) {
+					return fmt.Errorf("server policy grants %s to anonymous callers: %s", action, actualPolicyText)
+				}
+			}
+		}
+
+		return nil
+	}
 }
 
 func testAccBucketAnonymousAccessConfig(bucketName, accessType string) string {

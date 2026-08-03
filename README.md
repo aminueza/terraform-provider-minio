@@ -7,7 +7,7 @@
 <h1 align="center">Terraform Provider for MinIO</h1>
 
 <p align="center">
-  Manage <a href="https://min.io">MinIO</a> and S3-compatible object storage as code: buckets, objects, IAM, replication, encryption, and server configuration.
+  Manage <a href="https://min.io">MinIO</a> and S3-compatible object storage as code
 </p>
 
 <p align="center">
@@ -200,8 +200,7 @@ Contributions are welcome, from bug reports and feature requests to documentatio
 
 ## License
 
-> [!IMPORTANT]
-> Versions from v2.0.0 onward are distributed under the GNU AGPL-3.0 license. You are free to use, modify, and self-host the provider; if you distribute a modified version or offer it as a network service, you must make your source available under the same license.
+Versions from v2.0.0 onward are distributed under the GNU AGPL-3.0 license. You are free to use, modify, and self-host the provider; if you distribute a modified version or offer it as a network service, you must make your source available under the same license.
 
 See [LICENSE](./LICENSE) for the full text.
 

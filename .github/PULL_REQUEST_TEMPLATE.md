@@ -1,8 +1,8 @@
 ## Pull Request Checklist
 
 ### General Requirements
-- [ ] I have read the [Contributing Guidelines](./CONTRIBUTING.md)
-- [ ] I have read the [Project Vision](./VISION.md) and understand the scope
+- [ ] I have read the [Contributing Guidelines](https://github.com/aminueza/terraform-provider-minio/blob/main/.github/CONTRIBUTING.md)
+- [ ] I have read the [Project Vision](https://github.com/aminueza/terraform-provider-minio/blob/main/.github/VISION.md) and understand the scope
 - [ ] My code follows the project's coding standards
 - [ ] I have performed a self-review of my own code
 - [ ] I have signed my commits (`git commit -s`)

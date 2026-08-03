@@ -2,7 +2,6 @@ package minio
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/minio/minio-go/v7/pkg/policy"
 
@@ -11,21 +10,25 @@ import (
 
 // PublicPolicy returns policy where everyone can fully list/modify objects
 func PublicPolicy(bucket *S3MinioBucket) BucketPolicy {
-	resources := []string{
-		fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket),
-		fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket),
-	}
-	sort.Strings(resources)
+	bucketResource := fmt.Sprintf("%s%s", awsResourcePrefix, bucket.MinioBucket)
+	objectResource := fmt.Sprintf("%s%s/*", awsResourcePrefix, bucket.MinioBucket)
 
 	return BucketPolicy{
 		Version: "2012-10-17",
 		Statements: []policy.Statement{
 			{
-				Sid:       "AllowAllS3Actions",
+				Sid:       "ListBucketActions",
 				Effect:    "Allow",
 				Principal: policy.User{AWS: set.CreateStringSet("*")},
-				Actions:   allBucketActions,
-				Resources: set.CreateStringSet(resources...),
+				Actions:   publicBucketActions,
+				Resources: set.CreateStringSet(bucketResource),
+			},
+			{
+				Sid:       "AllObjectActions",
+				Effect:    "Allow",
+				Principal: policy.User{AWS: set.CreateStringSet("*")},
+				Actions:   publicObjectActions,
+				Resources: set.CreateStringSet(objectResource),
 			},
 		},
 	}

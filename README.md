@@ -43,8 +43,8 @@ Provision and manage [MinIO](https://min.io) with the same Terraform workflow yo
 
 ## Highlights
 
-- **Broad coverage**: 65 resources and 54 data sources spanning buckets and objects, IAM, ILM, replication, encryption, notifications, and server and cluster configuration.
-- **Proven in production**: over 17 million downloads on the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest), with frequent releases.
+- **Broad coverage**: resources and data sources spanning buckets and objects, IAM, ILM, replication, encryption, notifications, and server and cluster configuration.
+- **Proven in production**: over 18 million downloads on the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest), with frequent releases.
 - **Flexible auth**: static keys, environment variables, STS AssumeRole, OIDC web identity (passwordless CI/CD), and mTLS.
 - **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores.
 - **Import everywhere**: every resource supports `terraform import`, so you can bring existing infrastructure under management.

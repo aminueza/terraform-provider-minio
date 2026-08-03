@@ -346,8 +346,10 @@ type ResponseError struct {
 // Resource prefix for all aws resources.
 const awsResourcePrefix = "arn:aws:s3:::"
 
-// All bucket actions.
-var allBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:GetObject", "s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:GetBucketLocation", "s3:GetBucketNotification", "s3:GetBucketPolicy", "s3:GetObject", "s3:HeadBucket", "s3:ListAllMyBuckets", "s3:ListBucket", "s3:ListBucketMultipartUploads", "s3:ListenBucketNotification", "s3:ListMultipartUploadParts", "s3:PutObject", "s3:PutBucketPolicy", "s3:PutBucketNotification") //"s3:PutBucketLifecycle", "s3:GetBucketLifecycle"
+// Bucket actions granted by the `public` access type. Deliberately limited to discovery:
+// anonymous callers must not be able to administer the bucket (create/delete it, or read and
+// rewrite its policy and notification configuration).
+var publicBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads")
 
 // Read only bucket actions.
 var readOnlyBucketActions = set.CreateStringSet("s3:ListBucket")
@@ -365,6 +367,9 @@ var uploadObjectActions = set.CreateStringSet("s3:PutObject")
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
 var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
+
+// Object actions granted by the `public` access type.
+var publicObjectActions = readOnlyObjectActions.Union(writeOnlyObjectActions)
 
 // S3MinioPrometheusBearerToken defines Prometheus bearer token configuration
 type S3MinioPrometheusBearerToken struct {

@@ -34,6 +34,6 @@ output "access_type" {
 
 ### Read-Only
 
-- `access_type` (String) Canned access type if the policy matches one of public, public-read, public-read-write, or public-write; otherwise empty
+- `access_type` (String) Canned access type derived from the policy (`public`, `public-read` or `public-write`); otherwise empty. `public-read-write` writes the same policy as `public`, so it is reported as `public`
 - `id` (String) The ID of this resource.
 - `policy` (String) Anonymous access policy JSON for the bucket

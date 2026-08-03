@@ -162,7 +162,7 @@ func resourceMinioS3BucketAnonymousAccess() *schema.Resource {
 			},
 			"access_type": {
 				Type:         schema.TypeString,
-				Description:  "Canned access type for anonymous access",
+				Description:  "Canned access type for anonymous access. `mc anonymous get` reports `public-read` as `download`, `public-write` as `upload`, and both `public-read-write` and `public` as `public` (MinIO has three anonymous policy shapes, so those two write the same policy)",
 				Optional:     true,
 				AtLeastOneOf: []string{"policy", "access_type"},
 				ValidateFunc: validation.StringInSlice([]string{"public", "public-read", "public-read-write", "public-write"}, false),
@@ -173,8 +173,7 @@ func resourceMinioS3BucketAnonymousAccess() *schema.Resource {
 
 func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketName := d.Get("bucket").(string)
-	client, _ := meta.(*S3MinioClient)
-	policy, err := getAnonymousPolicy(d, bucketName, client)
+	policy, err := getAnonymousPolicy(d, bucketName)
 	if err != nil {
 		return NewResourceError("building anonymous access policy", bucketName, err)
 	}
@@ -199,7 +198,7 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	// Preserve access_type if provided by user, otherwise derive from policy
 	accessType := d.Get("access_type").(string)
 	if accessType == "" {
-		accessType, err = getAccessTypeFromPolicy(normalizedPolicy, bucketName, client)
+		accessType, err = getAccessTypeFromPolicy(normalizedPolicy, bucketName)
 		if err != nil {
 			return NewResourceError("determining access_type", bucketName, err)
 		}
@@ -236,31 +235,29 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	}
 
-	client, _ := meta.(*S3MinioClient)
-	accessType, err := getAccessTypeFromPolicy(policy, bucketName, client)
+	// Several access types share a policy shape, so classifying by shape alone would rename the
+	// one already in state and leave a plan that never converges. Confirm that one first and
+	// only fall back to classification when it no longer describes what is on the server.
+	accessType, err := confirmConfiguredAccessType(d, policy, bucketName)
 	if err != nil {
-		return NewResourceError("determining access_type", bucketName, err)
+		return NewResourceError("confirming access_type", bucketName, err)
 	}
 
-	// If access_type is set in the configuration and matches the derived access_type,
-	// use the canonical policy representation to ensure consistency.
 	if accessType != "" {
-		if raw, ok := d.GetOk("access_type"); ok {
-			at, ok := raw.(string)
-			if !ok {
-				return NewResourceError("reading access_type", bucketName, fmt.Errorf("expected string"))
-			}
-			if at == accessType {
-				canonical, err := canonicalPolicyForAccessType(accessType, bucketName, client)
-				if err != nil {
-					return NewResourceError("building canonical anonymous access policy", bucketName, err)
-				}
-				if canonical != "" {
-					policy = canonical
-				}
-			}
+		canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
+		if err != nil {
+			return NewResourceError("building canonical anonymous access policy", bucketName, err)
+		}
+		if canonical != "" {
+			policy = canonical
+		}
+	} else {
+		accessType, err = getAccessTypeFromPolicy(policy, bucketName)
+		if err != nil {
+			return NewResourceError("determining access_type", bucketName, err)
 		}
 	}
+
 	if err := d.Set("policy", policy); err != nil {
 		return NewResourceError("setting policy", bucketName, err)
 	}
@@ -293,7 +290,7 @@ func minioDeleteAnonymousPolicy(ctx context.Context, d *schema.ResourceData, met
 	return nil
 }
 
-func getAnonymousPolicy(d *schema.ResourceData, bucket string, client *S3MinioClient) (string, error) {
+func getAnonymousPolicy(d *schema.ResourceData, bucket string) (string, error) {
 	// Determine if policy was explicitly set by checking raw config
 	// During Create/Update, RawConfig is available; during Read/Delete, it's not
 	rawConfig := d.GetRawConfig()
@@ -314,7 +311,7 @@ func getAnonymousPolicy(d *schema.ResourceData, bucket string, client *S3MinioCl
 	}
 
 	if accessType != "" {
-		return canonicalPolicyForAccessType(accessType, bucket, client)
+		return canonicalPolicyForAccessType(accessType, bucket)
 	}
 
 	// Fallback: use whatever policy is in state (may be computed or from previous access_type)
@@ -326,12 +323,7 @@ func getAnonymousPolicy(d *schema.ResourceData, bucket string, client *S3MinioCl
 	return "", nil
 }
 
-func canonicalPolicyForAccessType(accessType, bucketName string, client *S3MinioClient) (string, error) {
-	if isAIStorClient(client) {
-		if p, ok := aistorCannedPolicy(accessType); ok {
-			return p, nil
-		}
-	}
+func canonicalPolicyForAccessType(accessType, bucketName string) (string, error) {
 	b := &S3MinioBucket{MinioBucket: bucketName}
 	switch accessType {
 	case "public":
@@ -355,21 +347,39 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 	return string(policyJSON), nil
 }
 
-func getAccessTypeFromPolicy(policy string, bucketName string, client *S3MinioClient) (string, error) {
-	if isAIStorClient(client) {
-		for _, at := range []string{"public-read", "public-read-write", "public-write"} {
-			if p, ok := aistorCannedPolicy(at); ok {
-				if eq, err := awspolicy.PoliciesAreEquivalent(policy, p); err == nil && eq {
-					return at, nil
-				}
-			}
-		}
+// confirmConfiguredAccessType returns the access type already held in state or config when the
+// policy on the server is still the canonical policy for it, and an empty string otherwise.
+func confirmConfiguredAccessType(d *schema.ResourceData, policy string, bucketName string) (string, error) {
+	raw, ok := d.GetOk("access_type")
+	if !ok {
+		return "", nil
 	}
 
+	accessType, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("expected access_type to be a string, got %T", raw)
+	}
+
+	canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
+	if err != nil || canonical == "" {
+		return "", err
+	}
+
+	equivalent, err := awspolicy.PoliciesAreEquivalent(policy, canonical)
+	if err != nil || !equivalent {
+		return "", err
+	}
+
+	return accessType, nil
+}
+
+// getAccessTypeFromPolicy classifies a policy by shape alone. MinIO has three anonymous shapes,
+// and `public-read-write` writes the same one as `public`, so a policy written by either is
+// reported as `public`; callers that know which access type is configured confirm that first.
+func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
 	// Generate canned policies for this specific bucket
 	publicPolicy, _ := marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucketName}))
 	readOnlyPolicy, _ := marshalPolicy(ReadOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-	readWritePolicy, _ := marshalPolicy(ReadWritePolicy(&S3MinioBucket{MinioBucket: bucketName}))
 	writeOnlyPolicy, _ := marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
 
 	equivalent, err := awspolicy.PoliciesAreEquivalent(policy, readOnlyPolicy)
@@ -386,14 +396,6 @@ func getAccessTypeFromPolicy(policy string, bucketName string, client *S3MinioCl
 	}
 	if equivalent {
 		return "public", nil
-	}
-
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, readWritePolicy)
-	if err != nil {
-		return "", err
-	}
-	if equivalent {
-		return "public-read-write", nil
 	}
 
 	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, writeOnlyPolicy)

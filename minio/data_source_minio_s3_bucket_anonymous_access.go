@@ -26,7 +26,7 @@ func dataSourceMinioS3BucketAnonymousAccess() *schema.Resource {
 			"access_type": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "Canned access type if the policy matches one of public, public-read, public-read-write, or public-write; otherwise empty",
+				Description: "Canned access type derived from the policy (`public`, `public-read` or `public-write`); otherwise empty. `public-read-write` writes the same policy as `public`, so it is reported as `public`",
 			},
 		},
 	}
@@ -56,7 +56,7 @@ func dataSourceMinioS3BucketAnonymousAccessRead(ctx context.Context, d *schema.R
 		return NewResourceError("setting policy", bucket, err)
 	}
 
-	accessType, err := getAccessTypeFromPolicy(normalizedPolicy, bucket, client)
+	accessType, err := getAccessTypeFromPolicy(normalizedPolicy, bucket)
 	if err != nil {
 		return NewResourceError("determining access_type", bucket, err)
 	}

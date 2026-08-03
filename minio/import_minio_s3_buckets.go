@@ -40,18 +40,22 @@ func resourceMinioS3BucketImportState(
 	return []*schema.ResourceData{d}, nil
 }
 
+// policyToACLName names the ACL that would produce this policy. `public-read-write` builds the
+// same policy as `public`, so it is not listed: the shared shape is reported as `public`, and an
+// ordered list keeps that answer stable where map iteration would not.
 func policyToACLName(ctx context.Context, bucketConfig *S3MinioBucket, pol string) string {
-
-	defaultPolicies := map[string]string{
-		"public-read":       exportPolicyString(ctx, ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-write":      exportPolicyString(ctx, WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public-read-write": exportPolicyString(ctx, ReadWritePolicy(bucketConfig), bucketConfig.MinioBucket),
-		"public":            exportPolicyString(ctx, PublicPolicy(bucketConfig), bucketConfig.MinioBucket),
+	defaultPolicies := []struct {
+		acl    string
+		policy string
+	}{
+		{"public-read", exportPolicyString(ctx, ReadOnlyPolicy(bucketConfig), bucketConfig.MinioBucket)},
+		{"public-write", exportPolicyString(ctx, WriteOnlyPolicy(bucketConfig), bucketConfig.MinioBucket)},
+		{"public", exportPolicyString(ctx, PublicPolicy(bucketConfig), bucketConfig.MinioBucket)},
 	}
 
-	for name, defaultPolicy := range defaultPolicies {
-		if equivalent, err := awspolicy.PoliciesAreEquivalent(defaultPolicy, pol); err == nil && equivalent {
-			return name
+	for _, defaultPolicy := range defaultPolicies {
+		if equivalent, err := awspolicy.PoliciesAreEquivalent(defaultPolicy.policy, pol); err == nil && equivalent {
+			return defaultPolicy.acl
 		}
 	}
 

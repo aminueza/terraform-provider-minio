@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/minio/madmin-go/v4"
@@ -21,6 +22,11 @@ const (
 	// MinTLSVersion is the minimum TLS version supported
 	MinTLSVersion = tls.VersionTLS12
 )
+
+// aistorEdition is the canonical spelling for licensed builds. Servers report `aistor` while
+// the provider override is usually typed `AIStor`, so detection folds both into this constant
+// instead of leaving callers with two strings that never match.
+const aistorEdition = "AIStor"
 
 // NewClient creates and configures both S3 and admin clients for MinIO
 // It handles the setup of credentials, SSL/TLS configuration, and custom transport options
@@ -138,7 +144,7 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 func detectEdition(ctx context.Context, admin *madmin.AdminClient, s3CompatMode bool, override string) string {
 	if override != "" {
 		tflog.Info(ctx, "Edition: using provider override", map[string]interface{}{"edition": override})
-		return override
+		return normalizeEdition(override)
 	}
 	if s3CompatMode {
 		tflog.Info(ctx, "Edition: detection skipped (s3_compat_mode=true)")
@@ -155,7 +161,7 @@ func detectEdition(ctx context.Context, admin *madmin.AdminClient, s3CompatMode 
 		hasLicense := srv.License != nil
 		if srv.Edition != "" {
 			tflog.Info(ctx, "Edition: detected from ServerInfo.Edition", map[string]interface{}{"edition": srv.Edition, "license_present": hasLicense})
-			return srv.Edition
+			return normalizeEdition(srv.Edition)
 		}
 		if hasLicense {
 			tflog.Info(ctx, "Edition: ServerInfo.Edition empty but License present; assuming AIStor", map[string]interface{}{"edition": aistorEdition})
@@ -164,6 +170,13 @@ func detectEdition(ctx context.Context, admin *madmin.AdminClient, s3CompatMode 
 	}
 	tflog.Info(ctx, "Edition: no AIStor markers found; using legacy MinIO path")
 	return ""
+}
+
+func normalizeEdition(edition string) string {
+	if strings.EqualFold(edition, aistorEdition) {
+		return aistorEdition
+	}
+	return edition
 }
 
 // isValidCertificate checks if the provided bytes represent a valid x509 certificate in PEM format

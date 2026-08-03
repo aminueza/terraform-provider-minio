@@ -1,0 +1,9 @@
+---
+blank_issues_enabled: true
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/aminueza/terraform-provider-minio/security/advisories/new
+    about: Vulnerabilities go through GitHub Private Vulnerability Reporting, never a public issue. If that page is unavailable to you, see SECURITY.md for what to do instead.
+  - name: 💬 Questions and discussion
+    url: https://github.com/aminueza/terraform-provider-minio/discussions
+    about: Usage questions, ideas, and anything that is not a bug report or feature request.

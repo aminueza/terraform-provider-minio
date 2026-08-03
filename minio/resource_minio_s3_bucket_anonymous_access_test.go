@@ -176,6 +176,8 @@ func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestChec
 		}
 
 		for _, statement := range parsed.Statements {
+			// Same boundary as TestPublicPolicy_grantsNoAdministrativeActions, checked against
+			// the policy the server actually holds. See #1089 for the per-action decision.
 			for _, action := range []string{
 				"s3:CreateBucket",
 				"s3:DeleteBucket",
@@ -185,6 +187,8 @@ func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestChec
 				"s3:GetBucketNotification",
 				"s3:PutBucketNotification",
 				"s3:ListenBucketNotification",
+				"s3:HeadBucket",
+				"s3:ListAllMyBuckets",
 			} {
 				if statement.Actions.Contains(action) {
 					return fmt.Errorf("server policy grants %s to anonymous callers: %s", action, actualPolicyText)

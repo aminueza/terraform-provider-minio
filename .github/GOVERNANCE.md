@@ -255,8 +255,7 @@ This governance document can be amended through:
 
 ### For Security Issues
 - Use GitHub's private vulnerability reporting
-- Email: security@aminueza.com
-- See [SECURITY.md](../SECURITY.md) for details
+- See [SECURITY.md](./SECURITY.md) for details
 
 ### For Code of Conduct Issues
 - Email: amanda@amandasouza.app

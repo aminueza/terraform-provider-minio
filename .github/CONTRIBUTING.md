@@ -429,8 +429,8 @@ For VS Code users, recommended extensions:
 
 - [Project Vision](./VISION.md)
 - [Security Policy](./SECURITY.md)
-- [Terraform Plugin SDK](https://www.terraform.io/docs/plugin/sdk)
-- [MinIO Documentation](https://min.io/docs/minio/linux/operations)
+- [Terraform Plugin SDK](https://developer.hashicorp.com/terraform/plugin/sdkv2)
+- [MinIO Documentation](https://min.io/docs/minio/linux/index.html)
 - [Go Documentation](https://golang.org/doc/)
 
 ## Questions?

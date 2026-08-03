@@ -1,16 +1,16 @@
 {
   "ignorePatterns": [
     {
-      "pattern": "^http://localhost:9001"
+      "comment": "Local MinIO consoles from the docker-compose dev stack, not reachable from CI",
+      "pattern": "^https?://localhost"
     },
     {
-      "pattern": "^http://localhost:9003"
+      "comment": "RFC 2606 reserved domains used as placeholders in generated resource docs",
+      "pattern": "^https?://([^/]*\\.)?example\\.(com|net|org)"
     },
     {
-      "pattern": "^http://localhost:9005"
-    },
-    {
-      "pattern": "^http://localhost:9007"
+      "comment": "Placeholder etcd endpoints; the comma-separated example parses as an invalid URL and crashes the checker",
+      "pattern": "^https?://etcd"
     }
   ]
 }

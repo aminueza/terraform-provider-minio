@@ -14,9 +14,7 @@ If you discover a security vulnerability, please **DO NOT** open a public issue.
 
 ### How to Report
 
-**Preferred Method:** Use GitHub's [Private Vulnerability Reporting](https://github.com/aminueza/terraform-provider-minio/security/advisories/new)
-
-**Alternative:** Send an email to `security@aminueza.com`
+Use GitHub's [Private Vulnerability Reporting](https://github.com/aminueza/terraform-provider-minio/security/advisories/new).
 
 ### What to Include
 
@@ -153,6 +151,6 @@ For security-related questions not related to vulnerability reports, please use 
 
 ## Related Resources
 
-- [MinIO Security Documentation](https://min.io/docs/minio/linux/operations/monitor-security.html)
-- [Terraform Security Best Practices](https://www.terraform.io/docs/cloud/security/index.html)
+- [MinIO Security Documentation](https://min.io/docs/minio/linux/operations/checklists/security.html)
+- [Terraform Security Best Practices](https://developer.hashicorp.com/terraform/cloud-docs/architectural-details/security-model)
 - [GitHub Security Advisories](https://docs.github.com/en/code-security/security-advisories/about-github-security-advisories)

@@ -14,7 +14,9 @@ If you discover a security vulnerability, please **DO NOT** open a public issue.
 
 ### How to Report
 
-Use GitHub's [Private Vulnerability Reporting](https://github.com/aminueza/terraform-provider-minio/security/advisories/new). The report stays private between you and the maintainers until an advisory is published.
+Use GitHub's [Private Vulnerability Reporting](https://github.com/aminueza/terraform-provider-minio/security/advisories/new).
+
+If that page is not available to you, open a public issue that contains **only** a request for a private channel: say that you have a security report and ask a maintainer to contact you. Do not include the affected component, reproduction steps, or a proof of concept. A maintainer will open a private advisory and invite you to it, and the rest of the report belongs there.
 
 ### What to Include
 

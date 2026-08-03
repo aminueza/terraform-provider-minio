@@ -132,7 +132,7 @@ func testAccCheckMinioConfigExists(resourceName string) resource.TestCheckFunc {
 			return fmt.Errorf("no config ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testAccClient()
 		configKey := rs.Primary.ID
 
 		// Try to get the config

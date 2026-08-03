@@ -70,7 +70,11 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 }
 
 func testAccCheckLDAPUserPolicyAttachmentDestroy(s *terraform.State) error {
-	client := testAccLdapProvider.Meta().(*S3MinioClient).S3Admin
+	ldap, err := testAccLdapClient()
+	if err != nil {
+		return err
+	}
+	client := ldap.S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_ldap_user_policy_attachment" {
@@ -96,7 +100,11 @@ func testAccCheckLDAPUserPolicyAttachmentDestroy(s *terraform.State) error {
 }
 
 func testAccCheckLDAPGroupPolicyAttachmentDestroy(s *terraform.State) error {
-	client := testAccLdapProvider.Meta().(*S3MinioClient).S3Admin
+	ldap, err := testAccLdapClient()
+	if err != nil {
+		return err
+	}
+	client := ldap.S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_ldap_group_policy_attachment" {

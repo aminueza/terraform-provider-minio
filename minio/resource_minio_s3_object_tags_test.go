@@ -64,7 +64,7 @@ func testAccCheckMinioS3ObjectTagsExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioObjectTagsDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient)
+	client := testAccClient()
 	ctx := context.Background()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_object_tags" {

@@ -193,7 +193,7 @@ func TestAccMinioIAMGroupPolicy_generatedName(t *testing.T) {
 }
 
 func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	conn := testAccClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_group_policy" {
@@ -218,7 +218,7 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 func testAccCheckIAMGroupPolicyDisappears(
 	iamGroupPolicyResource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testAccClient().S3Admin
 
 		policy, ok := s.RootModule().Resources[iamGroupPolicyResource]
 		if !ok {

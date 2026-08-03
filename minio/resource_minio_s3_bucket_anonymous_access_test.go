@@ -159,7 +159,7 @@ func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestChec
 		}
 
 		bucket := decodeAnonymousAccessID(rs.Primary.ID)
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), bucket)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)
@@ -251,7 +251,7 @@ func testAccCheckBucketHasAnonymousAccess(n string, accessType string) resource.
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)
@@ -304,7 +304,7 @@ func testAccCheckBucketHasCustomPolicy(n string, expectedPolicyText string) reso
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)

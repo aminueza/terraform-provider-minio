@@ -285,7 +285,7 @@ func TestAccS3BucketPolicy_disappears(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					minioC := testAccClient().S3Client
 					_ = minioC.SetBucketPolicy(context.Background(), name, "")
 					_ = minioC.RemoveBucket(context.Background(), name)
 				},
@@ -312,7 +312,7 @@ func TestAccS3BucketPolicy_policyDeletedExternally(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+					minioC := testAccClient().S3Client
 					_ = minioC.SetBucketPolicy(context.Background(), name, "")
 				},
 				RefreshState:       true,
@@ -410,7 +410,7 @@ func testAccCheckBucketHasPolicy(n string, expectedPolicyText string) resource.T
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)

@@ -20,18 +20,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// newPrimaryS3ClientFromEnv builds a client from MINIO_* env vars, bypassing
-// testAccProvider.Meta(). Acceptance tests share testAccProvider as a
-// singleton, so a parallel test that configures it with bad credentials
-// (e.g. TestAccMinioS3Bucket_CredentialErrorDoesNotRemoveFromState) leaks
-// SignatureDoesNotMatch into other tests' Check callbacks.
-func newPrimaryS3ClientFromEnv() (*minio.Client, error) {
-	return minio.New(os.Getenv("MINIO_ENDPOINT"), &minio.Options{
-		Creds:  credentials.NewStaticV4(os.Getenv("MINIO_USER"), os.Getenv("MINIO_PASSWORD"), ""),
-		Secure: os.Getenv("MINIO_ENABLE_HTTPS") == "true",
-	})
-}
-
 func TestAccMinioS3Bucket_basic(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	acl := "public-read"
@@ -795,34 +783,34 @@ func TestMinioS3BucketName(t *testing.T) {
 
 func testAccCheckMinioS3BucketDestroy(s *terraform.State) (err error) {
 
-	err = providerMinioS3BucketDestroy(testAccProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testAccClient().S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccSecondProvider.Meta() == nil {
+	if !testAccStateUsesProvider(s, "secondminio") {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccSecondProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testAccSecondClient().S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccThirdProvider.Meta() == nil {
+	if !testAccStateUsesProvider(s, "thirdminio") {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccThirdProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testAccThirdClient().S3Client, s)
 	if err != nil {
 		return
 	}
 
-	if testAccFourthProvider.Meta() == nil {
+	if !testAccStateUsesProvider(s, "fourthminio") {
 		return
 	}
 
-	err = providerMinioS3BucketDestroy(testAccFourthProvider.Meta().(*S3MinioClient).S3Client, s)
+	err = providerMinioS3BucketDestroy(testAccFourthClient().S3Client, s)
 	return
 }
 
@@ -860,10 +848,7 @@ func testAccCheckMinioS3BucketExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC, err := newPrimaryS3ClientFromEnv()
-		if err != nil {
-			return fmt.Errorf("building env-based S3 client: %w", err)
-		}
+		minioC := testAccClient().S3Client
 
 		maxRetries := 6
 		for i := 0; i < maxRetries; i++ {
@@ -905,7 +890,7 @@ func testAccCheckMinioS3DestroyBucket(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no S3 Bucket ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+		conn := testAccClient().S3Client
 		err := conn.RemoveBucket(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error destroying Bucket (%s) in testAccCheckMinioS3DestroyBucket: %s", rs.Primary.ID, err)
@@ -1069,7 +1054,7 @@ func testAccCheckMinioS3BucketAddObjects(resourceName string, objects ...string)
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testAccClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for _, obj := range objects {
@@ -1097,7 +1082,7 @@ func testAccCheckMinioS3BucketAddManyObjects(resourceName string, count int) res
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testAccClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for i := 0; i < count; i++ {
@@ -1126,7 +1111,7 @@ func testAccCheckMinioS3BucketDeleteObjects(resourceName string, objects ...stri
 			return fmt.Errorf("resource not found: %s", resourceName)
 		}
 
-		client := testAccProvider.Meta().(*S3MinioClient).S3Client
+		client := testAccClient().S3Client
 		bucketName := rs.Primary.ID
 
 		for _, obj := range objects {
@@ -1274,7 +1259,7 @@ func testAccCheckMinioS3BucketTagsRemoved(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		tags, err := minioC.GetBucketTagging(context.Background(), rs.Primary.ID)
 		if err != nil {
 			var minioErr minio.ErrorResponse

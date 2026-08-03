@@ -110,7 +110,7 @@ func TestAccMinioS3Object_withContentType(t *testing.T) {
 }
 
 func testAccCheckMinioS3ObjectDestroy(s *terraform.State) error {
-	conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+	conn := testAccClient().S3Client
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_object" {
@@ -140,7 +140,7 @@ func testAccCheckMinioS3ObjectExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Client
+		conn := testAccClient().S3Client
 		bucketName := rs.Primary.Attributes["bucket_name"]
 		objectName := rs.Primary.Attributes["object_name"]
 

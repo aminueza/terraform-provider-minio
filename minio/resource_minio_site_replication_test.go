@@ -415,7 +415,7 @@ func testAccCheckSiteReplicationExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		provider := testAccProvider.Meta().(*S3MinioClient)
+		provider := testAccClient()
 		minioadm := provider.S3Admin
 
 		info, err := minioadm.SiteReplicationInfo(context.Background())
@@ -456,7 +456,7 @@ func testAccCheckImportSiteReplicationExists(n string, expectedName string) reso
 			}
 		}
 
-		provider := testAccProvider.Meta().(*S3MinioClient)
+		provider := testAccClient()
 		minioadm := provider.S3Admin
 
 		info, err := minioadm.SiteReplicationInfo(context.Background())
@@ -473,7 +473,7 @@ func testAccCheckImportSiteReplicationExists(n string, expectedName string) reso
 }
 
 func testAccCheckMinioSiteReplicationDestroy(s *terraform.State) error {
-	provider := testAccProvider.Meta().(*S3MinioClient)
+	provider := testAccClient()
 	minioadm := provider.S3Admin
 
 	info, err := minioadm.SiteReplicationInfo(context.Background())

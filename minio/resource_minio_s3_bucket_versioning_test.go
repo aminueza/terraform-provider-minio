@@ -162,7 +162,7 @@ func testAccCheckBucketHasVersioning(n string, config S3MinioBucketVersioningCon
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualConfig, err := minioC.GetBucketVersioning(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketVersioning: %v", err)
@@ -289,7 +289,7 @@ EOF
 }
 
 func testAccCheckMinioS3BucketDeleteExternally(bucket string) error {
-	minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+	minioC := testAccClient().S3Client
 	if err := minioC.RemoveBucket(context.Background(), bucket); err != nil {
 		return fmt.Errorf("bucket could not be deleted: %w", err)
 	}

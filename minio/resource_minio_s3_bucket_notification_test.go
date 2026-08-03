@@ -94,7 +94,7 @@ func TestAccMinioS3BucketNotification_multipleQueues(t *testing.T) {
 						// Verify server-side: both queues must exist on the bucket.
 						// This is the actual regression being fixed — without the RMW
 						// logic, notification-b's write would wipe notification-a's queue.
-						minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+						minioC := testAccClient().S3Client
 						cfg, err := minioC.GetBucketNotification(context.Background(), name)
 						if err != nil {
 							return fmt.Errorf("getting bucket notification: %w", err)
@@ -112,7 +112,7 @@ func TestAccMinioS3BucketNotification_multipleQueues(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("minio_s3_bucket_notification.notification-b", "bucket", name),
 					func(s *terraform.State) error {
-						minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+						minioC := testAccClient().S3Client
 						cfg, err := minioC.GetBucketNotification(context.Background(), name)
 						if err != nil {
 							return fmt.Errorf("getting bucket notification: %w", err)
@@ -231,7 +231,7 @@ func testAccCheckBucketHasNotification(n string, config notification.Configurati
 			bucketName = bucketName[:idx]
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		actualConfig, err := minioC.GetBucketNotification(context.Background(), bucketName)
 
 		if err != nil {

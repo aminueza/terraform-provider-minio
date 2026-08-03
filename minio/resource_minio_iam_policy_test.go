@@ -229,7 +229,7 @@ func testAccCheckMinioIAMPolicyExists(resource string) resource.TestCheckFunc {
 			return fmt.Errorf("no Policy name is set")
 		}
 
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testAccClient().S3Admin
 
 		_, err := iamconn.InfoCannedPolicy(context.Background(), rs.Primary.ID)
 		return err
@@ -249,7 +249,7 @@ func TestAccMinioIAMPolicy_destroyToleratesResurrectedPolicy(t *testing.T) {
 		CheckDestroy: func(s *terraform.State) error {
 			// Re-add the policy after Terraform deleted it to mimic the IAM-cache
 			// resurrection; the destroy check must still return nil.
-			iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+			iamconn := testAccClient().S3Admin
 			if err := iamconn.AddCannedPolicy(context.Background(), rName, []byte(policyBody)); err != nil {
 				return fmt.Errorf("seeding resurrected policy: %w", err)
 			}
@@ -265,7 +265,7 @@ func TestAccMinioIAMPolicy_destroyToleratesResurrectedPolicy(t *testing.T) {
 }
 
 func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
-	iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	iamconn := testAccClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_policy" {
@@ -295,7 +295,7 @@ func testAccCheckMinioIAMPolicyDestroy(s *terraform.State) error {
 
 func testAccCheckMinioIAMPolicyDisappears(resource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testAccClient().S3Admin
 
 		if info, _ := iamconn.InfoCannedPolicy(context.Background(), resource); info == nil {
 
@@ -360,7 +360,7 @@ resource "minio_iam_policy" "test" {
 }
 
 func testAccCheckMinioIAMPolicyDeleteExternally(rName string) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testAccClient().S3Admin
 
 	if err := minioIam.RemoveCannedPolicy(context.Background(), rName); err != nil {
 		return fmt.Errorf("policy could not be deleted: %w", err)

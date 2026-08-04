@@ -162,7 +162,7 @@ func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) err
 			}
 		}
 	}
-	_ = d.Set("edition", edition)
+	_ = d.Set("edition", normalizeEdition(edition))
 
 	region := info.Region
 	if region == "" {

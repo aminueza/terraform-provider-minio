@@ -16,6 +16,23 @@ import (
 	"github.com/minio/minio-go/v7/pkg/replication"
 )
 
+// wantPathStyleWireValue spells out the value MinIO stores in a remote target's Path
+// for each path style. The resource writes that field with S3PathStyle.String(), so an
+// expectation taken from the same method would only prove the code agrees with itself.
+var wantPathStyleWireValue = map[S3PathStyle]string{
+	S3PathStyleAuto: "auto",
+	S3PathStyleOn:   "on",
+	S3PathStyleOff:  "off",
+}
+
+func TestS3PathStyleString(t *testing.T) {
+	for style, want := range wantPathStyleWireValue {
+		if got := style.String(); got != want {
+			t.Errorf("S3PathStyle(%d).String() = %q, want %q", style, got, want)
+		}
+	}
+}
+
 // testAccReplicationPreCheck skips the test when a second MinIO instance is not
 // configured. Replication acceptance tests need a remote target, which is only
 // available when SECOND_MINIO_ENDPOINT is set (as it is under docker compose).
@@ -1817,8 +1834,12 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 			if existingTarget.Region != rule.Target.Region {
 				return fmt.Errorf("Mismatch region %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.Region, rule.Target.Region)
 			}
-			if existingTarget.Path != rule.Target.PathStyle.String() {
-				return fmt.Errorf("Mismatch path style %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, existingTarget.Path, rule.Target.PathStyle.String())
+			wantPath, ok := wantPathStyleWireValue[rule.Target.PathStyle]
+			if !ok {
+				return fmt.Errorf("No expected wire value for path style %d, rule#%d", rule.Target.PathStyle, i)
+			}
+			if existingTarget.Path != wantPath {
+				return fmt.Errorf("Mismatch path style %q, rule#%d:\n\nexpected: %v\n\ngot: %v", n, i, wantPath, existingTarget.Path)
 			}
 			// Asserting exact AccessKey value is too painful. Furthermore, since MinIO assert the credential validity before accepting the new remote target, the value is very low
 			if len(existingTarget.Credentials.AccessKey) != 20 {

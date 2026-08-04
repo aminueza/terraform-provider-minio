@@ -133,6 +133,7 @@ go test ./minio/...
 - **Requirements:** Each resource must have acceptance tests covering create, read, update, delete, and import
 - **Test structure:** Use `resource.Test` with `TestCase` containing steps
 - **PreCheck:** Implement `testAccPreCheck(t)` for provider configuration validation
+- **Expectations:** An expectation built by the code under test is not an assertion. A check that computes its expected value with the same function that produced the actual value only proves the code agrees with itself, so no change to that function can fail it. Assert against an explicit literal, an explicit list of the actions or fields that matter, or a classification from an independent library (e.g. `policy.GetPolicy` from minio-go, which is what `mc` uses). A golden comparison is fine for change detection, but pair it with an independent assertion instead of leaving it as the only check.
 
 ```bash
 # Run all tests

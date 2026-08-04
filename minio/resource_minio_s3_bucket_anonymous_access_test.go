@@ -149,6 +149,33 @@ func TestAccS3BucketAnonymousAccess_public(t *testing.T) {
 	})
 }
 
+// public-read-write and public are the same policy, so a read that classified by shape alone
+// would rename the configured access_type on every refresh and leave a plan that never settles.
+func TestAccS3BucketAnonymousAccess_readWriteStaysStable(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public-read-write"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public-read-write"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public-read-write"),
+				),
+			},
+			{
+				// Same configuration again: the step fails on a non-empty plan.
+				Config: testAccBucketAnonymousAccessConfig(name, "public-read-write"),
+				Check:  resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public-read-write"),
+			},
+		},
+	})
+}
+
 // Reads the policy back off the server and asserts what a MinIO client makes of it, rather than
 // comparing it to the builder that wrote it.
 func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestCheckFunc {
@@ -176,6 +203,8 @@ func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestChec
 		}
 
 		for _, statement := range parsed.Statements {
+			// Same boundary as TestPublicPolicy_grantsNoAdministrativeActions, checked against
+			// the policy the server actually holds. See #1089 for the per-action decision.
 			for _, action := range []string{
 				"s3:CreateBucket",
 				"s3:DeleteBucket",
@@ -185,6 +214,8 @@ func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestChec
 				"s3:GetBucketNotification",
 				"s3:PutBucketNotification",
 				"s3:ListenBucketNotification",
+				"s3:HeadBucket",
+				"s3:ListAllMyBuckets",
 			} {
 				if statement.Actions.Contains(action) {
 					return fmt.Errorf("server policy grants %s to anonymous callers: %s", action, actualPolicyText)
@@ -240,7 +271,18 @@ EOF
 `, bucketName, policy, accessType)
 }
 
+// testAccCheckBucketHasAnonymousAccess asserts what a MinIO client makes of the policy on the
+// server: policy.GetPolicy is the same function mc runs to answer `mc anonymous get`, so a shape
+// mc would call `custom` fails here. Comparing against the builder that wrote the policy would
+// pass no matter which shape the builder produces.
 func testAccCheckBucketHasAnonymousAccess(n string, accessType string) resource.TestCheckFunc {
+	expectedLabels := map[string]policy.BucketPolicy{
+		"public-read":       policy.BucketPolicyReadOnly,
+		"public-write":      policy.BucketPolicyWriteOnly,
+		"public-read-write": policy.BucketPolicyReadWrite,
+		"public":            policy.BucketPolicyReadWrite,
+	}
+
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -251,42 +293,25 @@ func testAccCheckBucketHasAnonymousAccess(n string, accessType string) resource.
 			return fmt.Errorf("no ID is set")
 		}
 
+		expected, ok := expectedLabels[accessType]
+		if !ok {
+			return fmt.Errorf("unknown access type: %s", accessType)
+		}
+
 		minioC := testAccClient().S3Client
 		actualPolicyText, err := minioC.GetBucketPolicy(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error on GetBucketPolicy: %v", err)
 		}
 
-		// Generate expected policy for the access type
-		bucket := &S3MinioBucket{MinioBucket: rs.Primary.ID}
-		var (
-			expectedPolicyText string
-			expectedPolicyErr  error
-		)
-
-		switch accessType {
-		case "public":
-			expectedPolicyText, expectedPolicyErr = marshalPolicy(PublicPolicy(bucket))
-		case "public-read":
-			expectedPolicyText, expectedPolicyErr = marshalPolicy(ReadOnlyPolicy(bucket))
-		case "public-read-write":
-			expectedPolicyText, expectedPolicyErr = marshalPolicy(ReadWritePolicy(bucket))
-		case "public-write":
-			expectedPolicyText, expectedPolicyErr = marshalPolicy(WriteOnlyPolicy(bucket))
-		default:
-			return fmt.Errorf("unknown access type: %s", accessType)
-		}
-		if expectedPolicyErr != nil {
-			return fmt.Errorf("error marshaling expected policy for %s: %w", accessType, expectedPolicyErr)
+		var parsed policy.BucketAccessPolicy
+		if err := json.Unmarshal([]byte(actualPolicyText), &parsed); err != nil {
+			return fmt.Errorf("policy on server is not valid JSON: %v (%s)", err, actualPolicyText)
 		}
 
-		equivalent, err := awspolicy.PoliciesAreEquivalent(actualPolicyText, expectedPolicyText)
-		if err != nil {
-			return fmt.Errorf("error testing policy equivalence: %s", err)
-		}
-		if !equivalent {
-			return fmt.Errorf("non-equivalent policy error:\n\nexpected: %s\n\ngot: %s",
-				expectedPolicyText, actualPolicyText)
+		if got := policy.GetPolicy(parsed.Statements, rs.Primary.ID, ""); got != expected {
+			return fmt.Errorf("expected %s to classify as %q, got %q (mc would report this as `custom`): %s",
+				accessType, expected, got, actualPolicyText)
 		}
 
 		return nil

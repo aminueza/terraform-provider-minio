@@ -25,9 +25,15 @@ func TestPublicPolicy(t *testing.T) {
 	assert.DeepEqual(t, expected, policy)
 }
 
-// Anonymous callers must never be able to administer a bucket they can read and write.
-// Granting any of these lets an unauthenticated request rewrite the bucket policy, delete the
-// bucket, or subscribe to its event stream.
+// The `public` access type grants data access only: reading, writing and listing objects, and
+// nothing that administers, discloses or reconfigures the bucket itself. #1089 reviewed every
+// action #1085 removed and kept all of them out, so this list is deliberate and complete rather
+// than a running tally of whatever has been noticed so far. Anyone who needs more writes it out
+// in the resource's `policy` attribute, which takes precedence over `access_type`.
+//
+// s3:HeadBucket is here because it is redundant, not dangerous: anonymous HEAD on a bucket is
+// already authorized under s3:ListBucket. s3:ListAllMyBuckets is a server-level action with no
+// effect when scoped to a single bucket ARN.
 func TestPublicPolicy_grantsNoAdministrativeActions(t *testing.T) {
 	forbidden := []string{
 		"s3:CreateBucket",
@@ -38,6 +44,8 @@ func TestPublicPolicy_grantsNoAdministrativeActions(t *testing.T) {
 		"s3:GetBucketNotification",
 		"s3:PutBucketNotification",
 		"s3:ListenBucketNotification",
+		"s3:HeadBucket",
+		"s3:ListAllMyBuckets",
 	}
 
 	for _, statement := range PublicPolicy(&S3MinioBucket{MinioBucket: "test"}).Statements {

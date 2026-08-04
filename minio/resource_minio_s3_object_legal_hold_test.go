@@ -86,7 +86,7 @@ func testAccCheckMinioS3ObjectLegalHoldExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioObjectLegalHoldDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient)
+	client := testAccClient()
 	ctx := context.Background()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_object_legal_hold" {

@@ -75,7 +75,7 @@ func testAccOIDCRestartAndExists(resourceName string) resource.TestCheckFunc {
 		}
 
 		ctx := context.Background()
-		admin := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		admin := testAccClient().S3Admin
 		if err := testAccOIDCRestartMinio(ctx, admin); err != nil {
 			return err
 		}
@@ -89,7 +89,7 @@ func testAccOIDCRestartAndExists(resourceName string) resource.TestCheckFunc {
 
 func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
 	ctx := context.Background()
-	admin := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	admin := testAccClient().S3Admin
 
 	var toCheck []string
 	for _, rs := range s.RootModule().Resources {

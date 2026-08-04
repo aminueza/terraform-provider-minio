@@ -645,10 +645,7 @@ func testAccCheckS3BucketLifecycleExists(n string) resource.TestCheckFunc {
 		if !ok {
 			return fmt.Errorf("not found: %s", n)
 		}
-		c, err := newPrimaryS3ClientFromEnv()
-		if err != nil {
-			return fmt.Errorf("building env-based S3 client: %w", err)
-		}
+		c := testAccClient().S3Client
 
 		maxRetries := 6
 		for i := 0; i < maxRetries; i++ {
@@ -673,10 +670,7 @@ func testAccCheckS3BucketLifecycleExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckS3BucketLifecycleDestroy(s *terraform.State) error {
-	c, err := newPrimaryS3ClientFromEnv()
-	if err != nil {
-		return fmt.Errorf("building env-based S3 client: %w", err)
-	}
+	c := testAccClient().S3Client
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_lifecycle" {
 			continue

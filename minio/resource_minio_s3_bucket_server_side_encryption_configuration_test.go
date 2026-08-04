@@ -233,8 +233,13 @@ func testAccCheckMinioBucketEncryptionExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no ID is set")
 		}
 
-		client := testAccKmsProvider.Meta().(*S3MinioClient).S3Client
-		_, err := client.GetBucketEncryption(context.Background(), rs.Primary.ID)
+		kms, err := testAccKmsClient()
+		if err != nil {
+			return err
+		}
+		client := kms.S3Client
+
+		_, err = client.GetBucketEncryption(context.Background(), rs.Primary.ID)
 		if err != nil {
 			return fmt.Errorf("error getting bucket encryption for %s: %v", rs.Primary.ID, err)
 		}
@@ -244,7 +249,11 @@ func testAccCheckMinioBucketEncryptionExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioBucketEncryptionDestroy(s *terraform.State) error {
-	client := testAccKmsProvider.Meta().(*S3MinioClient).S3Client
+	kms, err := testAccKmsClient()
+	if err != nil {
+		return err
+	}
+	client := kms.S3Client
 	ctx := context.Background()
 
 	for _, rs := range s.RootModule().Resources {

@@ -60,7 +60,7 @@ func testAccCheckMinioS3BucketQuotaExists(n string) resource.TestCheckFunc {
 }
 
 func testAccCheckMinioBucketQuotaDestroy(s *terraform.State) error {
-	client := testAccProvider.Meta().(*S3MinioClient)
+	client := testAccClient()
 	ctx := context.Background()
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_s3_bucket_quota" {
@@ -94,7 +94,7 @@ func TestAccMinioS3BucketQuota_deletedBucket(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					client := testAccProvider.Meta().(*S3MinioClient)
+					client := testAccClient()
 					_ = client.S3Client.RemoveBucket(context.Background(), bucketName)
 				},
 				Config:             testAccMinioS3BucketQuotaConfig(bucketName, 1048576),

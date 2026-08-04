@@ -1689,13 +1689,13 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 		var provider *S3MinioClient
 		switch rs.Provider {
 		case "registry.terraform.io/hashicorp/minio":
-			provider = testAccProvider.Meta().(*S3MinioClient)
+			provider = testAccClient()
 		case "registry.terraform.io/hashicorp/secondminio":
-			provider = testAccSecondProvider.Meta().(*S3MinioClient)
+			provider = testAccSecondClient()
 		case "registry.terraform.io/hashicorp/thirdminio":
-			provider = testAccThirdProvider.Meta().(*S3MinioClient)
+			provider = testAccThirdClient()
 		case "registry.terraform.io/hashicorp/fourthminio":
-			provider = testAccFourthProvider.Meta().(*S3MinioClient)
+			provider = testAccFourthClient()
 		default:
 			return fmt.Errorf("Provider %q unknown", rs.Provider)
 		}

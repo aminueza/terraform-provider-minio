@@ -301,7 +301,7 @@ func testAccCheckMinioILMPolicyExists(n string, config *lifecycle.Configuration)
 			return fmt.Errorf("no ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient).S3Client
+		minioC := testAccClient().S3Client
 		bucketLifecycle, _ := minioC.GetBucketLifecycle(context.Background(), rs.Primary.ID)
 		if bucketLifecycle == nil {
 			return fmt.Errorf("bucket lifecycle not found")

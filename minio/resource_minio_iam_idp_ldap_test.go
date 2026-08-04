@@ -105,7 +105,7 @@ func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFu
 			return fmt.Errorf("no LDAP IDP configuration ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testAccClient()
 		raw, err := minioC.S3Admin.GetConfigKV(context.Background(), "identity_ldap")
 		if err != nil {
 			return fmt.Errorf("reading identity_ldap config: %w", err)

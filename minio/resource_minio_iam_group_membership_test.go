@@ -79,7 +79,7 @@ func TestAccMinioGroupMembership_paginatedUserList(t *testing.T) {
 }
 
 func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
-	iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	iamconn := testAccClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_group_membership" {
@@ -108,7 +108,7 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 			return fmt.Errorf("no User name is set")
 		}
 
-		iamconn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		iamconn := testAccClient().S3Admin
 		gn := rs.Primary.Attributes["group"]
 
 		resp, err := iamconn.GetGroupDescription(context.Background(), gn)

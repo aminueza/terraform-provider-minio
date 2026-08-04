@@ -72,7 +72,11 @@ func TestAccMinioKMSKey_basic(t *testing.T) {
 }
 
 func testAccCheckMinioKMSKeyDestroy(s *terraform.State) error {
-	conn := testAccKmsProvider.Meta().(*S3MinioClient).S3Admin
+	kms, err := testAccKmsClient()
+	if err != nil {
+		return err
+	}
+	conn := kms.S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_kms_key" {
@@ -99,7 +103,11 @@ func testAccCheckMinioKMSKeyExists(n string) resource.TestCheckFunc {
 			return fmt.Errorf("no KMS key ID is set")
 		}
 
-		conn := testAccKmsProvider.Meta().(*S3MinioClient).S3Admin
+		kms, err := testAccKmsClient()
+		if err != nil {
+			return err
+		}
+		conn := kms.S3Admin
 
 		status, err := conn.GetKeyStatus(context.Background(), rs.Primary.ID)
 		if err != nil {

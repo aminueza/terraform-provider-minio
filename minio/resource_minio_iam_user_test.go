@@ -423,7 +423,7 @@ func testAccCheckMinioUserExists(n string, res *madmin.UserInfo) resource.TestCh
 			return fmt.Errorf("no User name is set")
 		}
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testAccClient().S3Admin
 
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -443,7 +443,7 @@ func testAccCheckMinioUserDisabled(n string) resource.TestCheckFunc {
 			return fmt.Errorf("not found: %s %s", n, s)
 		}
 
-		minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		minioIam := testAccClient().S3Admin
 
 		resp, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err != nil {
@@ -475,7 +475,7 @@ func testAccCheckMinioUserAttributes(n string, name string, status string) resou
 }
 
 func testAccCheckMinioUserDestroy(s *terraform.State) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testAccClient().S3Admin
 
 	for _, rs := range s.RootModule().Resources {
 		if rs.Type != "minio_iam_user" {
@@ -493,7 +493,7 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 }
 
 func testAccCheckMinioUserDeleteExternally(username string) error {
-	minioIam := testAccProvider.Meta().(*S3MinioClient).S3Admin
+	minioIam := testAccClient().S3Admin
 
 	if err := minioIam.RemoveUser(context.Background(), username); err != nil {
 		return fmt.Errorf("user could not be deleted: %w", err)
@@ -516,7 +516,7 @@ func testAccCheckMinioUserCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources[n]
 
-		conn := testAccProvider.Meta().(*S3MinioClient).S3Admin
+		conn := testAccClient().S3Admin
 
 		userName := rs.Primary.Attributes["name"]
 

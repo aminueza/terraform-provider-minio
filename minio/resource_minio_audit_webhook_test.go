@@ -176,7 +176,7 @@ func testAccCheckMinioAuditWebhookExists(resourceName string) resource.TestCheck
 			return fmt.Errorf("no audit webhook ID is set")
 		}
 
-		minioC := testAccProvider.Meta().(*S3MinioClient)
+		minioC := testAccClient()
 		configKey := auditWebhookConfigKey(rs.Primary.ID)
 		// The admin config API can return transient errors (e.g. signature
 		// mismatches) while parallel tests churn server configuration, so

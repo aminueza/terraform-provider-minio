@@ -549,6 +549,7 @@ ResourcesMap: map[string]*schema.Resource{
 - Naming: `TestAcc{ResourceName}_{scenario}`
 - Always use random names: `"tfacc-resource-" + acctest.RandString(8)`
 - Minimum tests: `_basic`, `_update` (import test recommended)
+- Every entry in `testAccProviders` must return a fresh `newProvider(...)` on each call. Tests run in parallel and configure the provider they are handed, so a shared instance lets one test's credentials reach another's. Check helpers get their client from `testAccClient()` (or the `testAccSecondClient`/`Third`/`Fourth`/`Kms`/`Ldap` variants), never from a provider a test configured.
 
 ### Checklist for new resources
 

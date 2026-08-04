@@ -13,7 +13,7 @@ func TestReadWritePolicy(t *testing.T) {
 		MinioBucket: "test",
 	}
 
-	stringPolicy := `{"Version":"2012-10-17","Statement":[{"Sid":"ListObjectsInBucket","Action":["s3:ListBucket"],"Effect":"Allow","Principal":"*","Resource":["arn:aws:s3:::test"]},{"Sid":"UploadObjectActions","Action":["s3:PutObject"],"Effect":"Allow","Principal":"*","Resource":["arn:aws:s3:::test/*"]}]}`
+	stringPolicy := `{"Version":"2012-10-17","Statement":[{"Sid":"ListBucketActions","Action":["s3:GetBucketLocation","s3:ListBucket","s3:ListBucketMultipartUploads"],"Effect":"Allow","Principal":"*","Resource":["arn:aws:s3:::test"]},{"Sid":"AllObjectActions","Action":["s3:AbortMultipartUpload","s3:DeleteObject","s3:GetObject","s3:ListMultipartUploadParts","s3:PutObject"],"Effect":"Allow","Principal":"*","Resource":["arn:aws:s3:::test/*"]}]}`
 
 	var expected BucketPolicy
 	if err := json.Unmarshal([]byte(stringPolicy), &expected); err != nil {

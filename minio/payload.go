@@ -351,22 +351,20 @@ const awsResourcePrefix = "arn:aws:s3:::"
 // rewrite its policy and notification configuration).
 var publicBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads")
 
-// Read only bucket actions.
-var readOnlyBucketActions = set.CreateStringSet("s3:ListBucket")
+// Bucket actions granted by the `public-read` access type, matching what `mc anonymous set
+// download` writes. s3:GetBucketLocation is what makes minio-go's policy.GetPolicy recognise
+// the shape at all; without it every client reports the bucket as `custom`.
+var downloadBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucket")
 
-// Read only all bucket actions.
-var readOnlyAllBucketsActions = set.CreateStringSet("s3:ListBucket", "s3:ListAllMyBuckets")
+// Bucket actions granted by the `public-write` access type, matching what `mc anonymous set
+// upload` writes.
+var uploadBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucketMultipartUploads")
 
 // Read only object actions.
 var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 
-// Write object actions.
-var uploadObjectActions = set.CreateStringSet("s3:PutObject")
-
 // Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
-
-var readListMyObjectActions = readOnlyBucketActions.Union(readOnlyObjectActions)
 
 // Object actions granted by the `public` access type.
 var publicObjectActions = readOnlyObjectActions.Union(writeOnlyObjectActions)

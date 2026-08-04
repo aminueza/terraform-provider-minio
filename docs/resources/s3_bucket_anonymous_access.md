@@ -46,6 +46,19 @@ resource "minio_s3_bucket_anonymous_access" "custom" {
 - `access_type` supports MinIO canned modes (`public`, `public-read`, `public-read-write`, `public-write`).
 - `policy` accepts any valid S3/MinIO policy JSON. When both `policy` and `access_type` are set, the explicit JSON policy always wins.
 
+### Canned access types
+
+Each `access_type` writes the same policy the matching `mc anonymous set` command writes, so MinIO clients name the bucket instead of calling it `custom`:
+
+| `access_type` | `mc anonymous set` | `mc anonymous get` reports | Anonymous clients can |
+| --- | --- | --- | --- |
+| `public-read` | `download` | `download` | list the bucket and read its objects |
+| `public-write` | `upload` | `upload` | upload objects, but not read them |
+| `public-read-write` | `public` | `public` | read and write objects |
+| `public` | `public` | `public` | read and write objects |
+
+MinIO has three anonymous policy shapes, not four, so `public-read-write` and `public` write the same policy and are interchangeable. Anything that has only the policy to go on reports that shared shape as `public`: importing this resource, or reading it through the `minio_s3_bucket_anonymous_access` data source. A configured `access_type` is kept as written.
+
 ### What `public` grants
 
 `access_type = "public"` gives anonymous clients full access to the bucket's **data** and nothing else:
@@ -64,7 +77,7 @@ It grants no administrative action, so an anonymous client cannot read or rewrit
 
 ### Optional
 
-- `access_type` (String) Canned access type for anonymous access
+- `access_type` (String) Canned access type for anonymous access. `mc anonymous get` reports `public-read` as `download`, `public-write` as `upload`, and both `public-read-write` and `public` as `public` (MinIO has three anonymous policy shapes, so those two write the same policy)
 - `policy` (String) Custom policy JSON string for anonymous access. For canned policies (public, public-read, public-read-write, public-write), use the access_type field instead.
 - `timeouts` (Block, Optional) (see [below for nested schema](#nestedblock--timeouts))
 

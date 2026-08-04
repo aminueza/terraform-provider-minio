@@ -11,9 +11,17 @@ import (
 // TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes verifies that the data
 // source correctly reads back the policy and derives the matching canned access_type
 // for each of the four supported canned modes.
+//
+// The data source only sees the policy, and `public-read-write` writes the same policy as
+// `public`, so that is what it derives for both.
 func TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes(t *testing.T) {
-	for _, accessType := range []string{"public", "public-read", "public-read-write", "public-write"} {
-		accessType := accessType
+	for accessType, derived := range map[string]string{
+		"public":            "public",
+		"public-read":       "public-read",
+		"public-read-write": "public",
+		"public-write":      "public-write",
+	} {
+		accessType, derived := accessType, derived
 		t.Run(accessType, func(t *testing.T) {
 			t.Parallel()
 			bucketName := "tfacc-anon-" + acctest.RandString(6)
@@ -27,7 +35,7 @@ func TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes(t *testing.T) {
 						Config: testAccDataSourceBucketAnonymousAccessCannedConfig(bucketName, accessType),
 						Check: resource.ComposeTestCheckFunc(
 							resource.TestCheckResourceAttr("data.minio_s3_bucket_anonymous_access.test", "bucket", bucketName),
-							resource.TestCheckResourceAttr("data.minio_s3_bucket_anonymous_access.test", "access_type", accessType),
+							resource.TestCheckResourceAttr("data.minio_s3_bucket_anonymous_access.test", "access_type", derived),
 							resource.TestCheckResourceAttrSet("data.minio_s3_bucket_anonymous_access.test", "policy"),
 						),
 					},

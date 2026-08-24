@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioDataUsage() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns cluster-wide data usage statistics including total objects, size, and per-bucket breakdown.",
-		Read:        dataSourceMinioDataUsageRead,
+		ReadContext:        dataSourceMinioDataUsageRead,
 		Schema: map[string]*schema.Schema{
 			"last_update":   {Type: schema.TypeString, Computed: true, Description: "Timestamp of last usage data update."},
 			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets."},
@@ -27,12 +28,12 @@ func dataSourceMinioDataUsage() *schema.Resource {
 	}
 }
 
-func dataSourceMinioDataUsageRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioDataUsageRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	info, err := admin.DataUsageInfo(context.Background())
+	info, err := admin.DataUsageInfo(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

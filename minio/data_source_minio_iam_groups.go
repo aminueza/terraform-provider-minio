@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceIAMGroups() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists all IAM groups with optional name prefix filtering.",
-		Read:        dataSourceIAMGroupsRead,
+		ReadContext:        dataSourceIAMGroupsRead,
 		Schema: map[string]*schema.Schema{
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"groups": {
@@ -35,12 +36,12 @@ func dataSourceIAMGroups() *schema.Resource {
 	}
 }
 
-func dataSourceIAMGroupsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceIAMGroupsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	groupNames, err := admin.ListGroups(context.Background())
+	groupNames, err := admin.ListGroups(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))
@@ -51,7 +52,7 @@ func dataSourceIAMGroupsRead(d *schema.ResourceData, meta interface{}) error {
 			continue
 		}
 
-		desc, err := admin.GetGroupDescription(context.Background(), name)
+		desc, err := admin.GetGroupDescription(ctx, name)
 		if err != nil {
 			continue
 		}

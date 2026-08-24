@@ -5,13 +5,14 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/minio-go/v7/pkg/replication"
 )
 
 func dataSourceMinioS3BucketReplication() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the replication configuration of an existing S3 bucket.",
-		Read:        dataSourceMinioS3BucketReplicationRead,
+		ReadContext:        dataSourceMinioS3BucketReplicationRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"rule": {
@@ -51,12 +52,11 @@ func dataSourceMinioS3BucketReplication() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketReplicationRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketReplicationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	m := meta.(*S3MinioClient)
 	client := m.S3Client
 	admin := m.S3Admin
 	bucket := d.Get("bucket").(string)
-	ctx := context.Background()
 
 	d.SetId(bucket)
 

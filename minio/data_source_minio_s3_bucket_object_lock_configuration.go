@@ -6,13 +6,14 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketObjectLockConfiguration() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the object lock configuration of an existing S3 bucket.",
-		Read:        dataSourceMinioS3BucketObjectLockConfigurationRead,
+		ReadContext:        dataSourceMinioS3BucketObjectLockConfigurationRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":              {Type: schema.TypeString, Required: true},
 			"object_lock_enabled": {Type: schema.TypeString, Computed: true},
@@ -39,20 +40,20 @@ func dataSourceMinioS3BucketObjectLockConfiguration() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketObjectLockConfigurationRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketObjectLockConfigurationRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Get("bucket").(string)
 
 	d.SetId(bucket)
 
-	objectLockStatus, mode, validity, unit, err := client.GetObjectLockConfig(context.Background(), bucket)
+	objectLockStatus, mode, validity, unit, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
 			_ = d.Set("object_lock_enabled", "")
 			_ = d.Set("rule", []interface{}{})
 			return nil
 		}
-		return err
+		return diag.FromErr(err)
 	}
 
 	_ = d.Set("object_lock_enabled", objectLockStatus)

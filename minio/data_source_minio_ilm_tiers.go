@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioILMTiers() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists all configured ILM remote storage tiers.",
-		Read:        dataSourceMinioILMTiersRead,
+		ReadContext:        dataSourceMinioILMTiersRead,
 		Schema: map[string]*schema.Schema{
 			"tiers": {
 				Type:     schema.TypeList,
@@ -31,12 +32,12 @@ func dataSourceMinioILMTiers() *schema.Resource {
 	}
 }
 
-func dataSourceMinioILMTiersRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioILMTiersRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	tiers, err := admin.ListTiers(context.Background())
+	tiers, err := admin.ListTiers(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	var out []map[string]interface{}

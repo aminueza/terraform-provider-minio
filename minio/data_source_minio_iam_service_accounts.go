@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceIAMServiceAccounts() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists service accounts (access keys) for a specific IAM user.",
-		Read:        dataSourceIAMServiceAccountsRead,
+		ReadContext:        dataSourceIAMServiceAccountsRead,
 		Schema: map[string]*schema.Schema{
 			"user": {Type: schema.TypeString, Required: true, Description: "IAM user name to list service accounts for."},
 			"service_accounts": {
@@ -27,13 +28,13 @@ func dataSourceIAMServiceAccounts() *schema.Resource {
 	}
 }
 
-func dataSourceIAMServiceAccountsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceIAMServiceAccountsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
 	user := d.Get("user").(string)
-	resp, err := admin.ListServiceAccounts(context.Background(), user)
+	resp, err := admin.ListServiceAccounts(ctx, user)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	var out []map[string]interface{}

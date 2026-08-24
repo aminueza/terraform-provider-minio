@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioS3Bucket() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads properties of an existing S3 bucket including versioning, region, and object lock status.",
-		Read:        dataSourceMinioS3BucketRead,
+		ReadContext:        dataSourceMinioS3BucketRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":             {Type: schema.TypeString, Required: true},
 			"region":             {Type: schema.TypeString, Computed: true},
@@ -23,17 +24,16 @@ func dataSourceMinioS3Bucket() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
 	bucket := d.Get("bucket").(string)
-	ctx := context.Background()
 
 	d.SetId(bucket)
 
 	region, err := client.GetBucketLocation(ctx, bucket)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 	_ = d.Set("region", region)
 

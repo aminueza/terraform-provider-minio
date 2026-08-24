@@ -1,12 +1,14 @@
 package minio
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
@@ -24,7 +26,7 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 
 	return &schema.Resource{
 		Description: "Generates an IAM policy document in JSON format for use with IAM policies.",
-		Read:        dataSourceMinioIAMPolicyDocumentRead,
+		ReadContext:        dataSourceMinioIAMPolicyDocumentRead,
 
 		Schema: map[string]*schema.Schema{
 			"override_json": {
@@ -108,12 +110,12 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 	}
 }
 
-func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	mergedDoc := &IAMPolicyDoc{}
 
 	if sourceJSON, hasSourceJSON := d.GetOk("source_json"); hasSourceJSON {
 		if err := json.Unmarshal([]byte(sourceJSON.(string)), mergedDoc); err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 	}
 
@@ -138,7 +140,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 
 			if sid, ok := cfgStmt["sid"]; ok {
 				if _, ok := sidMap[sid.(string)]; ok {
-					return fmt.Errorf("found duplicate sid (%s), either remove the sid or ensure the sid is unique across all statements", sid.(string))
+					return diag.Errorf("found duplicate sid (%s), either remove the sid or ensure the sid is unique across all statements", sid.(string))
 				}
 				stmt.Sid = sid.(string)
 				if len(stmt.Sid) > 0 {
@@ -156,7 +158,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 					minioDecodePolicyStringList(resources), doc.Version,
 				)
 				if err != nil {
-					return fmt.Errorf("error reading resources: %s", err)
+					return diag.Errorf("error reading resources: %s", err)
 				}
 			}
 
@@ -166,7 +168,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 					minioDecodePolicyStringList(notResources), doc.Version,
 				)
 				if err != nil {
-					return fmt.Errorf("error reading not_resources: %s", err)
+					return diag.Errorf("error reading not_resources: %s", err)
 				}
 			}
 
@@ -196,7 +198,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 			}
 
 			if resourcesSet && notResourcesSet {
-				return fmt.Errorf("cannot set both resources and not_resources in the same statement")
+				return diag.Errorf("cannot set both resources and not_resources in the same statement")
 			}
 
 			principalString := cfgStmt["principal"].(string)
@@ -207,7 +209,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 			}
 
 			if principalString != "" && notPrincipalString != "" {
-				return fmt.Errorf("cannot set both principal and not_principal in the same statement")
+				return diag.Errorf("cannot set both principal and not_principal in the same statement")
 			}
 
 			if principalString != "" {
@@ -222,7 +224,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 				var err error
 				stmt.Conditions, err = dataSourceMinioIAMPolicyDocumentMakeConditions(conditions, doc.Version)
 				if err != nil {
-					return fmt.Errorf("error reading condition: %s", err)
+					return diag.Errorf("error reading condition: %s", err)
 				}
 			}
 
@@ -238,7 +240,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 	if overrideJSON, hasOverrideJSON := d.GetOk("override_json"); hasOverrideJSON {
 		overrideDoc := &IAMPolicyDoc{}
 		if err := json.Unmarshal([]byte(overrideJSON.(string)), overrideDoc); err != nil {
-			return err
+			return diag.FromErr(err)
 		}
 
 		mergedDoc.merge(overrideDoc)
@@ -246,7 +248,7 @@ func dataSourceMinioIAMPolicyDocumentRead(d *schema.ResourceData, meta interface
 
 	jsonDoc, err := json.MarshalIndent(mergedDoc, "", "  ")
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 	jsonString := string(jsonDoc)
 

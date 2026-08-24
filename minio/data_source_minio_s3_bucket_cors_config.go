@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioS3BucketCorsConfig() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the CORS configuration of an existing S3 bucket.",
-		Read:        dataSourceMinioS3BucketCorsConfigRead,
+		ReadContext:        dataSourceMinioS3BucketCorsConfigRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"cors_rule": {
@@ -29,13 +30,13 @@ func dataSourceMinioS3BucketCorsConfig() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketCorsConfigRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketCorsConfigRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Get("bucket").(string)
 
 	d.SetId(bucket)
 
-	cfg, err := client.GetBucketCors(context.Background(), bucket)
+	cfg, err := client.GetBucketCors(ctx, bucket)
 	if err != nil || cfg == nil {
 		_ = d.Set("cors_rule", []interface{}{})
 		return nil

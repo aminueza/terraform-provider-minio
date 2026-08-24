@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	miniogo "github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3Objects() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists objects in an S3 bucket with optional prefix, delimiter, and max keys filtering.",
-		Read:        dataSourceMinioS3ObjectsRead,
+		ReadContext:        dataSourceMinioS3ObjectsRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:        schema.TypeString,
@@ -53,9 +54,8 @@ func dataSourceMinioS3Objects() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3ObjectsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3ObjectsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
-	ctx := context.Background()
 
 	bucket := d.Get("bucket").(string)
 	prefix := d.Get("prefix").(string)
@@ -73,7 +73,7 @@ func dataSourceMinioS3ObjectsRead(d *schema.ResourceData, meta interface{}) erro
 
 	for obj := range client.ListObjects(ctx, bucket, opts) {
 		if obj.Err != nil {
-			return obj.Err
+			return diag.FromErr(obj.Err)
 		}
 
 		if delimiter != "" && obj.Key == "" {

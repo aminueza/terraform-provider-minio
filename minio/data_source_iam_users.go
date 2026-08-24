@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func dataSourceIAMUsers() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists IAM users with optional filtering by name prefix and status.",
-		Read:        dataSourceIAMUsersRead,
+		ReadContext:        dataSourceIAMUsersRead,
 		Schema: map[string]*schema.Schema{
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"status": {
@@ -46,13 +47,13 @@ func dataSourceIAMUsers() *schema.Resource {
 	}
 }
 
-func dataSourceIAMUsersRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceIAMUsersRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	m := meta.(*S3MinioClient)
 	admin := m.S3Admin
 
-	usersMap, err := admin.ListUsers(context.Background())
+	usersMap, err := admin.ListUsers(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))

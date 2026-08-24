@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the ILM lifecycle rules configured on an existing S3 bucket.",
-		Read:        dataSourceMinioILMPolicyRead,
+		ReadContext:        dataSourceMinioILMPolicyRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"rules": {
@@ -43,13 +44,13 @@ func dataSourceMinioILMPolicy() *schema.Resource {
 	}
 }
 
-func dataSourceMinioILMPolicyRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioILMPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Get("bucket").(string)
 
 	d.SetId(bucket)
 
-	cfg, err := client.GetBucketLifecycle(context.Background(), bucket)
+	cfg, err := client.GetBucketLifecycle(ctx, bucket)
 	if err != nil {
 		_ = d.Set("rules", []interface{}{})
 		return nil

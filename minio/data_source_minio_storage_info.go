@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioStorageInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns disk and drive status for all MinIO server nodes. Essential for capacity planning and health monitoring.",
-		Read:        dataSourceMinioStorageInfoRead,
+		ReadContext:        dataSourceMinioStorageInfoRead,
 		Schema: map[string]*schema.Schema{
 			"disk_count":      {Type: schema.TypeInt, Computed: true, Description: "Total number of disks."},
 			"online_disks":    {Type: schema.TypeInt, Computed: true, Description: "Number of disks online."},
@@ -39,12 +40,12 @@ func dataSourceMinioStorageInfo() *schema.Resource {
 	}
 }
 
-func dataSourceMinioStorageInfoRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioStorageInfoRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	info, err := admin.StorageInfo(context.Background())
+	info, err := admin.StorageInfo(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

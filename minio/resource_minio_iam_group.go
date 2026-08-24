@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -181,19 +182,68 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 			return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
 		}
 
+		return nil
 	}
 
 	//Group must be empty to be deleted
-	if len(groupDesc.Members) == 0 {
-		err := deleteMinioGroup(ctx, iamGroupConfig, []string{})
-
+	if len(groupDesc.Members) != 0 {
+		members, err := waitForGroupMembersToClear(ctx, func(ctx context.Context) ([]string, error) {
+			desc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
+			if err != nil {
+				return nil, err
+			}
+			return desc.Members, nil
+		}, groupDrainAttempts, groupDrainDelay)
 		if err != nil {
-			return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
+			return NewResourceError("reading IAM group members", d.Id(), err)
 		}
+		if len(members) != 0 {
+			return NewResourceError("deleting IAM group", d.Id(),
+				fmt.Errorf("group still has %d member(s); set force_destroy = true to delete a group with members", len(members)))
+		}
+	}
 
+	if err := deleteMinioGroup(ctx, iamGroupConfig, []string{}); err != nil {
+		return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
 	}
 
 	return nil
+}
+
+// MinIO keeps serving a group's old member list for a short while after a
+// minio_iam_group_membership removes them, and a group can only be deleted
+// while it is empty. Re-read the membership for a few seconds so the delete
+// doesn't give up on a list that is merely stale.
+const (
+	groupDrainAttempts = 6
+	groupDrainDelay    = time.Second
+)
+
+// waitForGroupMembersToClear re-reads a group's members until the list comes
+// back empty, and returns the last list it saw.
+func waitForGroupMembersToClear(ctx context.Context, members func(context.Context) ([]string, error), attempts int, delay time.Duration) ([]string, error) {
+	var last []string
+
+	for attempt := 0; attempt < attempts; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return last, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+
+		current, err := members(ctx)
+		if err != nil {
+			return last, err
+		}
+		if len(current) == 0 {
+			return nil, nil
+		}
+		last = current
+	}
+
+	return last, nil
 }
 
 func minioStatusGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) error {

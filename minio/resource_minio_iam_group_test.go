@@ -2,9 +2,12 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -170,5 +173,82 @@ func testAccCheckMinioGroupDisable(group *madmin.GroupDesc, name string, status 
 		}
 
 		return nil
+	}
+}
+
+func TestWaitForGroupMembersToClear(t *testing.T) {
+	errRead := errors.New("read failed")
+
+	tests := []struct {
+		name        string
+		lists       [][]string
+		readErr     error
+		wantMembers []string
+		wantErr     error
+		wantCalls   int
+	}{
+		{
+			name:      "empty on first read",
+			lists:     [][]string{{}},
+			wantCalls: 1,
+		},
+		{
+			name:      "clears on a later read",
+			lists:     [][]string{{"alice", "bob"}, {"bob"}, {}},
+			wantCalls: 3,
+		},
+		{
+			name:        "never clears",
+			lists:       [][]string{{"alice"}, {"alice"}, {"alice"}},
+			wantMembers: []string{"alice"},
+			wantCalls:   3,
+		},
+		{
+			name:      "read error stops the wait",
+			readErr:   errRead,
+			wantErr:   errRead,
+			wantCalls: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls := 0
+			members := func(context.Context) ([]string, error) {
+				defer func() { calls++ }()
+				if tt.readErr != nil {
+					return nil, tt.readErr
+				}
+				return tt.lists[calls], nil
+			}
+
+			got, err := waitForGroupMembersToClear(context.Background(), members, 3, time.Millisecond)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("error = %v, want %v", err, tt.wantErr)
+			}
+			if diff := cmp.Diff(tt.wantMembers, got); diff != "" {
+				t.Errorf("members mismatch (-want +got):\n%s", diff)
+			}
+			if calls != tt.wantCalls {
+				t.Errorf("read %d time(s), want %d", calls, tt.wantCalls)
+			}
+		})
+	}
+}
+
+func TestWaitForGroupMembersToClearHonoursContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	got, err := waitForGroupMembersToClear(ctx, func(context.Context) ([]string, error) {
+		return []string{"alice"}, nil
+	}, 3, time.Hour)
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want %v", err, context.Canceled)
+	}
+	if diff := cmp.Diff([]string{"alice"}, got); diff != "" {
+		t.Errorf("members mismatch (-want +got):\n%s", diff)
 	}
 }

@@ -11,7 +11,7 @@ require (
 	github.com/hashicorp/go-cty v1.5.0
 	github.com/hashicorp/terraform-plugin-log v0.11.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1
-	github.com/minio/madmin-go/v4 v4.10.1
+	github.com/minio/madmin-go/v4 v4.10.3
 	github.com/minio/minio-go/v7 v7.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0

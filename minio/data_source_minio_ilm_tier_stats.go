@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioILMTierStats() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns transition statistics for all configured ILM storage tiers including object counts and total bytes.",
-		Read:        dataSourceMinioILMTierStatsRead,
+		ReadContext:        dataSourceMinioILMTierStatsRead,
 		Schema: map[string]*schema.Schema{
 			"tiers": {
 				Type:     schema.TypeList,
@@ -30,12 +31,12 @@ func dataSourceMinioILMTierStats() *schema.Resource {
 	}
 }
 
-func dataSourceMinioILMTierStatsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioILMTierStatsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	tierInfos, err := admin.TierStats(context.Background())
+	tierInfos, err := admin.TierStats(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

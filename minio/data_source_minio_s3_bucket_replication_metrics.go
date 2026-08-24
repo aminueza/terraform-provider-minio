@@ -5,12 +5,13 @@ import (
 	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioS3BucketReplicationMetrics() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads replication health metrics for a bucket: pending, failed, replicated and queued sizes and counts. Useful for monitoring replication lag. Counts and sizes are returned as strings to represent uint64 values safely.",
-		Read:        dataSourceMinioS3BucketReplicationMetricsRead,
+		ReadContext:        dataSourceMinioS3BucketReplicationMetricsRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":           {Type: schema.TypeString, Required: true},
 			"pending_size":     {Type: schema.TypeString, Computed: true},
@@ -27,11 +28,10 @@ func dataSourceMinioS3BucketReplicationMetrics() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketReplicationMetricsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
 	bucket := d.Get("bucket").(string)
-	ctx := context.Background()
 
 	d.SetId(bucket)
 

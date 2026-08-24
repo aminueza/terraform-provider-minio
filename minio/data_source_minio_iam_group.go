@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceIAMGroup() *schema.Resource {
 	return &schema.Resource{
 		Description: "Retrieves information about a specific IAM group by name.",
-		Read:        dataSourceIAMGroupRead,
+		ReadContext:        dataSourceIAMGroupRead,
 		Schema: map[string]*schema.Schema{
 			"name":   {Type: schema.TypeString, Required: true},
 			"status": {Type: schema.TypeString, Computed: true},
@@ -24,13 +25,13 @@ func dataSourceIAMGroup() *schema.Resource {
 	}
 }
 
-func dataSourceIAMGroupRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceIAMGroupRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
 	name := d.Get("name").(string)
-	desc, err := admin.GetGroupDescription(context.Background(), name)
+	desc, err := admin.GetGroupDescription(ctx, name)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(name)

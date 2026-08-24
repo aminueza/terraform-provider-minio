@@ -4,12 +4,13 @@ import (
 	"context"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioS3BucketTags() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads tags from an existing S3 bucket.",
-		Read:        dataSourceMinioS3BucketTagsRead,
+		ReadContext:        dataSourceMinioS3BucketTagsRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"tags": {
@@ -21,11 +22,11 @@ func dataSourceMinioS3BucketTags() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketTagsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketTagsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
 	bucket := d.Get("bucket").(string)
-	tagging, err := client.GetBucketTagging(context.Background(), bucket)
+	tagging, err := client.GetBucketTagging(ctx, bucket)
 	if err != nil {
 		d.SetId(bucket)
 		_ = d.Set("tags", map[string]string{})

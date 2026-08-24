@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/minio/madmin-go/v4"
 )
 
 func dataSourceMinioAccountInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns storage usage and bucket information for the authenticated account.",
-		Read:        dataSourceMinioAccountInfoRead,
+		ReadContext:        dataSourceMinioAccountInfoRead,
 		Schema: map[string]*schema.Schema{
 			"account_name":  {Type: schema.TypeString, Computed: true, Description: "Name of the authenticated account."},
 			"bucket_count":  {Type: schema.TypeInt, Computed: true, Description: "Total number of buckets accessible to this account."},
@@ -33,12 +34,12 @@ func dataSourceMinioAccountInfo() *schema.Resource {
 	}
 }
 
-func dataSourceMinioAccountInfoRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioAccountInfoRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	info, err := admin.AccountInfo(context.Background(), madmin.AccountOpts{})
+	info, err := admin.AccountInfo(ctx, madmin.AccountOpts{})
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

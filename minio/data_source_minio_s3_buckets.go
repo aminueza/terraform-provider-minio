@@ -7,12 +7,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioS3Buckets() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists all S3 buckets with optional name prefix filtering.",
-		Read:        dataSourceMinioS3BucketsRead,
+		ReadContext:        dataSourceMinioS3BucketsRead,
 		Schema: map[string]*schema.Schema{
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"buckets": {
@@ -29,12 +30,12 @@ func dataSourceMinioS3Buckets() *schema.Resource {
 	}
 }
 
-func dataSourceMinioS3BucketsRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioS3BucketsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
-	buckets, err := client.ListBuckets(context.Background())
+	buckets, err := client.ListBuckets(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))

@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceIAMUserPolicies() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns all IAM policies effective for a user, including policies attached directly and inherited from group membership.",
-		Read:        dataSourceIAMUserPoliciesRead,
+		ReadContext:        dataSourceIAMUserPoliciesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {Type: schema.TypeString, Required: true},
 			"direct_policies": {
@@ -40,14 +41,13 @@ func dataSourceIAMUserPolicies() *schema.Resource {
 	}
 }
 
-func dataSourceIAMUserPoliciesRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceIAMUserPoliciesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
-	ctx := context.Background()
 
 	name := d.Get("name").(string)
 	info, err := admin.GetUserInfo(ctx, name)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(name)

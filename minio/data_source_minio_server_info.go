@@ -6,12 +6,13 @@ import (
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 )
 
 func dataSourceMinioServerInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads MinIO server information including version, deployment ID, and storage metrics.",
-		Read:        dataSourceMinioServerInfoRead,
+		ReadContext:        dataSourceMinioServerInfoRead,
 		Schema: map[string]*schema.Schema{
 			"version": {
 				Type:        schema.TypeString,
@@ -137,13 +138,13 @@ func dataSourceMinioServerInfo() *schema.Resource {
 	}
 }
 
-func dataSourceMinioServerInfoRead(d *schema.ResourceData, meta interface{}) error {
+func dataSourceMinioServerInfoRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	m := meta.(*S3MinioClient)
 	admin := m.S3Admin
 
-	info, err := admin.ServerInfo(context.Background())
+	info, err := admin.ServerInfo(ctx)
 	if err != nil {
-		return err
+		return diag.FromErr(err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

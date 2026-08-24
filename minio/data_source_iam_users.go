@@ -6,15 +6,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func dataSourceIAMUsers() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists IAM users with optional filtering by name prefix and status.",
-		ReadContext:        dataSourceIAMUsersRead,
+		ReadContext: dataSourceIAMUsersRead,
 		Schema: map[string]*schema.Schema{
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"status": {

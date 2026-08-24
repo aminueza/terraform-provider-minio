@@ -3,14 +3,14 @@ package minio
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioS3Bucket() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads properties of an existing S3 bucket including versioning, region, and object lock status.",
-		ReadContext:        dataSourceMinioS3BucketRead,
+		ReadContext: dataSourceMinioS3BucketRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":             {Type: schema.TypeString, Required: true},
 			"region":             {Type: schema.TypeString, Computed: true},

@@ -153,7 +153,7 @@ go build -o terraform-provider-minio
 
 We follow these coding standards:
 
-- **Formatting**: Use `gofmt` (standard Go formatting)
+- **Formatting**: Use `gofmt -s` (CI enforces it through golangci-lint, whose `gofmt` formatter simplifies by default)
 - **Linting**: Configured via `.github/golangci.yml`
 - **Error Handling**: Always use `NewResourceError()` from `minio/error.go`
 - **Documentation**: Include comments for public functions and complex logic

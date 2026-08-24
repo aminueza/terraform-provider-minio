@@ -4,15 +4,15 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7/pkg/replication"
 )
 
 func dataSourceMinioS3BucketReplication() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the replication configuration of an existing S3 bucket.",
-		ReadContext:        dataSourceMinioS3BucketReplicationRead,
+		ReadContext: dataSourceMinioS3BucketReplicationRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"rule": {

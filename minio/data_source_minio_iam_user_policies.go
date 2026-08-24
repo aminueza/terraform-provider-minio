@@ -4,14 +4,14 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceIAMUserPolicies() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns all IAM policies effective for a user, including policies attached directly and inherited from group membership.",
-		ReadContext:        dataSourceIAMUserPoliciesRead,
+		ReadContext: dataSourceIAMUserPoliciesRead,
 		Schema: map[string]*schema.Schema{
 			"name": {Type: schema.TypeString, Required: true},
 			"direct_policies": {

@@ -88,7 +88,7 @@ if !ok {
 | `task install`       | Build and install to local Terraform plugins directory |
 | `task test`          | Run all acceptance tests via Docker Compose            |
 | `task generate-docs` | Regenerate documentation from templates                |
-| `golangci-lint run`  | Run configured linters                                 |
+| `task lint`          | Run configured linters                                 |
 
 **Run specific tests:**
 
@@ -105,8 +105,8 @@ go test ./minio/...
 
 ## Coding Style
 
-- **Formatting:** Use `gofmt` (standard Go formatting)
-- **Linting:** Configured via `.github/golangci.yml` with errcheck, govet, ineffassign, staticcheck, unused, bodyclose, noctx, unconvert
+- **Formatting:** Use `gofmt -s` (CI enforces it through golangci-lint, whose `gofmt` formatter simplifies by default)
+- **Linting:** Configured via `.github/golangci.yml` with errcheck, govet, ineffassign, staticcheck, unused, bodyclose, noctx, unconvert, and the gofmt formatter
 - **Imports:** Group standard library, external packages, then internal packages
 - **Naming:**
   - Resources: `resource_minio_<name>.go` → `resourceMinio<Name>()`
@@ -253,7 +253,7 @@ func minioCreateX(ctx context.Context, d *schema.ResourceData, meta interface{})
 - Provide clear description of changes
 - Ensure all tests pass
 - Update documentation templates if adding/changing attributes
-- Run `golangci-lint run` and fix any issues
+- Run `task lint` and fix any issues
 
 ---
 

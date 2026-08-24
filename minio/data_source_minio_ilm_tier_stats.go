@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioILMTierStats() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns transition statistics for all configured ILM storage tiers including object counts and total bytes.",
-		ReadContext:        dataSourceMinioILMTierStatsRead,
+		ReadContext: dataSourceMinioILMTierStatsRead,
 		Schema: map[string]*schema.Schema{
 			"tiers": {
 				Type:     schema.TypeList,

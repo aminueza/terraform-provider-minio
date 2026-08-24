@@ -4,14 +4,14 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioS3BucketReplicationStatus() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads replication status and metrics for a bucket including rule count, replicated/pending sizes, and error counts.",
-		ReadContext:        dataSourceMinioS3BucketReplicationStatusRead,
+		ReadContext: dataSourceMinioS3BucketReplicationStatusRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":           {Type: schema.TypeString, Required: true},
 			"rule_count":       {Type: schema.TypeInt, Computed: true},

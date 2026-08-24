@@ -4,14 +4,14 @@ import (
 	"context"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceIAMGroup() *schema.Resource {
 	return &schema.Resource{
 		Description: "Retrieves information about a specific IAM group by name.",
-		ReadContext:        dataSourceIAMGroupRead,
+		ReadContext: dataSourceIAMGroupRead,
 		Schema: map[string]*schema.Schema{
 			"name":   {Type: schema.TypeString, Required: true},
 			"status": {Type: schema.TypeString, Computed: true},

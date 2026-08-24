@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceIAMGroups() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists all IAM groups with optional name prefix filtering.",
-		ReadContext:        dataSourceIAMGroupsRead,
+		ReadContext: dataSourceIAMGroupsRead,
 		Schema: map[string]*schema.Schema{
 			"name_prefix": {Type: schema.TypeString, Optional: true},
 			"groups": {

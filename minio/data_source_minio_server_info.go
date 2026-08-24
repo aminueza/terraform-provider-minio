@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioServerInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads MinIO server information including version, deployment ID, and storage metrics.",
-		ReadContext:        dataSourceMinioServerInfoRead,
+		ReadContext: dataSourceMinioServerInfoRead,
 		Schema: map[string]*schema.Schema{
 			"version": {
 				Type:        schema.TypeString,

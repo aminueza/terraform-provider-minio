@@ -44,6 +44,15 @@ linters:
         - fieldalignment
         - shadow
 
+formatters:
+  enable:
+    - gofmt
+  settings:
+    gofmt:
+      # Pinned rather than left to the default, so the config states what CI
+      # actually enforces: gofmt -s, not plain gofmt.
+      simplify: true
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

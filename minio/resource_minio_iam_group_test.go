@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -250,5 +251,103 @@ func TestWaitForGroupMembersToClearHonoursContext(t *testing.T) {
 	}
 	if diff := cmp.Diff([]string{"alice"}, got); diff != "" {
 		t.Errorf("members mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestAccMinioIAMGroup_forceDestroyWithOutsideMember(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-fd-%s", rString)
+	outsideUser := fmt.Sprintf("tf-acc-user-fd-%s", rString)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() {
+			testAccPreCheck(t)
+			// Registered here, not in the test body: without TF_ACC the SDK
+			// skips before PreCheck runs, and a cleanup that reaches
+			// testAccClient() would panic the whole package.
+			t.Cleanup(func() { _ = testAccClient().S3Admin.RemoveUser(context.Background(), outsideUser) })
+		},
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioGroupConfigForceDestroy(groupName, false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group.force", "force_destroy", "true"),
+					testAccAddGroupMemberOutsideTerraform(groupName, outsideUser),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroup_forceDestroyKeepsGroupOnUpdate(t *testing.T) {
+	var group madmin.GroupDesc
+
+	groupName := fmt.Sprintf("tf-acc-group-fdu-%s", acctest.RandString(8))
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioGroupConfigForceDestroy(groupName, false),
+				Check:  testAccCheckMinioGroupExists("minio_iam_group.force", &group),
+			},
+			{
+				Config: testAccMinioGroupConfigForceDestroy(groupName, true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupExists("minio_iam_group.force", &group),
+					resource.TestCheckResourceAttr("minio_iam_group.force", "disable_group", "true"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioGroupConfigForceDestroy(groupName string, disabled bool) string {
+	return fmt.Sprintf(`
+resource "minio_iam_group" "force" {
+  name          = "%s"
+  force_destroy = true
+  disable_group = %t
+}
+`, groupName, disabled)
+}
+
+// testAccAddGroupMemberOutsideTerraform puts a member in the group that no
+// Terraform resource knows about, which is the case force_destroy exists for.
+func testAccAddGroupMemberOutsideTerraform(groupName string, userName string) resource.TestCheckFunc {
+	return func(*terraform.State) error {
+		minioIam := testAccClient().S3Admin
+
+		if err := minioIam.AddUser(context.Background(), userName, "tfacc-outside-member"); err != nil {
+			return fmt.Errorf("creating user %s outside Terraform: %w", userName, err)
+		}
+
+		return minioIam.UpdateGroupMembers(context.Background(), madmin.GroupAddRemove{
+			Group:   groupName,
+			Members: []string{userName},
+		})
+	}
+}
+
+// testAccCheckMinioGroupGone asserts the group is really gone from MinIO. Only
+// a not-found error proves that: treating every error as success would let a
+// transient admin API failure pass the destroy check.
+func testAccCheckMinioGroupGone(groupName string) func(*terraform.State) error {
+	return func(*terraform.State) error {
+		minioIam := testAccClient().S3Admin
+
+		_, err := minioIam.GetGroupDescription(context.Background(), groupName)
+		if err == nil {
+			return fmt.Errorf("group %s still exists", groupName)
+		}
+		if !strings.Contains(err.Error(), "not exist") {
+			return fmt.Errorf("checking group %s was destroyed: %w", groupName, err)
+		}
+
+		return nil
 	}
 }

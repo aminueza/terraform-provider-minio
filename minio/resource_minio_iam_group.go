@@ -109,13 +109,6 @@ func minioUpdateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("error updating IAM Group %s: %s", d.Id(), err)
 	}
 
-	if iamGroupConfig.MinioForceDestroy {
-		err := minioDeleteGroup(ctx, d, meta)
-		if err != nil {
-			return err
-		}
-	}
-
 	return minioReadGroup(ctx, d, meta)
 }
 
@@ -174,37 +167,33 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 
 	}
 
-	//force to delete group even if group isn't empty
-	if iamGroupConfig.MinioForceDestroy {
-		err := deleteMinioGroup(ctx, iamGroupConfig, groupDesc.Members)
-
-		if err != nil {
-			return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
-		}
-
-		return nil
-	}
-
 	//Group must be empty to be deleted
 	if len(groupDesc.Members) != 0 {
-		members, err := waitForGroupMembersToClear(ctx, func(ctx context.Context) ([]string, error) {
-			desc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
-			if err != nil {
-				return nil, err
+		if iamGroupConfig.MinioForceDestroy {
+			//force to delete group even if group isn't empty
+			if err := deleteMinioGroup(ctx, iamGroupConfig, groupDesc.Members); err != nil {
+				return NewResourceError("removing IAM group members", d.Id(), err)
 			}
-			return desc.Members, nil
-		}, groupDrainAttempts, groupDrainDelay)
-		if err != nil {
-			return NewResourceError("reading IAM group members", d.Id(), err)
-		}
-		if len(members) != 0 {
-			return NewResourceError("deleting IAM group", d.Id(),
-				fmt.Errorf("group still has %d member(s); set force_destroy = true to delete a group with members", len(members)))
+		} else {
+			members, err := waitForGroupMembersToClear(ctx, func(ctx context.Context) ([]string, error) {
+				desc, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, d.Id())
+				if err != nil {
+					return nil, err
+				}
+				return desc.Members, nil
+			}, groupDrainAttempts, groupDrainDelay)
+			if err != nil {
+				return NewResourceError("reading IAM group members", d.Id(), err)
+			}
+			if len(members) != 0 {
+				return NewResourceError("deleting IAM group", d.Id(),
+					fmt.Errorf("group still has %d member(s); set force_destroy = true to delete a group with members", len(members)))
+			}
 		}
 	}
 
 	if err := deleteMinioGroup(ctx, iamGroupConfig, []string{}); err != nil {
-		return NewResourceError("error deleting IAM Group %s: %s", d.Id(), err)
+		return NewResourceError("deleting IAM group", d.Id(), err)
 	}
 
 	return nil

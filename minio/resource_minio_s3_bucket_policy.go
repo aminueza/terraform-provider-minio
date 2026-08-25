@@ -198,7 +198,7 @@ func minioDeleteBucketPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, "")
 
 	if err != nil {
-		return NewResourceError("deleting bucket", bucketPolicyConfig.MinioBucket, err)
+		return NewResourceError("deleting bucket policy", bucketPolicyConfig.MinioBucket, err)
 	}
 
 	return nil

@@ -215,7 +215,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	hasSecretWOChange := d.HasChange("secret_key_wo_version") && hasSecretWOVersion
 	if serviceAccountConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
-			return NewResourceError("creating user", d.Id(), err)
+			return NewResourceError("generating service account secret key", d.Id(), err)
 		} else {
 			wantedSecret = secretKey
 		}

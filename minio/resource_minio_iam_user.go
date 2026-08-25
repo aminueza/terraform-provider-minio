@@ -174,7 +174,7 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	hasSecretWOChange := d.HasChange("secret_wo_version") && hasSecretWOVersion
 	if iamUserConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
-			return NewResourceError("creating user", d.Id(), err)
+			return NewResourceError("generating IAM user secret key", d.Id(), err)
 		} else {
 			wantedSecret = secretKey
 		}

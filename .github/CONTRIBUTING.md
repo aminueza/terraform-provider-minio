@@ -299,6 +299,24 @@ func TestAccMinioExample_basic(t *testing.T) {
 3. **Update Documentation**: Add/update docs for new features
 4. **Check Style**: Run `task lint` and fix any issues
 5. **Sign Commits**: Use `git commit -s` for DCO compliance
+6. **Update the Changelog**: If your change is user-visible, add an entry under
+   `## [Unreleased]` in `CHANGELOG.md`
+
+### When a Changelog Entry Is Expected
+
+Add an entry under `## [Unreleased]` in `CHANGELOG.md` when your change is
+**user-visible**: new resources or attributes, behavior changes, bug fixes
+users could have hit, deprecations, and security fixes (security entries must
+state the action users need to take, e.g. "upgrade **and re-apply**").
+
+Skip the changelog for changes users cannot observe: CI and workflow changes,
+dependency bumps with no behavior change, test-only changes, refactors, and
+documentation fixes. When in doubt, add the entry — a reviewer can always drop
+it.
+
+The release workflow refuses to tag a version that has no matching
+`## [x.y.z]` section in `CHANGELOG.md`, so entries must be moved from
+`[Unreleased]` into a dated section as part of preparing a release.
 
 ### Commit Message Format
 

@@ -42,3 +42,9 @@ updates:
     commit-message:
       prefix: "docker(deps):"
     open-pull-requests-limit: 5
+    ignore:
+      # The golang image in docker-compose.yml is generated from the toolchain
+      # directive in go.mod by .github/workflows/update-go-toolchain.yml, which
+      # rewrites that line every Monday. Managing it here as well means the two
+      # take turns overwriting each other.
+      - dependency-name: "golang"

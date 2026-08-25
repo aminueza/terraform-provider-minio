@@ -53,6 +53,33 @@ func TestNewResourceError_WithMinioError(t *testing.T) {
 	}
 }
 
+// NewResourceError takes msg as a plain string, not a format string. A message
+// carrying printf verbs is rendered verbatim, so the verbs leak to the user.
+// This guards the operation-phrase convention that the resource CRUD funcs follow.
+func TestNewResourceError_MessageNotFormatted(t *testing.T) {
+	err := errors.New("group not found")
+
+	diags := NewResourceError("updating IAM group", "my-group", err)
+	if len(diags) == 0 {
+		t.Fatal("expected at least one diagnostic")
+	}
+
+	got := diags[0].Summary
+	want := "[FATAL] updating IAM group (my-group): group not found"
+	if got != want {
+		t.Errorf("Summary = %q, want %q", got, want)
+	}
+
+	// A message with a stray verb must survive untouched (no interpolation).
+	leaky := NewResourceError("updating IAM group %s: %s", "my-group", err)
+	if len(leaky) == 0 {
+		t.Fatal("expected at least one diagnostic")
+	}
+	if !strings.Contains(leaky[0].Summary, "%s") {
+		t.Errorf("expected verbs to survive verbatim, got %q", leaky[0].Summary)
+	}
+}
+
 func TestEnhanceConnectionError(t *testing.T) {
 	tests := []struct {
 		name     string

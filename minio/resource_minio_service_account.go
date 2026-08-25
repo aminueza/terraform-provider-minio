@@ -135,7 +135,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	if serviceAccountConfig.MinioExpiration != "" {
 		expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
 		if err != nil {
-			return NewResourceError("Failed to parse expiration", serviceAccountConfig.MinioExpiration, err)
+			return NewResourceError("parsing expiration", serviceAccountConfig.MinioExpiration, err)
 		}
 		expirationPtr = &expiration
 	}
@@ -150,7 +150,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	serviceAccount, err := serviceAccountConfig.MinioAdmin.AddServiceAccount(ctx, addReq)
 	if err != nil {
-		return NewResourceError("error creating service account", targetUser, err)
+		return NewResourceError("creating service account", targetUser, err)
 	}
 	accessKey := serviceAccount.AccessKey
 	secretKey := serviceAccount.SecretKey
@@ -170,7 +170,7 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	if serviceAccountConfig.MinioDisableUser {
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewStatus: "off"})
 		if err != nil {
-			return NewResourceError("error disabling service account %s: %s", d.Id(), err)
+			return NewResourceError("disabling service account", d.Id(), err)
 		}
 	}
 
@@ -191,7 +191,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	serviceAccountServerInfo, err := serviceAccountConfig.MinioAdmin.InfoServiceAccount(ctx, serviceAccountConfig.MinioAccessKey)
 	if err != nil {
-		return NewResourceError("error to disable service account", d.Id(), err)
+		return NewResourceError("disabling service account", d.Id(), err)
 	}
 	if serviceAccountServerInfo.AccountStatus != wantedStatus {
 		err := serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, serviceAccountConfig.MinioAccessKey, madmin.UpdateServiceAccountReq{
@@ -199,7 +199,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error to disable service account", d.Id(), err)
+			return NewResourceError("disabling service account", d.Id(), err)
 		}
 	}
 
@@ -215,7 +215,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	hasSecretWOChange := d.HasChange("secret_key_wo_version") && hasSecretWOVersion
 	if serviceAccountConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating user", d.Id(), err)
+			return NewResourceError("creating user", d.Id(), err)
 		} else {
 			wantedSecret = secretKey
 		}
@@ -231,7 +231,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy:    processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error updating service account Key %s: %s", d.Id(), err)
+			return NewResourceError("updating service account key", d.Id(), err)
 		}
 
 		if hasSecretWO {
@@ -246,7 +246,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error updating service account policy %s: %s", d.Id(), err)
+			return NewResourceError("updating service account policy", d.Id(), err)
 		}
 
 		_ = d.Set("policy", policy)
@@ -261,7 +261,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy: processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error updating service account name %s: %s", d.Id(), err)
+			return NewResourceError("updating service account name", d.Id(), err)
 		}
 	}
 
@@ -274,7 +274,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy:      processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error updating service account description %s: %s", d.Id(), err)
+			return NewResourceError("updating service account description", d.Id(), err)
 		}
 	}
 
@@ -283,7 +283,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		if serviceAccountConfig.MinioExpiration != "" {
 			expiration, err := time.Parse(time.RFC3339, serviceAccountConfig.MinioExpiration)
 			if err != nil {
-				return NewResourceError("error parsing service account expiration %s: %s", d.Id(), err)
+				return NewResourceError("parsing service account expiration", d.Id(), err)
 			}
 			expirationPtr = &expiration
 		}
@@ -292,7 +292,7 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			NewPolicy:     processServiceAccountPolicy(policy),
 		})
 		if err != nil {
-			return NewResourceError("error updating service account expiration %s: %s", d.Id(), err)
+			return NewResourceError("updating service account expiration", d.Id(), err)
 		}
 	}
 
@@ -308,7 +308,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		return nil
 	}
 	if err != nil {
-		return NewResourceError("error reading service account %s: %s", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("(%v)", output))
@@ -318,14 +318,14 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if err := d.Set("status", output.AccountStatus); err != nil {
-		return NewResourceError("reading service account failed", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 
 	_ = d.Set("disable_user", output.AccountStatus == "off")
 
 	targetUser := parseUserFromParentUser(output.ParentUser)
 	if err := d.Set("target_user", targetUser); err != nil {
-		return NewResourceError("reading service account failed", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 
 	if !output.ImpliedPolicy {
@@ -333,10 +333,10 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if err := d.Set("name", output.Name); err != nil {
-		return NewResourceError("reading service account failed", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 	if err := d.Set("description", output.Description); err != nil {
-		return NewResourceError("reading service account failed", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 
 	var expiration string
@@ -344,7 +344,7 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 		expiration = output.Expiration.Format(time.RFC3339)
 	}
 	if err := d.Set("expiration", expiration); err != nil {
-		return NewResourceError("reading service account failed", d.Id(), err)
+		return NewResourceError("reading service account", d.Id(), err)
 	}
 
 	return nil
@@ -356,7 +356,7 @@ func minioDeleteServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 
 	err := deleteMinioServiceAccount(ctx, serviceAccountConfig)
 	if err != nil {
-		return NewResourceError("error deleting service account %s: %s", d.Id(), err)
+		return NewResourceError("deleting service account", d.Id(), err)
 	}
 
 	// Actively set resource as deleted

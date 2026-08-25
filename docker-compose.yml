@@ -179,7 +179,7 @@ services:
         go mod download
         go mod verify
         echo 'Running tests...'
-        go test -v -failfast -timeout 30m ./minio $${TEST_PATTERN:+-run $$TEST_PATTERN}
+        go test -v -failfast -timeout 30m -coverprofile=coverage.out -covermode=atomic ./minio $${TEST_PATTERN:+-run $$TEST_PATTERN}
     environment:
       TF_ACC: "1"
       # Admin API version for madmin-go/v4. The pinned MinIO image only speaks

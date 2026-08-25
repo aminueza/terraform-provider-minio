@@ -1,6 +1,6 @@
 ---
 page_title: "minio_server_config_storage_class Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Manages MinIO storage class configuration for erasure coding parity. Controls data protection levels for STANDARD and REDUCED_REDUNDANCY storage classes.
 ---

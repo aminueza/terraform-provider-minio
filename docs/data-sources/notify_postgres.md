@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_postgres Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   
 ---

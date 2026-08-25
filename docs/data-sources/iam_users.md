@@ -1,6 +1,6 @@
 ---
 page_title: "Data Source minio_iam_users - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   Lists IAM users with optional filtering by name prefix and status.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_kms_status Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Reports status and connectivity information about the KMS configured on the MinIO server. version exposes the KMS server version (from the version endpoint); the server-side runtime snapshot in state[0] carries its own version reported by the status endpoint — they may differ.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_iam_export Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   Exports the entire IAM configuration (users, groups, policies, service accounts) from a MinIO server. The payload is the raw zip MinIO returns, base64-encoded. Treat as sensitive: it can include access keys.
 ---

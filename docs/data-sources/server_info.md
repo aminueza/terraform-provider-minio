@@ -1,6 +1,6 @@
 ---
 page_title: "Data Source minio_server_info - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Reads MinIO server information including version, deployment ID, and storage metrics.
 ---

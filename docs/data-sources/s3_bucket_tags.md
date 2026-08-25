@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_tags Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   Reads tags from an existing S3 bucket.
 ---

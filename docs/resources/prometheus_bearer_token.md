@@ -1,6 +1,6 @@
 ---
 page_title: "minio_prometheus_bearer_token Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Manages MinIO Prometheus bearer tokens for metrics authentication.
   Bearer tokens are JWTs signed with MinIO credentials that authenticate

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_kafka Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   Manages a Kafka notification target for MinIO bucket event notifications.
 ---

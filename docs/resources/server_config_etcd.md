@@ -1,6 +1,6 @@
 ---
 page_title: "minio_server_config_etcd Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Manages MinIO etcd configuration for federated deployments and external IAM storage.
 ---

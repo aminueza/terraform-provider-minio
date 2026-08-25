@@ -1,6 +1,6 @@
 ---
 page_title: "minio_accesskey Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_config Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   
 ---

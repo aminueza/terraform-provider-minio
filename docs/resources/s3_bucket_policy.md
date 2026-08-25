@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_policy Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   
 ---

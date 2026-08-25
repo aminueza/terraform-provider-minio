@@ -1,6 +1,6 @@
 ---
 page_title: "minio_iam_policy Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   Retrieves an existing IAM policy by name.
 ---

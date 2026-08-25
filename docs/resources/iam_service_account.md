@@ -1,6 +1,6 @@
 ---
 page_title: "minio_iam_service_account Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   
 ---

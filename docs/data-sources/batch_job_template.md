@@ -1,6 +1,6 @@
 ---
 page_title: "minio_batch_job_template Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Returns a starter YAML template for a given MinIO batch job type. Calls GenerateBatchJobV2 (EOS-only API) and falls back to the SDK's bundled static template when the server does not advertise the endpoint.
 ---

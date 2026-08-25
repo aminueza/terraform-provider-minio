@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_server_side_encryption Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   Manages server-side encryption configuration for an S3 bucket. Supports SSE-S3 (AES256) and SSE-KMS (aws:kms) encryption types.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "Data Source minio_iam_policy_document - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   Generates an IAM policy document in JSON format for use with IAM policies.
 ---

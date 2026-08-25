@@ -1,6 +1,6 @@
 ---
 page_title: "minio_ilm_policy Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "ILM"
 description: |-
   Reads the ILM lifecycle rules configured on an existing S3 bucket.
 ---

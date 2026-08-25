@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_nats Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_prometheus_scrape_config Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Generates Prometheus scrape configuration for MinIO metrics endpoints.
 ---

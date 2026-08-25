@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_webhook Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   Manages a webhook notification target for MinIO bucket event notifications. Webhook targets receive bucket events (object created, deleted, etc.) via HTTP POST requests.
 ---

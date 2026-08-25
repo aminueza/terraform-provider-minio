@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_replication Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Replication"
 description: |-
   Reads the replication configuration of an existing S3 bucket.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_object Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Objects"
 description: |-
   
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_batch_jobs Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Lists active MinIO batch jobs, optionally filtered by job type and status.
 ---

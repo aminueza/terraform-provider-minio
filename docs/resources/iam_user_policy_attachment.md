@@ -1,6 +1,6 @@
 ---
 page_title: "minio_iam_user_policy_attachment Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_kms_key Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   
 ---

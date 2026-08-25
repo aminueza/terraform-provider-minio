@@ -1,6 +1,6 @@
 ---
 page_title: "minio_iam_group_policy Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "IAM"
 description: |-
   
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_batch_job Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Manages a MinIO batch job (replicate, expire, or keyrotate). Batch jobs are asynchronous; this resource submits the job and tracks its status. Use wait_for_status to optionally block until the job reaches a desired state. Import is not supported because the job YAML definition cannot be retrieved from the MinIO API.
 ---

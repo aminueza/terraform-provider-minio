@@ -1,6 +1,6 @@
 ---
 page_title: "minio_service_action Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Performs a one-shot MinIO service control operation (restart, stop, freeze, or unfreeze). This resource is not stateful - taking it down does not undo the action.
 ---

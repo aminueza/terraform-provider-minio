@@ -1,6 +1,6 @@
 ---
 page_title: "minio_kms_metrics Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Exposes operational metrics for the KMS connected to the MinIO server. The KES latency histogram is intentionally not mapped; use the KES Prometheus endpoint directly if you need buckets.
 ---

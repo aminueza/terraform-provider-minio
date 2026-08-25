@@ -1,6 +1,6 @@
 ---
 page_title: "minio_pool_status Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Reports status information about the storage pools in a MinIO cluster.
 ---

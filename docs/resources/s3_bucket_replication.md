@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_replication Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Replication"
 description: |-
   
 ---

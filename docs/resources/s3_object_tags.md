@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_object_tags Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Objects"
 description: |-
   Manages tags for S3 objects in a MinIO bucket.
 ---

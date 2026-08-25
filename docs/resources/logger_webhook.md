@@ -1,6 +1,6 @@
 ---
 page_title: "minio_logger_webhook Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Manages a logger webhook target for MinIO system log forwarding. Logger webhooks send server log events to HTTP endpoints for centralized logging.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_redis Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   
 ---

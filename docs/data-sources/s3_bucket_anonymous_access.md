@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_anonymous_access Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   Reads the anonymous access policy for an existing MinIO bucket, returning the raw policy JSON and the derived canned access type when the policy matches one of the known canned forms.
 ---

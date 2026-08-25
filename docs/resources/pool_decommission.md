@@ -1,6 +1,6 @@
 ---
 page_title: "minio_pool_decommission Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Decommissions a storage pool from a MinIO cluster. WARNING: this is a destructive and irreversible operation — once decommission completes, MinIO removes the pool and the data on it cannot be recovered via Terraform. Ensure all data has been migrated before applying.
   Create returns as soon as MinIO accepts the request; the decommission then runs asynchronously on the server. Refresh the resource (or read the minio_pool_status data source) to observe progress in the state and status attributes.

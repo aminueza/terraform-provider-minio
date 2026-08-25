@@ -1,6 +1,6 @@
 ---
 page_title: "minio_notify_redis Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "Notifications"
 description: |-
   Manages a Redis notification target for MinIO bucket event notifications.
 ---

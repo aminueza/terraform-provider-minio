@@ -1,4 +1,5 @@
 ---
+subcategory: "Replication"
 description: |-
   Provides a MinIO Site Replication resource. This allows you to configure and manage site replication across multiple MinIO clusters, synchronizing buckets, IAM policies, users, groups, and other configurations.
 

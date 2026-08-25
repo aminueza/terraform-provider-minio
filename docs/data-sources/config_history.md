@@ -1,6 +1,6 @@
 ---
 page_title: "minio_config_history Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Lists MinIO configuration change history. Useful for auditing config changes and identifying restore points.
 ---

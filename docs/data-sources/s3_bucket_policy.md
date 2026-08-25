@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_policy Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   Reads the bucket policy document for an existing S3 bucket.
 ---

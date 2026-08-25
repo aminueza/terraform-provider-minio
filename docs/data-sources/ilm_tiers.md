@@ -1,6 +1,6 @@
 ---
 page_title: "minio_ilm_tiers Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "ILM"
 description: |-
   Lists all configured ILM remote storage tiers.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Buckets"
 description: |-
   Reads properties of an existing S3 bucket including versioning, region, and object lock status.
 ---

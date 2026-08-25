@@ -1,6 +1,6 @@
 ---
 page_title: "minio_license_info Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "Server"
 description: |-
   Retrieves MinIO license information.
 ---

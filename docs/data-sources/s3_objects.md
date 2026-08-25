@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_objects Data Source - terraform-provider-minio"
-subcategory: ""
+subcategory: "S3 Objects"
 description: |-
   Lists objects in an S3 bucket with optional prefix, delimiter, and max keys filtering.
 ---

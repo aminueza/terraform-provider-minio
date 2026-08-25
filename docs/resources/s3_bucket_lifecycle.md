@@ -1,6 +1,6 @@
 ---
 page_title: "minio_s3_bucket_lifecycle Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "ILM"
 description: |-
   Manages S3 bucket lifecycle configuration (expiration, transitions, noncurrent version handling, and multipart upload cleanup). Provides AWS S3 parity with aws_s3_bucket_lifecycle_configuration. Do not configure both minio_s3_bucket_lifecycle and minio_ilm_policy for the same bucket.
 ---

@@ -1,6 +1,6 @@
 ---
 page_title: "minio_ilm_tier Resource - terraform-provider-minio"
-subcategory: ""
+subcategory: "ILM"
 description: |-
   Manages remote storage tiers for MinIO ILM (Information Lifecycle Management). Tiers allow transitioning objects to cheaper remote storage (S3, GCS, Azure, or another MinIO deployment) based on lifecycle rules.
 ---

@@ -17,6 +17,9 @@
   <a href="https://github.com/aminueza/terraform-provider-minio/actions/workflows/go.yml?query=branch%3Amain">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=main&label=ci">
   </a>
+  <a href="https://codecov.io/gh/aminueza/terraform-provider-minio">
+    <img alt="Coverage" src="https://codecov.io/gh/aminueza/terraform-provider-minio/graph/badge.svg">
+  </a>
   <a href="go.mod">
     <img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
   </a>

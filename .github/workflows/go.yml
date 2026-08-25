@@ -109,6 +109,21 @@ jobs:
       - name: Run tests
         run: docker compose run --rm test
 
+      - name: Upload coverage artifact
+        if: always() && hashFiles('coverage.out') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+
+      - name: Upload coverage to Codecov
+        if: always() && hashFiles('coverage.out') != ''
+        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+        with:
+          files: ./coverage.out
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
       - name: Cleanup test environment
         if: always()
         run: docker compose down -v

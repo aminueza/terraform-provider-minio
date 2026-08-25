@@ -1463,7 +1463,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.2.target.0.secret_key",
 					"resync_version",
 					"last_resync_id",
-					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
+					// Priorities are ignored here: they are auto-generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
 					"rule.2.priority",
@@ -1480,7 +1480,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.2.target.0.secret_key",
 					"resync_version",
 					"last_resync_id",
-					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
+					// Priorities are ignored here: they are auto-generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
 					"rule.2.priority",
@@ -1497,7 +1497,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.2.target.0.secret_key",
 					"resync_version",
 					"last_resync_id",
-					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
+					// Priorities are ignored here: they are auto-generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
 					"rule.2.priority",
@@ -1514,7 +1514,7 @@ func TestAccS3BucketReplication_twoway_complex(t *testing.T) {
 					"rule.2.target.0.secret_key",
 					"resync_version",
 					"last_resync_id",
-					// Prorities are ignored in this test case, as it gets automatically generated and thus mismatch
+					// Priorities are ignored here: they are auto-generated and thus mismatch
 					"rule.0.priority",
 					"rule.1.priority",
 					"rule.2.priority",
@@ -1711,17 +1711,6 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 			return fmt.Errorf("non-equivalent status error:\n\nexpected: %d\n\ngot: %d", len(actualConfig.Rules), len(config))
 		}
 
-		// Check computed fields
-		// for i, rule := range config {
-		// 	if id, ok := rs.Primary.Attributes[fmt.Sprintf("rule.%d.id", i)]; !ok || len(id) != 20 {
-		// 		return fmt.Errorf("Rule#%d doesn't have a valid ID: %q", i, id)
-		// 	}
-		// 	if arn, ok := rs.Primary.Attributes[fmt.Sprintf("rule.%d.arn", i)]; !ok || len(arn) != len(fmt.Sprintf("arn:minio:replication::xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:%s", rule.Target.Bucket)) {
-		// 		return fmt.Errorf("Rule#%d doesn't have a valid ARN:\n\nexpected: arn:minio:replication::xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx:%s\n\ngot: %v", i, rule.Target.Bucket, arn)
-		// 	}
-		// }
-
-		// Check bucket replication
 		actualReplicationConfigByPriority := map[int]replication.Rule{}
 		for _, rule := range actualConfig.Rules {
 			actualReplicationConfigByPriority[rule.Priority] = rule
@@ -1781,7 +1770,6 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 			}
 		}
 
-		// Check remote target
 		actualTargets, err := minioadm.ListRemoteTargets(context.Background(), rs.Primary.ID, "")
 		if err != nil {
 			return fmt.Errorf("error on ListRemoteTargets: %v", err)

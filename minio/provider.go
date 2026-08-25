@@ -300,7 +300,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_pool_status":                         dataSourceMinioPoolStatus(),
 			"minio_bucket_metadata_export":              dataSourceMinioBucketMetadataExport(),
 
-			// Notification Targets
 			"minio_notify_webhook":       dataSourceMinioNotifyWebhook(),
 			"minio_notify_amqp":          dataSourceMinioNotifyAmqp(),
 			"minio_notify_kafka":         dataSourceMinioNotifyKafka(),
@@ -314,7 +313,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 		},
 
 		ResourcesMap: map[string]*schema.Resource{
-			// S3 Bucket Operations
 			"minio_s3_bucket":                           resourceMinioBucket(),
 			"minio_s3_bucket_policy":                    resourceMinioBucketPolicy(),
 			"minio_s3_bucket_anonymous_access":          resourceMinioS3BucketAnonymousAccess(),
@@ -334,7 +332,6 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_object":                           resourceMinioObject(),
 			"minio_s3_incomplete_upload_cleanup":        resourceMinioS3IncompleteUploadCleanup(),
 
-			// IAM Operations
 			"minio_iam_group":                   resourceMinioIAMGroup(),
 			"minio_iam_group_membership":        resourceMinioIAMGroupMembership(),
 			"minio_iam_user":                    resourceMinioIAMUser(),
@@ -347,23 +344,18 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_iam_user_group_membership":   resourceMinioIAMUserGroupMembership(),
 			"minio_iam_import":                  resourceMinioIAMImport(),
 
-			// LDAP Operations
 			"minio_iam_ldap_group_policy_attachment": resourceMinioIAMLDAPGroupPolicyAttachment(),
 			"minio_iam_ldap_user_policy_attachment":  resourceMinioIAMLDAPUserPolicyAttachment(),
 
-			// Identity Provider Operations
 			"minio_iam_idp_openid": resourceMinioIAMIdpOpenId(),
 			"minio_iam_idp_ldap":   resourceMinioIAMIdpLdap(),
 
-			// ILM and KMS Operations
 			"minio_ilm_policy": resourceMinioILMPolicy(),
 			"minio_ilm_tier":   resourceMinioILMTier(),
 			"minio_kms_key":    resourceMinioKMSKey(),
 
-			// AccessKey Operations
 			"minio_accesskey": resourceMinioAccessKey(),
 
-			// Server Configuration
 			"minio_config":                      resourceMinioConfig(),
 			"minio_config_restore":              resourceMinioConfigRestore(),
 			"minio_audit_webhook":               resourceMinioAuditWebhook(),
@@ -377,10 +369,8 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_audit_kafka":                 resourceMinioAuditKafka(),
 			"minio_site_replication":            resourceMinioSiteReplication(),
 
-			// Batch Job Operations
 			"minio_batch_job": resourceMinioBatchJob(),
 
-			// Notification Targets
 			"minio_notify_webhook":          resourceMinioNotifyWebhook(),
 			"minio_notify_amqp":             resourceMinioNotifyAmqp(),
 			"minio_notify_kafka":            resourceMinioNotifyKafka(),
@@ -393,14 +383,11 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_notify_redis":            resourceMinioNotifyRedis(),
 			"minio_prometheus_bearer_token": resourceMinioPrometheusBearerToken(),
 
-			// Pool Management
 			"minio_pool_rebalance":    resourceMinioPoolRebalance(),
 			"minio_pool_decommission": resourceMinioPoolDecommission(),
 
-			// Bucket Metadata
 			"minio_bucket_metadata_import": resourceMinioBucketMetadataImport(),
 
-			// Service Control
 			"minio_service_action": resourceMinioServiceAction(),
 		},
 

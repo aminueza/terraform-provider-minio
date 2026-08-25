@@ -8,10 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
-// TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes verifies that the data
-// source correctly reads back the policy and derives the matching canned access_type
-// for each of the four supported canned modes.
-//
 // The data source only sees the policy, and `public-read-write` writes the same policy as
 // `public`, so that is what it derives for both.
 func TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes(t *testing.T) {
@@ -45,9 +41,6 @@ func TestAccDataSourceMinioS3BucketAnonymousAccess_cannedTypes(t *testing.T) {
 	}
 }
 
-// TestAccDataSourceMinioS3BucketAnonymousAccess_customPolicy verifies that when the
-// bucket has a custom (non-canned) policy the data source returns the raw policy JSON
-// and leaves access_type empty.
 func TestAccDataSourceMinioS3BucketAnonymousAccess_customPolicy(t *testing.T) {
 	bucketName := "tfacc-anon-" + acctest.RandString(6)
 
@@ -80,10 +73,6 @@ func TestAccDataSourceMinioS3BucketAnonymousAccess_customPolicy(t *testing.T) {
 	})
 }
 
-// TestAccDataSourceMinioS3BucketAnonymousAccess_policyMatchesResource verifies that
-// the data source derives the same access_type as the resource and exposes a non-empty
-// policy for the public-read canned type round-trip.
-//
 // Note: exact policy string equality is intentionally not asserted. The resource's read
 // path may return struct-marshaled JSON (e.g. Version before Statement) while the data
 // source normalizes via structure.NormalizeJsonString (alphabetical key order). Both

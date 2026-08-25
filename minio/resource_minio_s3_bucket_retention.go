@@ -89,7 +89,6 @@ func validateValidityPeriod(v interface{}, p cty.Path) diag.Diagnostics {
 }
 
 func validateBucketObjectLock(ctx context.Context, client *minio.Client, bucket string) error {
-	// Check if bucket exists
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("error checking bucket existence: %w", err)
@@ -98,7 +97,6 @@ func validateBucketObjectLock(ctx context.Context, client *minio.Client, bucket 
 		return fmt.Errorf("bucket %s does not exist", bucket)
 	}
 
-	// Check if versioning is enabled (required for object locking)
 	versioning, err := client.GetBucketVersioning(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("error checking bucket versioning: %w", err)
@@ -108,7 +106,6 @@ func validateBucketObjectLock(ctx context.Context, client *minio.Client, bucket 
 		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
 	}
 
-	// Check if object lock is enabled
 	objectLock, _, _, _, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
@@ -129,7 +126,6 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	bucket := d.Get("bucket").(string)
 	var diags diag.Diagnostics
 
-	// Validate bucket object lock status before proceeding
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
 		return NewResourceError("validating bucket object lock", bucket, err)
 	}
@@ -166,7 +162,6 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
-	// First check if bucket still exists
 	exists, err := client.BucketExists(ctx, d.Id())
 	if err != nil {
 		return NewResourceError("checking bucket existence", d.Id(), err)
@@ -178,7 +173,6 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 
 	mode, validity, unit, err := client.GetBucketObjectLockConfig(ctx, d.Id())
 	if err != nil {
-		// Check if the error indicates the retention config is gone
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
 			d.SetId("")
 			return nil
@@ -215,7 +209,6 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	client := meta.(*S3MinioClient).S3Client
 	bucket := d.Id()
 
-	// Validate bucket object lock status before proceeding
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
 		return NewResourceError("validating bucket object lock", bucket, err)
 	}

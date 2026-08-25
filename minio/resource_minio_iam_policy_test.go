@@ -375,13 +375,11 @@ func TestAccMinioIAMPolicy_jsonencode(t *testing.T) {
 	resourceName := "minio_iam_policy.test_jsonencode"
 	rName := acctest.RandomWithPrefix("tf-acc-jsonencode")
 
-	// Run the test in multiple phases to verify the policy remains unchanged
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
-			// Apply the policy for the first time
 			{
 				Config: testAccMinioIAMPolicyConfigJsonencode(rName),
 				Check: resource.ComposeTestCheckFunc(
@@ -408,19 +406,16 @@ func TestAccMinioIAMPolicy_jsonencode(t *testing.T) {
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: false,
 			},
-			// Verify import works correctly
 			{
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"policy"}, // Skip policy verification during import
+				ImportStateVerifyIgnore: []string{"policy"},
 			},
-			// Use a final step with a specific check for semantically equivalent policies
 			{
 				Config: testAccMinioIAMPolicyConfigJsonencode(rName),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
-					// Use the testCheckJSONResourceAttr helper that properly compares JSON content
 					func(s *terraform.State) error {
 						rs, ok := s.RootModule().Resources[resourceName]
 						if !ok {
@@ -428,7 +423,6 @@ func TestAccMinioIAMPolicy_jsonencode(t *testing.T) {
 						}
 
 						policyText := rs.Primary.Attributes["policy"]
-						// Verify the policy is semantically equivalent to what we expect
 						equivalent, err := awspolicy.PoliciesAreEquivalent(policyText, getExpectedJsonPolicy())
 						if err != nil {
 							return fmt.Errorf("error comparing policies: %s", err)
@@ -498,7 +492,6 @@ EOT
 `, rName)
 }
 
-// getExpectedJsonPolicy returns a normalized JSON policy string for comparison
 func getExpectedJsonPolicy() string {
 	return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket","s3:GetObject","s3:PutObject"],"Resource":["arn:aws:s3:::*"]}]}`
 }

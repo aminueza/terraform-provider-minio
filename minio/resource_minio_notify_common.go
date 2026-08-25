@@ -180,7 +180,6 @@ func notifyBuildCfgAddInt(parts *[]string, key string, val int) {
 	}
 }
 
-// notifyCommonSchema returns schema fields shared by all notification targets.
 func notifyCommonSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"name": {
@@ -219,7 +218,6 @@ func notifyCommonSchema() map[string]*schema.Schema {
 	}
 }
 
-// mergeSchemas merges common and type-specific schemas.
 func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema.Schema {
 	result := make(map[string]*schema.Schema, len(common)+len(specific))
 	for k, v := range common {
@@ -231,7 +229,6 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	return result
 }
 
-// notifyReadCommonFields reads queue_dir, queue_limit, and comment from config.
 func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
 	if v, ok := cfgMap["queue_limit"]; ok {
 		if n, err := parseInt(v); err == nil {
@@ -246,7 +243,6 @@ func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
 	}
 }
 
-// notifyBuildCommonCfg appends common fields (queue_dir, queue_limit, comment, enable).
 func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interface{}) {
 	notifyBuildCfgAddParam(parts, "queue_dir", getOptionalField(d, "queue_dir", "").(string))
 	notifyBuildCfgAddParam(parts, "comment", getOptionalField(d, "comment", "").(string))

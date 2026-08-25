@@ -498,19 +498,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 }
 
 // forceDestroyBucketObjects deletes all object versions and delete markers from
-// a bucket, enabling bucket removal.
-//
-// It uses a two-phase approach:
-//
-//  1. Bulk delete via RemoveObjects with GovernanceBypass — efficiently removes
-//     most objects in batches of up to 1000.
-//
-//  2. Per-object fallback via RemoveObject with GovernanceBypass — catches
-//     versions that the bulk API silently skips. The minio-go bulk delete
-//     swallows InvalidArgument and NoSuchVersion per-object errors
-//     (processRemoveMultiObjectsResponse), which causes locked object versions
-//     on object-lock-enabled buckets to be silently left behind.
-//
+// a bucket in two phases (bulkDeleteBucketObjects, removeRemainingObjectVersions).
 // Objects under active legal hold are never force-deleted; the function returns
 // an actionable error asking the user to remove the hold first.
 func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
@@ -528,9 +516,8 @@ func forceDestroyBucketObjects(ctx context.Context, client *minio.Client, bucket
 	return nil
 }
 
-// bulkDeleteBucketObjects is phase 1 of force destroy: it bulk-deletes objects via
-// RemoveObjects with GovernanceBypass, efficiently removing most objects in batches
-// of up to 1000.
+// bulkDeleteBucketObjects is phase 1 of force destroy: RemoveObjects with
+// GovernanceBypass, in batches of up to 1000.
 func bulkDeleteBucketObjects(ctx context.Context, client *minio.Client, bucketName string) diag.Diagnostics {
 	objectsCh := make(chan minio.ObjectInfo)
 	var listErr error
@@ -749,7 +736,6 @@ func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, buc
 	// NoSuchKey (bucket present, probe object just doesn't exist).
 	_, err := bucketConfig.MinioClient.StatObject(ctx, bucket, "__bucket_existence_probe__", minio.StatObjectOptions{})
 	if err == nil {
-		// Probe object somehow exists — bucket is definitely present.
 		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] confirmed via StatObject probe", bucket))
 		return true, nil
 	}
@@ -766,7 +752,6 @@ func diagnoseMissingBucket(ctx context.Context, bucketConfig *S3MinioBucket, buc
 	}
 
 	if errResp.Code == "NoSuchKey" {
-		// Probe object doesn't exist but the bucket does — bucket is present.
 		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] confirmed after existence check failure", bucket))
 		return true, nil
 	}
@@ -789,7 +774,6 @@ func isCredentialError(errResp minio.ErrorResponse) bool {
 	}
 }
 
-// isNoSuchBucketError checks if the error indicates the bucket does not exist.
 func isNoSuchBucketError(err error) bool {
 	if err == nil {
 		return false
@@ -805,7 +789,6 @@ func isNoSuchBucketError(err error) bool {
 	return strings.Contains(errStr, "NoSuchBucket") || strings.Contains(errStr, "does not exist")
 }
 
-// waitForBucketReady waits for a bucket to become available for operations.
 func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string, timeout time.Duration) error {
 	return retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		_, err := client.GetBucketLocation(ctx, bucket)
@@ -815,7 +798,6 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 
 		errResp := minio.ToErrorResponse(err)
 
-		// Fail fast on credential errors
 		if isCredentialError(errResp) {
 			return retry.NonRetryableError(fmt.Errorf("access denied while waiting for bucket %q: %w", bucket, err))
 		}
@@ -826,7 +808,6 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 			return retry.RetryableError(fmt.Errorf("bucket %q not yet available: %w", bucket, err))
 		}
 
-		// Non-retryable for other errors
 		return retry.NonRetryableError(fmt.Errorf("error checking bucket %q availability: %w", bucket, err))
 	})
 }

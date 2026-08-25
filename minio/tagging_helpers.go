@@ -8,9 +8,6 @@ import (
 	"github.com/minio/minio-go/v7"
 )
 
-// shouldSkipBucketTagging returns true when tagging operations should be skipped
-// for the given bucket configuration because tagging is disabled via the provider
-// flag. Returns false if the config object is nil.
 func shouldSkipBucketTagging(cfg *S3MinioBucket) bool {
 	if cfg == nil {
 		return false

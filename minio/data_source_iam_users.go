@@ -68,7 +68,6 @@ func dataSourceIAMUsersRead(ctx context.Context, d *schema.ResourceData, meta in
 
 		switch wantStatus {
 		case "all":
-			// keep
 		case "enabled":
 			if status != "enabled" {
 				continue

@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	// MinTLSVersion is the minimum TLS version supported
 	MinTLSVersion = tls.VersionTLS12
 )
 
@@ -28,16 +27,12 @@ const (
 // instead of leaving callers with two strings that never match.
 const aistorEdition = "AIStor"
 
-// NewClient creates and configures both S3 and admin clients for MinIO
-// It handles the setup of credentials, SSL/TLS configuration, and custom transport options
 func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error) {
-	// Set up custom transport with SSL/TLS configuration
 	tr, err := config.customTransport(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure transport: %w", err)
 	}
 
-	// Initialize credentials based on API signature version
 	var minioCredentials *credentials.Credentials
 	switch config.S3APISignature {
 	case "v2":
@@ -103,7 +98,6 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 		tflog.Debug(ctx, "Using STS WebIdentity credentials")
 	}
 
-	// Initialize S3 client
 	minioClient, err := minio.New(config.S3HostPort, &minio.Options{
 		Creds:     minioCredentials,
 		Secure:    config.S3SSL,
@@ -114,7 +108,6 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 		return nil, fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	// Initialize admin client
 	minioAdmin, err := madmin.NewWithOptions(config.S3HostPort, &madmin.Options{
 		Creds:     minioCredentials,
 		Secure:    config.S3SSL,
@@ -179,7 +172,6 @@ func normalizeEdition(edition string) string {
 	return edition
 }
 
-// isValidCertificate checks if the provided bytes represent a valid x509 certificate in PEM format
 func isValidCertificate(certBytes []byte) bool {
 	block, _ := pem.Decode(certBytes)
 	if block == nil {
@@ -189,12 +181,9 @@ func isValidCertificate(certBytes []byte) bool {
 	return err == nil
 }
 
-// customTransport creates and configures an HTTP transport with SSL/TLS settings
-// It handles CA certificates, client certificates, and verification settings
 func (config *S3MinioConfig) customTransport(ctx context.Context) (*http.Transport, error) {
 	timeout := time.Duration(config.RequestTimeoutSeconds) * time.Second
 
-	// If SSL is disabled, return default transport with timeout settings
 	if !config.S3SSL {
 		tr, err := minio.DefaultTransport(config.S3SSL)
 		if err != nil {
@@ -208,38 +197,31 @@ func (config *S3MinioConfig) customTransport(ctx context.Context) (*http.Transpo
 		return tr, nil
 	}
 
-	// Initialize TLS config with minimum version
 	tlsConfig := &tls.Config{
-		MinVersion: MinTLSVersion, // Minimum TLS 1.2 for security
+		MinVersion: MinTLSVersion,
 	}
 
-	// Get default transport
 	tr, err := minio.DefaultTransport(config.S3SSL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create default transport: %w", err)
 	}
 
-	// Configure CA certificate if provided
 	if config.S3SSLCACertFile != "" {
 		if err := config.configureCACert(tlsConfig); err != nil {
 			return nil, err
 		}
 	}
 
-	// Configure client certificates if both cert and key are provided
 	if config.S3SSLCertFile != "" && config.S3SSLKeyFile != "" {
 		if err := config.configureClientCert(tlsConfig); err != nil {
 			return nil, err
 		}
 	}
 
-	// Configure SSL verification
 	tlsConfig.InsecureSkipVerify = config.S3SSLSkipVerify
 
-	// Set TLS config on transport
 	tr.TLSClientConfig = tlsConfig
 
-	// Apply timeout settings
 	tr.DialContext = (&net.Dialer{
 		Timeout:   timeout,
 		KeepAlive: 30 * time.Second,
@@ -251,7 +233,6 @@ func (config *S3MinioConfig) customTransport(ctx context.Context) (*http.Transpo
 	return tr, nil
 }
 
-// configureCACert loads and configures the CA certificate for TLS verification
 func (config *S3MinioConfig) configureCACert(tlsConfig *tls.Config) error {
 	caCert, err := os.ReadFile(config.S3SSLCACertFile)
 	if err != nil {
@@ -277,7 +258,6 @@ func (config *S3MinioConfig) configureCACert(tlsConfig *tls.Config) error {
 	return nil
 }
 
-// configureClientCert loads and configures client certificates for mutual TLS
 func (config *S3MinioConfig) configureClientCert(tlsConfig *tls.Config) error {
 	cert, err := tls.LoadX509KeyPair(config.S3SSLCertFile, config.S3SSLKeyFile)
 	if err != nil {

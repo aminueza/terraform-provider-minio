@@ -80,12 +80,10 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put versioning configuration: %v", bucketVersioningConfig.MinioBucket, versioningConfig))
 
-	// Wait for bucket to be ready for eventual consistency
 	timeout := d.Timeout(schema.TimeoutCreate)
 	if d.Id() != "" {
 		timeout = d.Timeout(schema.TimeoutUpdate)
 	}
-	// Reserve time for the actual operation
 	waitTimeout := timeout - 30*time.Second
 	if waitTimeout < 30*time.Second {
 		waitTimeout = 30 * time.Second
@@ -139,7 +137,6 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket versioning, read for bucket: %s", d.Id()))
 
-	// For new resources, wait for bucket to be ready
 	if d.IsNewResource() {
 		timeout := d.Timeout(schema.TimeoutRead)
 		if err := waitForBucketReady(ctx, bucketVersioningConfig.MinioClient, d.Id(), timeout); err != nil {
@@ -151,7 +148,6 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("error waiting for bucket to be ready", d.Id(), err)
 		}
 	} else {
-		// For existing resources, check if bucket exists
 		exists, err := bucketVersioningConfig.MinioClient.BucketExists(ctx, d.Id())
 		if err != nil {
 			return NewResourceError("checking bucket existence", d.Id(), err)

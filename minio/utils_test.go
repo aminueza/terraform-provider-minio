@@ -78,7 +78,6 @@ func TestSafeUint64ToInt64(t *testing.T) {
 }
 
 func TestSafeUint64ToInt64_NoNegative(t *testing.T) {
-	// Ensure we never return negative values
 	testValues := []uint64{
 		0,
 		1,

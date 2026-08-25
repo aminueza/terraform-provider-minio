@@ -126,7 +126,6 @@ func minioPutBucketNotification(ctx context.Context, d *schema.ResourceData, met
 		}
 	}
 
-	// Add the new queues from this resource's config
 	for _, c := range bucketNotificationConfig.Configuration.QueueConfigs {
 		newConfig.AddQueue(c.Config)
 	}
@@ -347,7 +346,6 @@ func importBucketNotification(ctx context.Context, d *schema.ResourceData, meta 
 		return nil, fmt.Errorf("setting bucket during import: %w", err)
 	}
 
-	// Read the bucket's notification config to populate queue data.
 	m := meta.(*S3MinioClient)
 	notificationConfig, err := m.S3Client.GetBucketNotification(ctx, bucketName)
 	if err != nil {
@@ -383,7 +381,6 @@ func generateBucketNotificationID(bucket string, d *schema.ResourceData) string 
 	return fmt.Sprintf("%s|%s", bucket, strings.Join(queueIDs, ","))
 }
 
-// getQueueIDsFromResource extracts the queue IDs defined in the resource's queue blocks.
 func getQueueIDsFromResource(d *schema.ResourceData) []string {
 	ids := make([]string, 0)
 	for _, q := range d.Get("queue").([]interface{}) {
@@ -412,7 +409,6 @@ func getQueueIDsFromState(d *schema.ResourceData) []string {
 	return ids
 }
 
-// filterQueueConfigsByIDs returns only the queue configs whose ID is in the given set.
 func filterQueueConfigsByIDs(configs []notification.QueueConfig, ids []string) []notification.QueueConfig {
 	idSet := make(map[string]struct{}, len(ids))
 	for _, qid := range ids {

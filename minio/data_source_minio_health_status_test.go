@@ -24,7 +24,6 @@ func TestAccDataSourceMinioHealthStatus_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "healthy", "true"),
 					// Standalone instance returns false (can't go down without losing service)
 					resource.TestCheckResourceAttr("data.minio_health_status.test", "safe_for_maintenance", "false"),
-					// Verify outputs contain the actual data
 					resource.TestCheckOutput("health_live", "true"),
 					resource.TestCheckOutput("health_ready", "true"),
 					resource.TestCheckOutput("health_overall", "true"),
@@ -42,10 +41,8 @@ func TestAccDataSourceMinioHealthStatus_multipleReads(t *testing.T) {
 			{
 				Config: testAccDataSourceMinioHealthStatusConfigMultiple(),
 				Check: resource.ComposeTestCheckFunc(
-					// First data source
 					resource.TestCheckResourceAttrSet("data.minio_health_status.first", "id"),
 					resource.TestCheckResourceAttrSet("data.minio_health_status.first", "healthy"),
-					// Second data source
 					resource.TestCheckResourceAttrSet("data.minio_health_status.second", "id"),
 					resource.TestCheckResourceAttrSet("data.minio_health_status.second", "healthy"),
 					// Both should report same health status

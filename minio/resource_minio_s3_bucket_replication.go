@@ -62,7 +62,6 @@ func resourceMinioBucketReplication() *schema.Resource {
 	}
 }
 
-// bucketReplicationRuleResource returns the schema for a single replication rule.
 func bucketReplicationRuleResource() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
@@ -142,7 +141,6 @@ func bucketReplicationRuleResource() *schema.Resource {
 	}
 }
 
-// bucketReplicationTargetResource returns the schema for a replication rule target.
 func bucketReplicationTargetResource() *schema.Resource {
 	return &schema.Resource{
 		Schema: map[string]*schema.Schema{
@@ -251,7 +249,6 @@ func bucketReplicationTargetResource() *schema.Resource {
 	}
 }
 
-// validateReplicationBandwidthLimit validates the bandwidth_limit target attribute.
 func validateReplicationBandwidthLimit(i interface{}, _ cty.Path) (diags diag.Diagnostics) {
 	v, ok := i.(string)
 	if !ok {
@@ -358,7 +355,6 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket replication, read for bucket: %s", bucketName))
 
-	// First, gather the bucket replication config
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
@@ -370,7 +366,6 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		return ruleDiags
 	}
 
-	// Second, we read the remote bucket config
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketName, err))
@@ -399,9 +394,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 // buildReplicationRuleStates converts the replication rules returned by MinIO into
 // the state representation, preserving the order they have in the configuration.
 func buildReplicationRuleStates(ctx context.Context, bucketName string, bucketReplicationConfig *S3MinioBucketReplication, rcfg replication.Config) (rules []map[string]interface{}, ruleArnMap map[string]int, diags diag.Diagnostics) {
-	// Reverse index to store rule definition read from Minio to macth the order they have in the IaC. This prevent Terrfaform from try to re-order rule each time
 	rulePriorityMap := map[int]int{}
-	// Reverse index to store arn and index in the rule set. This is used to match bucket config and remote target order
 	ruleArnMap = map[string]int{}
 
 	if bucketReplicationConfig.ReplicationRules != nil {
@@ -514,8 +507,6 @@ func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketRep
 		target["health_check_period"] = shortDur(remoteTarget.HealthCheckDuration)
 		var bwUint64 uint64
 		if remoteTarget.BandwidthLimit < 0 {
-			// Bandwidth limit shouldn't be negative, but handle defensively.
-			// Setting to 0 as a safe default.
 			tflog.Warn(ctx, fmt.Sprintf("Received negative bandwidth limit (%d) from MinIO, treating as 0", remoteTarget.BandwidthLimit))
 			bwUint64 = 0
 		} else {
@@ -668,7 +659,6 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 	return
 }
 
-// buildBucketReplicationTarget builds the madmin remote target definition for a rule.
 func buildBucketReplicationTarget(rule S3MinioBucketReplicationRule, tgtBucket string) *madmin.BucketTarget {
 	creds := &madmin.Credentials{AccessKey: rule.Target.AccessKey, SecretKey: rule.Target.SecretKey}
 	return &madmin.BucketTarget{
@@ -687,7 +677,6 @@ func buildBucketReplicationTarget(rule S3MinioBucketReplicationRule, tgtBucket s
 	}
 }
 
-// ensureRemoteTarget creates or updates the remote target for a rule and returns its ARN.
 func ensureRemoteTarget(ctx context.Context, admclient *madmin.AdminClient, bucket string, rule S3MinioBucketReplicationRule, bktTarget *madmin.BucketTarget) (arn string, err error) {
 	targets, _ := admclient.ListRemoteTargets(ctx, bucket, string(madmin.ReplicationService))
 	tflog.Debug(ctx, fmt.Sprintf("Existing remote targets %q: %v", bucket, targets))
@@ -759,7 +748,6 @@ func ensureRemoteTarget(ctx context.Context, admclient *madmin.AdminClient, buck
 	return
 }
 
-// buildReplicationOptions builds the replication rule options for a target ARN.
 func buildReplicationOptions(rule S3MinioBucketReplicationRule, arn string) (replication.Options, error) {
 	tagList := []string{}
 	for k, v := range rule.Tags {
@@ -801,7 +789,6 @@ func getBucketReplicationConfig(ctx context.Context, v []interface{}, d *schema.
 	return
 }
 
-// extractBucketReplicationRule decodes a single rule from the resource data.
 func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rule interface{}, d *schema.ResourceData) (result S3MinioBucketReplicationRule, errs diag.Diagnostics) {
 	var ok bool
 	tfMap, ok := rule.(map[string]interface{})
@@ -907,11 +894,11 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 		var bwLimit int64
 		if bandwidth > uint64(math.MaxInt64) {
 			tflog.Warn(ctx, fmt.Sprintf("Configured bandwidth limit (%d) exceeds maximum supported value (%d), clamping.", bandwidth, int64(math.MaxInt64)))
-			bwLimit = math.MaxInt64 // Clamp to max int64 if overflow would occur
+			bwLimit = math.MaxInt64
 		} else {
 			bwLimit = int64(bandwidth)
 		}
-		result.Target.BandwidthLimit = bwLimit // Safe conversion
+		result.Target.BandwidthLimit = bwLimit
 	}
 
 	var healthcheckDuration string
@@ -964,7 +951,6 @@ func resolveReplicationTargetSync(d *schema.ResourceData, i int, target map[stri
 						if !syncAttr.IsNull() && syncAttr.IsKnown() {
 							return syncAttr.True()
 						}
-						// Fall back to deprecated "syncronous" if "synchronous" not set
 						syncronousAttr := targetVal.GetAttr("syncronous")
 						if !syncronousAttr.IsNull() && syncronousAttr.IsKnown() {
 							return syncronousAttr.True()

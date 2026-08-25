@@ -135,7 +135,6 @@ func testAccCheckMinioConfigExists(resourceName string) resource.TestCheckFunc {
 		minioC := testAccClient()
 		configKey := rs.Primary.ID
 
-		// Try to get the config
 		_, err := minioC.S3Admin.GetConfigKV(context.Background(), configKey)
 		if err != nil {
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {

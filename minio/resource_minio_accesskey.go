@@ -56,7 +56,6 @@ func resourceMinioAccessKey() *schema.Resource {
 			hasSecretVersionChange := d.HasChange("secret_key_version") && version != ""
 			// When secret_key_version changes to non-empty value, validate secret_key availability
 			if hasSecretVersionChange {
-				// Check if secret_key is present in the configuration
 				rawConfig := d.GetRawConfig()
 				secretKeyAttr := rawConfig.GetAttr("secret_key")
 
@@ -276,7 +275,6 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("waiting for access key readiness", creds.AccessKey, err)
 	}
 
-	// Attach policy if provided
 	if policy != "" {
 		err := client.S3Admin.UpdateServiceAccount(ctx, creds.AccessKey, madmin.UpdateServiceAccountReq{
 			NewPolicy: []byte(policy),
@@ -353,7 +351,6 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 			var policyObj map[string]interface{}
 			err := json.Unmarshal([]byte(policy), &policyObj)
 			if err == nil {
-				// Check for empty or null Statement and empty Version
 				statement, hasStatement := policyObj["Statement"]
 				version, hasVersion := policyObj["Version"]
 				if hasStatement && hasVersion {

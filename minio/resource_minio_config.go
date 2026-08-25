@@ -38,7 +38,6 @@ func resourceMinioConfig() *schema.Resource {
 					if v == "" {
 						errs = append(errs, fmt.Errorf("%q cannot be empty", key))
 					}
-					// Validate key format - should contain subsystem name
 					if !strings.Contains(v, "_") && v != "region" && v != "name" {
 						warns = append(warns, fmt.Sprintf("Config key %q should typically contain the subsystem (e.g., 'api', 'notify_webhook:1')", v))
 					}
@@ -62,7 +61,6 @@ func resourceMinioConfig() *schema.Resource {
 					// Parse the server's response (old) into a map
 					serverParams := parseConfigParams(old)
 
-					// Check if all user-specified parameters exist in server response with same values
 					for key, userValue := range userParams {
 						serverValue, exists := serverParams[key]
 						if !exists || serverValue != userValue {
@@ -112,7 +110,6 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("setting config", key, err)
 	}
 
-	// Set the ID to the key
 	d.SetId(key)
 	_ = d.Set("restart_required", restartRequired)
 
@@ -120,7 +117,6 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
 	}
 
-	// Verify the config was set by reading it back
 	return minioReadConfig(ctx, d, meta)
 }
 
@@ -137,7 +133,6 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
 		configData, err = client.S3Admin.GetConfigKV(ctx, key)
 		if err != nil {
-			// Check if config key doesn't exist
 			if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
 				tflog.Warn(ctx, fmt.Sprintf("Config %s no longer exists", key))
 				d.SetId("")
@@ -158,16 +153,13 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("reading config", key, err)
 	}
 
-	// If the resource was removed
 	if d.Id() == "" {
 		return nil
 	}
 
-	// Parse the config data to extract the value
 	configStr := strings.TrimSpace(string(configData))
 	tflog.Debug(ctx, fmt.Sprintf("Raw config data for key %s: %s", key, configStr))
 
-	// Handle different config formats
 	if strings.HasPrefix(configStr, key+" ") {
 		// Format: "key subsys:target key1=value1 key2=value2" -> "key1=value1 key2=value2"
 		parts := strings.SplitN(configStr, " ", 2)
@@ -233,7 +225,6 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	tflog.Info(ctx, fmt.Sprintf("Deleting MinIO config: %s", key))
 
-	// Check if config exists before attempting deletion
 	_, err := client.S3Admin.GetConfigKV(ctx, key)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") || strings.Contains(err.Error(), "does not exist") {
@@ -283,10 +274,8 @@ func parseConfigParams(configStr string) map[string]string {
 		return params
 	}
 
-	// Split by spaces to get individual key=value pairs
 	pairs := strings.Fields(configStr)
 	for _, pair := range pairs {
-		// Split each pair by '=' to get key and value
 		parts := strings.SplitN(pair, "=", 2)
 		if len(parts) == 2 {
 			params[parts[0]] = parts[1]

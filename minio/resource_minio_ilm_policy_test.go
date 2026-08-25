@@ -239,7 +239,6 @@ func TestAccILMPolicy_ruleStatus(t *testing.T) {
 				),
 			},
 			{
-				// Test explicitly setting status to "Disabled"
 				Config: testAccMinioILMPolicyConfigDisabledStatus(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
@@ -247,7 +246,6 @@ func TestAccILMPolicy_ruleStatus(t *testing.T) {
 				),
 			},
 			{
-				// Test updating back to "Enabled"
 				Config: testAccMinioILMPolicyConfigEnabledStatus(name),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),

@@ -123,7 +123,6 @@ func testAccCheckMinioBucketRetentionDestroy(s *terraform.State) error {
 			continue
 		}
 
-		// Try to get retention config
 		mode, _, _, err := client.GetBucketObjectLockConfig(context.Background(), rs.Primary.ID)
 		if err == nil && mode != nil {
 			return fmt.Errorf("bucket retention still exists")
@@ -142,13 +141,11 @@ func testAccCheckMinioBucketRetentionDisappears(n string) resource.TestCheckFunc
 
 		client := testAccClient().S3Client
 
-		// Clear the retention configuration
 		err := client.SetBucketObjectLockConfig(context.Background(), rs.Primary.ID, nil, nil, nil)
 		if err != nil {
 			return fmt.Errorf("error clearing bucket retention: %w", err)
 		}
 
-		// Force a read of the configuration to update state
 		mode, _, _, err := client.GetBucketObjectLockConfig(context.Background(), rs.Primary.ID)
 		if err == nil && mode != nil {
 			return fmt.Errorf("bucket retention still exists after clearing")

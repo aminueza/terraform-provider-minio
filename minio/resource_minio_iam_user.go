@@ -119,13 +119,13 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 
 	if secretKey == "" {
 		if secretKey, err = generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating user", accessKey, err)
+			return NewResourceError("creating user", accessKey, err)
 		}
 	}
 
 	err = iamUserConfig.MinioAdmin.AddUser(ctx, accessKey, secretKey)
 	if err != nil {
-		return NewResourceError("error creating user", accessKey, err)
+		return NewResourceError("creating user", accessKey, err)
 	}
 
 	d.SetId(accessKey)
@@ -138,7 +138,7 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	if iamUserConfig.MinioDisableUser {
 		err = iamUserConfig.MinioAdmin.SetUserStatus(ctx, accessKey, madmin.AccountDisabled)
 		if err != nil {
-			return NewResourceError("error disabling IAM User %s: %s", d.Id(), err)
+			return NewResourceError("disabling IAM user", d.Id(), err)
 		}
 	}
 
@@ -158,7 +158,7 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	if userServerInfo.Status != wantedStatus {
 		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, iamUserConfig.MinioIAMName, wantedStatus)
 		if err != nil {
-			return NewResourceError("error to disable IAM User %s: %s", d.Id(), err)
+			return NewResourceError("disabling IAM user", d.Id(), err)
 		}
 	}
 
@@ -174,7 +174,7 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	hasSecretWOChange := d.HasChange("secret_wo_version") && hasSecretWOVersion
 	if iamUserConfig.MinioUpdateKey {
 		if secretKey, err := generateSecretAccessKey(); err != nil {
-			return NewResourceError("error creating user", d.Id(), err)
+			return NewResourceError("generating IAM user secret key", d.Id(), err)
 		} else {
 			wantedSecret = secretKey
 		}
@@ -187,7 +187,7 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	if d.HasChange("secret") || hasSecretWOChange || iamUserConfig.MinioSecret != wantedSecret {
 		err := iamUserConfig.MinioAdmin.SetUser(ctx, iamUserConfig.MinioIAMName, wantedSecret, wantedStatus)
 		if err != nil {
-			return NewResourceError("error updating IAM User Key %s: %s", d.Id(), err)
+			return NewResourceError("updating IAM user key", d.Id(), err)
 		}
 		if hasSecretWO {
 			_ = d.Set("secret", "")
@@ -216,7 +216,7 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 	}
 
 	if err != nil {
-		return NewResourceError("error reading IAM User", d.Id(), err)
+		return NewResourceError("reading IAM user", d.Id(), err)
 	}
 
 	tflog.Warn(ctx, fmt.Sprintf("(%v)", output))
@@ -226,7 +226,7 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 	}
 
 	if err := d.Set("status", string(output.Status)); err != nil {
-		return NewResourceError("reading IAM user failed", d.Id(), err)
+		return NewResourceError("reading IAM user", d.Id(), err)
 	}
 
 	return nil
@@ -241,13 +241,13 @@ func minioDeleteUser(ctx context.Context, d *schema.ResourceData, meta interface
 		if iamUserConfig.MinioForceDestroy {
 			// Ignore errors when deleting group memberships, continue deleting user
 		} else {
-			return NewResourceError("error removing IAM User (%s) group memberships: %s", d.Id(), err)
+			return NewResourceError("removing IAM user group memberships", d.Id(), err)
 		}
 	}
 
 	err := deleteMinioIamUser(ctx, iamUserConfig)
 	if err != nil {
-		return NewResourceError("error deleting IAM User", d.Id(), err)
+		return NewResourceError("deleting IAM user", d.Id(), err)
 	}
 
 	// Actively set resource as deleted as the update path might force a deletion via MinioForceDestroy

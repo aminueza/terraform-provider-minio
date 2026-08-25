@@ -52,7 +52,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	policy, err := structure.NormalizeJsonString(bucketPolicyConfig.MinioBucketPolicy)
 
 	if err != nil {
-		return NewResourceError("unable to set bucket policy with invalid JSON: %w", policy, err)
+		return NewResourceError("setting bucket policy with invalid JSON", policy, err)
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put policy: %s", bucketPolicyConfig.MinioBucket, policy))
@@ -69,7 +69,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if err := waitForBucketReady(ctx, bucketPolicyConfig.MinioClient, bucketPolicyConfig.MinioBucket, waitTimeout); err != nil {
-		return NewResourceError("error waiting for bucket to be ready", bucketPolicyConfig.MinioBucket, err)
+		return NewResourceError("waiting for bucket to be ready", bucketPolicyConfig.MinioBucket, err)
 	}
 
 	// Retry SetBucketPolicy for transient NoSuchBucket errors
@@ -86,7 +86,7 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	})
 
 	if err != nil {
-		return NewResourceError("error putting bucket policy: %s", policy, err)
+		return NewResourceError("putting bucket policy", policy, err)
 	}
 
 	// MinIO multi-drive deployments can lose bucket versioning when a policy
@@ -121,7 +121,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 				d.SetId("")
 				return nil
 			}
-			return NewResourceError("error waiting for bucket to be ready", d.Id(), err)
+			return NewResourceError("waiting for bucket to be ready", d.Id(), err)
 		}
 	}
 
@@ -136,7 +136,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 			return nil
 		}
 		if !d.IsNewResource() {
-			return NewResourceError("failed to load bucket policy", d.Id(), readPolicyErr)
+			return NewResourceError("loading bucket policy", d.Id(), readPolicyErr)
 		}
 	}
 
@@ -161,7 +161,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 		})
 		if retryErr != nil {
 			if d.IsNewResource() {
-				return NewResourceError("failed to load bucket policy", d.Id(), retryErr)
+				return NewResourceError("loading bucket policy", d.Id(), retryErr)
 			}
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s policy is empty, assuming deleted externally", d.Id()))
 			d.SetId("")
@@ -176,7 +176,7 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 
 	policy, err := NormalizeAndCompareJSONPolicies(existingPolicy, actualPolicyText)
 	if err != nil {
-		return NewResourceError("error while comparing policies", d.Id(), err)
+		return NewResourceError("comparing policies", d.Id(), err)
 	}
 
 	if err := d.Set("policy", policy); err != nil {
@@ -198,7 +198,7 @@ func minioDeleteBucketPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, "")
 
 	if err != nil {
-		return NewResourceError("error deleting bucket", bucketPolicyConfig.MinioBucket, err)
+		return NewResourceError("deleting bucket policy", bucketPolicyConfig.MinioBucket, err)
 	}
 
 	return nil

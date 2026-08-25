@@ -3,14 +3,14 @@ package minio
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceIAMPolicy() *schema.Resource {
 	return &schema.Resource{
 		Description: "Retrieves an existing IAM policy by name.",
-		ReadContext:        dataSourceIAMPolicyRead,
+		ReadContext: dataSourceIAMPolicyRead,
 		Schema: map[string]*schema.Schema{
 			"name":   {Type: schema.TypeString, Required: true},
 			"policy": {Type: schema.TypeString, Computed: true},

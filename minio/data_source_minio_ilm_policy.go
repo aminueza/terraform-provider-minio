@@ -3,14 +3,14 @@ package minio
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioILMPolicy() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the ILM lifecycle rules configured on an existing S3 bucket.",
-		ReadContext:        dataSourceMinioILMPolicyRead,
+		ReadContext: dataSourceMinioILMPolicyRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"rules": {

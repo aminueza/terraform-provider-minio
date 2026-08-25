@@ -5,15 +5,15 @@ import (
 	"math"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketObjectLockConfiguration() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the object lock configuration of an existing S3 bucket.",
-		ReadContext:        dataSourceMinioS3BucketObjectLockConfigurationRead,
+		ReadContext: dataSourceMinioS3BucketObjectLockConfigurationRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":              {Type: schema.TypeString, Required: true},
 			"object_lock_enabled": {Type: schema.TypeString, Computed: true},

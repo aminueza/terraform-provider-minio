@@ -3,14 +3,14 @@ package minio
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioS3BucketTags() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads tags from an existing S3 bucket.",
-		ReadContext:        dataSourceMinioS3BucketTagsRead,
+		ReadContext: dataSourceMinioS3BucketTagsRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"tags": {

@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceIAMServiceAccounts() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists service accounts (access keys) for a specific IAM user.",
-		ReadContext:        dataSourceIAMServiceAccountsRead,
+		ReadContext: dataSourceIAMServiceAccountsRead,
 		Schema: map[string]*schema.Schema{
 			"user": {Type: schema.TypeString, Required: true, Description: "IAM user name to list service accounts for."},
 			"service_accounts": {

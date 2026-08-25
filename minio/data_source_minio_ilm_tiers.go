@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioILMTiers() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists all configured ILM remote storage tiers.",
-		ReadContext:        dataSourceMinioILMTiersRead,
+		ReadContext: dataSourceMinioILMTiersRead,
 		Schema: map[string]*schema.Schema{
 			"tiers": {
 				Type:     schema.TypeList,

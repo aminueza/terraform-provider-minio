@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 )
 
 func dataSourceMinioAccountInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns storage usage and bucket information for the authenticated account.",
-		ReadContext:        dataSourceMinioAccountInfoRead,
+		ReadContext: dataSourceMinioAccountInfoRead,
 		Schema: map[string]*schema.Schema{
 			"account_name":  {Type: schema.TypeString, Computed: true, Description: "Name of the authenticated account."},
 			"bucket_count":  {Type: schema.TypeInt, Computed: true, Description: "Total number of buckets accessible to this account."},

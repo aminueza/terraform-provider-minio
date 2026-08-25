@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioStorageInfo() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns disk and drive status for all MinIO server nodes. Essential for capacity planning and health monitoring.",
-		ReadContext:        dataSourceMinioStorageInfoRead,
+		ReadContext: dataSourceMinioStorageInfoRead,
 		Schema: map[string]*schema.Schema{
 			"disk_count":      {Type: schema.TypeInt, Computed: true, Description: "Total number of disks."},
 			"online_disks":    {Type: schema.TypeInt, Computed: true, Description: "Number of disks online."},

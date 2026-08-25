@@ -3,14 +3,14 @@ package minio
 import (
 	"context"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioS3BucketQuota() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the quota configuration of an existing S3 bucket.",
-		ReadContext:        dataSourceMinioS3BucketQuotaRead,
+		ReadContext: dataSourceMinioS3BucketQuotaRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {Type: schema.TypeString, Required: true},
 			"quota":  {Type: schema.TypeInt, Computed: true},

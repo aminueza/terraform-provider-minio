@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/minio-go/v7/pkg/set"
 )
@@ -26,7 +26,7 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 
 	return &schema.Resource{
 		Description: "Generates an IAM policy document in JSON format for use with IAM policies.",
-		ReadContext:        dataSourceMinioIAMPolicyDocumentRead,
+		ReadContext: dataSourceMinioIAMPolicyDocumentRead,
 
 		Schema: map[string]*schema.Schema{
 			"override_json": {

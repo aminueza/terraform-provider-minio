@@ -5,14 +5,14 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioDataUsage() *schema.Resource {
 	return &schema.Resource{
 		Description: "Returns cluster-wide data usage statistics including total objects, size, and per-bucket breakdown.",
-		ReadContext:        dataSourceMinioDataUsageRead,
+		ReadContext: dataSourceMinioDataUsageRead,
 		Schema: map[string]*schema.Schema{
 			"last_update":   {Type: schema.TypeString, Computed: true, Description: "Timestamp of last usage data update."},
 			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets."},

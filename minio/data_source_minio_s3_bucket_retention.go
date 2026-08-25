@@ -4,14 +4,14 @@ import (
 	"context"
 	"math"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func dataSourceMinioS3BucketRetention() *schema.Resource {
 	return &schema.Resource{
 		Description: "Reads the object lock retention configuration of an existing S3 bucket.",
-		ReadContext:        dataSourceMinioS3BucketRetentionRead,
+		ReadContext: dataSourceMinioS3BucketRetentionRead,
 		Schema: map[string]*schema.Schema{
 			"bucket":          {Type: schema.TypeString, Required: true},
 			"mode":            {Type: schema.TypeString, Computed: true},

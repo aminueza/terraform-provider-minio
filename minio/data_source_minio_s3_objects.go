@@ -5,15 +5,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	miniogo "github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3Objects() *schema.Resource {
 	return &schema.Resource{
 		Description: "Lists objects in an S3 bucket with optional prefix, delimiter, and max keys filtering.",
-		ReadContext:        dataSourceMinioS3ObjectsRead,
+		ReadContext: dataSourceMinioS3ObjectsRead,
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:        schema.TypeString,

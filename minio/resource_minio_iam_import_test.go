@@ -28,13 +28,6 @@ func TestAccResourceMinioIAMImport_roundTrip(t *testing.T) {
 					resource.TestCheckResourceAttrSet(importName, "id"),
 					resource.TestCheckResourceAttrSet(importName, "sha256"),
 				),
-				// MinIO's zip export embeds non-deterministic metadata, so
-				// chaining data.minio_iam_export -> minio_iam_import in the
-				// same apply produces different bytes on each refresh. The
-				// import is idempotent server-side; users wanting stable
-				// plans should put export and import in separate states or
-				// pin iam_data via lifecycle.ignore_changes.
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})
@@ -60,6 +53,10 @@ data "minio_iam_export" "snapshot" {
 
 resource "minio_iam_import" "restore" {
   iam_data = data.minio_iam_export.snapshot.iam_data
+
+  lifecycle {
+    ignore_changes = [iam_data]
+  }
 }
 `, policyName)
 }
@@ -79,15 +76,14 @@ func TestAccResourceMinioIAMImport_update(t *testing.T) {
 					resource.TestCheckResourceAttrSet(importName, "id"),
 					resource.TestCheckResourceAttrSet(importName, "sha256"),
 				),
-				ExpectNonEmptyPlan: true,
 			},
 			{
 				Config: testAccIAMImportTwoPoliciesConfig(policyA, policyB),
+				Taint:  []string{importName},
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttrSet(importName, "id"),
 					resource.TestCheckResourceAttrSet(importName, "sha256"),
 				),
-				ExpectNonEmptyPlan: true,
 			},
 		},
 	})
@@ -113,6 +109,10 @@ data "minio_iam_export" "snapshot" {
 
 resource "minio_iam_import" "restore" {
   iam_data = data.minio_iam_export.snapshot.iam_data
+
+  lifecycle {
+    ignore_changes = [iam_data]
+  }
 }
 `, policyA)
 }
@@ -149,6 +149,10 @@ data "minio_iam_export" "snapshot" {
 
 resource "minio_iam_import" "restore" {
   iam_data = data.minio_iam_export.snapshot.iam_data
+
+  lifecycle {
+    ignore_changes = [iam_data]
+  }
 }
 `, policyA, policyB)
 }

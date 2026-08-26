@@ -11,6 +11,10 @@
     {
       "comment": "Placeholder etcd endpoints; the comma-separated example parses as an invalid URL and crashes the checker",
       "pattern": "^https?://etcd"
+    },
+    {
+      "comment": "Changelog compare links reference the release tag before it exists; the tag lands minutes later in the same release flow",
+      "pattern": "^https://github\\.com/aminueza/terraform-provider-minio/compare/"
     }
   ]
 }

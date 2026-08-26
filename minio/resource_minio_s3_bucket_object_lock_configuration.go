@@ -142,19 +142,16 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 		return NewResourceError("setting object_lock_enabled", bucket, err)
 	}
 
-	// Build rule structure if we have retention configuration
 	if mode != nil && validity != nil && unit != nil {
 		defaultRetention := map[string]interface{}{
 			"mode": mode.String(),
 		}
 
-		// Safe uint to int conversion
 		validityInt := math.MaxInt
 		if *validity <= uint(math.MaxInt) {
 			validityInt = int(*validity)
 		}
 
-		// Set either days or years based on the unit
 		switch *unit {
 		case minio.Days:
 			defaultRetention["days"] = validityInt
@@ -219,7 +216,6 @@ func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, 
 		return fmt.Errorf("bucket %s does not exist", bucket)
 	}
 
-	// Object locking requires versioning
 	versioning, err := client.GetBucketVersioning(ctx, bucket)
 	if err != nil {
 		return fmt.Errorf("error checking bucket versioning: %w", err)
@@ -245,14 +241,12 @@ func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, 
 }
 
 func applyObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, client *minio.Client, bucket string) error {
-	// Check if rule is configured
 	rules := d.Get("rule").([]interface{})
 	if len(rules) == 0 {
 		// No rule configured, clear any existing retention
 		return client.SetBucketObjectLockConfig(ctx, bucket, nil, nil, nil)
 	}
 
-	// Extract retention configuration from nested structure
 	rule := rules[0].(map[string]interface{})
 	defaultRetentions := rule["default_retention"].([]interface{})
 
@@ -265,7 +259,6 @@ func applyObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, c
 	modeStr := retention["mode"].(string)
 	mode := minio.RetentionMode(modeStr)
 
-	// Determine validity and unit
 	var validity uint
 	var unit minio.ValidityUnit
 

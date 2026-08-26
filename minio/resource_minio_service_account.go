@@ -359,7 +359,6 @@ func minioDeleteServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 		return NewResourceError("deleting service account", d.Id(), err)
 	}
 
-	// Actively set resource as deleted
 	d.SetId("")
 
 	return nil

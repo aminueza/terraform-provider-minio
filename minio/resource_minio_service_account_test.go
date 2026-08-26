@@ -478,7 +478,6 @@ func testAccCheckMinioServiceAccountDestroy(s *terraform.State) error {
 			continue
 		}
 
-		// Try to get service account
 		_, err := minioIam.GetUserInfo(context.Background(), rs.Primary.ID)
 		if err == nil {
 			return fmt.Errorf("service account still exists")
@@ -503,7 +502,6 @@ func testAccCheckMinioServiceAccountCanLogIn(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs := s.RootModule().Resources[n]
 
-		// Check if we can log in
 		cfg := &S3MinioConfig{
 			S3APISignature: "v4",
 			S3HostPort:     os.Getenv("MINIO_ENDPOINT"),

@@ -334,7 +334,6 @@ resource "minio_accesskey" "test_policy" {
 `, rName, policy)
 }
 
-// Helper for JSON equality
 func testCheckResourceAttrJSON(resourceName, attrName, expectedJSON string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]

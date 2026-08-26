@@ -59,6 +59,7 @@ if !ok {
 - Never print with `fmt.Println` / `println`.
 - Never ignore errors from `d.Set` or API calls.
 - Never hardcode test resource names (always randomize).
+- Never leave a comment that restates the code below it, or a commented-out code block.
 
 ## Project Structure
 
@@ -116,6 +117,29 @@ go test ./minio/...
   - Constants: UPPER_SNAKE_CASE
 - **Types:** Use explicit types for all function parameters and return values
 - **Error handling:** Use `NewResourceError()` from `error.go` for consistent diagnostics
+
+## Comment Hygiene
+
+Comments are the exception, not the rule: code should explain itself, and a comment is justified only when the code cannot say what is going on. A comment must explain *why*, never *what*.
+
+**Delete a comment when:**
+
+- it restates the identifier or the statement below it (`// Set the ID to the key` above `d.SetId(key)`)
+- it narrates self-evident steps (`// Initialize S3 client`, `// Parse the config`)
+- it labels a group of entries that are already grouped by their own names (section markers in the resource/data-source maps)
+- it is commented-out code (delete it; history lives in git)
+
+**Keep a comment only when it records something the code cannot:**
+
+- a non-obvious *why*: workarounds for MinIO server or SDK behavior, eventual-consistency handling, legacy/compatibility traps, state-convergence and security decisions
+- contracts and edge cases not visible in the signature (return-value semantics, caller obligations, overflow/nil handling)
+- references to external docs, issues, or tickets (e.g. `See issue #608`)
+
+**Rules:**
+
+- Never leave a stale comment: when you change the code a comment describes, update or delete the comment in the same change.
+- Prefer deleting over trimming; when trimming, keep the *why* and drop the restatement.
+- Doc comments on exported helpers are only warranted when they state behavior callers must know; the type/function name is not enough of a reason.
 
 ## Error Handling Guidelines
 

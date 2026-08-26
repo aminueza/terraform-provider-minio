@@ -6,8 +6,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// TestNotifyResourceRegistration verifies that all notification resource
-// constructor functions can be called without panicking.
 func TestNotifyResourceRegistration(t *testing.T) {
 	resources := map[string]func() *schema.Resource{
 		"minio_notify_amqp":          resourceMinioNotifyAmqp,
@@ -34,8 +32,6 @@ func TestNotifyResourceRegistration(t *testing.T) {
 	}
 }
 
-// TestNotifyResourceSchemas verifies that every notification resource schema
-// contains the expected common fields plus the type-specific required fields.
 func TestNotifyResourceSchemas(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -77,8 +73,6 @@ func TestNotifyResourceSchemas(t *testing.T) {
 	}
 }
 
-// TestNotifyResourceSchemaFieldTypes verifies that key schema fields have the
-// correct types and attributes (Required, Optional, Computed, Sensitive).
 func TestNotifyResourceSchemaFieldTypes(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -229,7 +223,6 @@ func TestNotifyResourceSchemaFieldTypes(t *testing.T) {
 	}
 }
 
-// TestNotifyCommonSchemaDefaults verifies the common schema field defaults.
 func TestNotifyCommonSchemaDefaults(t *testing.T) {
 	common := notifyCommonSchema()
 
@@ -267,7 +260,6 @@ func TestNotifyCommonSchemaDefaults(t *testing.T) {
 	}
 }
 
-// fieldCheck describes the expected attributes of a single schema field.
 type fieldCheck struct {
 	field         string
 	wantType      schema.ValueType

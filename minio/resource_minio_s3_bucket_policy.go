@@ -57,12 +57,10 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put policy: %s", bucketPolicyConfig.MinioBucket, policy))
 
-	// Wait for bucket to be ready for eventual consistency
 	timeout := d.Timeout(schema.TimeoutCreate)
 	if d.Id() != "" {
 		timeout = d.Timeout(schema.TimeoutUpdate)
 	}
-	// Reserve time for the actual operation
 	waitTimeout := timeout - 30*time.Second
 	if waitTimeout < 30*time.Second {
 		waitTimeout = 30 * time.Second
@@ -112,7 +110,6 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket policy, read for bucket: %s", d.Id()))
 
-	// For new resources, wait for bucket to be ready
 	if d.IsNewResource() {
 		timeout := d.Timeout(schema.TimeoutRead)
 		if err := waitForBucketReady(ctx, bucketPolicyConfig.MinioClient, d.Id(), timeout); err != nil {

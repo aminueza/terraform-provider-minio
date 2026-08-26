@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-// ConfigError represents an error that occurred during configuration
 type ConfigError struct {
 	Field   string
 	Message string
@@ -19,7 +18,6 @@ func (e *ConfigError) Error() string {
 	return fmt.Sprintf("configuration error for field %q: %s", e.Field, e.Message)
 }
 
-// getOptionalField safely gets an optional field from the ResourceData with a default value
 func getOptionalField(d *schema.ResourceData, field string, defaultValue interface{}) interface{} {
 	if v, ok := d.GetOk(field); ok {
 		return v
@@ -27,8 +25,6 @@ func getOptionalField(d *schema.ResourceData, field string, defaultValue interfa
 	return defaultValue
 }
 
-// BucketConfig creates a new configuration for MinIO buckets.
-// It handles the basic bucket configuration including ACL, prefixes, and object locking.
 func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	m := meta.(*S3MinioClient)
 
@@ -47,8 +43,6 @@ func BucketConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket {
 	}
 }
 
-// BucketVersioningConfig creates configuration for managing MinIO bucket versioning.
-// It handles versioning configuration including excluded prefixes and folders.
 func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketVersioning {
 	m := meta.(*S3MinioClient)
 
@@ -61,8 +55,6 @@ func BucketVersioningConfig(d *schema.ResourceData, meta interface{}) *S3MinioBu
 	}
 }
 
-// BucketReplicationConfig creates configuration for managing MinIO bucket replication.
-// It sets up replication rules between buckets.
 func BucketReplicationConfig(ctx context.Context, d *schema.ResourceData, meta interface{}) (*S3MinioBucketReplication, diag.Diagnostics) {
 	m := meta.(*S3MinioClient)
 
@@ -79,8 +71,6 @@ func BucketReplicationConfig(ctx context.Context, d *schema.ResourceData, meta i
 	}, nil
 }
 
-// BucketNotificationConfig creates configuration for managing MinIO bucket notifications.
-// It sets up event notifications for bucket operations.
 func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketNotification {
 	m := meta.(*S3MinioClient)
 	config := getNotificationConfiguration(d)
@@ -101,8 +91,6 @@ func BucketCorsConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketCo
 	}
 }
 
-// BucketServerSideEncryptionConfig creates configuration for managing MinIO bucket server-side encryption.
-// It handles encryption settings for bucket objects.
 func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketServerSideEncryption {
 	m := meta.(*S3MinioClient)
 
@@ -115,7 +103,6 @@ func BucketServerSideEncryptionConfig(d *schema.ResourceData, meta interface{}) 
 	}
 }
 
-// BucketObjectLockConfigurationConfig extracts object lock config from resource data.
 func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketObjectLockConfiguration {
 	m := meta.(*S3MinioClient)
 
@@ -126,7 +113,6 @@ func BucketObjectLockConfigurationConfig(d *schema.ResourceData, meta interface{
 	}
 }
 
-// BucketPolicyConfig creates configuration for managing MinIO bucket policies.
 func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketPolicy {
 	m := meta.(*S3MinioClient)
 
@@ -137,8 +123,6 @@ func BucketPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucket
 	}
 }
 
-// NewConfig creates a new MinIO client configuration.
-// It handles authentication and connection settings.
 func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	// Get user credentials with fallback to legacy access key
 	user := getOptionalField(d, "minio_user", "").(string)
@@ -201,8 +185,6 @@ func NewConfig(d *schema.ResourceData) *S3MinioConfig {
 	return cfg
 }
 
-// ServiceAccountConfig creates configuration for MinIO service accounts.
-// It handles service account creation and management.
 func ServiceAccountConfig(d *schema.ResourceData, meta interface{}) *S3MinioServiceAccountConfig {
 	m := meta.(*S3MinioClient)
 
@@ -220,8 +202,6 @@ func ServiceAccountConfig(d *schema.ResourceData, meta interface{}) *S3MinioServ
 	}
 }
 
-// IAMUserConfig creates configuration for MinIO IAM users.
-// It handles user creation and management in the IAM system.
 func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConfig {
 	m := meta.(*S3MinioClient)
 
@@ -235,8 +215,6 @@ func IAMUserConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMUserConf
 	}
 }
 
-// IAMGroupConfig creates configuration for MinIO IAM groups.
-// It handles group creation and management.
 func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupConfig {
 	m := meta.(*S3MinioClient)
 
@@ -248,8 +226,6 @@ func IAMGroupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupCo
 	}
 }
 
-// IAMGroupAttachmentConfig creates configuration for MinIO IAM group attachments.
-// It handles attaching a single user to a group.
 func IAMGroupAttachmentConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupAttachmentConfig {
 	m := meta.(*S3MinioClient)
 
@@ -260,8 +236,6 @@ func IAMGroupAttachmentConfig(d *schema.ResourceData, meta interface{}) *S3Minio
 	}
 }
 
-// IAMGroupMembershipConfig creates configuration for MinIO IAM group memberships.
-// It handles attaching multiple users to a group.
 func IAMGroupMembershipConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupMembershipConfig {
 	m := meta.(*S3MinioClient)
 
@@ -275,8 +249,6 @@ func IAMGroupMembershipConfig(d *schema.ResourceData, meta interface{}) *S3Minio
 	}
 }
 
-// IAMPolicyConfig creates configuration for MinIO IAM policies.
-// It handles policy creation and management.
 func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicyConfig {
 	m := meta.(*S3MinioClient)
 
@@ -288,8 +260,6 @@ func IAMPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMPolicy
 	}
 }
 
-// IAMGroupPolicyConfig creates configuration for MinIO IAM group policies.
-// It handles attaching policies to groups.
 func IAMGroupPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMGroupPolicyConfig {
 	m := meta.(*S3MinioClient)
 
@@ -302,8 +272,6 @@ func IAMGroupPolicyConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMG
 	}
 }
 
-// KMSKeyConfig creates configuration for MinIO KMS keys.
-// It handles key management system configuration.
 func KMSKeyConfig(d *schema.ResourceData, meta interface{}) *S3MinioKMSKeyConfig {
 	m := meta.(*S3MinioClient)
 
@@ -313,7 +281,6 @@ func KMSKeyConfig(d *schema.ResourceData, meta interface{}) *S3MinioKMSKeyConfig
 	}
 }
 
-// ObjectTagsConfig creates configuration for managing object tags.
 func ObjectTagsConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectTags {
 	m := meta.(*S3MinioClient)
 
@@ -324,7 +291,6 @@ func ObjectTagsConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectTa
 	}
 }
 
-// ObjectLegalHoldConfig creates configuration for managing object legal hold.
 func ObjectLegalHoldConfig(d *schema.ResourceData, meta interface{}) *S3MinioObjectLegalHold {
 	m := meta.(*S3MinioClient)
 
@@ -337,7 +303,6 @@ func ObjectLegalHoldConfig(d *schema.ResourceData, meta interface{}) *S3MinioObj
 	}
 }
 
-// PrometheusBearerTokenConfig creates configuration for MinIO Prometheus bearer token.
 func PrometheusBearerTokenConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusBearerToken {
 	m := meta.(*S3MinioClient)
 
@@ -351,7 +316,6 @@ func PrometheusBearerTokenConfig(d *schema.ResourceData, meta interface{}) *S3Mi
 	}
 }
 
-// PrometheusScrapeConfig creates configuration for MinIO Prometheus scrape config.
 func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPrometheusScrapeConfig {
 	m := meta.(*S3MinioClient)
 
@@ -372,7 +336,6 @@ func PrometheusScrapeConfig(d *schema.ResourceData, meta interface{}) *S3MinioPr
 	return payload
 }
 
-// IdpLdapConfig creates configuration for an LDAP identity provider resource.
 func IdpLdapConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpLdap {
 	m := meta.(*S3MinioClient)
 
@@ -392,7 +355,6 @@ func IdpLdapConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpLdap {
 	}
 }
 
-// IdpOpenIdConfig creates configuration for an OpenID Connect identity provider resource.
 func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId {
 	m := meta.(*S3MinioClient)
 
@@ -413,7 +375,6 @@ func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId
 	}
 }
 
-// AuditWebhookConfig creates configuration for an audit webhook resource.
 func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditWebhook {
 	m := meta.(*S3MinioClient)
 
@@ -430,7 +391,6 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 	}
 }
 
-// IAMImportConfig extracts IAM import config from resource data.
 func IAMImportConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMImport {
 	m := meta.(*S3MinioClient)
 	return &S3MinioIAMImport{
@@ -439,7 +399,6 @@ func IAMImportConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMImport
 	}
 }
 
-// IncompleteUploadCleanupConfig extracts incomplete upload cleanup config from resource data.
 func IncompleteUploadCleanupConfig(d *schema.ResourceData, meta interface{}) *S3MinioIncompleteUploadCleanup {
 	m := meta.(*S3MinioClient)
 

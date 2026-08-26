@@ -11,7 +11,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
-// S3MinioConfig defines variable for minio
 type S3MinioConfig struct {
 	S3HostPort        string
 	S3UserAccess      string
@@ -43,7 +42,6 @@ type S3MinioConfig struct {
 	RetryDelayMs          int
 }
 
-// S3MinioClient defines default minio
 type S3MinioClient struct {
 	S3UserAccess      string
 	S3Region          string
@@ -61,7 +59,6 @@ type S3MinioClient struct {
 	RetryDelayMs          int
 }
 
-// S3MinioBucket defines minio config
 type S3MinioBucket struct {
 	MinioClient          *minio.Client
 	MinioAdmin           *madmin.AdminClient
@@ -76,21 +73,18 @@ type S3MinioBucket struct {
 	S3CompatMode         bool
 }
 
-// S3MinioBucketPolicy defines bucket policy config
 type S3MinioBucketPolicy struct {
 	MinioClient       *minio.Client
 	MinioBucket       string
 	MinioBucketPolicy string
 }
 
-// S3MinioBucketVersioningConfiguration defines bucket versioning config
 type S3MinioBucketVersioningConfiguration struct {
 	Status           string
 	ExcludedPrefixes []string
 	ExcludeFolders   bool
 }
 
-// S3PathStyle
 type S3PathStyle int8
 
 const (
@@ -110,7 +104,6 @@ func (p S3PathStyle) String() string {
 	}
 }
 
-// S3MinioBucketReplicationConfiguration defines bucket replication rule
 type S3MinioBucketReplicationRule struct {
 	Id       string
 	Arn      string
@@ -128,7 +121,6 @@ type S3MinioBucketReplicationRule struct {
 	Target S3MinioBucketReplicationRuleTarget
 }
 
-// S3MinioBucketReplicationRuleTarget defines bucket replication rule target
 type S3MinioBucketReplicationRuleTarget struct {
 	Bucket            string
 	StorageClass      string
@@ -145,14 +137,12 @@ type S3MinioBucketReplicationRuleTarget struct {
 	SecretKey         string
 }
 
-// S3MinioBucketVersioning defines bucket versioning
 type S3MinioBucketVersioning struct {
 	MinioClient             *minio.Client
 	MinioBucket             string
 	VersioningConfiguration *S3MinioBucketVersioningConfiguration
 }
 
-// S3MinioBucketReplication defines bucket replication
 type S3MinioBucketReplication struct {
 	MinioAdmin       *madmin.AdminClient
 	MinioClient      *minio.Client
@@ -160,27 +150,23 @@ type S3MinioBucketReplication struct {
 	ReplicationRules []S3MinioBucketReplicationRule
 }
 
-// S3MinioBucketNotification
 type S3MinioBucketNotification struct {
 	MinioClient   *minio.Client
 	MinioBucket   string
 	Configuration *notification.Configuration
 }
 
-// S3MinioBucketServerSideEncryption defines bucket encryption
 type S3MinioBucketServerSideEncryption struct {
 	MinioClient   *minio.Client
 	MinioBucket   string
 	Configuration *sse.Configuration
 }
 
-// S3MinioBucketCors defines bucket CORS configuration
 type S3MinioBucketCors struct {
 	MinioClient *minio.Client
 	MinioBucket string
 }
 
-// S3MinioBucketObjectLockConfiguration defines bucket object lock configuration
 type S3MinioBucketObjectLockConfiguration struct {
 	MinioClient       *minio.Client
 	MinioBucket       string
@@ -190,7 +176,6 @@ type S3MinioBucketObjectLockConfiguration struct {
 	Unit              *minio.ValidityUnit
 }
 
-// S3MinioServiceAccountConfig defines service account config
 type S3MinioServiceAccountConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioTargetUser   string
@@ -206,7 +191,6 @@ type S3MinioServiceAccountConfig struct {
 	MinioExpiration   string
 }
 
-// S3MinioIAMUserConfig defines IAM config
 type S3MinioIAMUserConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
@@ -217,7 +201,6 @@ type S3MinioIAMUserConfig struct {
 	MinioIAMTags      map[string]string
 }
 
-// S3MinioIAMGroupConfig defines IAM Group config
 type S3MinioIAMGroupConfig struct {
 	MinioAdmin        *madmin.AdminClient
 	MinioIAMName      string
@@ -225,14 +208,12 @@ type S3MinioIAMGroupConfig struct {
 	MinioForceDestroy bool
 }
 
-// S3MinioIAMGroupAttachmentConfig defines IAM Group membership config
 type S3MinioIAMGroupAttachmentConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioIAMUser  string
 	MinioIAMGroup string
 }
 
-// S3MinioIAMGroupMembershipConfig defines IAM Group membership config
 type S3MinioIAMGroupMembershipConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioIAMName  string
@@ -240,7 +221,6 @@ type S3MinioIAMGroupMembershipConfig struct {
 	MinioIAMGroup string
 }
 
-// S3MinioIAMPolicyConfig defines IAM Policy config
 type S3MinioIAMPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient
 	MinioIAMName       string
@@ -248,7 +228,6 @@ type S3MinioIAMPolicyConfig struct {
 	MinioIAMPolicy     string
 }
 
-// S3MinioIAMGroupPolicyConfig defines IAM Policy config
 type S3MinioIAMGroupPolicyConfig struct {
 	MinioAdmin         *madmin.AdminClient
 	MinioIAMName       string
@@ -257,20 +236,17 @@ type S3MinioIAMGroupPolicyConfig struct {
 	MinioIAMGroup      string
 }
 
-// S3MinioKMSKeyConfig defines service account config
 type S3MinioKMSKeyConfig struct {
 	MinioAdmin    *madmin.AdminClient
 	MinioKMSKeyID string
 }
 
-// S3MinioObjectTags defines object tags configuration
 type S3MinioObjectTags struct {
 	MinioClient    *minio.Client
 	MinioBucket    string
 	MinioObjectKey string
 }
 
-// S3MinioObjectLegalHold defines object legal hold configuration
 type S3MinioObjectLegalHold struct {
 	MinioClient    *minio.Client
 	MinioBucket    string
@@ -279,27 +255,23 @@ type S3MinioObjectLegalHold struct {
 	MinioStatus    string
 }
 
-// Princ defines policy princ
 type Princ struct {
 	AWS           set.StringSet `json:"AWS,omitempty"`
 	CanonicalUser set.StringSet `json:"CanonicalUser,omitempty"`
 }
 
-// BucketPolicy defines bucket policy
 type BucketPolicy struct {
 	Version    string             `json:",omitempty"`
 	ID         string             `json:",omitempty"`
 	Statements []policy.Statement `json:"Statement"`
 }
 
-// IAMPolicyDoc returns IAM policy
 type IAMPolicyDoc struct {
 	Version    string                `json:"Version,omitempty"`
 	ID         string                `json:"Id,omitempty"`
 	Statements []*IAMPolicyStatement `json:"Statement"`
 }
 
-// IAMPolicyStatement returns IAM policy statement
 type IAMPolicyStatement struct {
 	Sid          string
 	Effect       string      `json:",omitempty"`
@@ -311,31 +283,26 @@ type IAMPolicyStatement struct {
 	Conditions   interface{} `json:"Condition,omitempty"`
 }
 
-// IAMPolicyStatementCondition returns IAM policy condition
 type IAMPolicyStatementCondition struct {
 	Test     string `json:"-"`
 	Variable string `json:"-"`
 	Values   interface{}
 }
 
-// IAMPolicyStatementConditionSet returns IAM policy condition set
 type IAMPolicyStatementConditionSet []IAMPolicyStatementCondition
 
-// ServiceAccountStatus User status
 type ServiceAccountStatus struct {
 	AccessKey     string `json:"accessKey,omitempty"`
 	SecretKey     string `json:"secretKey,omitempty"`
 	AccountStatus string `json:"status,omitempty"`
 }
 
-// UserStatus User status
 type UserStatus struct {
 	AccessKey string               `json:"accessKey,omitempty"`
 	SecretKey string               `json:"secretKey,omitempty"`
 	Status    madmin.AccountStatus `json:"status,omitempty"`
 }
 
-// ResponseError handles error message
 type ResponseError struct {
 	Code       string `json:"Code,omitempty"`
 	Message    string `json:"Message,omitempty"`
@@ -343,7 +310,6 @@ type ResponseError struct {
 	Region     string `json:"Region,omitempty"`
 }
 
-// Resource prefix for all aws resources.
 const awsResourcePrefix = "arn:aws:s3:::"
 
 // Bucket actions granted by the `public` access type. Deliberately limited to discovery:
@@ -360,16 +326,12 @@ var downloadBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:List
 // upload` writes.
 var uploadBucketActions = set.CreateStringSet("s3:GetBucketLocation", "s3:ListBucketMultipartUploads")
 
-// Read only object actions.
 var readOnlyObjectActions = set.CreateStringSet("s3:GetObject")
 
-// Write only object actions.
 var writeOnlyObjectActions = set.CreateStringSet("s3:AbortMultipartUpload", "s3:DeleteObject", "s3:ListMultipartUploadParts", "s3:PutObject")
 
-// Object actions granted by the `public` access type.
 var publicObjectActions = readOnlyObjectActions.Union(writeOnlyObjectActions)
 
-// S3MinioPrometheusBearerToken defines Prometheus bearer token configuration
 type S3MinioPrometheusBearerToken struct {
 	MinioAdmin     *madmin.AdminClient
 	MinioAccessKey string
@@ -379,7 +341,6 @@ type S3MinioPrometheusBearerToken struct {
 	Limit          int
 }
 
-// S3MinioPrometheusScrapeConfig defines Prometheus scrape configuration
 type S3MinioPrometheusScrapeConfig struct {
 	MinioEndpoint  string
 	MinioAccessKey string
@@ -391,7 +352,6 @@ type S3MinioPrometheusScrapeConfig struct {
 	BearerToken    string
 }
 
-// S3MinioIdpLdap defines configuration for an LDAP/Active Directory identity provider
 type S3MinioIdpLdap struct {
 	MinioAdmin         *madmin.AdminClient
 	ServerAddr         string
@@ -407,7 +367,6 @@ type S3MinioIdpLdap struct {
 	Enable             bool
 }
 
-// S3MinioIdpOpenId defines configuration for an OpenID Connect identity provider
 type S3MinioIdpOpenId struct {
 	MinioAdmin   *madmin.AdminClient
 	Name         string
@@ -424,14 +383,12 @@ type S3MinioIdpOpenId struct {
 	Enable       bool
 }
 
-// S3MinioIncompleteUploadCleanup defines incomplete upload cleanup config
 type S3MinioIncompleteUploadCleanup struct {
 	MinioClient *minio.Client
 	MinioBucket string
 	MinioPrefix string
 }
 
-// S3MinioAuditWebhook defines configuration for an audit webhook target
 type S3MinioAuditWebhook struct {
 	MinioAdmin *madmin.AdminClient
 	Name       string
@@ -444,7 +401,6 @@ type S3MinioAuditWebhook struct {
 	ClientKey  string
 }
 
-// S3MinioIAMImport defines configuration for an IAM import operation.
 type S3MinioIAMImport struct {
 	MinioAdmin *madmin.AdminClient
 	IAMData    string

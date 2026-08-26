@@ -8,8 +8,6 @@ import (
 	"github.com/minio/madmin-go/v4"
 )
 
-// resourceMinioIAMUserGroupMembership defines the Terraform resource for attaching a single IAM user
-// to multiple IAM groups.
 func resourceMinioIAMUserGroupMembership() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateUserGroupMembership,
@@ -37,18 +35,15 @@ func resourceMinioIAMUserGroupMembership() *schema.Resource {
 	}
 }
 
-// IAMUserGroupMembershipConfig holds the configuration needed for CRUD operations.
 type IAMUserGroupMembershipConfig struct {
 	MinioAdmin *madmin.AdminClient
 	UserName   string
 	Groups     []string
 }
 
-// iamUserGroupMembershipConfig extracts the configuration from the resource data.
 func iamUserGroupMembershipConfig(d *schema.ResourceData, meta interface{}) *IAMUserGroupMembershipConfig {
 	m := meta.(*S3MinioClient)
 
-	// Extract groups from the Set
 	groups := []string{}
 	if v, ok := d.GetOk("groups"); ok {
 		for _, g := range v.(*schema.Set).List() {
@@ -67,11 +62,9 @@ func iamUserGroupMembershipConfig(d *schema.ResourceData, meta interface{}) *IAM
 	}
 }
 
-// minioCreateUserGroupMembership creates the membership by adding the user to each specified group.
 func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := iamUserGroupMembershipConfig(d, meta)
 
-	// Add user to each group
 	for _, grp := range cfg.Groups {
 		err := cfg.MinioAdmin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
 			Group:   grp,
@@ -82,11 +75,8 @@ func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 		}
 	}
 
-	// Use user name as the resource ID
 	d.SetId(cfg.UserName)
 
-	// Reconcile: ensure the user belongs to exactly the groups defined in the resource.
-	// Remove any groups the user is a member of that are not in cfg.Groups.
 	desired := make(map[string]struct{})
 	for _, g := range cfg.Groups {
 		desired[g] = struct{}{}
@@ -114,7 +104,6 @@ func minioCreateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 	return minioReadUserGroupMembership(ctx, d, meta)
 }
 
-// minioReadUserGroupMembership reads the current groups for the user.
 func minioReadUserGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := iamUserGroupMembershipConfig(d, meta)
 
@@ -130,7 +119,6 @@ func minioReadUserGroupMembership(ctx context.Context, d *schema.ResourceData, m
 		}
 	}
 
-	// Set the groups attribute to the current membership
 	if err := d.Set("groups", schema.NewSet(schema.HashString, toInterfaceSlice(userInfo.MemberOf))); err != nil {
 		return NewResourceError("setting groups attribute", cfg.UserName, err)
 	}
@@ -138,7 +126,6 @@ func minioReadUserGroupMembership(ctx context.Context, d *schema.ResourceData, m
 	return nil
 }
 
-// minioUpdateUserGroupMembership updates the membership by reconciling desired vs actual groups.
 func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if !d.HasChange("groups") {
 		return nil
@@ -146,13 +133,11 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 
 	cfg := iamUserGroupMembershipConfig(d, meta)
 
-	// Desired groups from the resource
 	desired := make(map[string]struct{})
 	for _, g := range cfg.Groups {
 		desired[g] = struct{}{}
 	}
 
-	// Current groups from MinIO
 	userInfo, err := cfg.MinioAdmin.GetUserInfo(ctx, cfg.UserName)
 	if err != nil {
 		return NewResourceError("fetching current groups for user", cfg.UserName, err)
@@ -162,7 +147,6 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 		current[g] = struct{}{}
 	}
 
-	// Add missing groups
 	for grp := range desired {
 		if _, ok := current[grp]; !ok {
 			if err := cfg.MinioAdmin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
@@ -175,10 +159,8 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 		}
 	}
 
-	// Remove extra groups
 	for grp := range current {
 		if _, ok := desired[grp]; ok {
-			// No action needed
 			continue
 		}
 		if err := cfg.MinioAdmin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
@@ -193,11 +175,9 @@ func minioUpdateUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 	return minioReadUserGroupMembership(ctx, d, meta)
 }
 
-// minioDeleteUserGroupMembership removes the user from all groups managed by this resource.
 func minioDeleteUserGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := iamUserGroupMembershipConfig(d, meta)
 
-	// Remove user from each group listed in state
 	for _, grp := range cfg.Groups {
 		if err := cfg.MinioAdmin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
 			Group:    grp,

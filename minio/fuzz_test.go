@@ -5,10 +5,7 @@ import (
 	"testing"
 )
 
-// FuzzNormalizeAndCompareJSONPolicies verifies that NormalizeAndCompareJSONPolicies
-// never panics on arbitrary JSON-like input, including malformed documents.
 func FuzzNormalizeAndCompareJSONPolicies(f *testing.F) {
-	// Seed corpus: representative policy documents
 	f.Add(`{"Version":"2012-10-17","Statement":[]}`, `{"Version":"2012-10-17","Statement":[]}`)
 	f.Add(``, `{"Version":"2012-10-17","Statement":[]}`)
 	f.Add(`{}`, `{}`)
@@ -20,15 +17,11 @@ func FuzzNormalizeAndCompareJSONPolicies(f *testing.F) {
 	f.Add(`{"Version":"2012-10-17"}`, ``)
 
 	f.Fuzz(func(t *testing.T, oldPolicy, newPolicy string) {
-		// Must not panic regardless of input
 		_, _ = NormalizeAndCompareJSONPolicies(oldPolicy, newPolicy)
 	})
 }
 
-// FuzzParseBandwidthLimit verifies that ParseBandwidthLimit never panics on
-// arbitrary bandwidth string values, including malformed ones.
 func FuzzParseBandwidthLimit(f *testing.F) {
-	// Seed corpus: valid and invalid bandwidth strings
 	f.Add("100MB")
 	f.Add("1GB")
 	f.Add("500k")
@@ -42,7 +35,6 @@ func FuzzParseBandwidthLimit(f *testing.F) {
 		target := map[string]any{
 			"bandwidth_limit": bandwidthStr,
 		}
-		// Must not panic regardless of input
 		_, _, _ = ParseBandwidthLimit(context.Background(), target)
 	})
 }

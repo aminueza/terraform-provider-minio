@@ -26,12 +26,10 @@ func encodeAnonymousAccessID(bucket string) string {
 func putAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}, bucket, policy string) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
-	// Wait for bucket to be ready for eventual consistency
 	timeout := d.Timeout(schema.TimeoutCreate)
 	if d.Id() != "" {
 		timeout = d.Timeout(schema.TimeoutUpdate)
 	}
-	// Reserve time for the actual operation
 	waitTimeout := timeout - 30*time.Second
 	if waitTimeout < 30*time.Second {
 		waitTimeout = 30 * time.Second
@@ -182,13 +180,11 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("validating anonymous access configuration", bucketName, errors.New("policy or access_type must be specified"))
 	}
 
-	// Normalize the policy for consistent formatting
 	normalizedPolicy, err := structure.NormalizeJsonString(policy)
 	if err != nil {
 		return NewResourceError("failed to normalize policy JSON", bucketName, err)
 	}
 
-	// Set the resource ID to be unique for anonymous access resources
 	d.SetId(encodeAnonymousAccessID(bucketName))
 
 	if err := d.Set("policy", normalizedPolicy); err != nil {
@@ -302,7 +298,6 @@ func getAnonymousPolicy(d *schema.ResourceData, bucket string) (string, error) {
 
 	accessType := d.Get("access_type").(string)
 
-	// If policy is explicitly set by user, use it (it takes precedence over access_type)
 	if policyExplicitlySet {
 		policy := d.Get("policy").(string)
 		if policy != "" {
@@ -377,7 +372,6 @@ func confirmConfiguredAccessType(d *schema.ResourceData, policy string, bucketNa
 // and `public-read-write` writes the same one as `public`, so a policy written by either is
 // reported as `public`; callers that know which access type is configured confirm that first.
 func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
-	// Generate canned policies for this specific bucket
 	publicPolicy, _ := marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucketName}))
 	readOnlyPolicy, _ := marshalPolicy(ReadOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
 	writeOnlyPolicy, _ := marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))

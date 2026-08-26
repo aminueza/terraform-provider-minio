@@ -228,8 +228,6 @@ func testAccPreCheck(t *testing.T) {
 	}
 }
 
-// testAccEndpoint returns the endpoint (host:port) of the MinIO test instance
-// configured by the given env var prefix ("", "SECOND_", "THIRD_", ...).
 func testAccEndpoint(prefix string) string {
 	return os.Getenv(prefix + "MINIO_ENDPOINT")
 }

@@ -2,11 +2,14 @@ package minio
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
+
+const unsupportedAdminAPITimeout = 10 * time.Second
 
 func dataSourceMinioLicenseInfo() *schema.Resource {
 	return &schema.Resource{
@@ -28,7 +31,10 @@ func dataSourceMinioLicenseInfoRead(ctx context.Context, d *schema.ResourceData,
 
 	tflog.Debug(ctx, "Reading license info")
 
-	info, err := admin.GetLicenseInfo(ctx)
+	readCtx, cancel := context.WithTimeout(ctx, unsupportedAdminAPITimeout)
+	defer cancel()
+
+	info, err := admin.GetLicenseInfo(readCtx)
 	if err != nil {
 		// Servers without a license subsystem (community MinIO) report the
 		// unlicensed state instead of failing the read.

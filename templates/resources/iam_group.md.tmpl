@@ -13,6 +13,8 @@ description: |-
 
 {{ tffile "examples/resources/minio_iam_group/resource.tf" }}
 
+~> Changing `name` replaces the group: MinIO has no rename operation, so Terraform destroys the old group and creates a new one. Group memberships and policy attachments are separate resources and must be re-applied against the new group.
+
 {{ .SchemaMarkdown | trimspace }}
 
 ## Import

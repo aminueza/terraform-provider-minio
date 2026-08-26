@@ -351,3 +351,42 @@ func testAccCheckMinioGroupGone(groupName string) func(*terraform.State) error {
 		return nil
 	}
 }
+
+func TestAccMinioIAMGroup_renameRecreates(t *testing.T) {
+	var group madmin.GroupDesc
+
+	rString := acctest.RandString(8)
+	oldName := fmt.Sprintf("tf-acc-group-rn-old-%s", rString)
+	newName := fmt.Sprintf("tf-acc-group-rn-new-%s", rString)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(newName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioGroupConfig(oldName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupExists("minio_iam_group.test", &group),
+					resource.TestCheckResourceAttr("minio_iam_group.test", "name", oldName),
+				),
+			},
+			{
+				Config: testAccMinioGroupConfig(newName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupExists("minio_iam_group.test", &group),
+					resource.TestCheckResourceAttr("minio_iam_group.test", "name", newName),
+					testAccCheckMinioGroupGone(oldName),
+				),
+			},
+			{
+				ResourceName:      "minio_iam_group.test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateVerifyIgnore: []string{
+					"force_destroy",
+				},
+			},
+		},
+	})
+}

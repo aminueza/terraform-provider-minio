@@ -10,6 +10,15 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.41.0] - 2026-08-26
+
+### Changed
+
+- `minio_iam_group`: changing `name` now recreates the group (`ForceNew`).
+  MinIO has no rename operation; before this change a rename was silently
+  ignored and Terraform state diverged from the server
+  ([#1127](https://github.com/aminueza/terraform-provider-minio/pull/1127)).
+
 ### Fixed
 
 - `minio_iam_group`: `force_destroy` now actually deletes a group that still has
@@ -20,6 +29,14 @@ History older than 3.39.0 lives in the
   membership to clear and then fails with a clear error pointing at
   `force_destroy`, instead of silently leaving the group behind on the server
   ([#1109](https://github.com/aminueza/terraform-provider-minio/pull/1109)).
+- Error messages no longer contain literal printf verbs such as
+  `error updating IAM Group %s: %s`; twenty-one messages across IAM group,
+  IAM user, service account and bucket policy resources now state the
+  operation plainly ([#1121](https://github.com/aminueza/terraform-provider-minio/pull/1121)).
+- `minio_config_history` and `minio_license_info` reads against servers that
+  do not serve those admin APIs (community MinIO) now return within seconds
+  instead of retrying for minutes before reporting the graceful fallback
+  ([#1126](https://github.com/aminueza/terraform-provider-minio/pull/1126)).
 
 ## [3.40.1] - 2026-08-04
 
@@ -86,7 +103,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.1...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...HEAD
+[3.41.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.1...v3.41.0
 [3.40.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.0...v3.40.1
 [3.40.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.39.0...v3.40.0
 [3.39.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.38.6...v3.39.0

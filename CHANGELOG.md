@@ -10,6 +10,22 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.41.1] - 2026-09-03
+
+### Changed
+
+- Bumped `github.com/minio/madmin-go/v4` from 4.10.3 to 4.10.5
+  ([#1130](https://github.com/aminueza/terraform-provider-minio/pull/1130)).
+- Bumped `golang.org/x/crypto` from 0.55.0 to 0.56.0
+  ([#1137](https://github.com/aminueza/terraform-provider-minio/pull/1137)).
+- Bumped `google.golang.org/grpc` from 1.82.1 to 1.83.1
+  ([#1136](https://github.com/aminueza/terraform-provider-minio/pull/1136)).
+
+### Fixed
+
+- Made `TestAccMinioIAMUser_import` trailing plans deterministic
+  ([#1129](https://github.com/aminueza/terraform-provider-minio/pull/1129)).
+
 ## [3.41.0] - 2026-08-26
 
 ### Changed
@@ -103,7 +119,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...HEAD
+[3.41.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...v3.41.1
 [3.41.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.1...v3.41.0
 [3.40.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.0...v3.40.1
 [3.40.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.39.0...v3.40.0

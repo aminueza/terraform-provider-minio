@@ -10,6 +10,29 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_sts_credentials` ephemeral resource: mints temporary credentials
+  through STS AssumeRole without writing them to Terraform state. Use it to
+  configure another provider instance or to feed a write-only attribute.
+  `duration_seconds` accepts 3600 or more, since the MinIO client library
+  replaces lower values with 3600. The resource requires a provider configured
+  with static credentials: it refuses to run when the provider uses
+  `assume_role`, `assume_role_with_web_identity` or a session token, because it
+  would otherwise issue credentials outside the scope those establish, and
+  MinIO rejects AssumeRole made with temporary credentials. Every Terraform
+  operation opens the resource and mints a new server-side session that lives
+  until it expires. Requires Terraform 1.10 or later
+  ([#1146](https://github.com/aminueza/terraform-provider-minio/issues/1146)).
+
+### Changed
+
+- The provider is now served through `terraform-plugin-mux`, combining the
+  existing SDKv2 resources and data sources with a plugin-framework half that
+  serves ephemeral resources. Every existing resource and data source is
+  unchanged; the provider now speaks protocol 6, which Terraform 1.0 and later
+  already negotiate.
+
 ## [3.41.1] - 2026-09-03
 
 ### Changed

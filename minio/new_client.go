@@ -263,7 +263,6 @@ func (config *S3MinioConfig) configureCACert(tlsConfig *tls.Config) error {
 		return fmt.Errorf("failed to append CA certificate to cert pool")
 	}
 
-	tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	tlsConfig.RootCAs = rootCAs
 	return nil
 }

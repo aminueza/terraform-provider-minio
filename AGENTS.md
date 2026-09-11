@@ -168,7 +168,14 @@ TEST_PATTERN=TestAccMinioIAMUser docker compose run --rm test
 
 # Run with verbose output
 TF_ACC=1 go test -v ./minio -run TestAccMinioS3Bucket_basic
+
+# Take the MinIO images from another registry, for every MinIO service at once
+MINIO_IMAGE=mirror.example.com/minio/minio:RELEASE.2025-09-07T16-13-09Z docker compose run --rm test
 ```
+
+`MINIO_IMAGE` exists because Docker Hub refuses anonymous pulls of
+`minio/minio` from many networks. Without it, the only way past a blocked pull
+was to edit `docker-compose.yml` and remember not to commit the edit.
 
 ## Documentation
 

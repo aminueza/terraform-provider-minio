@@ -180,7 +180,15 @@ docker compose run --rm test
 
 # Run a subset by name:
 TEST_PATTERN=TestAccMinioS3Bucket_basic docker compose run --rm test
+
+# Pull the MinIO images from somewhere else, for a mirror or another release.
+# This replaces the image for every MinIO service at once:
+MINIO_IMAGE=mirror.example.com/minio/minio:RELEASE.2025-09-07T16-13-09Z task test
 ```
+
+`docker compose run` needs to pull `minio/minio` from Docker Hub, which
+refuses anonymous pulls from many networks. Run `docker login` first, or point
+`MINIO_IMAGE` at a registry you can reach.
 
 Full setup, project layout, and the MinIO consoles used during testing are covered in [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 

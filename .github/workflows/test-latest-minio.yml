@@ -31,7 +31,7 @@ jobs:
       - name: Override MinIO image in docker-compose.yml
         run: |
           TAG="${{ steps.minio.outputs.tag }}"
-          sed -i "s|minio/minio:RELEASE\.[^\"']*|minio/minio:${TAG}|" docker-compose.yml
+          sed -i "s|minio/minio:RELEASE\.[^}\"']*|minio/minio:${TAG}|" docker-compose.yml
           echo "Updated MinIO image to minio/minio:${TAG}"
           grep "minio/minio:" docker-compose.yml
 

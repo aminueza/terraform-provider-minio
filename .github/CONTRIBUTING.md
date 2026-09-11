@@ -314,11 +314,16 @@ dependency bumps with no behavior change, test-only changes, refactors, and
 documentation fixes. When in doubt, add the entry — a reviewer can always drop
 it.
 
-The release workflow moves `[Unreleased]` into a dated `## [x.y.z]` section
-itself, updates the link references and commits that before it tags, so
-preparing a release takes no changelog edit. It stops when `[Unreleased]` is
-empty, because a release with no notes is almost always a mistake. A section
-written by hand ahead of time is left alone.
+Preparing a release takes no changelog edit. Running **Create Release Tag**
+moves `[Unreleased]` into a dated `## [x.y.z]` section, updates the link
+references and opens a pull request with that change. `main` is protected, so
+the workflow cannot commit there directly; merging the pull request creates the
+tag and starts the release on its own.
+
+Two cases behave differently on purpose. When the section is already there,
+written by hand or by an earlier release, the workflow tags straight away and
+opens nothing. When `[Unreleased]` is empty it stops, because a release with no
+notes is almost always a mistake.
 
 ### Commit Message Format
 

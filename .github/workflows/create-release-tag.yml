@@ -17,18 +17,25 @@ on:
           - minor
           - major
         default: "patch"
+  push:
+    branches:
+      - main
+    paths:
+      - CHANGELOG.md
 
 permissions:
   contents: read
 
 jobs:
-  create-tag:
+  prepare:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # required to create and push git tags
+      contents: write  # required to push the release branch and the tag
+      pull-requests: write  # required to open the release pull request
     timeout-minutes: 5
     outputs:
-      tag: ${{ steps.version.outputs.new }}
+      tag: ${{ steps.tag.outputs.created }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
@@ -38,21 +45,15 @@ jobs:
       - name: Get latest version and calculate next
         id: version
         run: |
-          # Get latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Latest tag: $LATEST_TAG"
 
-          # Remove 'v' prefix for calculation
           LATEST_VERSION=${LATEST_TAG#v}
-
-          # Split into major.minor.patch
           IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_VERSION"
 
-          # Use manual version if provided, otherwise calculate
           MANUAL_VERSION="${{ github.event.inputs.version }}"
 
           if [[ -n "$MANUAL_VERSION" ]]; then
-            # Validate manual version format
             if [[ ! "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "Error: Version must be in format X.Y.Z (e.g., 3.15.0)"
               exit 1
@@ -60,7 +61,6 @@ jobs:
             NEW_VERSION="$MANUAL_VERSION"
             echo "Using manual version: $NEW_VERSION"
           else
-            # Calculate based on release type
             RELEASE_TYPE="${{ github.event.inputs.release_type }}"
             case "$RELEASE_TYPE" in
               major)
@@ -91,40 +91,92 @@ jobs:
         id: changelog
         run: python3 .github/scripts/promote_changelog.py "${VERSION#v}"
 
-      - name: Commit the CHANGELOG
+      - name: Open the release pull request
         if: steps.changelog.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          BRANCH="release/${{ env.VERSION }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
           git add CHANGELOG.md
           git commit -m "chore: release ${{ env.VERSION }}"
-          git push origin "HEAD:${{ github.ref_name }}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base "${{ github.ref_name }}" \
+            --head "$BRANCH" \
+            --title "chore: release ${{ env.VERSION }}" \
+            --body "Moves the \`[Unreleased]\` entries into \`${VERSION#v}\` and updates the link references. Merging this tags ${{ env.VERSION }} and starts the release."
+          {
+            echo "## Release pull request opened"
+            echo ""
+            echo "\`${{ env.VERSION }}\` is not tagged yet. Merge the pull request above and the tag is created automatically."
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: Create and push tag
+        id: tag
+        if: steps.changelog.outputs.changed == 'false'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "${{ env.VERSION }}" -m "Release ${{ env.VERSION }}"
           git push origin "${{ env.VERSION }}"
+          echo "created=${{ env.VERSION }}" >> $GITHUB_OUTPUT
+          {
+            echo "## Release Tag Created"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Previous** | \`${{ steps.version.outputs.latest }}\` |"
+            echo "| **New Tag** | \`${{ steps.version.outputs.new }}\` |"
+            echo "| **Commit** | \`${{ github.sha }}\` |"
+          } >> $GITHUB_STEP_SUMMARY
 
-      - name: Summary
+  tag-merged-release:
+    if: "github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore: release v')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # required to create and push git tags
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.tag.outputs.created }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Create and push tag
+        id: tag
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
-          echo "## Release Tag Created" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| | |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Previous** | \`${{ steps.version.outputs.latest }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **New Tag** | \`${{ steps.version.outputs.new }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Commit** | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Release Type** | \`${{ github.event.inputs.release_type }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The [Release workflow](../actions/workflows/release.yml) has been triggered and will build and publish the provider with auto-generated release notes." >> $GITHUB_STEP_SUMMARY
+          VERSION=$(printf '%s\n' "$HEAD_COMMIT_MESSAGE" | head -n 1 | sed -n 's|^chore: release \(v[0-9]\+\.[0-9]\+\.[0-9]\+\).*|\1|p')
+          if [[ -z "$VERSION" ]]; then
+            echo "The head commit subject does not name a version. Nothing to tag."
+            exit 0
+          fi
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists. Nothing to do."
+            exit 0
+          fi
+          if ! grep -q "^## \[${VERSION#v}\]" CHANGELOG.md; then
+            echo "Error: CHANGELOG.md has no section for ${VERSION#v}, so this is not a release commit."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          echo "created=$VERSION" >> $GITHUB_OUTPUT
 
   release:
-    needs: create-tag
+    needs: [prepare, tag-merged-release]
+    if: ${{ always() && (needs.prepare.outputs.tag != '' || needs.tag-merged-release.outputs.tag != '') }}
     permissions:
       contents: write  # required by the release workflow to create GitHub releases and upload assets
     uses: ./.github/workflows/release.yml
     with:
-      tag: ${{ needs.create-tag.outputs.tag }}
+      tag: ${{ needs.prepare.outputs.tag || needs.tag-merged-release.outputs.tag }}
     secrets: inherit

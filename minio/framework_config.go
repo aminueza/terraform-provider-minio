@@ -77,9 +77,9 @@ func frameworkConfig(ctx context.Context, model frameworkProviderModel, diags *d
 		SkipBucketTagging:     frameworkBool(model.SkipBucketTagging, []string{"MINIO_SKIP_BUCKET_TAGGING"}, false),
 		S3CompatMode:          frameworkBool(model.S3CompatMode, []string{"MINIO_S3_COMPAT_MODE"}, false),
 		Edition:               frameworkString(model.MinioEdition, []string{"MINIO_EDITION"}, ""),
-		RequestTimeoutSeconds: frameworkInt(model.RequestTimeoutSeconds, nil, 30),
-		MaxRetries:            frameworkInt(model.MaxRetries, nil, 6),
-		RetryDelayMs:          frameworkInt(model.RetryDelayMs, nil, 1000),
+		RequestTimeoutSeconds: frameworkInt(model.RequestTimeoutSeconds, []string{"MINIO_REQUEST_TIMEOUT_SECONDS"}, 30),
+		MaxRetries:            frameworkInt(model.MaxRetries, []string{"MINIO_MAX_RETRIES"}, 6),
+		RetryDelayMs:          frameworkInt(model.RetryDelayMs, []string{"MINIO_RETRY_DELAY_MS"}, 1000),
 	}
 
 	if !model.AssumeRole.IsNull() && !model.AssumeRole.IsUnknown() {

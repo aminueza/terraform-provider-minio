@@ -33,6 +33,18 @@ History older than 3.39.0 lives in the
   unchanged; the provider now speaks protocol 6, which Terraform 1.0 and later
   already negotiate.
 
+### Fixed
+
+- `MINIO_REQUEST_TIMEOUT_SECONDS`, `MINIO_MAX_RETRIES` and `MINIO_RETRY_DELAY_MS`
+  now set `request_timeout_seconds`, `max_retries` and `retry_delay_ms`. The
+  three attributes declared a static default next to the environment lookup,
+  and the static default won, so the variables had never taken effect even
+  though the provider documentation offered them. A deployment that already
+  sets one of these variables will see the value applied after this upgrade,
+  where before it silently used 30, 6 and 1000. An explicit value in the
+  provider block still wins over the environment
+  ([#1149](https://github.com/aminueza/terraform-provider-minio/issues/1149)).
+
 ## [3.41.1] - 2026-09-03
 
 ### Changed

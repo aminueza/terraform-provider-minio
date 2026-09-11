@@ -167,21 +167,18 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"request_timeout_seconds": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     30,
 				Description: "Global HTTP request timeout in seconds for all MinIO API calls (default: 30)",
 				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_REQUEST_TIMEOUT_SECONDS", 30),
 			},
 			"max_retries": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     6,
 				Description: "Maximum number of retries for failed operations (default: 6)",
 				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_MAX_RETRIES", 6),
 			},
 			"retry_delay_ms": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     1000,
 				Description: "Base delay in milliseconds between retries, used with exponential backoff (default: 1000)",
 				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_RETRY_DELAY_MS", 1000),
 			},

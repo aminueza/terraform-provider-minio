@@ -44,6 +44,15 @@ jobs:
             fi
           done
 
+          EPHEMERAL=$(grep -rhoP 'resp\.TypeName = req\.ProviderTypeName \+ "_\K[^"]+' minio/ephemeral_*.go || true)
+
+          for name in $EPHEMERAL; do
+            if [ ! -f "templates/ephemeral-resources/${name}.md.tmpl" ]; then
+              echo "::error::Missing doc template for ephemeral resource 'minio_${name}'. Create templates/ephemeral-resources/${name}.md.tmpl"
+              MISSING=$((MISSING + 1))
+            fi
+          done
+
           if [ "$MISSING" -gt 0 ]; then
             echo ""
             echo "Found ${MISSING} resource(s)/data source(s) without doc templates."

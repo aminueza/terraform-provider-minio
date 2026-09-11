@@ -3,6 +3,8 @@ package minio
 import (
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/types"
+
 	"github.com/minio/madmin-go/v4"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/notification"
@@ -410,4 +412,69 @@ type S3MinioBatchJob struct {
 	MinioAdmin *madmin.AdminClient
 	JobType    string
 	JobYAML    string
+}
+
+type frameworkProviderModel struct {
+	MinioServer           types.String `tfsdk:"minio_server"`
+	MinioRegion           types.String `tfsdk:"minio_region"`
+	MinioUser             types.String `tfsdk:"minio_user"`
+	MinioPassword         types.String `tfsdk:"minio_password"`
+	MinioAccessKey        types.String `tfsdk:"minio_access_key"`
+	MinioSecretKey        types.String `tfsdk:"minio_secret_key"`
+	MinioSessionToken     types.String `tfsdk:"minio_session_token"`
+	MinioAPIVersion       types.String `tfsdk:"minio_api_version"`
+	MinioSSL              types.Bool   `tfsdk:"minio_ssl"`
+	MinioInsecure         types.Bool   `tfsdk:"minio_insecure"`
+	MinioCACertFile       types.String `tfsdk:"minio_cacert_file"`
+	MinioCertFile         types.String `tfsdk:"minio_cert_file"`
+	MinioKeyFile          types.String `tfsdk:"minio_key_file"`
+	MinioDebug            types.Bool   `tfsdk:"minio_debug"`
+	SkipBucketTagging     types.Bool   `tfsdk:"skip_bucket_tagging"`
+	S3CompatMode          types.Bool   `tfsdk:"s3_compat_mode"`
+	MinioEdition          types.String `tfsdk:"minio_edition"`
+	RequestTimeoutSeconds types.Int64  `tfsdk:"request_timeout_seconds"`
+	MaxRetries            types.Int64  `tfsdk:"max_retries"`
+	RetryDelayMs          types.Int64  `tfsdk:"retry_delay_ms"`
+	AssumeRole            types.List   `tfsdk:"assume_role"`
+	AssumeRoleWebIdentity types.List   `tfsdk:"assume_role_with_web_identity"`
+}
+
+type frameworkAssumeRoleModel struct {
+	RoleARN         types.String `tfsdk:"role_arn"`
+	SessionName     types.String `tfsdk:"session_name"`
+	DurationSeconds types.Int64  `tfsdk:"duration_seconds"`
+	Policy          types.String `tfsdk:"policy"`
+	ExternalID      types.String `tfsdk:"external_id"`
+}
+
+type frameworkWebIdentityModel struct {
+	WebIdentityToken     types.String `tfsdk:"web_identity_token"`
+	WebIdentityTokenFile types.String `tfsdk:"web_identity_token_file"`
+	DurationSeconds      types.Int64  `tfsdk:"duration_seconds"`
+}
+
+type stsCredentialsModel struct {
+	RoleARN         types.String `tfsdk:"role_arn"`
+	SessionName     types.String `tfsdk:"session_name"`
+	DurationSeconds types.Int64  `tfsdk:"duration_seconds"`
+	Policy          types.String `tfsdk:"policy"`
+	ExternalID      types.String `tfsdk:"external_id"`
+	AccessKey       types.String `tfsdk:"access_key"`
+	SecretKey       types.String `tfsdk:"secret_key"`
+	SessionToken    types.String `tfsdk:"session_token"`
+	Expiration      types.String `tfsdk:"expiration"`
+}
+
+type stsRequest struct {
+	RoleARN         string
+	SessionName     string
+	DurationSeconds int
+	Policy          string
+	ExternalID      string
+}
+
+type frameworkProvider struct{}
+
+type stsCredentialsEphemeralResource struct {
+	config *S3MinioConfig
 }

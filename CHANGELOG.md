@@ -56,7 +56,9 @@ History older than 3.39.0 lives in the
   A value of 0 or less falls back to the default. This was already true for
   `max_retries` and `retry_delay_ms`; `request_timeout_seconds` now behaves the
   same way, where before a non-positive value reached the HTTP transport and
-  every call failed with a misleading `i/o timeout`.
+  every call failed with a misleading `i/o timeout`. `minio_health_status` used
+  its own fallback of 10 seconds in that case, and now uses 30 as well, so one
+  value applies wherever the attribute is read.
 
 - The description of `retry_delay_ms` said "base delay in milliseconds between
   retries". The value is not the delay: it caps the wait at 20 times its value

@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -403,6 +404,9 @@ func envDefaultInt(key string, fallback int) schema.SchemaDefaultFunc {
 			return fallback, nil
 		}
 		value, err := strconv.Atoi(raw)
+		if errors.Is(err, strconv.ErrRange) {
+			return nil, fmt.Errorf("%s is out of range, got %q", key, raw)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%s must be a whole number, got %q", key, raw)
 		}

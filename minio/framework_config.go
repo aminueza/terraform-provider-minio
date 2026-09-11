@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -47,6 +48,13 @@ func frameworkInt(v types.Int64, envKeys []string, fallback int, diags *diag.Dia
 			continue
 		}
 		parsed, err := strconv.Atoi(env)
+		if errors.Is(err, strconv.ErrRange) {
+			diags.AddError(
+				"Invalid "+key,
+				fmt.Sprintf("%s is out of range, got %q.", key, env),
+			)
+			return fallback
+		}
 		if err != nil {
 			diags.AddError(
 				"Invalid "+key,

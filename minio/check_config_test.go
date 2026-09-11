@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
@@ -101,6 +103,18 @@ func TestEnvDefaultIntRejectsAValueThatIsNotAWholeNumber(t *testing.T) {
 	}
 }
 
+func TestEnvDefaultIntSaysWhenAWholeNumberIsOutOfRange(t *testing.T) {
+	t.Setenv("MINIO_PROBE_INT", "99999999999999999999")
+
+	_, err := envDefaultInt("MINIO_PROBE_INT", 7)()
+	if err == nil {
+		t.Fatal("a value beyond the integer range must be reported")
+	}
+	if !strings.Contains(err.Error(), "out of range") {
+		t.Errorf("the error is %q: the value is a whole number, so the message must say the range is the problem", err)
+	}
+}
+
 func TestEnvDefaultIntReadsAWholeNumber(t *testing.T) {
 	t.Setenv("MINIO_PROBE_INT", "-3")
 
@@ -121,7 +135,21 @@ func TestNonPositiveRetryTuningFallsBackForBothHalves(t *testing.T) {
 		"max_retries":             0,
 		"retry_delay_ms":          0,
 	}))
-	frameworkConfigured := &S3MinioConfig{RequestTimeoutSeconds: 0, MaxRetries: 0, RetryDelayMs: 0}
+
+	model := nullFrameworkModel()
+	model.RequestTimeoutSeconds = types.Int64Value(0)
+	model.MaxRetries = types.Int64Value(0)
+	model.RetryDelayMs = types.Int64Value(0)
+
+	var diags diag.Diagnostics
+	frameworkConfigured := frameworkConfig(context.Background(), model, &diags)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	if sdkConfig.RequestTimeoutSeconds == frameworkConfigured.RequestTimeoutSeconds {
+		t.Fatalf("both halves resolved request_timeout_seconds to %d: this test exists because they disagree, GetOk replacing 0 on the SDKv2 side only", sdkConfig.RequestTimeoutSeconds)
+	}
 
 	for _, tc := range []struct {
 		half   string

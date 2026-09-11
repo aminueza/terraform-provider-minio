@@ -87,17 +87,18 @@ jobs:
             exit 1
           fi
 
-      - name: Check CHANGELOG has a section for this version
+      - name: Promote the Unreleased CHANGELOG section
+        id: changelog
+        run: python3 .github/scripts/promote_changelog.py "${VERSION#v}"
+
+      - name: Commit the CHANGELOG
+        if: steps.changelog.outputs.changed == 'true'
         run: |
-          PLAIN_VERSION="${VERSION#v}"
-          if ! grep -q "^## \[${PLAIN_VERSION}\]" CHANGELOG.md; then
-            echo "Error: CHANGELOG.md has no '## [${PLAIN_VERSION}]' section."
-            echo "Move the relevant entries from '## [Unreleased]' into a dated"
-            echo "'## [${PLAIN_VERSION}] - $(date +%Y-%m-%d)' section (and update the"
-            echo "link references at the bottom), then re-run this workflow."
-            exit 1
-          fi
-          echo "CHANGELOG.md contains a section for ${PLAIN_VERSION}."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "chore: release ${{ env.VERSION }}"
+          git push origin "HEAD:${{ github.ref_name }}"
 
       - name: Create and push tag
         run: |

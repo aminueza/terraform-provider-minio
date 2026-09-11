@@ -314,9 +314,11 @@ dependency bumps with no behavior change, test-only changes, refactors, and
 documentation fixes. When in doubt, add the entry — a reviewer can always drop
 it.
 
-The release workflow refuses to tag a version that has no matching
-`## [x.y.z]` section in `CHANGELOG.md`, so entries must be moved from
-`[Unreleased]` into a dated section as part of preparing a release.
+The release workflow moves `[Unreleased]` into a dated `## [x.y.z]` section
+itself, updates the link references and commits that before it tags, so
+preparing a release takes no changelog edit. It stops when `[Unreleased]` is
+empty, because a release with no notes is almost always a mistake. A section
+written by hand ahead of time is left alone.
 
 ### Commit Message Format
 

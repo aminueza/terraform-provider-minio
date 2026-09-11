@@ -2,7 +2,10 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -167,23 +170,20 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"request_timeout_seconds": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     30,
-				Description: "Global HTTP request timeout in seconds for all MinIO API calls (default: 30)",
-				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_REQUEST_TIMEOUT_SECONDS", 30),
+				Description: "Global HTTP request timeout in seconds for all MinIO API calls. A value of 0 or less falls back to the default of 30.",
+				DefaultFunc: envDefaultInt(prefix+"MINIO_REQUEST_TIMEOUT_SECONDS", defaultRequestTimeoutSeconds),
 			},
 			"max_retries": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     6,
-				Description: "Maximum number of retries for failed operations (default: 6)",
-				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_MAX_RETRIES", 6),
+				Description: "Maximum number of attempts for operations that retry. A value of 0 or less falls back to the default of 6.",
+				DefaultFunc: envDefaultInt(prefix+"MINIO_MAX_RETRIES", defaultMaxRetries),
 			},
 			"retry_delay_ms": {
 				Type:        schema.TypeInt,
 				Optional:    true,
-				Default:     1000,
-				Description: "Base delay in milliseconds between retries, used with exponential backoff (default: 1000)",
-				DefaultFunc: schema.EnvDefaultFunc(prefix+"MINIO_RETRY_DELAY_MS", 1000),
+				Description: "Upper bound on the wait between retries, as one twentieth of that bound in milliseconds. The wait itself is random and doubles with each attempt. The default of 1000 caps the wait at 20 seconds. A value of 0 or less falls back to the default.",
+				DefaultFunc: envDefaultInt(prefix+"MINIO_RETRY_DELAY_MS", defaultRetryDelayMs),
 			},
 			"assume_role": {
 				Type:        schema.TypeList,
@@ -395,6 +395,23 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 	}
 
 	return p
+}
+
+func envDefaultInt(key string, fallback int) schema.SchemaDefaultFunc {
+	return func() (interface{}, error) {
+		raw := os.Getenv(key)
+		if raw == "" {
+			return fallback, nil
+		}
+		value, err := strconv.Atoi(raw)
+		if errors.Is(err, strconv.ErrRange) {
+			return nil, fmt.Errorf("%s is out of range, got %q", key, raw)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("%s must be a whole number, got %q", key, raw)
+		}
+		return value, nil
+	}
 }
 
 func validateAPIVersion(v interface{}, k string) (ws []string, errors []error) {

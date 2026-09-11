@@ -2,6 +2,8 @@ package minio
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -9,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func nullFrameworkModel() frameworkProviderModel {
@@ -250,10 +253,10 @@ func TestFrameworkConfigAssumeRoleDefaults(t *testing.T) {
 	}
 }
 
-func TestFrameworkConfigIgnoresTheEnvVarsTheSDKIgnores(t *testing.T) {
-	t.Setenv("MINIO_REQUEST_TIMEOUT_SECONDS", "45")
-	t.Setenv("MINIO_MAX_RETRIES", "9")
-	t.Setenv("MINIO_RETRY_DELAY_MS", "250")
+func TestFrameworkConfigResolvesRetryTuningLikeTheSDK(t *testing.T) {
+	for _, tc := range retryTuningAttributes {
+		t.Setenv(tc.envKey, strconv.Itoa(tc.envValue))
+	}
 
 	var diags diag.Diagnostics
 	config := frameworkConfig(context.Background(), nullFrameworkModel(), &diags)
@@ -261,23 +264,58 @@ func TestFrameworkConfigIgnoresTheEnvVarsTheSDKIgnores(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", diags)
 	}
 
-	sdkProvider := Provider()
-	for _, tc := range []struct {
-		attribute string
-		got       int
-	}{
-		{"request_timeout_seconds", config.RequestTimeoutSeconds},
-		{"max_retries", config.MaxRetries},
-		{"retry_delay_ms", config.RetryDelayMs},
-	} {
-		want, err := sdkProvider.Schema[tc.attribute].DefaultValue()
-		if err != nil {
-			t.Fatalf("reading the SDKv2 default for %s: %s", tc.attribute, err)
+	sdkConfig := NewConfig(schema.TestResourceDataRaw(t, Provider().Schema, map[string]interface{}{}))
+
+	for _, tc := range retryTuningAttributes {
+		got := retryTuning(config)[tc.attribute]
+		if got != tc.envValue {
+			t.Errorf("%s = %d, want %d from %s", tc.attribute, got, tc.envValue, tc.envKey)
 		}
-		if tc.got != want.(int) {
-			t.Errorf("%s = %d, want %v: the framework half must resolve this attribute exactly as the SDKv2 half does", tc.attribute, tc.got, want)
+		if want := retryTuning(sdkConfig)[tc.attribute]; got != want {
+			t.Errorf("%s = %d in the framework half and %d in the SDKv2 half: both must resolve this attribute the same way", tc.attribute, got, want)
 		}
 	}
+}
+
+func TestFrameworkConfigPrefersTheConfigurationOverTheRetryEnvironment(t *testing.T) {
+	for _, tc := range retryTuningAttributes {
+		t.Setenv(tc.envKey, strconv.Itoa(tc.envValue))
+	}
+
+	model := nullFrameworkModel()
+	model.RequestTimeoutSeconds = types.Int64Value(12)
+	model.MaxRetries = types.Int64Value(2)
+	model.RetryDelayMs = types.Int64Value(75)
+
+	var diags diag.Diagnostics
+	config := frameworkConfig(context.Background(), model, &diags)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	for _, tc := range retryTuningAttributes {
+		if got := retryTuning(config)[tc.attribute]; got != tc.configValue {
+			t.Errorf("%s = %d, want the configured value %d", tc.attribute, got, tc.configValue)
+		}
+	}
+}
+
+func TestFrameworkConfigRejectsARetryValueThatIsNotAWholeNumber(t *testing.T) {
+	clearRetryTuningEnvironment(t)
+	t.Setenv("MINIO_MAX_RETRIES", "abc")
+
+	var diags diag.Diagnostics
+	frameworkConfig(context.Background(), nullFrameworkModel(), &diags)
+
+	if !diags.HasError() {
+		t.Fatal("an unparsable MINIO_MAX_RETRIES must be reported, not silently replaced by the default")
+	}
+	for _, d := range diags.Errors() {
+		if strings.Contains(d.Summary(), "MINIO_MAX_RETRIES") && strings.Contains(d.Detail(), `"abc"`) {
+			return
+		}
+	}
+	t.Errorf("no diagnostic names the variable and the value: %v", diags)
 }
 
 func TestFrameworkProviderConfigurePassesConfigToEphemeralResources(t *testing.T) {

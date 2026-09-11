@@ -63,10 +63,11 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 
 	tflog.Debug(ctx, fmt.Sprintf("Checking MinIO health at %s", baseURL))
 
-	timeout := 10 * time.Second
-	if m.RequestTimeoutSeconds > 0 {
-		timeout = time.Duration(m.RequestTimeoutSeconds) * time.Second
+	seconds := m.RequestTimeoutSeconds
+	if seconds <= 0 {
+		seconds = defaultRequestTimeoutSeconds
 	}
+	timeout := time.Duration(seconds) * time.Second
 	client := &http.Client{
 		Timeout: timeout,
 	}

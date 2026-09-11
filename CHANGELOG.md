@@ -37,34 +37,21 @@ History older than 3.39.0 lives in the
 
 - `MINIO_REQUEST_TIMEOUT_SECONDS`, `MINIO_MAX_RETRIES` and `MINIO_RETRY_DELAY_MS`
   now set `request_timeout_seconds`, `max_retries` and `retry_delay_ms`. The
-  three attributes declared a static default next to the environment lookup,
-  and the static default won, so the variables had never taken effect even
-  though the provider documentation offered them. A deployment that already
-  sets one of these variables will see the value applied after this upgrade,
-  where before it silently used 30, 6 and 1000. An explicit value in the
-  provider block still wins over the environment
+  three attributes declared a static default beside the environment lookup, and
+  the static default won, so the variables never took effect. A deployment that
+  already sets one of them gets the value it asked for after this upgrade, where
+  before it got 30, 6 and 1000
   ([#1149](https://github.com/aminueza/terraform-provider-minio/issues/1149)).
-
-  Two consequences of the variables becoming live:
-
-  A value that is not a whole number now stops every command that loads the
+- A value that is not a whole number now stops every command that loads the
   provider, `destroy` included, instead of being ignored. The error names the
-  variable and the value, for example
-  `MINIO_MAX_RETRIES must be a whole number, got "abc"`. Correct or unset the
-  variable to recover.
-
-  A value of 0 or less falls back to the default. This was already true for
-  `max_retries` and `retry_delay_ms`; `request_timeout_seconds` now behaves the
-  same way, where before a non-positive value reached the HTTP transport and
-  every call failed with a misleading `i/o timeout`. `minio_health_status` used
-  its own fallback of 10 seconds in that case, and now uses 30 as well, so one
-  value applies wherever the attribute is read.
-
-- The description of `retry_delay_ms` said "base delay in milliseconds between
-  retries". The value is not the delay: it caps the wait at 20 times its value
-  in milliseconds, and the wait itself is random and doubles with each attempt.
-  The default of 1000 caps the wait at 20 seconds. The description and the
-  provider documentation now state this. The retry behaviour is unchanged.
+  variable: `MINIO_MAX_RETRIES must be a whole number, got "abc"`.
+- `request_timeout_seconds` of 0 or less falls back to 30. It used to reach the
+  HTTP transport, where every call then failed with a misleading `i/o timeout`.
+  `minio_health_status` fell back to 10 seconds in that case and now uses 30 too.
+- `retry_delay_ms` is not the base delay between retries, as its description
+  said. It caps the wait at 20 times its value in milliseconds, and the wait
+  itself is random and doubles with each attempt. The description and the
+  documentation now say so. The retry behaviour is unchanged.
 
 ## [3.41.1] - 2026-09-03
 

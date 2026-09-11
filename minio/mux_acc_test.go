@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -36,7 +37,10 @@ func testAccRequireTerraform(t *testing.T, minMajor, minMinor int) {
 		binary = found
 	}
 
-	out, err := exec.Command(binary, "version", "-json").Output()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	out, err := exec.CommandContext(ctx, binary, "version", "-json").Output()
 	if err != nil {
 		t.Skipf("reading the version of %s: %s", binary, err)
 	}

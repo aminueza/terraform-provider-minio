@@ -113,11 +113,11 @@ The following arguments are supported in the `provider` block:
 
 * `s3_compat_mode` - (Optional) Enable S3 compatibility mode for non-MinIO backends. Gracefully handles unsupported features instead of erroring (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
 
-* `request_timeout_seconds` - (Optional) Global HTTP request timeout in seconds for all MinIO API calls (default: `30`). Can be sourced from `MINIO_REQUEST_TIMEOUT_SECONDS`.
+* `request_timeout_seconds` - (Optional) Global HTTP request timeout in seconds for all MinIO API calls. A value of 0 or less falls back to the default of `30`. Can be sourced from `MINIO_REQUEST_TIMEOUT_SECONDS`.
 
-* `max_retries` - (Optional) Maximum number of retries for failed operations (default: `6`). Can be sourced from `MINIO_MAX_RETRIES`.
+* `max_retries` - (Optional) Maximum number of attempts for operations that retry. A value of 0 or less falls back to the default of `6`. Can be sourced from `MINIO_MAX_RETRIES`.
 
-* `retry_delay_ms` - (Optional) Base delay in milliseconds between retries, used with exponential backoff (default: `1000`). Can be sourced from `MINIO_RETRY_DELAY_MS`.
+* `retry_delay_ms` - (Optional) Upper bound on the wait between retries, as one twentieth of that bound in milliseconds. The wait itself is random and doubles with each attempt. The default of `1000` caps the wait at 20 seconds. A value of 0 or less falls back to the default. Can be sourced from `MINIO_RETRY_DELAY_MS`.
 
 * `assume_role` - (Optional) Configuration block for STS AssumeRole. See [Assume Role](#assume-role) below.
 

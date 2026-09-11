@@ -36,18 +36,20 @@ func TestCustomTransport_CustomTimeout(t *testing.T) {
 	}
 }
 
-func TestCustomTransport_ZeroTimeout(t *testing.T) {
-	config := &S3MinioConfig{
-		RequestTimeoutSeconds: 0,
-	}
+func TestCustomTransport_NonPositiveTimeoutFallsBackToTheDefault(t *testing.T) {
+	for _, seconds := range []int{0, -1} {
+		config := &S3MinioConfig{
+			RequestTimeoutSeconds: seconds,
+		}
 
-	tr, err := config.customTransport(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+		tr, err := config.customTransport(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
 
-	if tr.ResponseHeaderTimeout != 0 {
-		t.Errorf("expected ResponseHeaderTimeout 0, got %v", tr.ResponseHeaderTimeout)
+		if tr.ResponseHeaderTimeout != defaultRequestTimeoutSeconds*time.Second {
+			t.Errorf("RequestTimeoutSeconds %d gives ResponseHeaderTimeout %v, want the default %ds", seconds, tr.ResponseHeaderTimeout, defaultRequestTimeoutSeconds)
+		}
 	}
 }
 

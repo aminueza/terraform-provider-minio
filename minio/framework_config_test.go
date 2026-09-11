@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -297,6 +298,24 @@ func TestFrameworkConfigPrefersTheConfigurationOverTheRetryEnvironment(t *testin
 			t.Errorf("%s = %d, want the configured value %d", tc.attribute, got, tc.configValue)
 		}
 	}
+}
+
+func TestFrameworkConfigRejectsARetryValueThatIsNotAWholeNumber(t *testing.T) {
+	clearRetryTuningEnvironment(t)
+	t.Setenv("MINIO_MAX_RETRIES", "abc")
+
+	var diags diag.Diagnostics
+	frameworkConfig(context.Background(), nullFrameworkModel(), &diags)
+
+	if !diags.HasError() {
+		t.Fatal("an unparsable MINIO_MAX_RETRIES must be reported, not silently replaced by the default")
+	}
+	for _, d := range diags.Errors() {
+		if strings.Contains(d.Summary(), "MINIO_MAX_RETRIES") && strings.Contains(d.Detail(), `"abc"`) {
+			return
+		}
+	}
+	t.Errorf("no diagnostic names the variable and the value: %v", diags)
 }
 
 func TestFrameworkProviderConfigurePassesConfigToEphemeralResources(t *testing.T) {

@@ -45,6 +45,25 @@ History older than 3.39.0 lives in the
   provider block still wins over the environment
   ([#1149](https://github.com/aminueza/terraform-provider-minio/issues/1149)).
 
+  Two consequences of the variables becoming live:
+
+  A value that is not a whole number now stops every command that loads the
+  provider, `destroy` included, instead of being ignored. The error names the
+  variable and the value, for example
+  `MINIO_MAX_RETRIES must be a whole number, got "abc"`. Correct or unset the
+  variable to recover.
+
+  A value of 0 or less falls back to the default. This was already true for
+  `max_retries` and `retry_delay_ms`; `request_timeout_seconds` now behaves the
+  same way, where before a non-positive value reached the HTTP transport and
+  every call failed with a misleading `i/o timeout`.
+
+- The description of `retry_delay_ms` said "base delay in milliseconds between
+  retries". The value is not the delay: it caps the wait at 20 times its value
+  in milliseconds, and the wait itself is random and doubles with each attempt.
+  The default of 1000 caps the wait at 20 seconds. The description and the
+  provider documentation now state this. The retry behaviour is unchanged.
+
 ## [3.41.1] - 2026-09-03
 
 ### Changed

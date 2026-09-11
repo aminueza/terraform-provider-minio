@@ -27,6 +27,12 @@ const (
 // instead of leaving callers with two strings that never match.
 const aistorEdition = "AIStor"
 
+const (
+	defaultRequestTimeoutSeconds = 30
+	defaultMaxRetries            = 6
+	defaultRetryDelayMs          = 1000
+)
+
 func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error) {
 	tr, err := config.customTransport(ctx)
 	if err != nil {
@@ -182,7 +188,11 @@ func isValidCertificate(certBytes []byte) bool {
 }
 
 func (config *S3MinioConfig) customTransport(ctx context.Context) (*http.Transport, error) {
-	timeout := time.Duration(config.RequestTimeoutSeconds) * time.Second
+	seconds := config.RequestTimeoutSeconds
+	if seconds <= 0 {
+		seconds = defaultRequestTimeoutSeconds
+	}
+	timeout := time.Duration(seconds) * time.Second
 
 	if !config.S3SSL {
 		tr, err := minio.DefaultTransport(config.S3SSL)

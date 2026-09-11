@@ -102,15 +102,15 @@ func (p *frameworkProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			},
 			"request_timeout_seconds": schema.Int64Attribute{
 				Optional:    true,
-				Description: "Global HTTP request timeout in seconds for all MinIO API calls (default: 30)",
+				Description: "Global HTTP request timeout in seconds for all MinIO API calls. A value of 0 or less falls back to the default of 30.",
 			},
 			"max_retries": schema.Int64Attribute{
 				Optional:    true,
-				Description: "Maximum number of retries for failed operations (default: 6)",
+				Description: "Maximum number of attempts for operations that retry. A value of 0 or less falls back to the default of 6.",
 			},
 			"retry_delay_ms": schema.Int64Attribute{
 				Optional:    true,
-				Description: "Base delay in milliseconds between retries, used with exponential backoff (default: 1000)",
+				Description: "Upper bound on the wait between retries, as one twentieth of that bound in milliseconds. The wait itself is random and doubles with each attempt. The default of 1000 caps the wait at 20 seconds. A value of 0 or less falls back to the default.",
 			},
 		},
 		Blocks: map[string]schema.Block{

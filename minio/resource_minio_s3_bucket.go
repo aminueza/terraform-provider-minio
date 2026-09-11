@@ -33,8 +33,8 @@ type RetryConfig struct {
 }
 
 func getRetryConfig(client *S3MinioClient) RetryConfig {
-	maxRetries := 6
-	backoffBaseMs := 1000
+	maxRetries := defaultMaxRetries
+	backoffBaseMs := defaultRetryDelayMs
 	if client != nil {
 		if client.MaxRetries > 0 {
 			maxRetries = client.MaxRetries

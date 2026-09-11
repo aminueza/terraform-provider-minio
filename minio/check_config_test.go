@@ -1,8 +1,11 @@
 package minio
 
 import (
+	"context"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -72,6 +75,75 @@ func TestNewConfigPrefersTheConfigurationOverTheRetryEnvironment(t *testing.T) {
 	for _, tc := range retryTuningAttributes {
 		if got := retryTuning(config)[tc.attribute]; got != tc.configValue {
 			t.Errorf("%s = %d, want the configured value %d", tc.attribute, got, tc.configValue)
+		}
+	}
+}
+
+func TestEnvDefaultIntRejectsAValueThatIsNotAWholeNumber(t *testing.T) {
+	for _, raw := range []string{"abc", " 9", "1.5", ""} {
+		t.Setenv("MINIO_PROBE_INT", raw)
+
+		value, err := envDefaultInt("MINIO_PROBE_INT", 7)()
+
+		if raw == "" {
+			if err != nil || value != 7 {
+				t.Errorf("an unset variable gave (%v, %v), want the fallback 7 and no error", value, err)
+			}
+			continue
+		}
+		if err == nil {
+			t.Errorf("%q gave %v, want an error", raw, value)
+			continue
+		}
+		if !strings.Contains(err.Error(), "MINIO_PROBE_INT") || !strings.Contains(err.Error(), raw) {
+			t.Errorf("the error for %q is %q: it must name the variable and the value so the operator can find the typo", raw, err)
+		}
+	}
+}
+
+func TestEnvDefaultIntReadsAWholeNumber(t *testing.T) {
+	t.Setenv("MINIO_PROBE_INT", "-3")
+
+	value, err := envDefaultInt("MINIO_PROBE_INT", 7)()
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if value != -3 {
+		t.Errorf("value = %v, want -3: the fallback for a non-positive value belongs to the consumer, not to the parser", value)
+	}
+}
+
+func TestNonPositiveRetryTuningFallsBackForBothHalves(t *testing.T) {
+	clearRetryTuningEnvironment(t)
+
+	sdkConfig := NewConfig(schema.TestResourceDataRaw(t, Provider().Schema, map[string]interface{}{
+		"request_timeout_seconds": 0,
+		"max_retries":             0,
+		"retry_delay_ms":          0,
+	}))
+	frameworkConfigured := &S3MinioConfig{RequestTimeoutSeconds: 0, MaxRetries: 0, RetryDelayMs: 0}
+
+	for _, tc := range []struct {
+		half   string
+		config *S3MinioConfig
+	}{
+		{"SDKv2", sdkConfig},
+		{"framework", frameworkConfigured},
+	} {
+		transport, err := tc.config.customTransport(context.Background())
+		if err != nil {
+			t.Fatalf("building the %s transport: %s", tc.half, err)
+		}
+		if transport.ResponseHeaderTimeout != defaultRequestTimeoutSeconds*time.Second {
+			t.Errorf("%s half times out after %v, want the default %ds", tc.half, transport.ResponseHeaderTimeout, defaultRequestTimeoutSeconds)
+		}
+
+		retry := getRetryConfig(&S3MinioClient{MaxRetries: tc.config.MaxRetries, RetryDelayMs: tc.config.RetryDelayMs})
+		if retry.MaxRetries != defaultMaxRetries {
+			t.Errorf("%s half retries %d times, want the default %d", tc.half, retry.MaxRetries, defaultMaxRetries)
+		}
+		if retry.MaxBackoff != time.Duration(defaultRetryDelayMs*20)*time.Millisecond {
+			t.Errorf("%s half caps the backoff at %v, want the default", tc.half, retry.MaxBackoff)
 		}
 	}
 }

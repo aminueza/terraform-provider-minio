@@ -386,3 +386,158 @@ func webIdentityObjectType() types.ObjectType {
 		"duration_seconds":        types.Int64Type,
 	}}
 }
+
+func TestFrameworkConfigReadsTheWebIdentityBlock(t *testing.T) {
+	ctx := context.Background()
+
+	objectType := webIdentityObjectType()
+
+	block, diags := types.ObjectValue(objectType.AttrTypes, map[string]attr.Value{
+		"web_identity_token":      types.StringValue("a.jwt.token"),
+		"web_identity_token_file": types.StringValue("/run/secrets/token"),
+		"duration_seconds":        types.Int64Value(5400),
+	})
+	if diags.HasError() {
+		t.Fatalf("building the assume_role_with_web_identity object: %v", diags)
+	}
+
+	list, diags := types.ListValue(objectType, []attr.Value{block})
+	if diags.HasError() {
+		t.Fatalf("building the assume_role_with_web_identity list: %v", diags)
+	}
+
+	model := nullFrameworkModel()
+	model.AssumeRoleWebIdentity = list
+
+	var configDiags diag.Diagnostics
+	config := frameworkConfig(ctx, model, &configDiags)
+	if configDiags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", configDiags)
+	}
+
+	if config.WebIdentityToken != "a.jwt.token" {
+		t.Errorf("WebIdentityToken = %q", config.WebIdentityToken)
+	}
+	if config.WebIdentityTokenFile != "/run/secrets/token" {
+		t.Errorf("WebIdentityTokenFile = %q", config.WebIdentityTokenFile)
+	}
+	if config.WebIdentityDuration != 5400 {
+		t.Errorf("WebIdentityDuration = %d, want 5400", config.WebIdentityDuration)
+	}
+}
+
+func TestFrameworkConfigWebIdentityDefaults(t *testing.T) {
+	ctx := context.Background()
+
+	t.Setenv("MINIO_WEB_IDENTITY_TOKEN", "")
+	t.Setenv("MINIO_WEB_IDENTITY_TOKEN_FILE", "")
+
+	objectType := webIdentityObjectType()
+
+	block, diags := types.ObjectValue(objectType.AttrTypes, map[string]attr.Value{
+		"web_identity_token":      types.StringNull(),
+		"web_identity_token_file": types.StringNull(),
+		"duration_seconds":        types.Int64Null(),
+	})
+	if diags.HasError() {
+		t.Fatalf("building the assume_role_with_web_identity object: %v", diags)
+	}
+
+	list, diags := types.ListValue(objectType, []attr.Value{block})
+	if diags.HasError() {
+		t.Fatalf("building the assume_role_with_web_identity list: %v", diags)
+	}
+
+	model := nullFrameworkModel()
+	model.AssumeRoleWebIdentity = list
+
+	var configDiags diag.Diagnostics
+	config := frameworkConfig(ctx, model, &configDiags)
+	if configDiags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", configDiags)
+	}
+
+	if config.WebIdentityDuration != 3600 {
+		t.Errorf("WebIdentityDuration = %d, want the default 3600", config.WebIdentityDuration)
+	}
+}
+
+func TestFrameworkConfigPrefersTheConfiguredBooleanOverTheEnvironment(t *testing.T) {
+	t.Setenv("MINIO_ENABLE_HTTPS", "true")
+	t.Setenv("MINIO_INSECURE", "true")
+
+	model := nullFrameworkModel()
+	model.MinioSSL = types.BoolValue(false)
+	model.MinioInsecure = types.BoolValue(false)
+
+	var diags diag.Diagnostics
+	config := frameworkConfig(context.Background(), model, &diags)
+	if diags.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+
+	if config.S3SSL {
+		t.Error("S3SSL = true, want the configured false to win over MINIO_ENABLE_HTTPS")
+	}
+	if config.S3SSLSkipVerify {
+		t.Error("S3SSLSkipVerify = true, want the configured false to win over MINIO_INSECURE")
+	}
+}
+
+func TestFrameworkConfigSaysWhenARetryValueIsOutOfRange(t *testing.T) {
+	clearRetryTuningEnvironment(t)
+	t.Setenv("MINIO_RETRY_DELAY_MS", "99999999999999999999")
+
+	var diags diag.Diagnostics
+	frameworkConfig(context.Background(), nullFrameworkModel(), &diags)
+
+	if !diags.HasError() {
+		t.Fatal("a value beyond the integer range must be reported")
+	}
+	for _, d := range diags.Errors() {
+		if strings.Contains(d.Detail(), "out of range") {
+			return
+		}
+	}
+	t.Errorf("no diagnostic says the value is out of range: %v", diags)
+}
+
+func TestFrameworkProviderConfigureStopsOnAnInvalidEnvironment(t *testing.T) {
+	t.Setenv("MINIO_ENDPOINT", "")
+	clearRetryTuningEnvironment(t)
+	t.Setenv("MINIO_MAX_RETRIES", "abc")
+
+	p := NewFrameworkProvider()
+
+	var schemaResp provider.SchemaResponse
+	p.Schema(context.Background(), provider.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("building the provider schema: %v", schemaResp.Diagnostics)
+	}
+
+	model := nullFrameworkModel()
+	model.MinioServer = types.StringValue("localhost:9000")
+	model.AssumeRole = types.ListNull(assumeRoleObjectType())
+	model.AssumeRoleWebIdentity = types.ListNull(webIdentityObjectType())
+
+	object, diags := types.ObjectValueFrom(context.Background(), schemaResp.Schema.Type().(types.ObjectType).AttrTypes, model)
+	if diags.HasError() {
+		t.Fatalf("converting the model: %v", diags)
+	}
+	raw, err := object.ToTerraformValue(context.Background())
+	if err != nil {
+		t.Fatalf("converting the model to a Terraform value: %s", err)
+	}
+
+	var resp provider.ConfigureResponse
+	p.Configure(context.Background(), provider.ConfigureRequest{
+		Config: tfsdk.Config{Schema: schemaResp.Schema, Raw: raw},
+	}, &resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("an unusable environment variable must stop the provider from configuring")
+	}
+	if resp.EphemeralResourceData != nil || resp.ResourceData != nil || resp.DataSourceData != nil {
+		t.Error("the provider handed out a configuration it could not build correctly")
+	}
+}

@@ -168,7 +168,18 @@ TEST_PATTERN=TestAccMinioIAMUser docker compose run --rm test
 
 # Run with verbose output
 TF_ACC=1 go test -v ./minio -run TestAccMinioS3Bucket_basic
+
+# Take the MinIO images from another registry, for every MinIO service at once
+MINIO_IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z docker compose run --rm test
 ```
+
+The default is `quay.io/minio/minio`. On 2026-09-11 Docker Hub stopped serving
+`minio/minio` to anonymous clients and every CI run went red at the pull step,
+with `pull access denied for minio/minio`, before a single test ran. A probe
+from a runner found the pinned tag and `latest` on `quay.io` and on no other
+public registry: `ghcr.io/minio/minio` and `public.ecr.aws/minio/minio` do not
+carry it. `MINIO_IMAGE` overrides the image for all six MinIO services, so a
+future move needs one variable rather than an edit to `docker-compose.yml`.
 
 ## Documentation
 

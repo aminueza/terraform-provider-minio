@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.42.0] - 2026-09-11
+
 ### Added
 
 - `minio_sts_credentials` ephemeral resource: mints temporary credentials
@@ -169,7 +171,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.42.0...HEAD
+[3.42.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...v3.42.0
 [3.41.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...v3.41.1
 [3.41.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.1...v3.41.0
 [3.40.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.0...v3.40.1

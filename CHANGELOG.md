@@ -35,6 +35,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_sts_credentials` now uses the provider TLS settings. The request went
+  out on the default HTTP client, so `minio_insecure`, `minio_cacert_file`,
+  `minio_cert_file`, `minio_key_file` and `request_timeout_seconds` were all
+  ignored. Against a server with a private certificate authority the resource
+  failed with `x509: certificate signed by unknown authority` while every other
+  resource worked. The request now also stops when Terraform is interrupted
+  ([#1151](https://github.com/aminueza/terraform-provider-minio/issues/1151)).
 - `MINIO_REQUEST_TIMEOUT_SECONDS`, `MINIO_MAX_RETRIES` and `MINIO_RETRY_DELAY_MS`
   now set `request_timeout_seconds`, `max_retries` and `retry_delay_ms`. The
   three attributes declared a static default beside the environment lookup, and

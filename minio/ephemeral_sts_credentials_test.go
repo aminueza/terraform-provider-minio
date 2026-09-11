@@ -429,3 +429,143 @@ func TestRequestSTSCredentialsReportsAnUnusableTransport(t *testing.T) {
 		t.Errorf("error = %q, want it to say the transport could not be built", err)
 	}
 }
+
+func TestSTSCredentialsConfigureIgnoresAbsentProviderData(t *testing.T) {
+	res := NewSTSCredentialsEphemeralResource().(*stsCredentialsEphemeralResource)
+
+	var resp ephemeral.ConfigureResponse
+	res.Configure(context.Background(), ephemeral.ConfigureRequest{ProviderData: nil}, &resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Terraform calls Configure with no provider data before the provider is configured, which must not be an error: %v", resp.Diagnostics)
+	}
+	if res.config != nil {
+		t.Error("the resource invented a configuration out of nothing")
+	}
+}
+
+func TestSTSCredentialsOpenWithoutConfigureReportsTheProviderBug(t *testing.T) {
+	res := NewSTSCredentialsEphemeralResource().(*stsCredentialsEphemeralResource)
+
+	var schemaResp ephemeral.SchemaResponse
+	res.Schema(context.Background(), ephemeral.SchemaRequest{}, &schemaResp)
+	raw := mustObjectValue(t, schemaResp.Schema, nullSTSModel())
+
+	openResp := ephemeral.OpenResponse{
+		Result: tfsdk.EphemeralResultData{Schema: schemaResp.Schema, Raw: raw},
+	}
+	res.Open(context.Background(), ephemeral.OpenRequest{
+		Config: tfsdk.Config{Schema: schemaResp.Schema, Raw: raw},
+	}, &openResp)
+
+	if !openResp.Diagnostics.HasError() {
+		t.Fatal("opening before Configure must be reported, not silently return empty credentials")
+	}
+	if summary := openResp.Diagnostics.Errors()[0].Summary(); summary != "Provider not configured" {
+		t.Errorf("summary = %q, want %q", summary, "Provider not configured")
+	}
+}
+
+func TestSTSCredentialsOpenSendsTheConfiguredSessionAndDuration(t *testing.T) {
+	var sent url.Values
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		sent = r.PostForm
+		w.Header().Set("Content-Type", "application/xml")
+		fmt.Fprintf(w, stsResponseTemplate, "A", "B", "C", time.Now().Add(2*time.Hour).UTC().Format(time.RFC3339))
+	}))
+	defer srv.Close()
+
+	model := nullSTSModel()
+	model.SessionName = types.StringValue("pipeline")
+	model.DurationSeconds = types.Int64Value(7200)
+
+	resp := openSTSEphemeral(t, &S3MinioConfig{
+		S3HostPort:   strings.TrimPrefix(srv.URL, "http://"),
+		S3UserAccess: "accesskey",
+		S3UserSecret: "secretkey",
+		S3Region:     "us-east-1",
+	}, model)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("opening the ephemeral resource: %v", resp.Diagnostics)
+	}
+	if got := sent.Get("RoleSessionName"); got != "pipeline" {
+		t.Errorf("RoleSessionName = %q, want the configured session name", got)
+	}
+	if got := sent.Get("DurationSeconds"); got != "7200" {
+		t.Errorf("DurationSeconds = %q, want the configured duration", got)
+	}
+}
+
+func TestSTSCredentialsOpenLeavesExpirationNullWhenTheServerOmitsIt(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>
+<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleResult>
+    <Credentials>
+      <AccessKeyId>NOEXPIRY</AccessKeyId>
+      <SecretAccessKey>SECRET</SecretAccessKey>
+      <SessionToken>TOKEN</SessionToken>
+    </Credentials>
+  </AssumeRoleResult>
+</AssumeRoleResponse>`)
+	}))
+	defer srv.Close()
+
+	resp := openSTSEphemeral(t, &S3MinioConfig{
+		S3HostPort:   strings.TrimPrefix(srv.URL, "http://"),
+		S3UserAccess: "accesskey",
+		S3UserSecret: "secretkey",
+		S3Region:     "us-east-1",
+	}, nullSTSModel())
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("opening the ephemeral resource: %v", resp.Diagnostics)
+	}
+
+	var result stsCredentialsModel
+	if diags := resp.Result.Get(context.Background(), &result); diags.HasError() {
+		t.Fatalf("reading the result: %v", diags)
+	}
+	if !result.Expiration.IsNull() {
+		t.Errorf("expiration = %q, want null when the server reports no expiry", result.Expiration.ValueString())
+	}
+}
+
+func TestSTSCredentialsOpenReportsAServerRejection(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `<ErrorResponse><Error><Code>AccessDenied</Code><Message>not allowed</Message></Error></ErrorResponse>`)
+	}))
+	defer srv.Close()
+
+	resp := openSTSEphemeral(t, &S3MinioConfig{
+		S3HostPort:   strings.TrimPrefix(srv.URL, "http://"),
+		S3UserAccess: "accesskey",
+		S3UserSecret: "secretkey",
+		S3Region:     "us-east-1",
+	}, nullSTSModel())
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("a rejected AssumeRole must be reported")
+	}
+	if summary := resp.Diagnostics.Errors()[0].Summary(); summary != "Failed to request STS credentials" {
+		t.Errorf("summary = %q, want %q", summary, "Failed to request STS credentials")
+	}
+}
+
+func TestRequestSTSCredentialsRefusesAProviderWithoutCredentials(t *testing.T) {
+	_, err := requestSTSCredentials(context.Background(), &S3MinioConfig{
+		S3HostPort: "localhost:9000",
+		S3Region:   "us-east-1",
+	}, stsRequest{SessionName: "tfacc", DurationSeconds: 3600})
+
+	if err == nil {
+		t.Fatal("expected an error when the provider has no static credentials to sign with")
+	}
+	if !strings.Contains(err.Error(), "access/secretkey") {
+		t.Errorf("error = %q, want it to name the missing credentials", err)
+	}
+}

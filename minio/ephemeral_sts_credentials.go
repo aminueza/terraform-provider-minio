@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
@@ -133,7 +134,7 @@ func (r *stsCredentialsEphemeralResource) Open(ctx context.Context, req ephemera
 		"duration": duration,
 	})
 
-	value, err := requestSTSCredentials(r.config, stsRequest{
+	value, err := requestSTSCredentials(ctx, r.config, stsRequest{
 		RoleARN:         model.RoleARN.ValueString(),
 		SessionName:     sessionName,
 		DurationSeconds: duration,
@@ -158,10 +159,15 @@ func (r *stsCredentialsEphemeralResource) Open(ctx context.Context, req ephemera
 	resp.Diagnostics.Append(resp.Result.Set(ctx, &model)...)
 }
 
-func requestSTSCredentials(config *S3MinioConfig, req stsRequest) (credentials.Value, error) {
+func requestSTSCredentials(ctx context.Context, config *S3MinioConfig, req stsRequest) (credentials.Value, error) {
 	scheme := "http"
 	if config.S3SSL {
 		scheme = "https"
+	}
+
+	transport, err := config.customTransport(ctx)
+	if err != nil {
+		return credentials.Value{}, fmt.Errorf("failed to configure transport: %w", err)
 	}
 
 	stsCreds, err := credentials.NewSTSAssumeRole(fmt.Sprintf("%s://%s", scheme, config.S3HostPort), credentials.STSAssumeRoleOptions{
@@ -178,5 +184,8 @@ func requestSTSCredentials(config *S3MinioConfig, req stsRequest) (credentials.V
 		return credentials.Value{}, err
 	}
 
-	return stsCreds.GetWithContext(&credentials.CredContext{})
+	return stsCreds.GetWithContext(&credentials.CredContext{
+		Client:  &http.Client{Transport: transport},
+		Context: ctx,
+	})
 }

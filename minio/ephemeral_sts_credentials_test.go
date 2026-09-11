@@ -2,10 +2,13 @@ package minio
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -50,7 +53,7 @@ func TestRequestSTSCredentialsReturnsServerValues(t *testing.T) {
 		S3Region:     "us-east-1",
 	}
 
-	value, err := requestSTSCredentials(config, stsRequest{
+	value, err := requestSTSCredentials(context.Background(), config, stsRequest{
 		RoleARN:         "arn:aws:iam:::role/reader",
 		SessionName:     "tfacc",
 		DurationSeconds: 7200,
@@ -102,7 +105,7 @@ func TestRequestSTSCredentialsPropagatesServerError(t *testing.T) {
 		S3Region:     "us-east-1",
 	}
 
-	if _, err := requestSTSCredentials(config, stsRequest{SessionName: "tfacc", DurationSeconds: 3600}); err == nil {
+	if _, err := requestSTSCredentials(context.Background(), config, stsRequest{SessionName: "tfacc", DurationSeconds: 3600}); err == nil {
 		t.Fatal("expected an error when the server rejects the request")
 	}
 }
@@ -186,7 +189,7 @@ func TestRequestSTSCredentialsCannotShortenBelowOneHour(t *testing.T) {
 		S3Region:     "us-east-1",
 	}
 
-	if _, err := requestSTSCredentials(config, stsRequest{SessionName: "tfacc", DurationSeconds: 900}); err != nil {
+	if _, err := requestSTSCredentials(context.Background(), config, stsRequest{SessionName: "tfacc", DurationSeconds: 900}); err != nil {
 		t.Fatalf("requesting STS credentials: %s", err)
 	}
 
@@ -308,5 +311,102 @@ func TestSTSCredentialsOpenRefusesAssumedProviderCredentials(t *testing.T) {
 				t.Fatal("expected the ephemeral resource to refuse a provider that does not use static credentials")
 			}
 		})
+	}
+}
+
+func newSTSTLSServer(t *testing.T) (*httptest.Server, string) {
+	t.Helper()
+
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		fmt.Fprintf(w, stsResponseTemplate, "TEMPACCESS", "TEMPSECRET", "TEMPTOKEN", time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	}))
+	t.Cleanup(srv.Close)
+
+	path := filepath.Join(t.TempDir(), "ca.pem")
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: srv.Certificate().Raw})
+	if err := os.WriteFile(path, pemBytes, 0o600); err != nil {
+		t.Fatalf("writing the CA certificate: %s", err)
+	}
+
+	return srv, path
+}
+
+func TestRequestSTSCredentialsUsesTheProviderTLSSettings(t *testing.T) {
+	srv, caFile := newSTSTLSServer(t)
+	host := strings.TrimPrefix(srv.URL, "https://")
+
+	for _, tc := range []struct {
+		name    string
+		config  *S3MinioConfig
+		wantErr string
+	}{
+		{
+			name:   "minio_insecure skips verification",
+			config: &S3MinioConfig{S3SSL: true, S3SSLSkipVerify: true},
+		},
+		{
+			name:   "minio_cacert_file trusts the private authority",
+			config: &S3MinioConfig{S3SSL: true, S3SSLCACertFile: caFile},
+		},
+		{
+			name:    "neither option leaves the certificate untrusted",
+			config:  &S3MinioConfig{S3SSL: true},
+			wantErr: "certificate",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.config.S3HostPort = host
+			tc.config.S3UserAccess = "accesskey"
+			tc.config.S3UserSecret = "secretkey"
+			tc.config.S3Region = "us-east-1"
+
+			value, err := requestSTSCredentials(context.Background(), tc.config, stsRequest{SessionName: "tfacc", DurationSeconds: 3600})
+
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("the request succeeded against an untrusted certificate, so the TLS settings are not reaching the STS call")
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("error = %q, want it to mention %q", err, tc.wantErr)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("requesting STS credentials: %s", err)
+			}
+			if value.AccessKeyID != "TEMPACCESS" {
+				t.Errorf("AccessKeyID = %q, want %q", value.AccessKeyID, "TEMPACCESS")
+			}
+		})
+	}
+}
+
+func TestRequestSTSCredentialsHonoursContextCancellation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		time.Sleep(time.Second)
+		w.Header().Set("Content-Type", "application/xml")
+		fmt.Fprintf(w, stsResponseTemplate, "A", "B", "C", time.Now().Add(time.Hour).UTC().Format(time.RFC3339))
+	}))
+	defer srv.Close()
+
+	config := &S3MinioConfig{
+		S3HostPort:   strings.TrimPrefix(srv.URL, "http://"),
+		S3UserAccess: "accesskey",
+		S3UserSecret: "secretkey",
+		S3Region:     "us-east-1",
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	started := time.Now()
+	if _, err := requestSTSCredentials(ctx, config, stsRequest{SessionName: "tfacc", DurationSeconds: 3600}); err == nil {
+		t.Fatal("expected the expired context to stop the STS request")
+	}
+
+	if elapsed := time.Since(started); elapsed >= time.Second {
+		t.Errorf("the request took %s: the caller context must reach the STS call, not only the transport timeout", elapsed)
 	}
 }

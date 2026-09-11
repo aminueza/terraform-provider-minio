@@ -410,3 +410,22 @@ func TestRequestSTSCredentialsHonoursContextCancellation(t *testing.T) {
 		t.Errorf("the request took %s: the caller context must reach the STS call, not only the transport timeout", elapsed)
 	}
 }
+
+func TestRequestSTSCredentialsReportsAnUnusableTransport(t *testing.T) {
+	config := &S3MinioConfig{
+		S3HostPort:      "localhost:9000",
+		S3UserAccess:    "accesskey",
+		S3UserSecret:    "secretkey",
+		S3Region:        "us-east-1",
+		S3SSL:           true,
+		S3SSLCACertFile: filepath.Join(t.TempDir(), "missing.pem"),
+	}
+
+	_, err := requestSTSCredentials(context.Background(), config, stsRequest{SessionName: "tfacc", DurationSeconds: 3600})
+	if err == nil {
+		t.Fatal("expected an error when the TLS settings cannot be turned into a transport")
+	}
+	if !strings.Contains(err.Error(), "failed to configure transport") {
+		t.Errorf("error = %q, want it to say the transport could not be built", err)
+	}
+}

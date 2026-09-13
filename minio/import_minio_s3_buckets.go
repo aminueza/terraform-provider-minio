@@ -3,9 +3,12 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
 )
 
 func resourceMinioS3BucketImportState(
@@ -27,7 +30,20 @@ func resourceMinioS3BucketImportState(
 
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
-		return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
+		errResp := minio.ToErrorResponse(err)
+
+		// Some S3-compatible backends (e.g. Backblaze B2) don't implement the
+		// bucket policy API at all and respond 501/405 rather than the
+		// "NoSuchBucketPolicy" that minio-go already treats as "no policy" -
+		// same backend class removeBucketPolicy already accounts for.
+		notSupported := errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented ||
+			errResp.Code == "MethodNotAllowed" || errResp.StatusCode == http.StatusMethodNotAllowed
+		if !notSupported {
+			return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
+		}
+
+		tflog.Info(ctx, fmt.Sprintf("Backend does not support bucket policies; importing bucket %q as private: %v", d.Id(), err))
+		pol = ""
 	}
 
 	if pol == "" {

@@ -10,6 +10,17 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_bucket` import now succeeds against backends that don't implement
+  the bucket policy API (e.g. Backblaze B2, which responds
+  `501 NotImplemented`/`405 MethodNotAllowed` to `GetBucketPolicy` instead of
+  the `NoSuchBucketPolicy` minio-go already treats as "no policy"). The import
+  path is the only place this error was fatal: normal `Create`/`Read`/`Update`
+  never call `GetBucketPolicy` at all, and `removeBucketPolicy` already
+  handles this same backend class gracefully. Buckets on such backends now
+  import as `acl = "private"`, matching how they behave day-to-day.
+
 ## [3.42.0] - 2026-09-11
 
 ### Added

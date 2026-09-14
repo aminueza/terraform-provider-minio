@@ -19,18 +19,27 @@ import (
 
 const accessKeysStubSecret = "secretkey"
 
+func adminPathWithoutVersion(path string) string {
+	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
+	if len(segments) < 4 || segments[0] != "minio" || segments[1] != "admin" {
+		return path
+	}
+	return "/" + strings.Join(segments[3:], "/")
+}
+
 func accessKeysStub(t *testing.T, bodies map[string]string, requests map[string]url.Values) *S3MinioClient {
 	t.Helper()
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, ok := bodies[r.URL.Path]
+		endpoint := adminPathWithoutVersion(r.URL.Path)
+		body, ok := bodies[endpoint]
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
-			_, _ = fmt.Fprintf(w, `{"Code":"NotFound","Message":"no stub for %s"}`, r.URL.Path)
+			_, _ = fmt.Fprintf(w, `{"Code":"NotFound","Message":"no stub for %s"}`, endpoint)
 			return
 		}
 		if requests != nil {
-			requests[r.URL.Path] = r.URL.Query()
+			requests[endpoint] = r.URL.Query()
 		}
 
 		encrypted, err := madmin.EncryptData(accessKeysStubSecret, []byte(body))
@@ -57,7 +66,7 @@ func accessKeysStub(t *testing.T, bodies map[string]string, requests map[string]
 func TestDataSourceAccessKeysDefaultsToBuiltinOnly(t *testing.T) {
 	requests := map[string]url.Values{}
 	meta := accessKeysStub(t, map[string]string{
-		"/minio/admin/v4/list-access-keys-bulk": `{
+		"/list-access-keys-bulk": `{
 		  "carol": {"serviceAccounts": [{"accessKey": "CAROLKEY", "parentUser": "carol", "accountStatus": "on"}]},
 		  "alice": {"serviceAccounts": [
 		    {"accessKey": "ALICEKEY2", "parentUser": "alice", "accountStatus": "off", "name": "ci", "description": "pipeline"},
@@ -72,7 +81,7 @@ func TestDataSourceAccessKeysDefaultsToBuiltinOnly(t *testing.T) {
 		t.Fatalf("reading the data source: %v", diags)
 	}
 
-	if got := requests["/minio/admin/v4/list-access-keys-bulk"].Get("all"); got != "true" {
+	if got := requests["/list-access-keys-bulk"].Get("all"); got != "true" {
 		t.Errorf("all = %q, want %q when no users are given", got, "true")
 	}
 
@@ -131,11 +140,11 @@ func TestDataSourceAccessKeysNeverExposesSecretMaterial(t *testing.T) {
 func TestDataSourceAccessKeysQueriesEachRequestedProvider(t *testing.T) {
 	requests := map[string]url.Values{}
 	meta := accessKeysStub(t, map[string]string{
-		"/minio/admin/v4/list-access-keys-bulk": `{"alice": {"serviceAccounts": [{"accessKey": "BUILTIN", "parentUser": "alice", "accountStatus": "on"}]}}`,
-		"/minio/admin/v4/idp/ldap/list-access-keys-bulk": `{"uid=bob,ou=users,dc=example,dc=com": {"serviceAccounts": [
+		"/list-access-keys-bulk": `{"alice": {"serviceAccounts": [{"accessKey": "BUILTIN", "parentUser": "alice", "accountStatus": "on"}]}}`,
+		"/idp/ldap/list-access-keys-bulk": `{"uid=bob,ou=users,dc=example,dc=com": {"serviceAccounts": [
 		  {"accessKey": "LDAPKEY", "parentUser": "uid=bob,ou=users,dc=example,dc=com", "accountStatus": "on"}
 		]}}`,
-		"/minio/admin/v4/idp/openid/list-access-keys-bulk": `[{"configName": "_", "users": [
+		"/idp/openid/list-access-keys-bulk": `[{"configName": "_", "users": [
 		  {"minioAccessKey": "STSKEY", "ID": "sub-123", "readableName": "dana", "serviceAccounts": [
 		    {"accessKey": "OIDCKEY", "parentUser": "sub-123", "accountStatus": "on"}
 		  ]}
@@ -175,7 +184,7 @@ func TestDataSourceAccessKeysQueriesEachRequestedProvider(t *testing.T) {
 func TestDataSourceAccessKeysPassesTheRequestedUsers(t *testing.T) {
 	requests := map[string]url.Values{}
 	meta := accessKeysStub(t, map[string]string{
-		"/minio/admin/v4/list-access-keys-bulk": `{"alice": {"serviceAccounts": []}}`,
+		"/list-access-keys-bulk": `{"alice": {"serviceAccounts": []}}`,
 	}, requests)
 
 	d := schema.TestResourceDataRaw(t, dataSourceMinioAccessKeys().Schema, map[string]interface{}{
@@ -186,7 +195,7 @@ func TestDataSourceAccessKeysPassesTheRequestedUsers(t *testing.T) {
 		t.Fatalf("reading the data source: %v", diags)
 	}
 
-	query := requests["/minio/admin/v4/list-access-keys-bulk"]
+	query := requests["/list-access-keys-bulk"]
 	if got := query["users"]; len(got) != 2 || got[0] != "alice" || got[1] != "bob" {
 		t.Errorf("users = %v, want both names", got)
 	}
@@ -200,7 +209,7 @@ func TestDataSourceAccessKeysPassesTheRequestedUsers(t *testing.T) {
 
 func TestDataSourceAccessKeysReportsAProviderTheServerDoesNotRun(t *testing.T) {
 	meta := accessKeysStub(t, map[string]string{
-		"/minio/admin/v4/list-access-keys-bulk": `{}`,
+		"/list-access-keys-bulk": `{}`,
 	}, nil)
 
 	d := schema.TestResourceDataRaw(t, dataSourceMinioAccessKeys().Schema, map[string]interface{}{

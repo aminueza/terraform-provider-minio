@@ -208,20 +208,29 @@ func TestDataSourceAccessKeysPassesTheRequestedUsers(t *testing.T) {
 }
 
 func TestDataSourceAccessKeysReportsAProviderTheServerDoesNotRun(t *testing.T) {
-	meta := accessKeysStub(t, map[string]string{
-		"/list-access-keys-bulk": `{}`,
-	}, nil)
+	for _, tc := range []struct {
+		provider string
+		summary  string
+	}{
+		{accessKeyProviderBuiltin, "listing builtin access keys"},
+		{accessKeyProviderLDAP, "listing LDAP access keys"},
+		{accessKeyProviderOpenID, "listing OpenID access keys"},
+	} {
+		t.Run(tc.provider, func(t *testing.T) {
+			meta := accessKeysStub(t, map[string]string{}, nil)
 
-	d := schema.TestResourceDataRaw(t, dataSourceMinioAccessKeys().Schema, map[string]interface{}{
-		"identity_providers": []interface{}{"ldap"},
-	})
+			d := schema.TestResourceDataRaw(t, dataSourceMinioAccessKeys().Schema, map[string]interface{}{
+				"identity_providers": []interface{}{tc.provider},
+			})
 
-	diags := dataSourceMinioAccessKeysRead(context.Background(), d, meta)
-	if !diags.HasError() {
-		t.Fatal("asking for an identity provider the server does not run must be reported, not read as an empty group")
-	}
-	if !strings.Contains(diags[0].Summary, "listing LDAP access keys") {
-		t.Errorf("summary = %q, want it to name the provider that failed", diags[0].Summary)
+			diags := dataSourceMinioAccessKeysRead(context.Background(), d, meta)
+			if !diags.HasError() {
+				t.Fatal("asking for an identity provider the server does not run must be reported, not read as an empty group")
+			}
+			if !strings.Contains(diags[0].Summary, tc.summary) {
+				t.Errorf("summary = %q, want it to name the provider that failed", diags[0].Summary)
+			}
+		})
 	}
 }
 

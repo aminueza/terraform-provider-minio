@@ -113,6 +113,26 @@ func TestDataSourceKMSKeysDefaultsToEveryKey(t *testing.T) {
 	}
 }
 
+func TestDataSourceKMSKeysTreatsAnEmptyPatternAsEveryKey(t *testing.T) {
+	var query url.Values
+	meta := kmsKeysStub(t, http.StatusOK, `[]`, &query)
+
+	d := schema.TestResourceDataRaw(t, dataSourceMinioKMSKeys().Schema, map[string]interface{}{
+		"pattern": "",
+	})
+
+	if diags := dataSourceMinioKMSKeysRead(context.Background(), d, meta); diags.HasError() {
+		t.Fatalf("reading the data source: %v", diags)
+	}
+
+	if got := query.Get("pattern"); got != "*" {
+		t.Errorf("the server received pattern %q, want %q: an empty pattern matches no key, so it is read as every key", got, "*")
+	}
+	if d.Id() != "*" {
+		t.Errorf("id = %q, want %q, so the id matches the query actually sent", d.Id(), "*")
+	}
+}
+
 func TestDataSourceKMSKeysReportsAServerError(t *testing.T) {
 	meta := kmsKeysStub(t, http.StatusNotImplemented, `{"Code":"NotImplemented","Message":"key listing is not supported"}`, nil)
 

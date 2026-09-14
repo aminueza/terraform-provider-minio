@@ -8,20 +8,30 @@ data "minio_access_keys" "one_user" {
   users = ["ci-deployer"]
 }
 
-output "keys_terraform_does_not_manage" {
+output "keys_that_never_expire" {
   value = [
-    for key in data.minio_access_keys.builtin.builtin : key.access_key
-    if key.description != "managed by terraform"
+    for key in data.minio_access_keys.builtin.builtin : {
+      access_key = key.access_key
+      user       = key.parent_user
+    }
+    if key.expiration == ""
   ]
 }
 
-output "expiring_openid_keys" {
+output "disabled_keys" {
+  value = [
+    for key in data.minio_access_keys.builtin.builtin : key.access_key
+    if key.status != "on"
+  ]
+}
+
+output "openid_login_credentials" {
   value = [
     for key in data.minio_access_keys.everywhere.openid : {
       access_key = key.access_key
       user       = key.readable_name
-      expires    = key.expiration
+      config     = key.config_name
     }
-    if key.expiration != ""
+    if key.kind == "sts"
   ]
 }

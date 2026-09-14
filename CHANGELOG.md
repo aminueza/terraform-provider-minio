@@ -15,9 +15,12 @@ History older than 3.39.0 lives in the
 - `minio_access_keys` data source, which lists the access keys a server holds
   grouped by identity provider, with an optional `users` filter. It reports
   identifiers and metadata only; the MinIO APIs behind it never return secret
-  material. `identity_providers` defaults to `builtin`, because MinIO answers a
-  listing request for an identity provider it does not run with an error rather
-  than an empty list
+  material. The OpenID group covers both the credential a login mints and the
+  service accounts created under it, told apart by `kind`, and it asks for every
+  configured OpenID provider rather than the default one alone.
+  `identity_providers` defaults to `builtin`, because MinIO answers a listing
+  request for an identity provider it does not run with an error rather than an
+  empty list
   ([#1144](https://github.com/aminueza/terraform-provider-minio/issues/1144)).
 - `minio_kms_keys` data source, which lists the keys the configured KMS holds
   and takes an optional `pattern` glob. Community MinIO serves key listing

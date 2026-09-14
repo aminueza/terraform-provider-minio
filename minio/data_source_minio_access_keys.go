@@ -112,6 +112,11 @@ func dataSourceMinioAccessKeys() *schema.Resource {
 				Computed:    true,
 				Description: "Access keys belonging to users that authenticated through OpenID. Empty unless `openid` is in `identity_providers`.",
 				Elem: accessKeyAccountSchema(map[string]*schema.Schema{
+					"kind": {
+						Type:        schema.TypeString,
+						Computed:    true,
+						Description: "`sts` for the credential the OpenID login itself minted, `service_account` for a key created under that identity. An `sts` entry carries no name, description, status or expiration, because the listing does not report them.",
+					},
 					"config_name": {
 						Type:        schema.TypeString,
 						Computed:    true,
@@ -143,6 +148,7 @@ func dataSourceMinioAccessKeysRead(ctx context.Context, d *schema.ResourceData, 
 	users := getStringList(d.Get("users").([]interface{}))
 
 	opts := madmin.ListAccessKeysOpts{All: len(users) == 0}
+	openIDOpts := madmin.ListAccessKeysOpts{All: opts.All, AllConfigs: true}
 
 	groups := map[string][]map[string]interface{}{
 		accessKeyProviderBuiltin: {},
@@ -171,7 +177,7 @@ func dataSourceMinioAccessKeysRead(ctx context.Context, d *schema.ResourceData, 
 			}
 			groups[accessKeyProviderLDAP] = flattenAccessKeysByUser(converted)
 		case accessKeyProviderOpenID:
-			listed, err := admin.ListAccessKeysOpenIDBulk(ctx, users, opts)
+			listed, err := admin.ListAccessKeysOpenIDBulk(ctx, users, openIDOpts)
 			if err != nil {
 				return NewResourceError("listing OpenID access keys", accessKeyProviderOpenID, err)
 			}
@@ -216,12 +222,19 @@ func flattenOpenIDAccessKeys(listed []madmin.ListAccessKeysOpenIDResp) []map[str
 
 	for _, config := range listed {
 		for _, user := range config.Users {
+			if user.MinioAccessKey != "" {
+				sts := map[string]interface{}{
+					"access_key":  user.MinioAccessKey,
+					"parent_user": user.ID,
+					"name":        "",
+					"description": "",
+					"status":      "",
+					"expiration":  "",
+				}
+				flattened = append(flattened, openIDEntry(sts, "sts", config.ConfigName, user))
+			}
 			for _, account := range user.ServiceAccounts {
-				entry := flattenServiceAccount(account)
-				entry["config_name"] = config.ConfigName
-				entry["user_id"] = user.ID
-				entry["readable_name"] = user.ReadableName
-				flattened = append(flattened, entry)
+				flattened = append(flattened, openIDEntry(flattenServiceAccount(account), "service_account", config.ConfigName, user))
 			}
 		}
 	}
@@ -250,4 +263,12 @@ func sortAccessKeyEntries(entries []map[string]interface{}) {
 	sort.SliceStable(entries, func(i, j int) bool {
 		return entries[i]["access_key"].(string) < entries[j]["access_key"].(string)
 	})
+}
+
+func openIDEntry(entry map[string]interface{}, kind, configName string, user madmin.OpenIDUserAccessKeys) map[string]interface{} {
+	entry["kind"] = kind
+	entry["config_name"] = configName
+	entry["user_id"] = user.ID
+	entry["readable_name"] = user.ReadableName
+	return entry
 }

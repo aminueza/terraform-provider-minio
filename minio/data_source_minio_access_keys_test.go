@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -120,18 +121,30 @@ func TestDataSourceAccessKeysDefaultsToBuiltinOnly(t *testing.T) {
 	}
 }
 
-func TestDataSourceAccessKeysNeverExposesSecretMaterial(t *testing.T) {
-	for name := range dataSourceMinioAccessKeys().Schema {
-		if strings.Contains(name, "secret") {
-			t.Errorf("top-level attribute %q looks like secret material", name)
-		}
-	}
+var accessKeyGroupAttributes = map[string][]string{
+	"builtin": {"user", "access_key", "parent_user", "name", "description", "status", "expiration"},
+	"ldap":    {"user", "access_key", "parent_user", "name", "description", "status", "expiration"},
+	"openid":  {"kind", "config_name", "user_id", "readable_name", "access_key", "parent_user", "name", "description", "status", "expiration"},
+}
 
-	for _, group := range []string{"builtin", "ldap", "openid"} {
-		elem := dataSourceMinioAccessKeys().Schema[group].Elem.(*schema.Resource)
+func TestDataSourceAccessKeysExposesExactlyTheseAttributes(t *testing.T) {
+	for group, expected := range accessKeyGroupAttributes {
+		elem, ok := dataSourceMinioAccessKeys().Schema[group].Elem.(*schema.Resource)
+		if !ok {
+			t.Fatalf("%s is not a nested resource", group)
+		}
+
+		want := map[string]bool{}
+		for _, name := range expected {
+			want[name] = true
+			if _, declared := elem.Schema[name]; !declared {
+				t.Errorf("%s.%s is missing from the schema", group, name)
+			}
+		}
+
 		for name := range elem.Schema {
-			if strings.Contains(name, "secret") {
-				t.Errorf("%s.%s looks like secret material, which this data source must never carry", group, name)
+			if !want[name] {
+				t.Errorf("%s.%s is not in the expected set. This data source must carry identifiers and metadata only, so adding an attribute here has to be a deliberate act: add it to accessKeyGroupAttributes and say why in the pull request.", group, name)
 			}
 		}
 	}
@@ -172,12 +185,58 @@ func TestDataSourceAccessKeysQueriesEachRequestedProvider(t *testing.T) {
 	}
 
 	openid := d.Get("openid").([]interface{})
-	if len(openid) != 1 {
-		t.Fatalf("got %d OpenID keys, want 1", len(openid))
+	if len(openid) != 2 {
+		t.Fatalf("got %d OpenID keys, want 2: the credential the login minted and the service account under it", len(openid))
 	}
-	entry := openid[0].(map[string]interface{})
-	if entry["access_key"] != "OIDCKEY" || entry["user_id"] != "sub-123" || entry["readable_name"] != "dana" || entry["config_name"] != "_" {
-		t.Errorf("openid entry = %v, want the claims carried alongside the key", entry)
+
+	byKind := map[string]map[string]interface{}{}
+	for _, entry := range openid {
+		row := entry.(map[string]interface{})
+		byKind[row["kind"].(string)] = row
+	}
+
+	sts, ok := byKind["sts"]
+	if !ok {
+		t.Fatalf("the OpenID group has no sts entry: minioAccessKey is the key the login itself minted, and auditing it is the point")
+	}
+	if sts["access_key"] != "STSKEY" {
+		t.Errorf("sts access_key = %v, want the key from minioAccessKey", sts["access_key"])
+	}
+	if sts["status"] != "" || sts["expiration"] != "" {
+		t.Errorf("sts entry = %v: the listing reports no status or expiry for it, so both must stay empty", sts)
+	}
+
+	account, ok := byKind["service_account"]
+	if !ok {
+		t.Fatal("the OpenID group has no service_account entry")
+	}
+	if account["access_key"] != "OIDCKEY" {
+		t.Errorf("service account access_key = %v", account["access_key"])
+	}
+
+	for kind, row := range byKind {
+		if row["user_id"] != "sub-123" || row["readable_name"] != "dana" || row["config_name"] != "_" {
+			t.Errorf("%s entry = %v, want the claims carried alongside the key", kind, row)
+		}
+	}
+}
+
+func TestDataSourceAccessKeysAsksForEveryOpenIDConfig(t *testing.T) {
+	requests := map[string]url.Values{}
+	meta := accessKeysStub(t, map[string]string{
+		"/idp/openid/list-access-keys-bulk": `[]`,
+	}, requests)
+
+	d := schema.TestResourceDataRaw(t, dataSourceMinioAccessKeys().Schema, map[string]interface{}{
+		"identity_providers": []interface{}{"openid"},
+	})
+
+	if diags := dataSourceMinioAccessKeysRead(context.Background(), d, meta); diags.HasError() {
+		t.Fatalf("reading the data source: %v", diags)
+	}
+
+	if got := requests["/idp/openid/list-access-keys-bulk"].Get("allConfigs"); got != "true" {
+		t.Errorf("allConfigs = %q, want %q: without it the server falls back to the default config and silently omits the keys of every named one", got, "true")
 	}
 }
 
@@ -266,7 +325,7 @@ data "minio_access_keys" "scoped" {
 					testAccCheckAccessKeysContain("data.minio_access_keys.scoped", "minio_iam_service_account.test"),
 					resource.TestCheckResourceAttr("data.minio_access_keys.scoped", "ldap.#", "0"),
 					resource.TestCheckResourceAttr("data.minio_access_keys.scoped", "openid.#", "0"),
-					testAccCheckAccessKeysHoldNoSecret("data.minio_access_keys.all"),
+					testAccCheckAccessKeysCarryOnlyExpectedAttributes("data.minio_access_keys.all"),
 				),
 			},
 		},
@@ -299,17 +358,34 @@ func testAccCheckAccessKeysContain(dataSourceName, serviceAccountName string) re
 	}
 }
 
-func testAccCheckAccessKeysHoldNoSecret(dataSourceName string) resource.TestCheckFunc {
+func testAccCheckAccessKeysCarryOnlyExpectedAttributes(dataSourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		listing, ok := s.RootModule().Resources[dataSourceName]
 		if !ok {
 			return fmt.Errorf("not found: %s", dataSourceName)
 		}
 
-		for attribute, value := range listing.Primary.Attributes {
-			if strings.Contains(attribute, "secret") && value != "" {
-				return fmt.Errorf("%s holds secret material in %s", dataSourceName, attribute)
+		checked := 0
+		for attribute := range listing.Primary.Attributes {
+			group, _, found := strings.Cut(attribute, ".")
+			expected, isGroup := accessKeyGroupAttributes[group]
+			if !found || !isGroup {
+				continue
 			}
+
+			field := attribute[strings.LastIndex(attribute, ".")+1:]
+			if field == "#" || field == "%" {
+				continue
+			}
+
+			checked++
+			if !slices.Contains(expected, field) {
+				return fmt.Errorf("%s put %s in the state, which is outside the attributes this data source is meant to carry", dataSourceName, attribute)
+			}
+		}
+
+		if checked == 0 {
+			return fmt.Errorf("%s listed no key attributes at all, so this check proved nothing", dataSourceName)
 		}
 
 		return nil

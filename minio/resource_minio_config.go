@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v4"
+	"github.com/minio/minio-go/v7/pkg/set"
 )
 
 func resourceMinioConfig() *schema.Resource {
@@ -29,20 +31,11 @@ func resourceMinioConfig() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"key": {
-				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
-				Description: "The configuration key (e.g., 'api', 'notify_webhook:1', 'region')",
-				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
-					v := val.(string)
-					if v == "" {
-						errs = append(errs, fmt.Errorf("%q cannot be empty", key))
-					}
-					if !strings.Contains(v, "_") && v != "region" && v != "name" {
-						warns = append(warns, fmt.Sprintf("Config key %q should typically contain the subsystem (e.g., 'api', 'notify_webhook:1')", v))
-					}
-					return
-				},
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				Description:  "The configuration key (e.g., 'api', 'notify_webhook:1', 'region')",
+				ValidateFunc: validateConfigKey,
 			},
 			"value": {
 				Type:        schema.TypeString,
@@ -283,4 +276,27 @@ func parseConfigParams(configStr string) map[string]string {
 	}
 
 	return params
+}
+
+func validateConfigKey(val interface{}, key string) (warns []string, errs []error) {
+	v := val.(string)
+	if v == "" {
+		errs = append(errs, fmt.Errorf("%q cannot be empty", key))
+		return
+	}
+
+	subsystem := v
+	if separator := strings.Index(v, ":"); separator >= 0 {
+		subsystem = v[:separator]
+	}
+
+	if !configSubSystems().Contains(subsystem) {
+		warns = append(warns, fmt.Sprintf("Config key %q names no MinIO subsystem. A key is a subsystem such as `api` or `compression`, optionally followed by a target, as in `notify_webhook:primary`.", v))
+	}
+
+	return
+}
+
+func configSubSystems() set.StringSet {
+	return madmin.SubSystems.Union(madmin.EOSSubSystems)
 }

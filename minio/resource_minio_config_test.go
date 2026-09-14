@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v4"
 )
 
 func TestAccMinioConfig_basic(t *testing.T) {
@@ -173,5 +174,119 @@ func testCheckResourceAttrContains(resourceName, attr, value string) resource.Te
 		}
 
 		return nil
+	}
+}
+
+var configKeysThatMustNotWarn = []string{
+	"api",
+	"compression",
+	"heal",
+	"scanner",
+	"etcd",
+	"browser",
+	"region",
+	"ilm",
+	"erasure",
+	"kubernetes",
+	"notify_webhook:primary",
+	"identity_openid:dex",
+	"log_api_webhook:audit",
+	"telemetry_target:otel",
+	"alert_webhook:oncall",
+	"audit_event_queue",
+	"bucket_event_queue",
+}
+
+func TestValidateConfigKeyAcceptsTheseKeys(t *testing.T) {
+	for _, key := range configKeysThatMustNotWarn {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v, want none", key, errs)
+		}
+		if len(warns) > 0 {
+			t.Errorf("%q warns: %v. These keys are written out rather than read from the same set the validator reads, so narrowing that set fails here on a named key instead of passing silently.", key, warns)
+		}
+	}
+}
+
+func TestValidateConfigKeyCoversBothSubsystemSets(t *testing.T) {
+	var missing []string
+	for _, key := range configKeysThatMustNotWarn {
+		subsystem, _, _ := strings.Cut(key, ":")
+		if !madmin.SubSystems.Contains(subsystem) && !madmin.EOSSubSystems.Contains(subsystem) {
+			missing = append(missing, key)
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("%v name no subsystem in either set, so the list above no longer describes MinIO", missing)
+	}
+
+	var eosOnly int
+	for _, key := range configKeysThatMustNotWarn {
+		subsystem, _, _ := strings.Cut(key, ":")
+		if !madmin.SubSystems.Contains(subsystem) {
+			eosOnly++
+		}
+	}
+	if eosOnly == 0 {
+		t.Error("no key in the list comes from EOSSubSystems alone, so nothing here would catch a validator that checks only SubSystems")
+	}
+}
+
+func TestValidateConfigKeyAcceptsEverySubsystemMinIOKnows(t *testing.T) {
+	for _, subsystem := range madmin.SubSystems.Union(madmin.EOSSubSystems).ToSlice() {
+		warns, errs := validateConfigKey(subsystem, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v, want none", subsystem, errs)
+		}
+		if len(warns) > 0 {
+			t.Errorf("%q gave warnings %v: it is a subsystem MinIO declares", subsystem, warns)
+		}
+	}
+}
+
+func TestValidateConfigKeyAcceptsASubsystemWithATarget(t *testing.T) {
+	for _, key := range []string{"notify_webhook:primary", "identity_openid:dex", "logger_webhook:audit"} {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 || len(warns) > 0 {
+			t.Errorf("%q gave warnings %v and errors %v, want none: the part before the colon is the subsystem", key, warns, errs)
+		}
+	}
+}
+
+func TestValidateConfigKeyWarnsAboutAKeyThatNamesNoSubsystem(t *testing.T) {
+	for _, key := range []string{"compresion", "not_a_subsystem", "webhook", ":primary"} {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v: an unknown key is worth a warning, not a failure", key, errs)
+		}
+		if len(warns) != 1 {
+			t.Errorf("%q gave warnings %v, want exactly one", key, warns)
+			continue
+		}
+		if !strings.Contains(warns[0], key) {
+			t.Errorf("the warning for %q does not quote the key: %q", key, warns[0])
+		}
+	}
+}
+
+func TestValidateConfigKeyRejectsAnEmptyKey(t *testing.T) {
+	warns, errs := validateConfigKey("", "key")
+	if len(errs) != 1 {
+		t.Fatalf("errors = %v, want exactly one", errs)
+	}
+	if len(warns) > 0 {
+		t.Errorf("warnings = %v: an empty key is already an error, so a warning adds noise", warns)
+	}
+}
+
+func TestValidateConfigKeyNoLongerJudgesByUnderscore(t *testing.T) {
+	for _, key := range configKeysThatMustNotWarn {
+		if strings.Contains(key, "_") {
+			continue
+		}
+		if warns, _ := validateConfigKey(key, "key"); len(warns) > 0 {
+			t.Errorf("%q still warns: the underscore heuristic rejected seventeen valid subsystem names, %q among them", key, key)
+		}
 	}
 }

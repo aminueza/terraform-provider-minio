@@ -1,9 +1,12 @@
 package minio
 
 import (
+	"sync"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	"github.com/minio/madmin-go/v4"
 	minio "github.com/minio/minio-go/v7"
@@ -477,4 +480,57 @@ type frameworkProvider struct{}
 
 type stsCredentialsEphemeralResource struct {
 	config *S3MinioConfig
+}
+
+type ConfigError struct {
+	Field   string
+	Message string
+}
+
+type ResourceError struct {
+	Message  string
+	Resource string
+	Err      error
+}
+
+type ConditionKeyMap map[string]set.StringSet
+
+type ConditionMap map[string]ConditionKeyMap
+
+type IAMUserGroupMembershipConfig struct {
+	MinioAdmin *madmin.AdminClient
+	UserName   string
+	Groups     []string
+}
+
+// notifyResourceConfig holds the type-specific configuration for a notification resource.
+type notifyResourceConfig struct {
+	subsystem  string // e.g., "notify_amqp", "notify_kafka"
+	buildCfg   func(*schema.ResourceData, interface{}) string
+	readFields func(map[string]string, *schema.ResourceData) diag.Diagnostics
+}
+
+type jwtClaim struct {
+	Subject   string `json:"sub"`
+	Issuer    string `json:"iss"`
+	ExpiresAt int64  `json:"exp,omitempty"`
+}
+
+type RetryConfig struct {
+	MaxRetries  int
+	MaxBackoff  time.Duration
+	BackoffBase float64
+}
+
+type siteDiff struct {
+	toAdd    []madmin.PeerSite
+	toRemove []string
+}
+
+// MutexKV is a simple key/value store for arbitrary mutexes, used to serialize
+// changes across collaborators that share knowledge of the keys they must
+// serialize on.
+type MutexKV struct {
+	lock  sync.Mutex
+	store map[string]*sync.Mutex
 }

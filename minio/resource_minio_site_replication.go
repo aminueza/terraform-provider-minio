@@ -13,11 +13,6 @@ import (
 	"github.com/minio/madmin-go/v4"
 )
 
-type siteDiff struct {
-	toAdd    []madmin.PeerSite
-	toRemove []string
-}
-
 // calculateSiteDiff compares old and new site configurations.
 // MinIO doesn't support in-place updates, so site changes are handled as remove+add operations.
 func calculateSiteDiff(oldSites, newSites []madmin.PeerSite) *siteDiff {

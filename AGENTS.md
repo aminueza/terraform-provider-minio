@@ -27,6 +27,12 @@ return diag.Errorf("error: %v", err)
 config := ResourceNameConfig(d, meta)
 ```
 
+**Every type is declared in `minio/payload.go` (mandatory):**
+
+Methods stay in the file that holds the logic, since Go only requires the type
+and its methods to share a package. CI fails on a `type` declaration anywhere
+else under `minio/`.
+
 **Always check `d.Set` errors:**
 
 ```go

@@ -26,12 +26,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/tags"
 )
 
-type RetryConfig struct {
-	MaxRetries  int
-	MaxBackoff  time.Duration
-	BackoffBase float64
-}
-
 func getRetryConfig(client *S3MinioClient) RetryConfig {
 	maxRetries := defaultMaxRetries
 	backoffBaseMs := defaultRetryDelayMs

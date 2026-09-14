@@ -14,12 +14,6 @@ const (
 	ErrorSeverityFatal = "[FATAL]"
 )
 
-type ResourceError struct {
-	Message  string
-	Resource string
-	Err      error
-}
-
 func (e *ResourceError) Error() string {
 	if e.Err != nil {
 		return fmt.Sprintf("%s %s (%s): %v", ErrorSeverityFatal, e.Message, e.Resource, e.Err)

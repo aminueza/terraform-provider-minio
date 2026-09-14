@@ -213,12 +213,6 @@ func generateJWTToken(accessKey, secretKey string, expiry time.Duration) (string
 	return token, nil
 }
 
-type jwtClaim struct {
-	Subject   string `json:"sub"`
-	Issuer    string `json:"iss"`
-	ExpiresAt int64  `json:"exp,omitempty"`
-}
-
 func (c *jwtClaim) sign(secretKey string) (string, error) {
 	header := "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9"
 	payloadBytes, err := json.Marshal(c)

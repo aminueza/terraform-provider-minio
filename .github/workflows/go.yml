@@ -31,6 +31,16 @@ jobs:
           go-version-file: "go.mod"
           cache: true
 
+      - name: Verify every type is declared in payload.go
+        run: |
+          STRAY=$(grep -rn "^type " minio/*.go | grep -v _test | grep -v payload.go || true)
+          if [ -n "$STRAY" ]; then
+            echo "::error::Type declarations belong in minio/payload.go. Move the declaration; its methods can stay where they are."
+            echo "$STRAY"
+            exit 1
+          fi
+          echo "Every type is declared in minio/payload.go."
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:

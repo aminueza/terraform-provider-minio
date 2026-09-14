@@ -157,6 +157,10 @@ We follow these coding standards:
 - **Linting**: Configured via `.github/golangci.yml`
 - **Error Handling**: Always use `NewResourceError()` from `minio/error.go`
 - **Documentation**: Include comments for public functions and complex logic
+- **Type placement**: Declare every type in `minio/payload.go`. Methods stay in
+  the file that holds the logic, since Go only requires the type and its methods
+  to share a package. CI fails on a `type` declaration anywhere else under
+  `minio/`
 
 ### Error Handling Pattern
 

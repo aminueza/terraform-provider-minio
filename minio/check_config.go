@@ -9,11 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
-type ConfigError struct {
-	Field   string
-	Message string
-}
-
 func (e *ConfigError) Error() string {
 	return fmt.Sprintf("configuration error for field %q: %s", e.Field, e.Message)
 }

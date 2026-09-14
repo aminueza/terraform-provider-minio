@@ -8,6 +8,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v4"
 )
 
 func TestAccMinioConfig_basic(t *testing.T) {
@@ -173,5 +174,60 @@ func testCheckResourceAttrContains(resourceName, attr, value string) resource.Te
 		}
 
 		return nil
+	}
+}
+
+func TestValidateConfigKeyAcceptsEverySubsystemMinIOKnows(t *testing.T) {
+	for _, subsystem := range madmin.SubSystems.ToSlice() {
+		warns, errs := validateConfigKey(subsystem, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v, want none", subsystem, errs)
+		}
+		if len(warns) > 0 {
+			t.Errorf("%q gave warnings %v: it is a subsystem MinIO declares", subsystem, warns)
+		}
+	}
+}
+
+func TestValidateConfigKeyAcceptsASubsystemWithATarget(t *testing.T) {
+	for _, key := range []string{"notify_webhook:primary", "identity_openid:dex", "logger_webhook:audit"} {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 || len(warns) > 0 {
+			t.Errorf("%q gave warnings %v and errors %v, want none: the part before the colon is the subsystem", key, warns, errs)
+		}
+	}
+}
+
+func TestValidateConfigKeyWarnsAboutAKeyThatNamesNoSubsystem(t *testing.T) {
+	for _, key := range []string{"compresion", "not_a_subsystem", "webhook", ":primary"} {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v: an unknown key is worth a warning, not a failure", key, errs)
+		}
+		if len(warns) != 1 {
+			t.Errorf("%q gave warnings %v, want exactly one", key, warns)
+			continue
+		}
+		if !strings.Contains(warns[0], key) {
+			t.Errorf("the warning for %q does not quote the key: %q", key, warns[0])
+		}
+	}
+}
+
+func TestValidateConfigKeyRejectsAnEmptyKey(t *testing.T) {
+	warns, errs := validateConfigKey("", "key")
+	if len(errs) != 1 {
+		t.Fatalf("errors = %v, want exactly one", errs)
+	}
+	if len(warns) > 0 {
+		t.Errorf("warnings = %v: an empty key is already an error, so a warning adds noise", warns)
+	}
+}
+
+func TestValidateConfigKeyNoLongerJudgesByUnderscore(t *testing.T) {
+	for _, key := range []string{"api", "compression", "heal", "scanner", "etcd", "browser", "region"} {
+		if warns, _ := validateConfigKey(key, "key"); len(warns) > 0 {
+			t.Errorf("%q still warns: the underscore heuristic rejected sixteen valid subsystem names, %q among them", key, key)
+		}
 	}
 }

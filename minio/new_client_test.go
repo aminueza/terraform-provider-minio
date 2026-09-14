@@ -211,6 +211,16 @@ func issueTestCertificate(t *testing.T, serial int64, commonName string, usage x
 	return certPEM, keyPEM
 }
 
+func testHTTPSGet(t *testing.T, tr *http.Transport, url string) (*http.Response, error) {
+	t.Helper()
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatalf("building the request: %s", err)
+	}
+	return (&http.Client{Transport: tr}).Do(req)
+}
+
 func writeTestPEMFile(t *testing.T, name string, data []byte) string {
 	t.Helper()
 
@@ -275,7 +285,7 @@ func TestCustomTransportVerifiesTheServerAgainstTheConfiguredCA(t *testing.T) {
 				t.Fatalf("building the transport: %s", err)
 			}
 
-			resp, err := (&http.Client{Transport: tr}).Get(srv.URL)
+			resp, err := testHTTPSGet(t, tr, srv.URL)
 			if tc.wantErr != "" {
 				if err == nil {
 					t.Fatal("the request succeeded against a certificate authority the provider does not trust")
@@ -342,7 +352,7 @@ func TestCustomTransportPresentsTheConfiguredClientCertificate(t *testing.T) {
 			t.Fatalf("building the transport: %s", err)
 		}
 
-		resp, err := (&http.Client{Transport: tr}).Get(srv.URL)
+		resp, err := testHTTPSGet(t, tr, srv.URL)
 		if err != nil {
 			t.Fatalf("the server rejected the configured client certificate: %s", err)
 		}
@@ -363,7 +373,7 @@ func TestCustomTransportPresentsTheConfiguredClientCertificate(t *testing.T) {
 			t.Fatalf("building the transport: %s", err)
 		}
 
-		resp, err := (&http.Client{Transport: tr}).Get(srv.URL)
+		resp, err := testHTTPSGet(t, tr, srv.URL)
 		if err == nil {
 			_ = resp.Body.Close()
 			t.Fatal("the request succeeded without a client certificate against a server that requires one")

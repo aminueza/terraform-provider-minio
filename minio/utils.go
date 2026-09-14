@@ -100,14 +100,6 @@ func HashcodeString(s string) int {
 	return 0
 }
 
-// MutexKV is a simple key/value store for arbitrary mutexes, used to serialize
-// changes across collaborators that share knowledge of the keys they must
-// serialize on.
-type MutexKV struct {
-	lock  sync.Mutex
-	store map[string]*sync.Mutex
-}
-
 // Locks the mutex for the given key. Caller is responsible for calling Unlock
 // for the same key
 func (m *MutexKV) Lock(key string) {

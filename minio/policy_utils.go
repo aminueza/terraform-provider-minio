@@ -6,8 +6,6 @@ import (
 	"github.com/minio/minio-go/v7/pkg/set"
 )
 
-type ConditionKeyMap map[string]set.StringSet
-
 // Add - adds key and value.  The value is appended If key already exists.
 func (ckm ConditionKeyMap) Add(key string, value set.StringSet) {
 	if v, ok := ckm[key]; ok {
@@ -56,8 +54,6 @@ func mergeConditionKeyMap(condKeyMap1 ConditionKeyMap, condKeyMap2 ConditionKeyM
 
 	return out
 }
-
-type ConditionMap map[string]ConditionKeyMap
 
 // Add - adds condition key and condition value.  The value is appended if key already exists.
 func (cond ConditionMap) Add(condKey string, condKeyMap ConditionKeyMap) {

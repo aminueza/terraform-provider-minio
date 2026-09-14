@@ -24,6 +24,7 @@ tasks:
     desc: Run linters and security checks
     cmds:
       - echo "Running linters..."
+      - .github/scripts/check-type-placement.sh
       - golangci-lint run --config .github/golangci.yml
       - echo "Linting completed!"
 

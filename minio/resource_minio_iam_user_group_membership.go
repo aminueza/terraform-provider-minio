@@ -35,12 +35,6 @@ func resourceMinioIAMUserGroupMembership() *schema.Resource {
 	}
 }
 
-type IAMUserGroupMembershipConfig struct {
-	MinioAdmin *madmin.AdminClient
-	UserName   string
-	Groups     []string
-}
-
 func iamUserGroupMembershipConfig(d *schema.ResourceData, meta interface{}) *IAMUserGroupMembershipConfig {
 	m := meta.(*S3MinioClient)
 

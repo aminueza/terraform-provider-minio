@@ -27,6 +27,13 @@ return diag.Errorf("error: %v", err)
 config := ResourceNameConfig(d, meta)
 ```
 
+**Every type is declared in `minio/payload.go` (mandatory):**
+
+Methods stay in the file that holds the logic, since Go only requires the type
+and its methods to share a package. `task lint` and CI both run
+`.github/scripts/check-type-placement.sh`, which fails on a `type` declaration
+anywhere else under `minio/`.
+
 **Always check `d.Set` errors:**
 
 ```go

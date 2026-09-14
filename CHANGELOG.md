@@ -10,6 +10,13 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_kms_keys` data source, which lists the keys the configured KMS holds
+  and takes an optional `pattern` glob. Community MinIO serves key listing
+  whenever a KMS is configured, so this is not limited to AIStor
+  ([#1145](https://github.com/aminueza/terraform-provider-minio/issues/1145)).
+
 ## [3.42.0] - 2026-09-11
 
 ### Added

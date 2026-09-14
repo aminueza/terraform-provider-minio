@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
+	"github.com/minio/minio-go/v7/pkg/set"
 )
 
 func resourceMinioConfig() *schema.Resource {
@@ -289,9 +290,13 @@ func validateConfigKey(val interface{}, key string) (warns []string, errs []erro
 		subsystem = v[:separator]
 	}
 
-	if !madmin.SubSystems.Contains(subsystem) {
+	if !configSubSystems().Contains(subsystem) {
 		warns = append(warns, fmt.Sprintf("Config key %q names no MinIO subsystem. A key is a subsystem such as `api` or `compression`, optionally followed by a target, as in `notify_webhook:primary`.", v))
 	}
 
 	return
+}
+
+func configSubSystems() set.StringSet {
+	return madmin.SubSystems.Union(madmin.EOSSubSystems)
 }

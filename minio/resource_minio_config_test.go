@@ -177,8 +177,64 @@ func testCheckResourceAttrContains(resourceName, attr, value string) resource.Te
 	}
 }
 
+var configKeysThatMustNotWarn = []string{
+	"api",
+	"compression",
+	"heal",
+	"scanner",
+	"etcd",
+	"browser",
+	"region",
+	"ilm",
+	"erasure",
+	"kubernetes",
+	"notify_webhook:primary",
+	"identity_openid:dex",
+	"log_api_webhook:audit",
+	"telemetry_target:otel",
+	"alert_webhook:oncall",
+	"audit_event_queue",
+	"bucket_event_queue",
+}
+
+func TestValidateConfigKeyAcceptsTheseKeys(t *testing.T) {
+	for _, key := range configKeysThatMustNotWarn {
+		warns, errs := validateConfigKey(key, "key")
+		if len(errs) > 0 {
+			t.Errorf("%q gave errors %v, want none", key, errs)
+		}
+		if len(warns) > 0 {
+			t.Errorf("%q warns: %v. These keys are written out rather than read from the same set the validator reads, so narrowing that set fails here on a named key instead of passing silently.", key, warns)
+		}
+	}
+}
+
+func TestValidateConfigKeyCoversBothSubsystemSets(t *testing.T) {
+	var missing []string
+	for _, key := range configKeysThatMustNotWarn {
+		subsystem, _, _ := strings.Cut(key, ":")
+		if !madmin.SubSystems.Contains(subsystem) && !madmin.EOSSubSystems.Contains(subsystem) {
+			missing = append(missing, key)
+		}
+	}
+	if len(missing) > 0 {
+		t.Fatalf("%v name no subsystem in either set, so the list above no longer describes MinIO", missing)
+	}
+
+	var eosOnly int
+	for _, key := range configKeysThatMustNotWarn {
+		subsystem, _, _ := strings.Cut(key, ":")
+		if !madmin.SubSystems.Contains(subsystem) {
+			eosOnly++
+		}
+	}
+	if eosOnly == 0 {
+		t.Error("no key in the list comes from EOSSubSystems alone, so nothing here would catch a validator that checks only SubSystems")
+	}
+}
+
 func TestValidateConfigKeyAcceptsEverySubsystemMinIOKnows(t *testing.T) {
-	for _, subsystem := range madmin.SubSystems.ToSlice() {
+	for _, subsystem := range madmin.SubSystems.Union(madmin.EOSSubSystems).ToSlice() {
 		warns, errs := validateConfigKey(subsystem, "key")
 		if len(errs) > 0 {
 			t.Errorf("%q gave errors %v, want none", subsystem, errs)
@@ -225,9 +281,12 @@ func TestValidateConfigKeyRejectsAnEmptyKey(t *testing.T) {
 }
 
 func TestValidateConfigKeyNoLongerJudgesByUnderscore(t *testing.T) {
-	for _, key := range []string{"api", "compression", "heal", "scanner", "etcd", "browser", "region"} {
+	for _, key := range configKeysThatMustNotWarn {
+		if strings.Contains(key, "_") {
+			continue
+		}
 		if warns, _ := validateConfigKey(key, "key"); len(warns) > 0 {
-			t.Errorf("%q still warns: the underscore heuristic rejected sixteen valid subsystem names, %q among them", key, key)
+			t.Errorf("%q still warns: the underscore heuristic rejected seventeen valid subsystem names, %q among them", key, key)
 		}
 	}
 }

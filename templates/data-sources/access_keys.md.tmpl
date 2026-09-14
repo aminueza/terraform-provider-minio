@@ -1,0 +1,25 @@
+---
+page_title: "{{.Name}} {{.Type}} - {{.ProviderName}}"
+subcategory: "IAM"
+description: |-
+{{ .Description | plainmarkdown | trimspace | prefixlines "  " }}
+---
+
+# {{.Name}} ({{.Type}})
+
+{{ .Description | trimspace }}
+
+## Identity providers
+
+`identity_providers` defaults to `builtin`, which every MinIO server serves.
+
+Add `ldap` or `openid` only when the server runs them. MinIO answers a listing
+request for an identity provider it does not run with an error rather than an
+empty list, so asking for one unconditionally makes the plan fail on servers
+that do not have it.
+
+## Example Usage
+
+{{ tffile (printf "examples/data-sources/%s/data-source.tf" .Name) }}
+
+{{ .SchemaMarkdown | trimspace }}

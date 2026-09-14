@@ -291,6 +291,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_s3_bucket_anonymous_access":          dataSourceMinioS3BucketAnonymousAccess(),
 			"minio_s3_bucket_policy":                    dataSourceMinioS3BucketPolicy(),
 			"minio_account_info":                        dataSourceMinioAccountInfo(),
+			"minio_access_keys":                         dataSourceMinioAccessKeys(),
 			"minio_storage_info":                        dataSourceMinioStorageInfo(),
 			"minio_data_usage":                          dataSourceMinioDataUsage(),
 			"minio_ilm_tier_stats":                      dataSourceMinioILMTierStats(),

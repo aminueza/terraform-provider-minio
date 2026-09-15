@@ -410,8 +410,13 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 		tflog.Debug(ctx, fmt.Sprintf("Updating accesskey %s status to %s", accessKeyID, newStatus))
 
+		statusReq := madmin.UpdateServiceAccountReq{NewStatus: newStatus}
+		if policy != "" {
+			statusReq.NewPolicy = []byte(policy)
+		}
+
 		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
-			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewStatus: newStatus})
+			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, statusReq)
 			if err != nil {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
 					return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s status: %w", accessKeyID, err))
@@ -489,8 +494,12 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 		}
 		if newSecret != "" {
 			tflog.Debug(ctx, fmt.Sprintf("Rotating secret for accesskey %s", accessKeyID))
+			secretReq := madmin.UpdateServiceAccountReq{NewSecretKey: newSecret}
+			if policy != "" {
+				secretReq.NewPolicy = []byte(policy)
+			}
 			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
-				err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewSecretKey: newSecret})
+				err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, secretReq)
 				if err != nil {
 					if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
 						return retry.RetryableError(fmt.Errorf("transient error rotating accesskey %s secret: %w", accessKeyID, err))
@@ -515,8 +524,13 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	if hasDescriptionChange {
 		tflog.Debug(ctx, fmt.Sprintf("Updating accesskey %s description", accessKeyID))
 
+		descReq := madmin.UpdateServiceAccountReq{NewDescription: description}
+		if policy != "" {
+			descReq.NewPolicy = []byte(policy)
+		}
+
 		err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
-			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, madmin.UpdateServiceAccountReq{NewDescription: description})
+			err := client.S3Admin.UpdateServiceAccount(ctx, accessKeyID, descReq)
 			if err != nil {
 				if strings.Contains(err.Error(), "connection refused") || strings.Contains(err.Error(), "timeout") {
 					return retry.RetryableError(fmt.Errorf("transient error updating accesskey %s description: %w", accessKeyID, err))

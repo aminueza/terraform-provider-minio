@@ -594,6 +594,57 @@ resource "minio_accesskey" "test" {
 `, rName, accessKey, secretKey, version)
 }
 
+func TestAccMinioAccessKey_policyPersistsThroughSecretRotation(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_policy_rotation"
+	normalizedPolicyJSON := `{"Statement":[{"Action":["s3:GetObject"],"Effect":"Allow","Resource":["arn:aws:s3:::osm/*"]}],"Version":"2012-10-17"}`
+	customAccessKey := acctest.RandString(20)
+	initialSecretKey := acctest.RandString(40)
+	rotatedSecretKey := acctest.RandString(40)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, initialSecretKey, "v1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					testCheckResourceAttrJSON(resourceName, "policy", normalizedPolicyJSON),
+				),
+			},
+			{
+				Config: testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v2"),
+					testCheckResourceAttrJSON(resourceName, "policy", normalizedPolicyJSON),
+				),
+			},
+			{
+				Config:   testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, accessKey, policy, secretKey, version string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test_user" {
+  name = %q
+}
+
+resource "minio_accesskey" "test_policy_rotation" {
+  user                = minio_iam_user.test_user.name
+  access_key          = %q
+  policy              = %q
+  secret_key          = %q
+  secret_key_version  = %q
+}
+`, rName, accessKey, policy, secretKey, version)
+}
+
 func TestAccMinioAccessKey_withDescription(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test_desc"

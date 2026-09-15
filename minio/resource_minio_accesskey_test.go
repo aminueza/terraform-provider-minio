@@ -594,6 +594,69 @@ resource "minio_accesskey" "test" {
 `, rName, accessKey, secretKey, version)
 }
 
+// TestAccMinioAccessKey_policyPersistsThroughSecretRotation guards against a
+// regression where rotating secret_key_version alone (no change to policy)
+// caused MinIO to detach the access key's attached policy. MinIO's
+// UpdateServiceAccount treats a request that omits the policy field as "no
+// session policy", and clears any currently-attached policy as a side
+// effect, unless the request also carries the (unchanged) policy along.
+func TestAccMinioAccessKey_policyPersistsThroughSecretRotation(t *testing.T) {
+	rName := acctest.RandomWithPrefix("tf-acc-test")
+	resourceName := "minio_accesskey.test_policy_rotation"
+	normalizedPolicyJSON := `{"Statement":[{"Action":["s3:GetObject"],"Effect":"Allow","Resource":["arn:aws:s3:::osm/*"]}],"Version":"2012-10-17"}`
+	customAccessKey := acctest.RandString(20)
+	initialSecretKey := acctest.RandString(40)
+	rotatedSecretKey := acctest.RandString(40)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, initialSecretKey, "v1"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					testCheckResourceAttrJSON(resourceName, "policy", normalizedPolicyJSON),
+				),
+			},
+			{
+				// Only secret_key/secret_key_version change here; policy is
+				// untouched in config. Before the fix, this rotation call
+				// wiped the attached policy out on the server.
+				Config: testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "user", rName),
+					resource.TestCheckResourceAttr(resourceName, "secret_key_version", "v2"),
+					testCheckResourceAttrJSON(resourceName, "policy", normalizedPolicyJSON),
+				),
+			},
+			{
+				// A subsequent plan with no further changes must be empty:
+				// if the policy had been silently cleared server-side, this
+				// would surface as a lingering policy diff.
+				Config:   testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, accessKey, policy, secretKey, version string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_user" "test_user" {
+  name = %q
+}
+
+resource "minio_accesskey" "test_policy_rotation" {
+  user                = minio_iam_user.test_user.name
+  access_key          = %q
+  policy              = %q
+  secret_key          = %q
+  secret_key_version  = %q
+}
+`, rName, accessKey, policy, secretKey, version)
+}
+
 func TestAccMinioAccessKey_withDescription(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test_desc"

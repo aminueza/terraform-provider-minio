@@ -44,8 +44,22 @@ type Result struct {
 type Preview struct {
 	Action          string                 `json:"action"`
 	RequiresReplace []string               `json:"requires_replace,omitempty"`
+	Changes         []string               `json:"changes,omitempty"`
+	Prior           map[string]interface{} `json:"prior,omitempty"`
 	Planned         map[string]interface{} `json:"planned,omitempty"`
 	Steps           []string               `json:"steps"`
+}
+
+type Attribute struct {
+	Name        string      `json:"name"`
+	Type        string      `json:"type"`
+	Required    bool        `json:"required,omitempty"`
+	Optional    bool        `json:"optional,omitempty"`
+	Computed    bool        `json:"computed,omitempty"`
+	Sensitive   bool        `json:"sensitive,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Block       []Attribute `json:"block,omitempty"`
+	Nesting     string      `json:"nesting,omitempty"`
 }
 
 type ProtocolError struct {

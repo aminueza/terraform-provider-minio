@@ -19,7 +19,7 @@ func main() {
 
 func run() error {
 	if len(os.Args) != 2 {
-		return fmt.Errorf("usage: agentcore <types|plan|converge|delete> < request.json")
+		return fmt.Errorf("usage: agentcore <types|schema|plan|converge|delete> < request.json")
 	}
 	verb := os.Args[1]
 	ctx := context.Background()
@@ -39,7 +39,21 @@ func run() error {
 		return fmt.Errorf("reading the request from stdin: %w", err)
 	}
 
-	if err := core.Configure(ctx, nil); err != nil {
+	if verb == "schema" {
+		attributes, err := core.Schema(req.Type)
+		if err != nil {
+			return err
+		}
+		return emit(attributes)
+	}
+
+	var providerConfig map[string]interface{}
+	if raw := os.Getenv("AGENTCORE_PROVIDER_CONFIG"); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &providerConfig); err != nil {
+			return fmt.Errorf("AGENTCORE_PROVIDER_CONFIG is not a JSON object: %w", err)
+		}
+	}
+	if err := core.Configure(ctx, providerConfig); err != nil {
 		return err
 	}
 
@@ -63,7 +77,7 @@ func run() error {
 		}
 		return emit(result)
 	default:
-		return fmt.Errorf("unknown verb %q, want one of %s", verb, strings.Join([]string{"types", "plan", "converge", "delete"}, ", "))
+		return fmt.Errorf("unknown verb %q, want one of %s", verb, strings.Join([]string{"types", "schema", "plan", "converge", "delete"}, ", "))
 	}
 }
 

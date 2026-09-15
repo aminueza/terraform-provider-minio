@@ -57,6 +57,33 @@ echo '{"type":"random_pet","attributes":{"length":3}}' | AGENTCORE_PROVIDER=$(go
 The tests against `random` and `null` run when `AGENTCORE_RANDOM_PROVIDER` and
 `AGENTCORE_NULL_PROVIDER` point at the binaries.
 
+## The AWS provider against MinIO
+
+`AGENTCORE_PROVIDER_CONFIG` carries the provider configuration as JSON when the
+provider cannot be configured from the environment alone. The AWS provider
+needs the `skip_*` flags and an S3 endpoint to run against MinIO:
+
+```sh
+export AGENTCORE_PROVIDER=$(go env GOPATH)/bin/terraform-provider-aws
+export AGENTCORE_PROVIDER_CONFIG='{"region":"us-east-1","access_key":"minio","secret_key":"minio123","skip_credentials_validation":true,"skip_requesting_account_id":true,"skip_region_validation":true,"skip_metadata_api_check":"true","s3_use_path_style":true,"endpoints":[{"s3":"http://localhost:9000"}]}'
+echo '{"type":"aws_s3_bucket","id":"demo","attributes":{"bucket":"demo"}}' | ./agentcore converge
+```
+
+The tests against the AWS provider run when `AGENTCORE_AWS_PROVIDER` and
+`MINIO_ENDPOINT` are both set. `aws_s3_bucket` creates, updates and deletes and
+converges on every step. `aws_s3_bucket_lifecycle_configuration` stores the
+rule on MinIO but the provider times out waiting for the server to echo
+`transition_default_minimum_object_size`, which MinIO never reports. The plan
+that follows shows the rule read back equal to the rule sent and only that
+attribute different. This is the mismatch behind
+[hashicorp/terraform-provider-aws#43333](https://github.com/hashicorp/terraform-provider-aws/issues/43333).
+
+Discovery runs `ImportResourceState` first and `ReadResource` on an id stub
+only when the importer refuses the id. Providers built on the plugin framework
+read by the attributes the importer fills in, not by `id`, so the other order
+reports a resource as absent when it exists. The `timeouts` block is left out
+of every comparison, as Terraform does.
+
 ## Run
 
 ```sh

@@ -106,6 +106,68 @@ func (c *Core) Configure(ctx context.Context, attributes map[string]interface{})
 	return failed("ConfigureProvider", resp.Diagnostics)
 }
 
+func (c *Core) Schema(typeName string) ([]Attribute, error) {
+	schema, err := c.resourceSchema(typeName)
+	if err != nil {
+		return nil, err
+	}
+	return describeBlock(schema.Block), nil
+}
+
+func describeBlock(block *tfprotov6.SchemaBlock) []Attribute {
+	if block == nil {
+		return nil
+	}
+	out := make([]Attribute, 0, len(block.Attributes)+len(block.BlockTypes))
+	for _, attribute := range block.Attributes {
+		described := Attribute{
+			Name:        attribute.Name,
+			Required:    attribute.Required,
+			Optional:    attribute.Optional,
+			Computed:    attribute.Computed,
+			Sensitive:   attribute.Sensitive,
+			Description: attribute.Description,
+		}
+		if attribute.Type != nil {
+			described.Type = attribute.Type.String()
+		}
+		if attribute.NestedType != nil {
+			described.Nesting = nestingName(int(attribute.NestedType.Nesting))
+			for _, inner := range attribute.NestedType.Attributes {
+				described.Block = append(described.Block, describeBlock(&tfprotov6.SchemaBlock{Attributes: []*tfprotov6.SchemaAttribute{inner}})...)
+			}
+		}
+		out = append(out, described)
+	}
+	for _, nested := range block.BlockTypes {
+		out = append(out, Attribute{
+			Name:    nested.TypeName,
+			Type:    "block",
+			Nesting: nestingName(int(nested.Nesting)),
+			Block:   describeBlock(nested.Block),
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
+}
+
+func nestingName(mode int) string {
+	switch mode {
+	case 1:
+		return "single"
+	case 2:
+		return "list"
+	case 3:
+		return "set"
+	case 4:
+		return "map"
+	case 5:
+		return "group"
+	default:
+		return "invalid"
+	}
+}
+
 func (c *Core) resourceSchema(typeName string) (*tfprotov6.Schema, error) {
 	schema, ok := c.schema.ResourceSchemas[typeName]
 	if !ok {
@@ -138,7 +200,11 @@ func (c *Core) Plan(ctx context.Context, req Request) (*Preview, error) {
 	preview := &Preview{
 		Action:          classify(prior.value, planned, replace),
 		RequiresReplace: pathStrings(replace),
+		Prior:           attributesFromValue(prior.value),
 		Planned:         attributesFromValue(planned),
+	}
+	if !prior.value.IsNull() {
+		preview.Changes = diffPaths(prior.value, planned)
 	}
 	if prior.note != "" {
 		preview.Steps = append(preview.Steps, prior.note)
@@ -214,7 +280,7 @@ func (c *Core) Converge(ctx context.Context, req Request) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.Converged = again.Equal(read.value)
+	result.Converged = withoutTimeouts(again).Equal(withoutTimeouts(read.value))
 	result.Drift = diffPaths(read.value, again)
 	result.State = attributesFromValue(read.value)
 	result.ID = idOf(read.value, req.ID)
@@ -266,14 +332,6 @@ func (c *Core) discover(ctx context.Context, typeName string, schema *tfprotov6.
 		return absent, nil
 	}
 
-	found, err := c.read(ctx, typeName, stubState(schema, id))
-	if err != nil {
-		return absent, err
-	}
-	if found.value.IsNull() {
-		return absent, nil
-	}
-
 	imported, err := c.server.ImportResourceState(ctx, &tfprotov6.ImportResourceStateRequest{
 		TypeName: typeName,
 		ID:       id,
@@ -281,20 +339,28 @@ func (c *Core) discover(ctx context.Context, typeName string, schema *tfprotov6.
 	if err != nil {
 		return absent, err
 	}
-	if err := failed("ImportResourceState", imported.Diagnostics); err != nil {
-		found.note = "the importer refused the id, so the prior state is what ReadResource returned for an id stub: " + err.Error()
-		return found, nil
-	}
-	if len(imported.ImportedResources) == 0 {
-		return found, nil
+
+	refused := failed("ImportResourceState", imported.Diagnostics)
+	if refused == nil && len(imported.ImportedResources) > 0 {
+		stub := imported.ImportedResources[0]
+		value, err := stub.State.Unmarshal(schema.ValueType())
+		if err != nil {
+			return absent, err
+		}
+		return c.read(ctx, typeName, resourceState{value: value, private: stub.Private})
 	}
 
-	stub := imported.ImportedResources[0]
-	value, err := stub.State.Unmarshal(schema.ValueType())
+	found, err := c.read(ctx, typeName, stubState(schema, id))
 	if err != nil {
 		return absent, err
 	}
-	return resourceState{value: value, private: stub.Private}, nil
+	if found.value.IsNull() {
+		return absent, nil
+	}
+	if refused != nil {
+		found.note = "the importer refused the id, so the prior state is what ReadResource returned for an id stub: " + refused.Error()
+	}
+	return found, nil
 }
 
 func stubState(schema *tfprotov6.Schema, id string) resourceState {
@@ -459,11 +525,31 @@ func classify(prior, planned tftypes.Value, replace []*tftypes.AttributePath) st
 		return ActionCreate
 	case len(replace) > 0:
 		return ActionReplace
-	case planned.Equal(prior):
+	case withoutTimeouts(planned).Equal(withoutTimeouts(prior)):
 		return ActionNoop
 	default:
 		return ActionUpdate
 	}
+}
+
+func withoutTimeouts(value tftypes.Value) tftypes.Value {
+	if value.IsNull() || !value.IsKnown() {
+		return value
+	}
+	objectType, ok := value.Type().(tftypes.Object)
+	if !ok {
+		return value
+	}
+	timeoutsType, ok := objectType.AttributeTypes["timeouts"]
+	if !ok {
+		return value
+	}
+	attributes := map[string]tftypes.Value{}
+	if err := value.As(&attributes); err != nil {
+		return value
+	}
+	attributes["timeouts"] = tftypes.NewValue(timeoutsType, nil)
+	return tftypes.NewValue(objectType, attributes)
 }
 
 func nullOf(schema *tfprotov6.Schema) tftypes.Value {
@@ -498,16 +584,23 @@ func pathStrings(paths []*tftypes.AttributePath) []string {
 }
 
 func diffPaths(before, after tftypes.Value) []string {
-	diffs, err := before.Diff(after)
+	diffs, err := withoutTimeouts(before).Diff(withoutTimeouts(after))
 	if err != nil {
 		return []string{err.Error()}
 	}
 	out := make([]string, 0, len(diffs))
 	for _, d := range diffs {
-		out = append(out, fmt.Sprintf("%s: %s -> %s", d.Path.String(), d.Value1.String(), d.Value2.String()))
+		out = append(out, fmt.Sprintf("%s: %s -> %s", d.Path.String(), side(d.Value1), side(d.Value2)))
 	}
 	sort.Strings(out)
 	return out
+}
+
+func side(value *tftypes.Value) string {
+	if value == nil {
+		return "(absent)"
+	}
+	return value.String()
 }
 
 func valueFromAttributes(t tftypes.Type, attributes map[string]interface{}) (tftypes.Value, error) {

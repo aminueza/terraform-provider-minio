@@ -24,10 +24,11 @@ func run() error {
 	verb := os.Args[1]
 	ctx := context.Background()
 
-	core, err := agentcore.Open(ctx)
+	core, err := open(ctx)
 	if err != nil {
 		return err
 	}
+	defer core.Close()
 
 	if verb == "types" {
 		return emit(core.ResourceTypes())
@@ -64,6 +65,13 @@ func run() error {
 	default:
 		return fmt.Errorf("unknown verb %q, want one of %s", verb, strings.Join([]string{"types", "plan", "converge", "delete"}, ", "))
 	}
+}
+
+func open(ctx context.Context) (*agentcore.Core, error) {
+	if path := os.Getenv("AGENTCORE_PROVIDER"); path != "" {
+		return agentcore.OpenBinary(ctx, path)
+	}
+	return agentcore.Open(ctx)
 }
 
 func emit(v interface{}) error {

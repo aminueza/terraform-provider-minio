@@ -55,7 +55,16 @@ func Open(ctx context.Context) (*Core, error) {
 	if err != nil {
 		return nil, fmt.Errorf("starting the provider: %w", err)
 	}
+	return openServer(ctx, server)
+}
 
+func (c *Core) Close() {
+	if c.closer != nil {
+		c.closer()
+	}
+}
+
+func openServer(ctx context.Context, server providerAPI) (*Core, error) {
 	schema, err := server.GetProviderSchema(ctx, &tfprotov6.GetProviderSchemaRequest{})
 	if err != nil {
 		return nil, fmt.Errorf("reading the provider schema: %w", err)
@@ -126,11 +135,16 @@ func (c *Core) Plan(ctx context.Context, req Request) (*Preview, error) {
 		return nil, err
 	}
 
-	return &Preview{
+	preview := &Preview{
 		Action:          classify(prior.value, planned, replace),
 		RequiresReplace: pathStrings(replace),
 		Planned:         attributesFromValue(planned),
-	}, nil
+	}
+	if prior.note != "" {
+		preview.Steps = append(preview.Steps, prior.note)
+	}
+	preview.Steps = append(preview.Steps, "planned "+preview.Action)
+	return preview, nil
 }
 
 func (c *Core) Converge(ctx context.Context, req Request) (*Result, error) {
@@ -145,7 +159,11 @@ func (c *Core) Converge(ctx context.Context, req Request) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	result.Steps = append(result.Steps, "discovered prior state through ImportResourceState and ReadResource")
+	if prior.note != "" {
+		result.Steps = append(result.Steps, prior.note)
+	} else {
+		result.Steps = append(result.Steps, "discovered prior state through ReadResource and ImportResourceState")
+	}
 
 	config, err := valueFromAttributes(schema.ValueType(), req.Attributes)
 	if err != nil {
@@ -266,7 +284,8 @@ func (c *Core) discover(ctx context.Context, typeName string, schema *tfprotov6.
 		return absent, err
 	}
 	if err := failed("ImportResourceState", imported.Diagnostics); err != nil {
-		return absent, err
+		found.note = "the importer refused the id, so the prior state is what ReadResource returned for an id stub: " + err.Error()
+		return found, nil
 	}
 	if len(imported.ImportedResources) == 0 {
 		return found, nil

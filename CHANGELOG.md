@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.43.0] - 2026-09-15
+
 ### Added
 
 - `minio_access_keys` data source, which lists the access keys a server holds
@@ -207,7 +209,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.42.0...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.43.0...HEAD
+[3.43.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.42.0...v3.43.0
 [3.42.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...v3.42.0
 [3.41.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...v3.41.1
 [3.41.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.40.1...v3.41.0

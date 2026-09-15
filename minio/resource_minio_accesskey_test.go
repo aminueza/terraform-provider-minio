@@ -594,12 +594,6 @@ resource "minio_accesskey" "test" {
 `, rName, accessKey, secretKey, version)
 }
 
-// TestAccMinioAccessKey_policyPersistsThroughSecretRotation guards against a
-// regression where rotating secret_key_version alone (no change to policy)
-// caused MinIO to detach the access key's attached policy. MinIO's
-// UpdateServiceAccount treats a request that omits the policy field as "no
-// session policy", and clears any currently-attached policy as a side
-// effect, unless the request also carries the (unchanged) policy along.
 func TestAccMinioAccessKey_policyPersistsThroughSecretRotation(t *testing.T) {
 	rName := acctest.RandomWithPrefix("tf-acc-test")
 	resourceName := "minio_accesskey.test_policy_rotation"
@@ -620,9 +614,6 @@ func TestAccMinioAccessKey_policyPersistsThroughSecretRotation(t *testing.T) {
 				),
 			},
 			{
-				// Only secret_key/secret_key_version change here; policy is
-				// untouched in config. Before the fix, this rotation call
-				// wiped the attached policy out on the server.
 				Config: testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "user", rName),
@@ -631,9 +622,6 @@ func TestAccMinioAccessKey_policyPersistsThroughSecretRotation(t *testing.T) {
 				),
 			},
 			{
-				// A subsequent plan with no further changes must be empty:
-				// if the policy had been silently cleared server-side, this
-				// would surface as a lingering policy diff.
 				Config:   testAccMinioAccessKeyConfigWithPolicyAndVersion(rName, customAccessKey, normalizedPolicyJSON, rotatedSecretKey, "v2"),
 				PlanOnly: true,
 			},

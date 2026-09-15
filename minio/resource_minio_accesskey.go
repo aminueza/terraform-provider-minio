@@ -496,10 +496,6 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 			tflog.Debug(ctx, fmt.Sprintf("Rotating secret for accesskey %s", accessKeyID))
 			secretReq := madmin.UpdateServiceAccountReq{NewSecretKey: newSecret}
 			if policy != "" {
-				// See the status-update comment above: MinIO detaches any
-				// currently-attached policy when a request omits it, so the
-				// secret rotation call must carry the (possibly unchanged)
-				// policy forward or it gets silently wiped.
 				secretReq.NewPolicy = []byte(policy)
 			}
 			err := retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -530,8 +526,6 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 
 		descReq := madmin.UpdateServiceAccountReq{NewDescription: description}
 		if policy != "" {
-			// See the status-update comment above: same wipe-on-omission
-			// behavior applies to description-only updates.
 			descReq.NewPolicy = []byte(policy)
 		}
 

@@ -3,6 +3,7 @@ package agentcore
 import (
 	"context"
 
+	"github.com/aminueza/terraform-provider-minio/v3/experiments/agentcore/internal/tfplugin5"
 	"github.com/aminueza/terraform-provider-minio/v3/experiments/agentcore/internal/tfplugin6"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -60,8 +61,13 @@ type resourceState struct {
 
 type grpcPlugin struct {
 	plugin.NetRPCUnsupportedPlugin
+	version int
 }
 
 type grpcProvider struct {
 	client tfplugin6.ProviderClient
+}
+
+type grpcProvider5 struct {
+	client tfplugin5.ProviderClient
 }

@@ -34,9 +34,16 @@ refused before any provider call. The provider is configured from the
 
 The core talks to a provider through the plugin protocol, so it is not tied to
 this one. `Open` runs the MinIO provider in process. `OpenBinary` starts any
-provider binary the way Terraform does: the go-plugin handshake, then gRPC over
-`tfplugin6.proto`. The generated protocol code under `internal/tfplugin6` is
-copied from `terraform-plugin-go`, as the protocol file says to do.
+provider binary the way Terraform does: the go-plugin handshake, which settles
+on protocol 5 or 6, then gRPC over `tfplugin5.proto` or `tfplugin6.proto`. The
+generated protocol code under `internal/` is copied from `terraform-plugin-go`,
+as the protocol files say to do, with the descriptor package renamed so that it
+can be linked beside the original.
+
+`random` and `null` both serve protocol 5. Their resources have nothing to read
+back from a server, so discovery by id recovers the id and nothing else: a
+second request for the same pet plans a replacement, not a no-op. A core that
+serves such providers must remember the attributes it sent.
 
 Set `AGENTCORE_PROVIDER` to a provider binary and the CLI uses it instead of
 the MinIO provider:

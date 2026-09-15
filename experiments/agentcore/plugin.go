@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/aminueza/terraform-provider-minio/v3/experiments/agentcore/internal/tfplugin5"
 	"github.com/aminueza/terraform-provider-minio/v3/experiments/agentcore/internal/tfplugin6"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
@@ -27,7 +28,8 @@ func OpenBinary(ctx context.Context, path string) (*Core, error) {
 			MagicCookieValue: pluginMagicCookieValue,
 		},
 		VersionedPlugins: map[int]plugin.PluginSet{
-			6: {pluginName: &grpcPlugin{}},
+			5: {pluginName: &grpcPlugin{version: 5}},
+			6: {pluginName: &grpcPlugin{version: 6}},
 		},
 		Cmd:              exec.CommandContext(ctx, path),
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
@@ -67,6 +69,9 @@ func (p *grpcPlugin) GRPCServer(*plugin.GRPCBroker, *grpc.Server) error {
 }
 
 func (p *grpcPlugin) GRPCClient(_ context.Context, _ *plugin.GRPCBroker, conn *grpc.ClientConn) (interface{}, error) {
+	if p.version == 5 {
+		return &grpcProvider5{client: tfplugin5.NewProviderClient(conn)}, nil
+	}
 	return &grpcProvider{client: tfplugin6.NewProviderClient(conn)}, nil
 }
 

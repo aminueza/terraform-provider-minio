@@ -245,19 +245,17 @@ func (c *Core) Delete(ctx context.Context, req Request) (*Result, error) {
 		return result, nil
 	}
 
-	if _, err := c.apply(ctx, req.Type, schema, prior, nullOf(schema), nullOf(schema), nil); err != nil {
-		return nil, err
-	}
-	result.Action = ActionDelete
-	result.Steps = append(result.Steps, "applied the destroy")
-
-	read, err := c.read(ctx, req.Type, prior)
+	after, err := c.apply(ctx, req.Type, schema, prior, nullOf(schema), nullOf(schema), nil)
 	if err != nil {
 		return nil, err
 	}
-	result.Converged = read.value.IsNull()
-	if !result.Converged {
-		result.Steps = append(result.Steps, "read the resource back and it still exists")
+	result.Action = ActionDelete
+	result.Converged = after.value.IsNull()
+	if result.Converged {
+		result.Steps = append(result.Steps, "applied the destroy and the provider returned no state")
+	} else {
+		result.Steps = append(result.Steps, "applied the destroy but the provider still returned a state")
+		result.State = attributesFromValue(after.value)
 	}
 	return result, nil
 }

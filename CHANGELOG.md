@@ -27,6 +27,25 @@ History older than 3.39.0 lives in the
   whenever a KMS is configured, so this is not limited to AIStor
   ([#1145](https://github.com/aminueza/terraform-provider-minio/issues/1145)).
 
+### Changed
+
+- Bumped `golang.org/x/sync` from 0.22.0 to 0.23.0
+  ([#1165](https://github.com/aminueza/terraform-provider-minio/pull/1165)).
+- Bumped the Go toolchain to go1.26.8
+  ([#1167](https://github.com/aminueza/terraform-provider-minio/pull/1167)).
+
+### Fixed
+
+- `minio_accesskey` no longer loses its attached `policy` when the secret is
+  rotated. MinIO's `UpdateServiceAccount` reads a request that omits the policy
+  field as "no session policy" and detaches whatever is attached, and the
+  provider sent status, secret and description changes as separate calls, none
+  of which carried the policy. Rotating a secret through
+  `secret_key_wo_version`, or changing only the status or the description, threw
+  away a policy the configuration never asked to remove. Clearing a policy on
+  purpose still works
+  ([#1176](https://github.com/aminueza/terraform-provider-minio/pull/1176)).
+
 ## [3.42.0] - 2026-09-11
 
 ### Added

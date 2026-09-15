@@ -15,6 +15,10 @@
     {
       "comment": "Changelog compare links reference the release tag before it exists; the tag lands minutes later in the same release flow",
       "pattern": "^https://github\\.com/aminueza/terraform-provider-minio/compare/"
+    },
+    {
+      "comment": "Contact addresses in the code of conduct. The checker resolves mailto: links against DNS, so an unrelated lookup failure fails an unchanged file on an unrelated pull request",
+      "pattern": "^mailto:"
     }
   ]
 }

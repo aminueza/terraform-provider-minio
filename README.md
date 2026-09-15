@@ -205,10 +205,6 @@ Full setup, project layout, and the MinIO consoles used during testing are cover
 
 Contributions are welcome, from bug reports and feature requests to documentation and new resources. Start with [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for the development setup and conventions, and see [GOVERNANCE.md](./.github/GOVERNANCE.md) for how decisions are made.
 
-<a href="https://github.com/aminueza/terraform-provider-minio/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=aminueza/terraform-provider-minio" alt="Contributors">
-</a>
-
 ## License
 
 Versions from v2.0.0 onward are distributed under the GNU AGPL-3.0 license. You are free to use, modify, and self-host the provider; if you distribute a modified version or offer it as a network service, you must make your source available under the same license.

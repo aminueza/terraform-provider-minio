@@ -208,14 +208,11 @@ func bucketReplicationTargetResource() *schema.Resource {
 				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[0-9]+\s?[s|m|h]$`), "must be a valid golang duration"),
 			},
 			"bandwidth_limit": {
-				Type:        schema.TypeString,
-				Description: "Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB",
-				Optional:    true,
-				Default:     "0",
-				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
-					newVal, err := humanize.ParseBytes(newValue)
-					return err == nil && humanize.Bytes(newVal) == oldValue
-				},
+				Type:             schema.TypeString,
+				Description:      "Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB",
+				Optional:         true,
+				Default:          "0",
+				DiffSuppressFunc: suppressBandwidthLimitDiff,
 				ValidateDiagFunc: validateReplicationBandwidthLimit,
 			},
 			"bandwidth_limt": {
@@ -247,6 +244,36 @@ func bucketReplicationTargetResource() *schema.Resource {
 			},
 		},
 	}
+}
+
+// suppressBandwidthLimitDiff treats two bandwidth_limit strings as equal when
+// they parse to the same number of bytes. Comparing rendered strings instead
+// tied the plan to how go-humanize chose to round a value: a rounding change in
+// the library (v1.0.1 to v1.1.0) un-suppressed state written by an older
+// provider, and two distinct byte counts that render to the same string
+// ("10000MB" and "10499MB" both render as "10 GB") were wrongly suppressed
+// against each other. See
+// https://github.com/aminueza/terraform-provider-minio/issues/1187.
+func suppressBandwidthLimitDiff(_, oldValue, newValue string, _ *schema.ResourceData) bool {
+	oldVal, oldErr := humanize.ParseBytes(oldValue)
+	newVal, newErr := humanize.ParseBytes(newValue)
+	if oldErr != nil || newErr != nil {
+		return false
+	}
+	return oldVal == newVal
+}
+
+// formatBandwidthLimit renders the bandwidth limit MinIO reported for storage
+// in state. It keeps the readable humanized form when that form parses back to
+// the exact byte count, and falls back to the plain byte count otherwise, so
+// the stored string always round-trips through humanize.ParseBytes and
+// suppressBandwidthLimitDiff can compare it exactly against the configuration.
+func formatBandwidthLimit(bytes uint64) string {
+	rendered := humanize.Bytes(bytes)
+	if parsed, err := humanize.ParseBytes(rendered); err == nil && parsed == bytes {
+		return rendered
+	}
+	return strconv.FormatUint(bytes, 10)
 }
 
 func validateReplicationBandwidthLimit(i interface{}, _ cty.Path) (diags diag.Diagnostics) {
@@ -512,7 +539,7 @@ func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketRep
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-		target["bandwidth_limit"] = humanize.Bytes(bwUint64)
+		target["bandwidth_limit"] = formatBandwidthLimit(bwUint64)
 		target["region"] = remoteTarget.Region
 
 		target["access_key"] = remoteTarget.Credentials.AccessKey

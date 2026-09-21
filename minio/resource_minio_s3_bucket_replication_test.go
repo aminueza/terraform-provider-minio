@@ -1838,3 +1838,107 @@ func testAccCheckBucketHasReplication(n string, config []S3MinioBucketReplicatio
 		return nil
 	}
 }
+
+// Regression for https://github.com/aminueza/terraform-provider-minio/issues/1187:
+// bandwidth_limit suppression must compare byte counts, not rendered strings,
+// and the read path must write a string that parses back to the exact value
+// MinIO reported so that values which do not round-trip through
+// humanize.Bytes do not produce perpetual diffs.
+func TestBandwidthLimitDiffSuppress(t *testing.T) {
+	cases := []struct {
+		name     string
+		state    string
+		config   string
+		suppress bool
+	}{
+		{"same value, different spelling", "1.0 GB", "1G", true},
+		{"same value, SI vs plain digits", "1000000000", "1GB", true},
+		{"zero default vs rendered zero", "0 B", "0", true},
+		{"lossy value stored exactly", "10500000000", "10.5GB", true},
+		{"lossy value stored exactly (MB)", "100500000", "100.5MB", true},
+		{"lossy value stored exactly (500.5MB)", "500500000", "500.5MB", true},
+		// Two byte counts that both render as "10 GB" are still different values.
+		{"collision is a real change", "10000000000", "10499MB", false},
+		{"collision is a real change (state 10 GB)", "10 GB", "10499MB", false},
+		{"real change", "1.0 GB", "2G", false},
+		{"invalid config", "1.0 GB", "lots", false},
+		{"invalid state", "garbage", "1G", false},
+		{"empty config", "1.0 GB", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := suppressBandwidthLimitDiff("bandwidth_limit", tc.state, tc.config, nil)
+			if got != tc.suppress {
+				t.Errorf("suppress(state=%q, config=%q) = %v, want %v", tc.state, tc.config, got, tc.suppress)
+			}
+		})
+	}
+}
+
+func TestFormatBandwidthLimit(t *testing.T) {
+	cases := []struct {
+		bytes uint64
+		want  string
+	}{
+		{0, "0 B"},
+		{1000000000, "1.0 GB"},
+		{100000000, "100 MB"},
+		{1500000000, "1.5 GB"},
+		// Values whose humanized form does not parse back to the same number
+		// are stored as the exact byte count.
+		{10500000000, "10500000000"},
+		{100500000, "100500000"},
+		{500500000, "500500000"},
+		{10499000000, "10499000000"},
+	}
+	for _, tc := range cases {
+		got := formatBandwidthLimit(tc.bytes)
+		if got != tc.want {
+			t.Errorf("formatBandwidthLimit(%d) = %q, want %q", tc.bytes, got, tc.want)
+		}
+		parsed, err := humanize.ParseBytes(got)
+		if err != nil {
+			t.Fatalf("formatBandwidthLimit(%d) = %q does not parse: %v", tc.bytes, got, err)
+		}
+		if parsed != tc.bytes {
+			t.Errorf("formatBandwidthLimit(%d) = %q parses back to %d", tc.bytes, got, parsed)
+		}
+	}
+}
+
+// Every value the read path can write must parse back to the exact byte count
+// and be suppressed against the configuration string that produced it.
+func TestBandwidthLimitRoundTrip(t *testing.T) {
+	configs := []string{"100M", "100.5MB", "150M", "500.5MB", "800M", "1G", "1.5GB", "10GB", "10.5GB", "10499MB", "1TB", "1.25TiB"}
+	for _, cfg := range configs {
+		want, err := humanize.ParseBytes(cfg)
+		if err != nil {
+			t.Fatalf("ParseBytes(%q): %v", cfg, err)
+		}
+		state := formatBandwidthLimit(want)
+		got, err := humanize.ParseBytes(state)
+		if err != nil || got != want {
+			t.Errorf("config %q: state %q parses to %d (err %v), want %d", cfg, state, got, err, want)
+		}
+		if !suppressBandwidthLimitDiff("bandwidth_limit", state, cfg, nil) {
+			t.Errorf("config %q: diff against state %q was not suppressed", cfg, state)
+		}
+	}
+	// Sweep the band the validator accepts, in 1 MB steps, plus the boundaries
+	// around every SI magnitude, for exact round-trips.
+	var values []uint64
+	for v := uint64(100000000); v <= 100000000000; v += 1000000 {
+		values = append(values, v)
+	}
+	for _, m := range []uint64{1000000000, 1000000000000} {
+		for d := uint64(0); d < 1000; d++ {
+			values = append(values, m-d, m+d)
+		}
+	}
+	for _, v := range values {
+		got, err := humanize.ParseBytes(formatBandwidthLimit(v))
+		if err != nil || got != v {
+			t.Fatalf("formatBandwidthLimit(%d) = %q parses to %d (err %v)", v, formatBandwidthLimit(v), got, err)
+		}
+	}
+}

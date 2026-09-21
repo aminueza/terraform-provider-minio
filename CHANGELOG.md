@@ -10,6 +10,22 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_bucket_replication` no longer plans a no-op update of a target's
+  `bandwidth_limit` when the stored string and the configured string round to
+  different displays. The diff suppression compared the rendered form of the
+  configured value with the string in state, so it depended on how the
+  `go-humanize` library rounds, and the library's rounding change in 1.1.0
+  un-suppressed state written by older provider versions, for example a
+  configured `10.5GB` against a stored `10 GB`. Suppression now compares the
+  parsed byte counts. The read path also stores the exact byte count whenever
+  the humanized form would not parse back to the value MinIO reports, so a
+  value such as `10.5GB` no longer shows a permanent diff, and two different
+  limits that render to the same string, such as `10000MB` and `10499MB`, are
+  no longer treated as equal
+  ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+
 ## [3.43.0] - 2026-09-15
 
 ### Added

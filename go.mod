@@ -5,7 +5,7 @@ go 1.26.4
 toolchain go1.26.8
 
 require (
-	github.com/dustin/go-humanize v1.0.1
+	github.com/dustin/go-humanize v1.1.0
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/awspolicyequivalence v1.8.0
 	github.com/hashicorp/go-cty v1.5.0

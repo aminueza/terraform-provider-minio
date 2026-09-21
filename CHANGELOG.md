@@ -10,6 +10,21 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Changed
+
+- Bumped `github.com/hashicorp/awspolicyequivalence` from 1.7.0 to 1.8.0. The
+  release rewrites `interface{}` as `any`, requires Go 1.26 and moves its
+  indirect `aws-sdk-go-v2` dependency to 1.47.0; the policy comparison the
+  provider uses to suppress diffs between equivalent policies is unchanged
+  ([#1182](https://github.com/aminueza/terraform-provider-minio/pull/1182)).
+- Bumped `github.com/dustin/go-humanize` from 1.0.1 to 1.1.0. `Bytes()` now
+  rounds once at the target precision instead of twice, which changes the
+  rendering of values at a `.x5` boundary such as `10.5GB`, shown as `11 GB`
+  where 1.0.1 showed `10 GB`. The provider renders `bandwidth_limit` on
+  `minio_s3_bucket_replication` with it, see
+  [#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)
+  ([#1181](https://github.com/aminueza/terraform-provider-minio/pull/1181)).
+
 ## [3.43.0] - 2026-09-15
 
 ### Added

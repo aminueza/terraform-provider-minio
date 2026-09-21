@@ -24,6 +24,22 @@ History older than 3.39.0 lives in the
   `minio_s3_bucket_replication` with it, see
   [#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)
   ([#1181](https://github.com/aminueza/terraform-provider-minio/pull/1181)).
+- `minio_s3_bucket_replication` now stores `bandwidth_limit` in state as the
+  exact number of bytes per second the server reports, for example
+  `10500000000`, where it used to store a rounded rendering such as `10 GB`.
+  The configuration keeps accepting suffixes such as `100M` or `1.5G`. A state
+  written by an older release shows a one-time diff on the next refresh, and no
+  request goes to the server for it
+  ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+
+### Fixed
+
+- `minio_s3_bucket_replication` no longer ignores a change to `bandwidth_limit`
+  that rounds to the same two-digit rendering as the current value, such as
+  `1000MB` to `1040MB`. The diff suppression compared rendered strings, so the
+  change never reached the server. It now compares the parsed byte counts, so
+  the result no longer depends on how `go-humanize` rounds a rendering
+  ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
 
 ## [3.43.0] - 2026-09-15
 

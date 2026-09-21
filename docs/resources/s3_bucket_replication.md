@@ -244,7 +244,7 @@ Required:
 
 Optional:
 
-- `bandwidth_limit` (String) Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB
+- `bandwidth_limit` (String) Maximum bandwidth in bytes per second that MinIO can use when synchronising this target. Accepts suffixes such as `100M` or `1.5G`. Minimum is 100MB. The state holds the exact number of bytes per second the server reports.
 - `bandwidth_limt` (String, Deprecated) Deprecated: use 'bandwidth_limit' instead. Will be removed in a future major version.
 - `disable_proxy` (Boolean) Disable proxy for this target
 - `health_check_period` (String) Period where the health of this target will be checked. This must be a valid duration, such as `5s` or `2m`

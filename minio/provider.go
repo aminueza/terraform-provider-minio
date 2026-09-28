@@ -154,7 +154,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"s3_compat_mode": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Enable S3 compatibility mode for non-MinIO backends (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces). Gracefully handles unsupported S3 features instead of erroring.",
+				Description: "Tolerate S3 features the backend does not implement (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces), detected as a 501 NotImplemented or 405 MethodNotAllowed response. On Read the resource stays in state and the attributes the backend cannot answer are emptied, with a warning naming the feature. Create and Update still fail, naming the feature and this flag, because a policy or encryption rule that is silently dropped is worse than an error. With this flag off every such response is an error.",
 				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
 					prefix + "MINIO_S3_COMPAT_MODE",
 				}, false),

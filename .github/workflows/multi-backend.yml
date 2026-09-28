@@ -1,0 +1,45 @@
+name: Multi-Backend S3 Subset
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  garage:
+    name: Garage (S3 subset)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Start the Garage fixture
+        run: docker compose -f docker-compose.multi-backend.yml up -d garage
+
+      - name: Configure Garage layout and S3 key
+        run: .github/scripts/setup-garage.sh
+
+      - name: Run the S3 subset against Garage
+        run: |
+          export TEST_PATTERN="$(jq -r '.backends.garage.run' testdata/multi-backend/support.json)"
+          export TEST_SKIP="$(.github/scripts/backend-skip.sh garage)"
+          echo "TEST_PATTERN=$TEST_PATTERN"
+          echo "TEST_SKIP entries: $(echo "$TEST_SKIP" | tr '|' '\n' | wc -l)"
+          docker compose -f docker-compose.multi-backend.yml run --rm test-garage
+
+      - name: Cleanup test environment
+        if: always()
+        run: docker compose -f docker-compose.multi-backend.yml down -v

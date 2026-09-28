@@ -1,0 +1,19 @@
+x-minio-cache: &minio_cache
+  cache_from:
+    - type=gha,scope=minio-${MINIO_VERSION:-RELEASE.2025-09-07T16-13-09Z}
+  cache_to:
+    - type=gha,scope=minio-${MINIO_VERSION:-RELEASE.2025-09-07T16-13-09Z},mode=max
+
+services:
+  minio:
+    build: *minio_cache
+  kmsminio:
+    build: *minio_cache
+  ldapminio:
+    build: *minio_cache
+  secondminio:
+    build: *minio_cache
+  thirdminio:
+    build: *minio_cache
+  fourthminio:
+    build: *minio_cache

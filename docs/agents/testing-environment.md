@@ -78,7 +78,11 @@ serves the source of every tagged release and checks it against the checksum
 database. `MINIO_VERSION` selects the server tag and `MC_VERSION` the client
 tag; both apply to all six services. The image sets `MC_HOST_local` from the
 root credentials of each service, so `mc ready local` and `mc admin info local`
-work inside every container.
+work inside every container. In CI, `docker-compose.ci.yml` is merged in
+through `COMPOSE_FILE` and stores the image layers in the GitHub Actions cache,
+one scope per `MINIO_VERSION`, so a run with a warm cache skips the compile.
+The override is not used locally, because the `gha` cache backend needs the
+Actions runtime credentials.
 
 ## Common Issues
 

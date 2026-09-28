@@ -60,20 +60,29 @@ TEST_PATTERN=TestAccMinioIAMUser docker compose run --rm test
 # Run with verbose output
 TF_ACC=1 go test -v ./minio -run TestAccMinioS3Bucket_basic
 
-# Take the MinIO images from another registry, for every MinIO service at once
-MINIO_IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z docker compose run --rm test
+# Build the MinIO servers from another release, for every MinIO service at once
+MINIO_VERSION=RELEASE.2025-10-15T17-29-55Z docker compose run --rm test
 
 # Run package tests
 go test ./minio/...
 ```
 
-The default is `quay.io/minio/minio`. On 2026-09-11 Docker Hub stopped serving
-`minio/minio` to anonymous clients and every CI run went red at the pull step,
-with `pull access denied for minio/minio`, before a single test ran. A probe
-from a runner found the pinned tag and `latest` on `quay.io` and on no other
-public registry: `ghcr.io/minio/minio` and `public.ecr.aws/minio/minio` do not
-carry it. `MINIO_IMAGE` overrides the image for all six MinIO services, so a
-future move needs one variable rather than an edit to `docker-compose.yml`.
+The six MinIO services run an image built by `testdata/minio/Dockerfile`, which
+compiles the `minio` server and the `mc` client from source through the Go
+module proxy. On 2026-09-11 Docker Hub stopped serving `minio/minio` to
+anonymous clients and every CI run went red at the pull step, before a single
+test ran. The suite moved to `quay.io/minio/minio`, and on 2026-09-28 that
+registry answered `unauthorized` too. GitHub Actions runners are anonymous
+clients, so no registry MinIO controls is a safe source. The Go module proxy
+serves the source of every tagged release and checks it against the checksum
+database. `MINIO_VERSION` selects the server tag and `MC_VERSION` the client
+tag; both apply to all six services. The image sets `MC_HOST_local` from the
+root credentials of each service, so `mc ready local` and `mc admin info local`
+work inside every container. In CI, `docker-compose.ci.yml` is merged in
+through `COMPOSE_FILE` and stores the image layers in the GitHub Actions cache,
+one scope per `MINIO_VERSION`, so a run with a warm cache skips the compile.
+The override is not used locally, because the `gha` cache backend needs the
+Actions runtime credentials.
 
 ## Common Issues
 

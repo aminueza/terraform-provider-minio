@@ -1,6 +1,9 @@
-# Define MinIO image version to use across all services
-# Using version that supports adding object lock after bucket creation
-x-minio-image: &minio_image ${MINIO_IMAGE:-quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z}
+x-minio-build: &minio_build
+  context: ./testdata/minio
+  args:
+    MINIO_VERSION: ${MINIO_VERSION:-RELEASE.2025-09-07T16-13-09Z}
+    MC_VERSION: ${MC_VERSION:-RELEASE.2025-08-13T08-35-41Z}
+x-minio-image: &minio_image terraform-provider-minio/minio:${MINIO_VERSION:-RELEASE.2025-09-07T16-13-09Z}
 
 services:
   openldap:
@@ -22,12 +25,14 @@ services:
       start_period: 15s
   minio:
     image: *minio_image
+    build: *minio_build
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
+      MC_HOST_local: http://minio:minio123@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
@@ -40,12 +45,14 @@ services:
       start_period: 10s
   kmsminio: # This is used to test server-side encryption (SSE-S3/SSE-KMS)
     image: *minio_image
+    build: *minio_build
     ports:
       - "9008:9000"
       - "9009:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio789
+      MC_HOST_local: http://minio:minio789@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_KMS_SECRET_KEY: "my-minio-key:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
     command: server --console-address :9001 /data{0...3}
@@ -57,12 +64,14 @@ services:
       start_period: 10s
   ldapminio: # This is used to test LDAP identity provider integration
     image: *minio_image
+    build: *minio_build
     ports:
       - "9010:9000"
       - "9011:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio999
+      MC_HOST_local: http://minio:minio999@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_IDENTITY_LDAP_SERVER_ADDR: "openldap:389"
       MINIO_IDENTITY_LDAP_LOOKUP_BIND_DN: "cn=admin,dc=example,dc=com"
@@ -101,12 +110,14 @@ services:
       start_period: 5s
   secondminio: #  This is used to test bucket replication
     image: *minio_image
+    build: *minio_build
     ports:
       - "9002:9000"
       - "9003:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio321
+      MC_HOST_local: http://minio:minio321@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
@@ -119,12 +130,14 @@ services:
       start_period: 10s
   thirdminio: #  This is used to test bucket replication
     image: *minio_image
+    build: *minio_build
     ports:
       - "9004:9000"
       - "9005:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio456
+      MC_HOST_local: http://minio:minio456@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com
@@ -137,12 +150,14 @@ services:
       start_period: 10s
   fourthminio: #  This is used to test bucket replication
     image: *minio_image
+    build: *minio_build
     ports:
       - "9006:9000"
       - "9007:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio654
+      MC_HOST_local: http://minio:minio654@localhost:9000
       MINIO_CI_CD: "1"
       MINIO_NOTIFY_WEBHOOK_ENABLE_primary: "on"
       MINIO_NOTIFY_WEBHOOK_ENDPOINT_primary: https://webhook.example.com

@@ -1,0 +1,100 @@
+# Multi-backend acceptance-test fixture (issue #1174, Tier 1).
+#
+# Runs the S3 subset of the acceptance suite against Garage, a non-MinIO S3
+# implementation, with no secrets. This file is self-contained on purpose: the
+# MinIO job in docker-compose.yml never loads it, so the full-suite runner is
+# untouched. The `test-garage` command mirrors the `test` service in
+# docker-compose.yml (same image, same Terraform bootstrap) minus coverage,
+# plus a `-skip` regex fed from the per-backend support record.
+#
+# Usage:
+#   docker compose -f docker-compose.multi-backend.yml up -d garage
+#   .github/scripts/setup-garage.sh
+#   TEST_PATTERN="$(jq -r '.backends.garage.run' testdata/multi-backend/support.json)" \
+#   TEST_SKIP="$(.github/scripts/backend-skip.sh garage)" \
+#     docker compose -f docker-compose.multi-backend.yml run --rm test-garage
+
+services:
+  garage:
+    image: dxflrs/garage:v1.0.1
+    volumes:
+      - ./testdata/multi-backend/garage.toml:/etc/garage.toml:ro
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    ports:
+      - "3900:3900"
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+  test-garage:
+    image: golang:1.26.8
+    volumes:
+      - .:/app
+      - go-modules:/go/pkg/mod
+      - terraform-bin:/usr/local/terraform
+    working_dir: /app
+    command:
+      - bash
+      - -c
+      - |
+        TERRAFORM_VERSION=1.11.4
+        TERRAFORM_BIN=/usr/local/terraform/terraform
+        if [ -f "$$TERRAFORM_BIN" ] && $$TERRAFORM_BIN version | grep -q "$$TERRAFORM_VERSION"; then
+          echo "Using cached Terraform $$TERRAFORM_VERSION"
+        else
+          echo "Downloading Terraform $$TERRAFORM_VERSION..."
+          apt-get update && apt-get install -y unzip
+          wget -q -O /tmp/terraform.zip "https://releases.hashicorp.com/terraform/$${TERRAFORM_VERSION}/terraform_$${TERRAFORM_VERSION}_linux_amd64.zip"
+          unzip -o /tmp/terraform.zip -d /usr/local/terraform
+          rm /tmp/terraform.zip
+        fi
+        ln -sf $$TERRAFORM_BIN /usr/local/bin/terraform
+        go mod download
+        go mod verify
+        echo 'Running tests...'
+        # -skip comes from GOFLAGS so the flag only reaches the test binary:
+        # go mod download above must not see a test-only flag.
+        GOFLAGS="$${GOFLAGS:-}$${TEST_SKIP:+ -skip=$$TEST_SKIP}" \
+          go test -v -failfast -timeout 30m ./minio $${TEST_PATTERN:+-run "$$TEST_PATTERN"}
+    environment:
+      TF_ACC: "1"
+      # Admin API version for madmin-go/v4, same default as the MinIO test
+      # service; s3_compat_mode keeps the provider off the admin API anyway.
+      MADMIN_API_VERSION: "v3"
+      TEST_PATTERN: "${TEST_PATTERN:-}"
+      TEST_SKIP: "${TEST_SKIP:-}"
+      MINIO_BACKEND: "garage"
+      MINIO_ENDPOINT: "garage:3900"
+      MINIO_USER: "GK000000000000000000000001"
+      MINIO_PASSWORD: "5ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e700"
+      MINIO_ENABLE_HTTPS: "false"
+      MINIO_S3_COMPAT_MODE: "true"
+      SECOND_MINIO_ENDPOINT: "garage:3900"
+      SECOND_MINIO_USER: "GK000000000000000000000001"
+      SECOND_MINIO_PASSWORD: "5ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e700"
+      SECOND_MINIO_ENABLE_HTTPS: "false"
+      SECOND_MINIO_S3_COMPAT_MODE: "true"
+      THIRD_MINIO_ENDPOINT: "garage:3900"
+      THIRD_MINIO_USER: "GK000000000000000000000001"
+      THIRD_MINIO_PASSWORD: "5ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e700"
+      THIRD_MINIO_ENABLE_HTTPS: "false"
+      THIRD_MINIO_S3_COMPAT_MODE: "true"
+      FOURTH_MINIO_ENDPOINT: "garage:3900"
+      FOURTH_MINIO_USER: "GK000000000000000000000001"
+      FOURTH_MINIO_PASSWORD: "5ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e7005ec3e700"
+      FOURTH_MINIO_ENABLE_HTTPS: "false"
+      FOURTH_MINIO_S3_COMPAT_MODE: "true"
+    depends_on:
+      garage:
+        condition: service_healthy
+
+volumes:
+  garage-meta:
+  garage-data:
+  go-modules:
+    # Shared with docker-compose.yml (same Compose project) so the module and
+    # Terraform caches are reused between the MinIO and Garage runs.
+  terraform-bin:

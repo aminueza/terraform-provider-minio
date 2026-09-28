@@ -97,7 +97,7 @@ func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	}
 
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return NewResourceError("applying object lock configuration", objectLockConfig.MinioBucket, err)
+		return NewResourceError("applying object lock configuration", objectLockConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "object lock configuration", err))
 	}
 
 	d.SetId(objectLockConfig.MinioBucket)
@@ -106,7 +106,8 @@ func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 }
 
 func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
+	compatClient := meta.(*S3MinioClient)
+	client := compatClient.S3Client
 	bucket := d.Id()
 
 	tflog.Debug(ctx, fmt.Sprintf("Reading object lock configuration for bucket: %s", bucket))
@@ -126,10 +127,8 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 			d.SetId("")
 			return nil
 		}
-		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			tflog.Info(ctx, "Object lock not supported by backend; skipping")
-			d.SetId("")
-			return nil
+		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "object lock configuration", err, []string{"object_lock_enabled", "rule"}); absorbed {
+			return diags
 		}
 		return NewResourceError("reading object lock configuration", bucket, err)
 	}
@@ -184,7 +183,7 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	}
 
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return NewResourceError("updating object lock configuration", objectLockConfig.MinioBucket, err)
+		return NewResourceError("updating object lock configuration", objectLockConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "object lock configuration", err))
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Updated object lock configuration for bucket: %s", objectLockConfig.MinioBucket))

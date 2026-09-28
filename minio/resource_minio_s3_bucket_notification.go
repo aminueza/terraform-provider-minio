@@ -132,7 +132,7 @@ func minioPutBucketNotification(ctx context.Context, d *schema.ResourceData, met
 
 	err = bucketNotificationConfig.MinioClient.SetBucketNotification(ctx, bucketName, newConfig)
 	if err != nil {
-		return NewResourceError("error putting bucket notification configuration", bucketName, err)
+		return NewResourceError("error putting bucket notification configuration", bucketName, s3CompatWriteError(meta.(*S3MinioClient), "bucket notification configuration", err))
 	}
 
 	// Write back the queue IDs into state so identity is stable.
@@ -161,9 +161,8 @@ func minioReadBucketNotification(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*S3MinioClient)
 	notificationConfig, err := bucketNotificationConfig.MinioClient.GetBucketNotification(ctx, bucketName)
 	if err != nil {
-		if isS3CompatNotSupported(client, err) {
-			tflog.Info(ctx, "Bucket notification not supported by backend; skipping")
-			return nil
+		if absorbed, diags := s3CompatReadUnsupported(ctx, client, d, "bucket notification configuration", err, []string{"queue"}); absorbed {
+			return diags
 		}
 		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing notification resource from state", d.Id()))

@@ -449,7 +449,8 @@ func validateLifecycleDate(v interface{}, _ cty.Path) diag.Diagnostics {
 }
 
 func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
+	c := client.S3Client
 	bucket := d.Get("bucket").(string)
 
 	if _, err := c.BucketExists(ctx, bucket); err != nil {
@@ -472,7 +473,7 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 				return NewResourceError("setting lifecycle (rollback failed)", bucket, fmt.Errorf("%v; rollback error: %v", err, rbErr))
 			}
 		}
-		return NewResourceError("setting lifecycle", bucket, err)
+		return NewResourceError("setting lifecycle", bucket, s3CompatWriteError(client, "bucket lifecycle configuration", err))
 	}
 
 	d.SetId(bucket)
@@ -480,15 +481,14 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 }
 
 func minioReadS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
+	c := client.S3Client
 	bucket := d.Id()
 
 	config, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil {
-		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			tflog.Info(ctx, fmt.Sprintf("Lifecycle rules not supported by backend; dropping %s from state", bucket))
-			d.SetId("")
-			return nil
+		if absorbed, diags := s3CompatReadUnsupported(ctx, client, d, "bucket lifecycle configuration", err, []string{"rule"}); absorbed {
+			return diags
 		}
 		if isLifecycleNotFoundError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Lifecycle configuration for %s not found; removing from state", bucket))

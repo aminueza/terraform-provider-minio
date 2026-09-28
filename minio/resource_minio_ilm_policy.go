@@ -287,7 +287,8 @@ func validateILMVersions(v interface{}, p cty.Path) diag.Diagnostics {
 }
 
 func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
+	c := client.S3Client
 	bucket := d.Get("bucket").(string)
 
 	_, err := c.BucketExists(ctx, bucket)
@@ -362,7 +363,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 				return NewResourceError("setting lifecycle (rollback also failed)", bucket, fmt.Errorf("%v, rollback error: %v", err, rbErr))
 			}
 		}
-		return NewResourceError("setting lifecycle", bucket, err)
+		return NewResourceError("setting lifecycle", bucket, s3CompatWriteError(client, "ILM policy", err))
 	}
 
 	d.SetId(bucket)
@@ -445,7 +446,8 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 }
 
 func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	compatClient := meta.(*S3MinioClient)
+	c := compatClient.S3Client
 
 	rules := make([]map[string]interface{}, 0)
 
@@ -454,10 +456,8 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
-		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			tflog.Info(ctx, "Lifecycle rules not supported by backend; skipping")
-			d.SetId("")
-			return nil
+		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "ILM policy", err, []string{"rule"}); absorbed {
+			return diags
 		}
 		if isLifecycleNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
 			if err = d.Set("bucket", d.Id()); err != nil {

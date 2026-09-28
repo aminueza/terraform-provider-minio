@@ -53,23 +53,27 @@ func putAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta 
 	})
 
 	if err != nil {
-		return NewResourceError("error putting bucket policy", bucket, err)
+		return NewResourceError("error putting bucket policy", bucket, s3CompatWriteError(meta.(*S3MinioClient), "anonymous access policy", err))
 	}
 
 	return nil
 }
 
-func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}, bucket string) (string, diag.Diagnostics) {
-	client := meta.(*S3MinioClient).S3Client
+// readAnonymousBucketPolicy returns the policy held on the server. The second
+// return value reports that the backend does not support bucket policies, in
+// which case the caller keeps the resource in state with an empty policy.
+func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}, bucket string) (policy string, unsupported bool, diags diag.Diagnostics) {
+	compatClient := meta.(*S3MinioClient)
+	client := compatClient.S3Client
 	timeout := d.Timeout(schema.TimeoutRead)
 
 	if err := waitForBucketReady(ctx, client, bucket, timeout); err != nil {
 		if isNoSuchBucketError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found after waiting, removing anonymous policy resource from state", bucket))
 			d.SetId("")
-			return "", nil
+			return "", false, nil
 		}
-		return "", NewResourceError("error waiting for bucket to be ready", bucket, err)
+		return "", false, NewResourceError("error waiting for bucket to be ready", bucket, err)
 	}
 
 	actualPolicyText, err := client.GetBucketPolicy(ctx, bucket)
@@ -77,9 +81,12 @@ func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta
 		if isNoSuchBucketError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing anonymous policy resource from state", bucket))
 			d.SetId("")
-			return "", nil
+			return "", false, nil
 		}
-		return "", NewResourceError("failed to load bucket policy", bucket, err)
+		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "anonymous access policy", err, []string{"policy", "access_type"}); absorbed {
+			return "", true, diags
+		}
+		return "", false, NewResourceError("failed to load bucket policy", bucket, err)
 	}
 
 	existingPolicy := ""
@@ -87,12 +94,12 @@ func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta
 		existingPolicy = v.(string)
 	}
 
-	policy, err := NormalizeAndCompareJSONPolicies(existingPolicy, actualPolicyText)
+	policy, err = NormalizeAndCompareJSONPolicies(existingPolicy, actualPolicyText)
 	if err != nil {
-		return "", NewResourceError("error while comparing policies", bucket, err)
+		return "", false, NewResourceError("error while comparing policies", bucket, err)
 	}
 
-	return policy, nil
+	return policy, false, nil
 }
 
 func deleteAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}, bucket string) diag.Diagnostics {
@@ -223,8 +230,8 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("setting bucket", bucketName, err)
 	}
 
-	policy, diags := readAnonymousBucketPolicy(ctx, d, meta, bucketName)
-	if diags.HasError() {
+	policy, unsupported, diags := readAnonymousBucketPolicy(ctx, d, meta, bucketName)
+	if diags.HasError() || unsupported {
 		return diags
 	}
 	if d.Id() == "" {

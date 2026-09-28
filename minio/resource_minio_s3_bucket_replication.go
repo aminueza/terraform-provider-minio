@@ -309,7 +309,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
@@ -360,6 +360,9 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
+		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket replication configuration", err, []string{"rule"}); absorbed {
+			return diags
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}

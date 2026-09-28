@@ -57,7 +57,7 @@ func minioCreateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 
 	bucketQuota := madmin.BucketQuota{Size: quota, Type: madmin.HardQuota}
 	if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
-		return NewResourceError("setting bucket quota", bucket, err)
+		return NewResourceError("setting bucket quota", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket quota", err))
 	}
 
 	d.SetId(bucket)
@@ -73,6 +73,9 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 
 	bucketQuota, err := cfg.MinioAdmin.GetBucketQuota(ctx, bucket)
 	if err != nil {
+		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket quota", err, []string{"quota", "type"}); absorbed {
+			return diags
+		}
 		if strings.Contains(strings.ToLower(err.Error()), "no such bucket") ||
 			strings.Contains(err.Error(), "does not exist") {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing quota from state", bucket))
@@ -115,7 +118,7 @@ func minioUpdateBucketQuota(ctx context.Context, d *schema.ResourceData, meta in
 
 		bucketQuota := madmin.BucketQuota{Size: quota, Type: madmin.HardQuota}
 		if err := cfg.MinioAdmin.SetBucketQuota(ctx, bucket, &bucketQuota); err != nil {
-			return NewResourceError("updating bucket quota", bucket, err)
+			return NewResourceError("updating bucket quota", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket quota", err))
 		}
 	}
 

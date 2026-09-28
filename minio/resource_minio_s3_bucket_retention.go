@@ -127,7 +127,7 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	var diags diag.Diagnostics
 
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
-		return NewResourceError("validating bucket object lock", bucket, err)
+		return NewResourceError("validating bucket object lock", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket object lock configuration", err))
 	}
 
 	if hasLifecycleRules(ctx, client, bucket) {
@@ -149,7 +149,7 @@ func minioCreateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 	err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 	if err != nil {
-		return NewResourceError("setting bucket object lock config", bucket, err)
+		return NewResourceError("setting bucket object lock config", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket object lock configuration", err))
 	}
 
 	d.SetId(bucket)
@@ -176,6 +176,9 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
 			d.SetId("")
 			return nil
+		}
+		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket object lock configuration", err, []string{"mode", "validity_period", "unit"}); absorbed {
+			return diags
 		}
 		return NewResourceError("reading bucket retention config", d.Id(), err)
 	}
@@ -210,7 +213,7 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 	bucket := d.Id()
 
 	if err := validateBucketObjectLock(ctx, client, bucket); err != nil {
-		return NewResourceError("validating bucket object lock", bucket, err)
+		return NewResourceError("validating bucket object lock", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket object lock configuration", err))
 	}
 
 	if d.HasChanges("mode", "unit", "validity_period") {
@@ -224,7 +227,7 @@ func minioUpdateRetention(ctx context.Context, d *schema.ResourceData, meta inte
 
 		err := client.SetBucketObjectLockConfig(ctx, bucket, &mode, &validity, &unit)
 		if err != nil {
-			return NewResourceError("updating bucket object lock config", bucket, err)
+			return NewResourceError("updating bucket object lock config", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket object lock configuration", err))
 		}
 	}
 

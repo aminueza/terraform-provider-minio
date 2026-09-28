@@ -93,7 +93,7 @@ func minioCreateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	tflog.Debug(ctx, fmt.Sprintf("Creating object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
+		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "object lock configuration", err))
 	}
 
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
@@ -179,7 +179,7 @@ func minioUpdateObjectLockConfiguration(ctx context.Context, d *schema.ResourceD
 	tflog.Debug(ctx, fmt.Sprintf("Updating object lock configuration for bucket: %s", objectLockConfig.MinioBucket))
 
 	if err := validateObjectLockPrerequisites(ctx, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {
-		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, err)
+		return NewResourceError("validating object lock prerequisites", objectLockConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "object lock configuration", err))
 	}
 
 	if err := applyObjectLockConfiguration(ctx, d, objectLockConfig.MinioClient, objectLockConfig.MinioBucket); err != nil {

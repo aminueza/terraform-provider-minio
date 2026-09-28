@@ -107,7 +107,7 @@ func minioCreateObjectRetention(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if err := client.PutObjectRetention(ctx, bucket, key, opts); err != nil {
-		return NewResourceError("setting object retention", fmt.Sprintf("%s/%s", bucket, key), err)
+		return NewResourceError("setting object retention", fmt.Sprintf("%s/%s", bucket, key), s3CompatWriteError(meta.(*S3MinioClient), "object retention", err))
 	}
 
 	d.SetId(retentionID(bucket, key, versionID))
@@ -127,6 +127,9 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 
 	mode, retainUntil, err := client.GetObjectRetention(ctx, bucket, key, versionID)
 	if err != nil {
+		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "object retention", err, []string{"mode", "retain_until_date"}); absorbed {
+			return diags
+		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchObjectLockConfiguration") {
 			d.SetId("")

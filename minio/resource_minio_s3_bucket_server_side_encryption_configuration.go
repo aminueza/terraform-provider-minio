@@ -68,7 +68,7 @@ func minioPutBucketServerSideEncryption(ctx context.Context, d *schema.ResourceD
 	)
 
 	if err != nil {
-		return NewResourceError("putting bucket encryption configuration", bucketEncryptionConfig.MinioBucket, err)
+		return NewResourceError("putting bucket encryption configuration", bucketEncryptionConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket encryption configuration", err))
 	}
 
 	d.SetId(bucketEncryptionConfig.MinioBucket)
@@ -84,6 +84,9 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 
 	encryptionConfig, err := bucketEncryptionConfig.MinioClient.GetBucketEncryption(ctx, d.Id())
 	if err != nil {
+		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket encryption configuration", err, []string{"encryption_type", "kms_key_id"}); absorbed {
+			return diags
+		}
 		d.SetId("")
 		return nil
 	}

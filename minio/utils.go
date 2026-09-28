@@ -293,16 +293,3 @@ func isLifecycleNotFoundError(err error) bool {
 	return strings.Contains(msg, "NoSuchLifecycleConfiguration") ||
 		strings.Contains(msg, "The lifecycle configuration does not exist")
 }
-
-func isS3CompatNotSupported(client *S3MinioClient, err error) bool {
-	if !client.S3CompatMode || err == nil {
-		return false
-	}
-	errStr := strings.ToLower(err.Error())
-	return strings.Contains(errStr, "not implemented") ||
-		strings.Contains(errStr, "not supported") ||
-		strings.Contains(errStr, "method not allowed") ||
-		strings.Contains(errStr, "unsupported") ||
-		strings.Contains(errStr, "501") ||
-		strings.Contains(errStr, "405")
-}

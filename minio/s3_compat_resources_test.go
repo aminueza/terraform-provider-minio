@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -21,6 +22,10 @@ type s3CompatReadCase struct {
 	raw         map[string]interface{}
 	attributes  []string
 	wantRequest string
+	// compatOffDrops records that the read already dropped the resource on a
+	// failed read before s3_compat_mode existed. The regression test pins that
+	// behaviour instead of asserting a uniform one.
+	compatOffDrops bool
 }
 
 // s3CompatReadCases covers every resource that consults s3_compat_mode. The
@@ -112,8 +117,9 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 					"expiration": "30d",
 				}},
 			},
-			attributes:  []string{"rule"},
-			wantRequest: "?lifecycle=",
+			attributes:     []string{"rule"},
+			wantRequest:    "?lifecycle=",
+			compatOffDrops: true,
 		},
 		{
 			name:     "minio_s3_bucket_policy",
@@ -164,8 +170,9 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"encryption_type": "aws:kms",
 				"kms_key_id":      "compat-stub-key",
 			},
-			attributes:  []string{"encryption_type", "kms_key_id"},
-			wantRequest: "?encryption=",
+			attributes:     []string{"encryption_type", "kms_key_id"},
+			wantRequest:    "?encryption=",
+			compatOffDrops: true,
 		},
 		{
 			name:     "minio_s3_bucket_quota",
@@ -440,6 +447,141 @@ func TestS3CompatWriteNamesFeatureAndFlag(t *testing.T) {
 				}
 				if !strings.Contains(summary, "s3_compat_mode") {
 					t.Errorf("error summary %q does not point at s3_compat_mode", summary)
+				}
+				if d.Id() != "" {
+					t.Errorf("a failed create left the resource %q in state", d.Id())
+				}
+			})
+		}
+	}
+}
+
+// TestS3CompatOffLeavesReadsUnchanged proves the compatibility behaviour is
+// gated on s3_compat_mode. With the flag off, a backend that does not implement
+// the feature must reach exactly the same outcome it reached before this change:
+// the read fails with the backend's own error, the state keeps the values it
+// had, and nothing mentions the flag.
+func TestS3CompatOffLeavesReadsUnchanged(t *testing.T) {
+	bucket := "compat-stub-" + acctest.RandString(8)
+	key := "object-" + acctest.RandString(8)
+
+	for _, status := range []int{http.StatusNotImplemented, http.StatusMethodNotAllowed} {
+		for _, tc := range s3CompatReadCases(bucket, key) {
+			t.Run(tc.name+"/"+s3CompatStubCode(status), func(t *testing.T) {
+				stub := newS3CompatStub(t, bucket, status)
+				d := schema.TestResourceDataRaw(t, tc.resource().Schema, tc.raw)
+				d.SetId(tc.id)
+
+				before := make(map[string]interface{}, len(tc.attributes))
+				for _, attribute := range tc.attributes {
+					before[attribute] = d.Get(attribute)
+				}
+
+				diags := tc.read(context.Background(), d, stub.provider(false))
+
+				if !stub.sawRequest(tc.wantRequest) {
+					t.Fatalf("the stub never received the feature request %q; requests: %v", tc.wantRequest, stub.requestLog())
+				}
+
+				for _, message := range s3CompatDiagMessages(diags) {
+					if strings.Contains(message, "s3_compat_mode") {
+						t.Errorf("diagnostic %q mentions s3_compat_mode with the flag off", message)
+					}
+				}
+
+				if tc.compatOffDrops {
+					// Pinned pre-existing behaviour: this read swallowed every
+					// read error and removed the resource from state.
+					if diags.HasError() {
+						t.Errorf("read returned %v, want the pre-existing silent drop", s3CompatDiagMessages(diags))
+					}
+					if d.Id() != "" {
+						t.Errorf("resource %q is still in state, want it removed as it was before", d.Id())
+					}
+					return
+				}
+
+				if !diags.HasError() {
+					t.Fatalf("read succeeded against a backend that does not support the feature and s3_compat_mode is off; requests: %v", stub.requestLog())
+				}
+				if d.Id() != tc.id {
+					t.Errorf("resource id = %q, want %q: a failed read with the flag off must keep the resource", d.Id(), tc.id)
+				}
+				for _, attribute := range tc.attributes {
+					if got := d.Get(attribute); !reflect.DeepEqual(got, before[attribute]) {
+						t.Errorf("attribute %q = %#v, want the value it held before the read (%#v)", attribute, got, before[attribute])
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestS3CompatOffLeavesWritesUnchanged is the write half of the regression: with
+// the flag off the diagnostic is the one NewResourceError produced before, with
+// the backend's error appended and no hint about s3_compat_mode.
+func TestS3CompatOffLeavesWritesUnchanged(t *testing.T) {
+	bucket := "compat-stub-" + acctest.RandString(8)
+
+	cases := []struct {
+		name        string
+		resource    func() *schema.Resource
+		create      func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics
+		raw         map[string]interface{}
+		wantSummary string
+		wantRequest string
+	}{
+		{
+			name:     "minio_s3_bucket_cors",
+			resource: resourceMinioS3BucketCors,
+			create:   minioCreateBucketCors,
+			raw: map[string]interface{}{
+				"bucket": bucket,
+				"cors_rule": []interface{}{map[string]interface{}{
+					"id":              "compat-stub-rule",
+					"allowed_methods": []interface{}{"GET"},
+					"allowed_origins": []interface{}{"*"},
+				}},
+			},
+			wantSummary: "[FATAL] creating CORS configuration (" + bucket + "): ",
+			wantRequest: "?cors=",
+		},
+		{
+			name:     "minio_s3_bucket_quota",
+			resource: resourceMinioBucketQuota,
+			create:   minioCreateBucketQuota,
+			raw: map[string]interface{}{
+				"bucket": bucket,
+				"quota":  4096,
+				"type":   "hard",
+			},
+			wantSummary: "[FATAL] setting bucket quota (" + bucket + "): ",
+			wantRequest: "set-bucket-quota",
+		},
+	}
+
+	for _, status := range []int{http.StatusNotImplemented, http.StatusMethodNotAllowed} {
+		for _, tc := range cases {
+			t.Run(tc.name+"/"+s3CompatStubCode(status), func(t *testing.T) {
+				stub := newS3CompatStub(t, bucket, status)
+				d := schema.TestResourceDataRaw(t, tc.resource().Schema, tc.raw)
+
+				diags := tc.create(context.Background(), d, stub.provider(false))
+				if !diags.HasError() {
+					t.Fatalf("create succeeded against a backend that does not support the feature; requests: %v", stub.requestLog())
+				}
+				if !stub.sawRequest(tc.wantRequest) {
+					t.Fatalf("the stub never received the write request %q; requests: %v", tc.wantRequest, stub.requestLog())
+				}
+				summary := diags[0].Summary
+				if !strings.HasPrefix(summary, tc.wantSummary) {
+					t.Errorf("error summary %q, want the pre-existing summary starting with %q", summary, tc.wantSummary)
+				}
+				if strings.Contains(summary, "s3_compat_mode") {
+					t.Errorf("error summary %q mentions s3_compat_mode with the flag off", summary)
+				}
+				if strings.Contains(summary, "is not supported by this S3 backend, and s3_compat_mode") {
+					t.Errorf("error summary %q carries the compatibility hint added for s3_compat_mode", summary)
 				}
 				if d.Id() != "" {
 					t.Errorf("a failed create left the resource %q in state", d.Id())

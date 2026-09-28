@@ -26,14 +26,8 @@ jobs:
         run: |
           TAG=$(curl -sL https://api.github.com/repos/minio/minio/releases/latest | jq -r '.tag_name')
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "MINIO_VERSION=${TAG}" >> "$GITHUB_ENV"
           echo "Latest MinIO release: ${TAG}"
-
-      - name: Override MinIO image in docker-compose.yml
-        run: |
-          TAG="${{ steps.minio.outputs.tag }}"
-          sed -i "s|minio/minio:RELEASE\.[^}\"']*|minio/minio:${TAG}|" docker-compose.yml
-          echo "Updated MinIO image to minio/minio:${TAG}"
-          grep "minio/minio:" docker-compose.yml
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1

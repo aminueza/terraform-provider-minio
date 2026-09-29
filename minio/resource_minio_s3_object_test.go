@@ -157,7 +157,6 @@ func testAccMinioS3ObjectConfigBasic(rInt int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
-  acl    = "public-read-write"
 }
 
 resource "minio_s3_object" "test" {
@@ -172,7 +171,6 @@ func testAccMinioS3ObjectConfigWithACL(rInt int, acl string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
-  acl    = "public-read-write"
 }
 
 resource "minio_s3_object" "test" {
@@ -241,7 +239,6 @@ func testAccMinioS3ObjectConfigWithContentType(rInt int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
-  acl    = "public-read-write"
 }
 
 resource "minio_s3_object" "test" {
@@ -257,7 +254,6 @@ func testAccMinioS3ObjectConfigWithMetadata(rInt int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
-  acl    = "public-read-write"
 }
 
 resource "minio_s3_object" "test" {
@@ -282,7 +278,6 @@ func testAccMinioS3ObjectConfigWithMetadataUpdated(rInt int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
-  acl    = "public-read-write"
 }
 
 resource "minio_s3_object" "test" {

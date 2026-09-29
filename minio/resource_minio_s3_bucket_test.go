@@ -974,7 +974,6 @@ func testAccMinioS3BucketDestroyedConfig(randInt string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
-  acl    = "public-read"
 }
 `, randInt)
 }

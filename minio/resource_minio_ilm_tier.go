@@ -329,8 +329,8 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 	name := d.Id()
 	tier, err := getTier(c, ctx, name)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "remote tier", err, []string{"type", "prefix", "name", "bucket", "endpoint", "region", "minio_config", "s3_config", "azure_config", "gcs_config"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "remote tier", err) {
+			return nil
 		}
 		return NewResourceError("reading remote tier failed", name, err)
 	}

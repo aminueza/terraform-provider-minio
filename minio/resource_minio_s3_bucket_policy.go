@@ -127,8 +127,8 @@ func minioReadBucketPolicy(ctx context.Context, d *schema.ResourceData, meta int
 
 	actualPolicyText, readPolicyErr = bucketPolicyConfig.MinioClient.GetBucketPolicy(ctx, d.Id())
 	if readPolicyErr != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket policy", readPolicyErr, []string{"policy"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket policy", readPolicyErr) {
+			return nil
 		}
 		if isNoSuchBucketError(readPolicyErr) && !d.IsNewResource() {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing policy resource from state", d.Id()))

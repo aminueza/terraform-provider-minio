@@ -456,8 +456,8 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 
 	config, err := c.GetBucketLifecycle(ctx, d.Id())
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "ILM policy", err, []string{"rule"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "ILM policy", err) {
+			return nil
 		}
 		if isLifecycleNotFoundError(err) && !hasAnySupportedAction && len(rulesFromState) > 0 {
 			if err = d.Set("bucket", d.Id()); err != nil {

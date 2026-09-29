@@ -199,13 +199,13 @@ provider "minio" {
 }
 ```
 
-A missing feature is recognised from the typed response the backend returns: the S3 error code `NotImplemented` or `MethodNotAllowed`, or the HTTP status 501 or 405 when the backend answers without an S3 error body. What the flag does with that error is the same for every resource:
+A missing feature is recognised from the typed response the backend returns: the S3 error code `NotImplemented`, or the HTTP status 501. The code `MethodNotAllowed` (405) counts as a missing feature on the bucket sub-resources and on writes, where it means the backend implements the feature on another method. On the object-level reads a 405 is a real answer instead, because S3 and MinIO answer a GET or HEAD whose `versionId` is a delete marker with 405, so those reads still fail. Admin API calls, such as ILM tiers and bucket quota, are recognised from the error code alone, because the admin client reports no HTTP status. What the flag does with a missing feature is the same for every resource:
 
-- **Read** — the resource stays in state and the attributes the backend cannot answer are reset to their zero values, with a warning that names the feature and points at `s3_compat_mode`. The resource is never removed from state, because that would plan a create which fails the same way, and the previous values are never kept, because they were never applied by the backend. Expect the next plan to show a diff for the attributes that the backend cannot store.
+- **Read** — the resource stays in state with the attributes the provider last managed to write, and the provider logs a warning that names the feature and points at `s3_compat_mode`. The resource is never removed from state, because that would plan a create which fails the same way. The attributes are not emptied either, because a read the backend cannot answer says nothing about what the write stored: resetting them would manufacture a diff that the next successful read removes again, and would force a replacement on the attributes that cannot be changed. While the backend keeps ignoring the feature, the plan stays empty.
 - **Create and Update** — the operation still fails, and the error names the feature and points at `s3_compat_mode` instead of showing the backend's raw XML. `s3_compat_mode` never skips a write: a bucket policy, a retention rule or an encryption configuration that was silently dropped is worse than an error.
 - **With the flag off** — every such response is an error, exactly as it is on MinIO.
 
-This applies to the whole S3 surface: bucket notifications, CORS, object lock and bucket retention, object legal hold and object retention, lifecycle rules (ILM) and ILM tiers, bucket policy and anonymous access, bucket versioning, bucket encryption, bucket quota, bucket replication, object tagging and object metadata.
+This applies to the whole S3 surface: bucket notifications, CORS, object lock and bucket retention, object legal hold and object retention, lifecycle rules, bucket policy and anonymous access, bucket versioning, bucket encryption, bucket replication, object tagging and object metadata. ILM tiers and bucket quota are covered as well, although they are read through the admin API rather than through S3.
 
 ### Tested S3-Compatible Backends
 

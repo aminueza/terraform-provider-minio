@@ -360,8 +360,8 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket replication configuration", err, []string{"rule"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket replication configuration", err) {
+			return nil
 		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)

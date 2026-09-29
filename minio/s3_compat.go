@@ -7,32 +7,51 @@ import (
 	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 )
+
+const s3CompatMethodNotAllowed = "MethodNotAllowed"
 
 // A backend that never implemented an S3 feature answers with 501 NotImplemented,
 // and one that implements it on another method answers with 405 MethodNotAllowed.
 // Matching the typed response keeps an unrelated error whose text happens to carry
 // the word "unsupported" from being mistaken for a missing feature. See issue #1173.
 var s3CompatNotImplementedCodes = map[string]bool{
-	"NotImplemented":   true,
-	"MethodNotAllowed": true,
+	"NotImplemented": true,
 }
 
 var s3CompatNotImplementedStatuses = map[int]bool{
-	http.StatusNotImplemented:   true,
-	http.StatusMethodNotAllowed: true,
+	http.StatusNotImplemented: true,
 }
 
-func isS3CompatNotSupported(client *S3MinioClient, err error) bool {
+// What a 405 MethodNotAllowed means depends on what was asked, so the call site
+// says which of the two it is. See isS3CompatNotSupported.
+const (
+	// s3Compat405IsMissingFeature covers the bucket sub-resources and every
+	// write: a backend that implements the feature on another method answers
+	// 405 to the request the provider made, which is a missing feature.
+	s3Compat405IsMissingFeature = "method-not-allowed-is-missing-feature"
+	// s3Compat405IsAnAnswer covers the object-level reads. S3 and MinIO answer
+	// an object GET or HEAD whose versionId is a delete marker with 405, and
+	// minio-go synthesises exactly that code in api-stat.go, so there a 405 is
+	// an answer about the object rather than a missing feature.
+	s3Compat405IsAnAnswer = "method-not-allowed-is-an-answer"
+)
+
+func isS3CompatNotSupported(client *S3MinioClient, methodNotAllowed string, err error) bool {
 	if client == nil || !client.S3CompatMode || err == nil {
 		return false
 	}
 	code, status := s3CompatErrorResponse(err)
-	return s3CompatNotImplementedCodes[code] || s3CompatNotImplementedStatuses[status]
+	if s3CompatNotImplementedCodes[code] || s3CompatNotImplementedStatuses[status] {
+		return true
+	}
+	if methodNotAllowed != s3Compat405IsMissingFeature {
+		return false
+	}
+	return code == s3CompatMethodNotAllowed || status == http.StatusMethodNotAllowed
 }
 
 // s3CompatErrorResponse returns the S3 error code and the HTTP status of a typed
@@ -61,66 +80,23 @@ func s3CompatErrorResponse(err error) (string, int) {
 }
 
 // s3CompatReadUnsupported absorbs a "this backend does not implement the feature"
-// error raised while reading, when s3_compat_mode is on. The resource stays in
-// state with the attributes the backend cannot answer reset to their zero values:
-// dropping it would plan a create that fails the same way, and keeping the stale
-// values would hide that the backend never applied them. It reports whether the
-// caller should return no diagnostics. See issue #1173.
-func s3CompatReadUnsupported(ctx context.Context, client *S3MinioClient, d *schema.ResourceData, feature string, err error, attributes []string) (bool, diag.Diagnostics) {
-	if !isS3CompatNotSupported(client, err) {
-		return false, nil
+// error raised while reading, when s3_compat_mode is on. The resource keeps its id
+// and the attributes the provider last managed to write: dropping it would plan a
+// create that fails the same way, and the read says nothing about what the write
+// stored, so emptying the attributes would only manufacture a diff the next
+// successful read removes again. It reports whether the caller should return no
+// diagnostics. See issue #1173.
+func s3CompatReadUnsupported(ctx context.Context, client *S3MinioClient, methodNotAllowed string, d *schema.ResourceData, feature string, err error) bool {
+	if !isS3CompatNotSupported(client, methodNotAllowed, err) {
+		return false
 	}
 
 	tflog.Warn(ctx, fmt.Sprintf(
-		"%s is not supported by this S3 backend; keeping resource %s in state with %s empty because s3_compat_mode is true. Set s3_compat_mode = false to make this an error instead.",
-		feature, d.Id(), attributes,
+		"%s is not supported by this S3 backend; keeping resource %s in state with its last known attributes because s3_compat_mode is true. Set s3_compat_mode = false to make this an error instead.",
+		feature, d.Id(),
 	))
 
-	return true, s3CompatZeroAttributes(d, attributes)
-}
-
-// s3CompatZeroAttributes resets each attribute to the zero value of its schema
-// type, so a read against a backend that does not implement the feature reports an
-// empty value instead of the last value the provider managed to write.
-func s3CompatZeroAttributes(d *schema.ResourceData, attributes []string) diag.Diagnostics {
-	var diags diag.Diagnostics
-
-	for _, attribute := range attributes {
-		current := d.Get(attribute)
-		zero, ok := s3CompatZeroValue(current)
-		if !ok {
-			diags = append(diags, NewResourceError(
-				"resetting an attribute the backend does not support",
-				d.Id(),
-				fmt.Errorf("cannot compute a zero value for %q of type %T", attribute, current),
-			)...)
-			continue
-		}
-		if err := d.Set(attribute, zero); err != nil {
-			diags = append(diags, NewResourceError("resetting an attribute the backend does not support", d.Id(), err)...)
-		}
-	}
-
-	return diags
-}
-
-func s3CompatZeroValue(value interface{}) (interface{}, bool) {
-	switch value.(type) {
-	case string:
-		return "", true
-	case bool:
-		return false, true
-	case int:
-		return 0, true
-	case float64:
-		return float64(0), true
-	case []interface{}:
-		return []interface{}{}, true
-	case map[string]interface{}:
-		return map[string]interface{}{}, true
-	}
-
-	return nil, false
+	return true
 }
 
 // s3CompatWriteError names the missing feature in a failed create or update, so
@@ -129,7 +105,7 @@ func s3CompatZeroValue(value interface{}) (interface{}, bool) {
 // silently dropped is worse than an error. With the flag off the error is
 // returned untouched, so the reported failure is unchanged. See issue #1173.
 func s3CompatWriteError(client *S3MinioClient, feature string, err error) error {
-	if !isS3CompatNotSupported(client, err) {
+	if !isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err) {
 		return err
 	}
 

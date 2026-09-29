@@ -83,8 +83,8 @@ func readAnonymousBucketPolicy(ctx context.Context, d *schema.ResourceData, meta
 			d.SetId("")
 			return "", false, nil
 		}
-		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "anonymous access policy", err, []string{"policy", "access_type"}); absorbed {
-			return "", true, diags
+		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "anonymous access policy", err) {
+			return "", true, nil
 		}
 		return "", false, NewResourceError("failed to load bucket policy", bucket, err)
 	}

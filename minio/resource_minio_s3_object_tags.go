@@ -105,8 +105,8 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 	opts := minio.GetObjectTaggingOptions{}
 	objectTags, err := cfg.MinioClient.GetObjectTagging(ctx, bucket, objectKey, opts)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "object tags", err, []string{"tags"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsAnAnswer, d, "object tags", err) {
+			return nil
 		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {

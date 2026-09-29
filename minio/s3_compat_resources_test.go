@@ -30,6 +30,10 @@ type s3CompatReadCase struct {
 	raw              map[string]interface{}
 	attributes       []string
 	wantRequest      string
+	// methodNotAllowed is what a 405 means to this read. The object resources
+	// pass s3Compat405IsAnAnswer, because 405 on an object GET or HEAD is an
+	// answer about the object rather than a missing feature.
+	methodNotAllowed string
 	// compatOffDrops records that the read already dropped the resource on a
 	// failed read before s3_compat_mode existed. The regression test pins that
 	// behaviour instead of asserting a uniform one.
@@ -277,8 +281,9 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"key":    key,
 				"tags":   map[string]interface{}{"env": "stub"},
 			},
-			attributes:  []string{"tags"},
-			wantRequest: "?tagging=",
+			attributes:       []string{"tags"},
+			wantRequest:      "?tagging=",
+			methodNotAllowed: s3Compat405IsAnAnswer,
 		},
 		{
 			name:     "minio_s3_object_legal_hold",
@@ -292,8 +297,9 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"key":    key,
 				"status": "ON",
 			},
-			attributes:  []string{"status"},
-			wantRequest: "?legal-hold=",
+			attributes:       []string{"status"},
+			wantRequest:      "?legal-hold=",
+			methodNotAllowed: s3Compat405IsAnAnswer,
 		},
 		{
 			name:     "minio_s3_object_retention",
@@ -308,8 +314,9 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"mode":              "GOVERNANCE",
 				"retain_until_date": "2099-01-02T15:04:05Z",
 			},
-			attributes:  []string{"mode", "retain_until_date"},
-			wantRequest: "?retention=",
+			attributes:       []string{"mode", "retain_until_date"},
+			wantRequest:      "?retention=",
+			methodNotAllowed: s3Compat405IsAnAnswer,
 		},
 		{
 			name:     "minio_s3_object",
@@ -334,7 +341,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"etag", "content_type", "content_encoding", "storage_class",
 				"cache_control", "content_disposition", "expires", "metadata",
 			},
-			wantRequest: "HEAD /" + bucket + "/" + key,
+			wantRequest:      "HEAD /" + bucket + "/" + key,
+			methodNotAllowed: s3Compat405IsAnAnswer,
 		},
 		{
 			name:             "minio_ilm_tier",
@@ -365,12 +373,13 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 	}
 }
 
-// TestS3CompatReadKeepsResourceInState is the read half of the decided
-// semantics: a backend that answers NotImplemented must leave the resource in
-// state with the attributes it could not read emptied, not drop the resource
-// and not keep stale values. Every resource that consults s3_compat_mode is
-// covered, against both codes a real backend uses for a missing feature.
-func TestS3CompatReadKeepsResourceInState(t *testing.T) {
+// TestS3CompatReadAbsorbsMissingFeature is the read half of the decided
+// semantics: a backend that answers NotImplemented leaves the resource in state
+// with the attributes the last write stored, and only that response is absorbed.
+// A 405 on an object read is an answer about the object, so it stays an error
+// there while the bucket sub-resources still absorb it. Every resource that
+// consults s3_compat_mode is covered, against both codes a real backend uses.
+func TestS3CompatReadAbsorbsMissingFeature(t *testing.T) {
 	bucket := "compat-stub-" + acctest.RandString(8)
 	key := "object-" + acctest.RandString(8)
 
@@ -381,53 +390,44 @@ func TestS3CompatReadKeepsResourceInState(t *testing.T) {
 				d := schema.TestResourceDataRaw(t, tc.resource().Schema, tc.raw)
 				d.SetId(tc.id)
 
-				diags := tc.read(context.Background(), d, stub.provider(true))
-				if diags.HasError() {
-					t.Fatalf("read returned an error with s3_compat_mode on: %v; requests: %v", s3CompatDiagMessages(diags), stub.requestLog())
+				before := make(map[string]interface{}, len(tc.attributes))
+				for _, attribute := range tc.attributes {
+					before[attribute] = d.Get(attribute)
 				}
+
+				diags := tc.read(context.Background(), d, stub.provider(true))
+
 				if !stub.sawRequest(tc.wantRequest) {
 					t.Fatalf("the stub never received the feature request %q, so the compatibility branch was never reached; requests: %v", tc.wantRequest, stub.requestLog())
 				}
 				if d.Id() == "" {
-					t.Errorf("resource was dropped from state, which produces a perpetual diff")
+					t.Fatal("resource was dropped from state, which produces a perpetual diff")
+				}
+
+				// A 405 is only a missing feature where the backend would serve
+				// it on another method, so an object read must still fail.
+				if status == http.StatusMethodNotAllowed && tc.methodNotAllowed == s3Compat405IsAnAnswer {
+					if !diags.HasError() {
+						t.Fatalf("read absorbed a 405 on an object read, which is an answer about the object; requests: %v", stub.requestLog())
+					}
+					for _, message := range s3CompatDiagMessages(diags) {
+						if strings.Contains(message, "s3_compat_mode") {
+							t.Errorf("diagnostic %q mentions s3_compat_mode for a response that is not a missing feature", message)
+						}
+					}
+					return
+				}
+
+				if diags.HasError() {
+					t.Fatalf("read returned an error with s3_compat_mode on: %v; requests: %v", s3CompatDiagMessages(diags), stub.requestLog())
 				}
 				for _, attribute := range tc.attributes {
-					assertS3CompatZeroValue(t, attribute, d.Get(attribute))
+					if got := d.Get(attribute); !reflect.DeepEqual(got, before[attribute]) {
+						t.Errorf("attribute %q = %#v, want the value the last write left (%#v): an absorbed read says nothing about what was stored", attribute, got, before[attribute])
+					}
 				}
 			})
 		}
-	}
-}
-
-// assertS3CompatZeroValue checks a single attribute against the zero value of
-// its own type, so a stale value left in state fails even when the schema
-// carries a default for it.
-func assertS3CompatZeroValue(t *testing.T, attribute string, value interface{}) {
-	t.Helper()
-
-	switch typed := value.(type) {
-	case string:
-		if typed != "" {
-			t.Errorf("attribute %q = %q, want the empty string", attribute, typed)
-		}
-	case bool:
-		if typed {
-			t.Errorf("attribute %q = true, want false", attribute)
-		}
-	case int:
-		if typed != 0 {
-			t.Errorf("attribute %q = %d, want 0", attribute, typed)
-		}
-	case []interface{}:
-		if len(typed) != 0 {
-			t.Errorf("attribute %q = %#v, want an empty list", attribute, typed)
-		}
-	case map[string]interface{}:
-		if len(typed) != 0 {
-			t.Errorf("attribute %q = %#v, want an empty map", attribute, typed)
-		}
-	default:
-		t.Fatalf("attribute %q has unexpected type %T", attribute, value)
 	}
 }
 

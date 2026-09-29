@@ -73,8 +73,8 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 
 	bucketQuota, err := cfg.MinioAdmin.GetBucketQuota(ctx, bucket)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket quota", err, []string{"quota", "type"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket quota", err) {
+			return nil
 		}
 		if strings.Contains(strings.ToLower(err.Error()), "no such bucket") ||
 			strings.Contains(err.Error(), "does not exist") {

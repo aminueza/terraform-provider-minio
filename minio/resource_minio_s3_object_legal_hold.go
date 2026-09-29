@@ -105,8 +105,8 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 
 	status, err := client.GetObjectLegalHold(ctx, bucket, objectKey, opts)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "object legal hold", err, []string{"status"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsAnAnswer, d, "object legal hold", err) {
+			return nil
 		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) {

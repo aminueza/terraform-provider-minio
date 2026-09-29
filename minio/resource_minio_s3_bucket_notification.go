@@ -161,8 +161,8 @@ func minioReadBucketNotification(ctx context.Context, d *schema.ResourceData, me
 	client := meta.(*S3MinioClient)
 	notificationConfig, err := bucketNotificationConfig.MinioClient.GetBucketNotification(ctx, bucketName)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, client, d, "bucket notification configuration", err, []string{"queue"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "bucket notification configuration", err) {
+			return nil
 		}
 		if strings.Contains(err.Error(), "does not exist") || strings.Contains(err.Error(), "NoSuchBucket") {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing notification resource from state", d.Id()))

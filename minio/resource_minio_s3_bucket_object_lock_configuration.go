@@ -127,8 +127,8 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 			d.SetId("")
 			return nil
 		}
-		if absorbed, diags := s3CompatReadUnsupported(ctx, compatClient, d, "object lock configuration", err, []string{"object_lock_enabled", "rule"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "object lock configuration", err) {
+			return nil
 		}
 		return NewResourceError("reading object lock configuration", bucket, err)
 	}

@@ -163,8 +163,8 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	cfg, readErr := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
 	if readErr != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket versioning configuration", readErr, []string{"versioning_configuration"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket versioning configuration", readErr) {
+			return nil
 		}
 		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, readErr)
 	}

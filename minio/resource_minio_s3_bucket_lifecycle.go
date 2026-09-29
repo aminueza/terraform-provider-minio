@@ -487,8 +487,8 @@ func minioReadS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, met
 
 	config, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, client, d, "bucket lifecycle configuration", err, []string{"rule"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "bucket lifecycle configuration", err) {
+			return nil
 		}
 		if isLifecycleNotFoundError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Lifecycle configuration for %s not found; removing from state", bucket))

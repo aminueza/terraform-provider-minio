@@ -239,8 +239,8 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	)
 
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, m, d, "object", err, []string{"etag", "content_type", "content_encoding", "storage_class", "cache_control", "content_disposition", "expires", "metadata"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, m, s3Compat405IsAnAnswer, d, "object", err) {
+			return nil
 		}
 		if err.Error() == "The specified key does not exist." {
 			d.SetId("")

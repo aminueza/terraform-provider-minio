@@ -177,8 +177,8 @@ func minioReadRetention(ctx context.Context, d *schema.ResourceData, meta interf
 			d.SetId("")
 			return nil
 		}
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "bucket object lock configuration", err, []string{"mode", "validity_period", "unit"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket object lock configuration", err) {
+			return nil
 		}
 		return NewResourceError("reading bucket retention config", d.Id(), err)
 	}

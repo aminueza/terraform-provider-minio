@@ -127,8 +127,8 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 
 	mode, retainUntil, err := client.GetObjectRetention(ctx, bucket, key, versionID)
 	if err != nil {
-		if absorbed, diags := s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), d, "object retention", err, []string{"mode", "retain_until_date"}); absorbed {
-			return diags
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsAnAnswer, d, "object retention", err) {
+			return nil
 		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchObjectLockConfiguration") {

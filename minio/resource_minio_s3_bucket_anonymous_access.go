@@ -192,8 +192,6 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 		return NewResourceError("failed to normalize policy JSON", bucketName, err)
 	}
 
-	d.SetId(encodeAnonymousAccessID(bucketName))
-
 	if err := d.Set("policy", normalizedPolicy); err != nil {
 		return NewResourceError("setting policy", bucketName, err)
 	}
@@ -217,6 +215,11 @@ func minioSetAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta i
 	if diags := putAnonymousBucketPolicy(ctx, d, meta, bucketName, normalizedPolicy); diags.HasError() {
 		return diags
 	}
+
+	// The id is set only after the policy is written. Setting it earlier left a
+	// resource in state on a backend that rejected the write, and the next plan
+	// then read a resource that was never created. See issue #1173.
+	d.SetId(encodeAnonymousAccessID(bucketName))
 
 	return minioReadAnonymousPolicy(ctx, d, meta)
 }

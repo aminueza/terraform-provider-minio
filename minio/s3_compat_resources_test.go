@@ -15,13 +15,21 @@ import (
 // s3CompatReadCase describes one resource read that must survive a backend
 // which does not implement the feature it reads.
 type s3CompatReadCase struct {
-	name        string
-	resource    func() *schema.Resource
-	read        func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics
-	id          string
-	raw         map[string]interface{}
-	attributes  []string
-	wantRequest string
+	name     string
+	resource func() *schema.Resource
+	read     func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics
+	// create and feature drive the write half of the table. A case without a
+	// create is read-only and the write test skips it.
+	create  func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics
+	feature string
+	// wantWriteRequest is the request the create must reach when it differs
+	// from the one the read reaches, as it does whenever the two use different
+	// HTTP methods on the same path.
+	wantWriteRequest string
+	id               string
+	raw              map[string]interface{}
+	attributes       []string
+	wantRequest      string
 	// compatOffDrops records that the read already dropped the resource on a
 	// failed read before s3_compat_mode existed. The regression test pins that
 	// behaviour instead of asserting a uniform one.
@@ -40,6 +48,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_cors",
 			resource: resourceMinioS3BucketCors,
 			read:     minioReadBucketCors,
+			create:   minioCreateBucketCors,
+			feature:  "CORS configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -56,6 +66,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_lifecycle",
 			resource: resourceMinioS3BucketLifecycle,
 			read:     minioReadS3BucketLifecycle,
+			create:   minioCreateS3BucketLifecycle,
+			feature:  "bucket lifecycle configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -74,6 +86,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_notification",
 			resource: resourceMinioBucketNotification,
 			read:     minioReadBucketNotification,
+			create:   minioPutBucketNotification,
+			feature:  "bucket notification configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -87,10 +101,13 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			wantRequest: "?notification=",
 		},
 		{
-			name:     "minio_s3_bucket_object_lock_configuration",
-			resource: resourceMinioS3BucketObjectLockConfiguration,
-			read:     minioReadObjectLockConfiguration,
-			id:       bucket,
+			name:             "minio_s3_bucket_object_lock_configuration",
+			resource:         resourceMinioS3BucketObjectLockConfiguration,
+			read:             minioReadObjectLockConfiguration,
+			create:           minioCreateObjectLockConfiguration,
+			feature:          "object lock configuration",
+			wantWriteRequest: "?versioning=",
+			id:               bucket,
 			raw: map[string]interface{}{
 				"bucket":              bucket,
 				"object_lock_enabled": true,
@@ -108,6 +125,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_ilm_policy",
 			resource: resourceMinioILMPolicy,
 			read:     minioReadILMPolicy,
+			create:   minioCreateILMPolicy,
+			feature:  "ILM policy",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -125,6 +144,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_policy",
 			resource: resourceMinioBucketPolicy,
 			read:     minioReadBucketPolicy,
+			create:   minioPutBucketPolicy,
+			feature:  "bucket policy",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -137,6 +158,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_versioning",
 			resource: resourceMinioBucketVersioning,
 			read:     minioReadBucketVersioning,
+			create:   minioPutBucketVersioning,
+			feature:  "bucket versioning configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -151,6 +174,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_anonymous_access",
 			resource: resourceMinioS3BucketAnonymousAccess,
 			read:     minioReadAnonymousPolicy,
+			create:   minioSetAnonymousPolicy,
+			feature:  "anonymous access policy",
 			id:       encodeAnonymousAccessID(bucket),
 			raw: map[string]interface{}{
 				"bucket":      bucket,
@@ -164,6 +189,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_server_side_encryption_configuration",
 			resource: resourceMinioBucketServerSideEncryption,
 			read:     minioReadBucketServerSideEncryption,
+			create:   minioPutBucketServerSideEncryption,
+			feature:  "bucket encryption configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket":          bucket,
@@ -175,10 +202,13 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			compatOffDrops: true,
 		},
 		{
-			name:     "minio_s3_bucket_quota",
-			resource: resourceMinioBucketQuota,
-			read:     minioReadBucketQuota,
-			id:       bucket,
+			name:             "minio_s3_bucket_quota",
+			resource:         resourceMinioBucketQuota,
+			read:             minioReadBucketQuota,
+			create:           minioCreateBucketQuota,
+			feature:          "bucket quota",
+			wantWriteRequest: "set-bucket-quota",
+			id:               bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
 				"quota":  4096,
@@ -188,10 +218,13 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			wantRequest: "get-bucket-quota",
 		},
 		{
-			name:     "minio_s3_bucket_retention",
-			resource: resourceMinioBucketRetention,
-			read:     minioReadRetention,
-			id:       bucket,
+			name:             "minio_s3_bucket_retention",
+			resource:         resourceMinioBucketRetention,
+			read:             minioReadRetention,
+			create:           minioCreateRetention,
+			feature:          "bucket object lock configuration",
+			wantWriteRequest: "?versioning=",
+			id:               bucket,
 			raw: map[string]interface{}{
 				"bucket":          bucket,
 				"mode":            "GOVERNANCE",
@@ -205,6 +238,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_bucket_replication",
 			resource: resourceMinioBucketReplication,
 			read:     minioReadBucketReplication,
+			create:   minioPutBucketReplication,
+			feature:  "bucket replication configuration",
 			id:       bucket,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -230,10 +265,13 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			wantRequest: "?replication=",
 		},
 		{
-			name:     "minio_s3_object_tags",
-			resource: resourceMinioObjectTags,
-			read:     minioReadObjectTags,
-			id:       bucket + "/" + key,
+			name:             "minio_s3_object_tags",
+			resource:         resourceMinioObjectTags,
+			read:             minioReadObjectTags,
+			create:           minioCreateObjectTags,
+			feature:          "object tags",
+			wantWriteRequest: "PUT /",
+			id:               bucket + "/" + key,
 			raw: map[string]interface{}{
 				"bucket": bucket,
 				"key":    key,
@@ -246,6 +284,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_object_legal_hold",
 			resource: resourceMinioObjectLegalHold,
 			read:     minioReadObjectLegalHold,
+			create:   minioCreateObjectLegalHold,
+			feature:  "object legal hold",
 			id:       bucket + "/" + key,
 			raw: map[string]interface{}{
 				"bucket": bucket,
@@ -259,6 +299,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_object_retention",
 			resource: resourceMinioObjectRetention,
 			read:     minioReadObjectRetention,
+			create:   minioCreateObjectRetention,
+			feature:  "object retention",
 			id:       bucket + "/" + key,
 			raw: map[string]interface{}{
 				"bucket":            bucket,
@@ -273,10 +315,16 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			name:     "minio_s3_object",
 			resource: resourceMinioObject,
 			read:     minioReadObject,
-			id:       bucket + "/" + key,
+			create:   minioCreateObject,
+			feature:  "object",
+			// minio-go uploads a stream of unknown length as a multipart
+			// upload, so the create reaches the initiate call, not a plain PUT.
+			wantWriteRequest: "?uploads=",
+			id:               bucket + "/" + key,
 			raw: map[string]interface{}{
 				"bucket_name":   bucket,
 				"object_name":   key,
+				"content":       "compat-stub-body",
 				"content_type":  "text/plain",
 				"etag":          "compat-stub-etag",
 				"storage_class": "STANDARD",
@@ -289,16 +337,24 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			wantRequest: "HEAD /" + bucket + "/" + key,
 		},
 		{
-			name:     "minio_ilm_tier",
-			resource: resourceMinioILMTier,
-			read:     minioReadILMTier,
-			id:       tierName,
+			name:             "minio_ilm_tier",
+			resource:         resourceMinioILMTier,
+			read:             minioReadILMTier,
+			create:           minioCreateILMTier,
+			feature:          "remote tier",
+			wantWriteRequest: "/tier",
+			id:               tierName,
 			raw: map[string]interface{}{
 				"name":     tierName,
 				"bucket":   bucket,
 				"type":     "s3",
 				"endpoint": "s3.example.com",
 				"region":   "us-east-1",
+				"s3_config": []interface{}{map[string]interface{}{
+					"access_key":    "stub-access-key",
+					"secret_key":    "stub-secret-key",
+					"storage_class": "STANDARD",
+				}},
 			},
 			attributes: []string{
 				"type", "prefix", "name", "bucket", "endpoint", "region",
@@ -390,63 +446,35 @@ func s3CompatDiagMessages(diags diag.Diagnostics) []string {
 // the two clients build their errors differently.
 func TestS3CompatWriteNamesFeatureAndFlag(t *testing.T) {
 	bucket := "compat-stub-" + acctest.RandString(8)
-
-	cases := []struct {
-		name        string
-		resource    func() *schema.Resource
-		create      func(context.Context, *schema.ResourceData, interface{}) diag.Diagnostics
-		raw         map[string]interface{}
-		feature     string
-		wantRequest string
-	}{
-		{
-			name:     "minio_s3_bucket_cors",
-			resource: resourceMinioS3BucketCors,
-			create:   minioCreateBucketCors,
-			raw: map[string]interface{}{
-				"bucket": bucket,
-				"cors_rule": []interface{}{map[string]interface{}{
-					"id":              "compat-stub-rule",
-					"allowed_methods": []interface{}{"GET"},
-					"allowed_origins": []interface{}{"*"},
-				}},
-			},
-			feature:     "CORS configuration",
-			wantRequest: "?cors=",
-		},
-		{
-			name:     "minio_s3_bucket_quota",
-			resource: resourceMinioBucketQuota,
-			create:   minioCreateBucketQuota,
-			raw: map[string]interface{}{
-				"bucket": bucket,
-				"quota":  4096,
-				"type":   "hard",
-			},
-			feature:     "bucket quota",
-			wantRequest: "set-bucket-quota",
-		},
-	}
+	key := "object-" + acctest.RandString(8)
 
 	for _, status := range []int{http.StatusNotImplemented, http.StatusMethodNotAllowed} {
-		for _, tc := range cases {
+		for _, tc := range s3CompatReadCases(bucket, key) {
+			if tc.create == nil {
+				continue
+			}
 			t.Run(tc.name+"/"+s3CompatStubCode(status), func(t *testing.T) {
 				stub := newS3CompatStub(t, bucket, status)
 				d := schema.TestResourceDataRaw(t, tc.resource().Schema, tc.raw)
+
+				wantRequest := tc.wantRequest
+				if tc.wantWriteRequest != "" {
+					wantRequest = tc.wantWriteRequest
+				}
 
 				diags := tc.create(context.Background(), d, stub.provider(true))
 				if !diags.HasError() {
 					t.Fatalf("create succeeded against a backend that does not support the feature; requests: %v", stub.requestLog())
 				}
-				if !stub.sawRequest(tc.wantRequest) {
-					t.Fatalf("the stub never received the write request %q; requests: %v", tc.wantRequest, stub.requestLog())
+				summary := strings.Join(s3CompatDiagMessages(diags), " | ")
+				if !stub.sawRequest(wantRequest) {
+					t.Fatalf("the stub never received the write request %q; error: %s; requests: %v", wantRequest, summary, stub.requestLog())
 				}
-				summary := diags[0].Summary
 				if !strings.Contains(summary, tc.feature) {
-					t.Errorf("error summary %q does not name the feature %q", summary, tc.feature)
+					t.Errorf("error %q does not name the feature %q", summary, tc.feature)
 				}
 				if !strings.Contains(summary, "s3_compat_mode") {
-					t.Errorf("error summary %q does not point at s3_compat_mode", summary)
+					t.Errorf("error %q does not point at s3_compat_mode", summary)
 				}
 				if d.Id() != "" {
 					t.Errorf("a failed create left the resource %q in state", d.Id())
@@ -456,11 +484,6 @@ func TestS3CompatWriteNamesFeatureAndFlag(t *testing.T) {
 	}
 }
 
-// TestS3CompatOffLeavesReadsUnchanged proves the compatibility behaviour is
-// gated on s3_compat_mode. With the flag off, a backend that does not implement
-// the feature must reach exactly the same outcome it reached before this change:
-// the read fails with the backend's own error, the state keeps the values it
-// had, and nothing mentions the flag.
 func TestS3CompatOffLeavesReadsUnchanged(t *testing.T) {
 	bucket := "compat-stub-" + acctest.RandString(8)
 	key := "object-" + acctest.RandString(8)

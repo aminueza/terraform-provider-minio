@@ -298,7 +298,7 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil && !isLifecycleNotFoundError(err) {
-		return NewResourceError("getting existing lifecycle", bucket, err)
+		return NewResourceError("getting existing lifecycle", bucket, s3CompatWriteError(meta.(*S3MinioClient), "ILM policy", err))
 	}
 
 	config := lifecycle.NewConfiguration()

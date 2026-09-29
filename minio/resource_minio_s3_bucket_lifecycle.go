@@ -459,7 +459,7 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 
 	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil && !isLifecycleNotFoundError(err) {
-		return NewResourceError("reading existing lifecycle", bucket, err)
+		return NewResourceError("reading existing lifecycle", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket lifecycle configuration", err))
 	}
 
 	config, diagErr := buildLifecycleConfig(d)

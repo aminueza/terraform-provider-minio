@@ -96,7 +96,7 @@ func minioPutBucketNotification(ctx context.Context, d *schema.ResourceData, met
 	// same bucket.
 	currentConfig, err := bucketNotificationConfig.MinioClient.GetBucketNotification(ctx, bucketName)
 	if err != nil {
-		return NewResourceError("error reading bucket notifications before update", bucketName, err)
+		return NewResourceError("error reading bucket notifications before update", bucketName, s3CompatWriteError(meta.(*S3MinioClient), "bucket notification configuration", err))
 	}
 
 	// Identify queues to remove: those whose IDs are in the current state but not

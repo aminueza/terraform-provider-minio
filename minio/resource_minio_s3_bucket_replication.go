@@ -299,7 +299,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	cfg, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	err = bucketReplicationConfig.MinioClient.SetBucketReplication(

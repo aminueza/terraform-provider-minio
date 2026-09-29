@@ -33,10 +33,11 @@ func TestIsS3CompatNotSupported(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name     string
-		compat   bool
-		err      error
-		expected bool
+		name      string
+		compat    bool
+		nilClient bool
+		err       error
+		expected  bool
 	}{
 		{
 			name:     "compat on, 501 NotImplemented from the S3 API matches",
@@ -67,6 +68,27 @@ func TestIsS3CompatNotSupported(t *testing.T) {
 			compat:   true,
 			err:      &minio.ErrorResponse{Code: "NotImplemented", Message: "not implemented"},
 			expected: true,
+		},
+		{
+			name:   "compat on, a 501 whose body is not S3 XML matches",
+			compat: true,
+			// minio-go cannot decode a non-XML error body, so it falls back to
+			// the HTTP status line and Code becomes "501 Not Implemented"
+			// rather than "NotImplemented". Gateways in front of a backend do
+			// this routinely, so the status code is the only reliable signal.
+			err:      minio.ErrorResponse{StatusCode: 501, Code: "501 Not Implemented", Message: "Not Implemented"},
+			expected: true,
+		},
+		{
+			name:     "compat on, a 405 whose body is not S3 XML matches",
+			compat:   true,
+			err:      minio.ErrorResponse{StatusCode: 405, Code: "405 Method Not Allowed", Message: "Method Not Allowed"},
+			expected: true,
+		},
+		{
+			name:   "compat off, a 501 whose body is not S3 XML does not match",
+			compat: false,
+			err:    minio.ErrorResponse{StatusCode: 501, Code: "501 Not Implemented", Message: "Not Implemented"},
 		},
 		{
 			name:   "compat off, 501 NotImplemented does not match",
@@ -103,17 +125,17 @@ func TestIsS3CompatNotSupported(t *testing.T) {
 			compat: true,
 		},
 		{
-			name:     "a nil client does not match",
-			compat:   true,
-			err:      notImplemented,
-			expected: false,
+			name:      "a nil client does not match",
+			compat:    true,
+			nilClient: true,
+			err:       notImplemented,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			client := s3CompatTestClient(testCase.compat)
-			if testCase.name == "a nil client does not match" {
+			if testCase.nilClient {
 				client = nil
 			}
 

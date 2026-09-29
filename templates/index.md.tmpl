@@ -199,7 +199,7 @@ provider "minio" {
 }
 ```
 
-A missing feature is recognised from the S3 error code the backend returns: `NotImplemented` (501) or `MethodNotAllowed` (405). What the flag does with that error is the same for every resource:
+A missing feature is recognised from the typed response the backend returns: the S3 error code `NotImplemented` or `MethodNotAllowed`, or the HTTP status 501 or 405 when the backend answers without an S3 error body. What the flag does with that error is the same for every resource:
 
 - **Read** — the resource stays in state and the attributes the backend cannot answer are reset to their zero values, with a warning that names the feature and points at `s3_compat_mode`. The resource is never removed from state, because that would plan a create which fails the same way, and the previous values are never kept, because they were never applied by the backend. Expect the next plan to show a diff for the attributes that the backend cannot store.
 - **Create and Update** — the operation still fails, and the error names the feature and points at `s3_compat_mode` instead of showing the backend's raw XML. `s3_compat_mode` never skips a write: a bucket policy, a retention rule or an encryption configuration that was silently dropped is worse than an error.

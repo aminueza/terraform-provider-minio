@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -14,37 +15,49 @@ import (
 
 // A backend that never implemented an S3 feature answers with 501 NotImplemented,
 // and one that implements it on another method answers with 405 MethodNotAllowed.
-// Matching the typed code keeps an unrelated error whose text happens to carry
+// Matching the typed response keeps an unrelated error whose text happens to carry
 // the word "unsupported" from being mistaken for a missing feature. See issue #1173.
 var s3CompatNotImplementedCodes = map[string]bool{
 	"NotImplemented":   true,
 	"MethodNotAllowed": true,
 }
 
+var s3CompatNotImplementedStatuses = map[int]bool{
+	http.StatusNotImplemented:   true,
+	http.StatusMethodNotAllowed: true,
+}
+
 func isS3CompatNotSupported(client *S3MinioClient, err error) bool {
 	if client == nil || !client.S3CompatMode || err == nil {
 		return false
 	}
-	code, ok := s3CompatErrorCode(err)
-	return ok && s3CompatNotImplementedCodes[code]
+	code, status := s3CompatErrorResponse(err)
+	return s3CompatNotImplementedCodes[code] || s3CompatNotImplementedStatuses[status]
 }
 
-func s3CompatErrorCode(err error) (string, bool) {
+// s3CompatErrorResponse returns the S3 error code and the HTTP status of a typed
+// backend error. Both are needed: minio-go fills Code with the S3 error code only
+// when the error body is S3 XML, and falls back to the HTTP status line otherwise,
+// so a backend behind a gateway that answers 501 with a plain-text or empty body
+// reports Code "501 Not Implemented" and is recognisable only by its status.
+// madmin.ErrorResponse carries no status, so only its code is available.
+func s3CompatErrorResponse(err error) (string, int) {
 	var minioErr minio.ErrorResponse
 	if errors.As(err, &minioErr) {
-		return minioErr.Code, minioErr.Code != ""
+		return minioErr.Code, minioErr.StatusCode
 	}
 
-	if pointerErr, ok := err.(*minio.ErrorResponse); ok {
-		return pointerErr.Code, pointerErr.Code != ""
+	var minioErrPtr *minio.ErrorResponse
+	if errors.As(err, &minioErrPtr) && minioErrPtr != nil {
+		return minioErrPtr.Code, minioErrPtr.StatusCode
 	}
 
 	var madminErr madmin.ErrorResponse
 	if errors.As(err, &madminErr) {
-		return madminErr.Code, madminErr.Code != ""
+		return madminErr.Code, 0
 	}
 
-	return "", false
+	return "", 0
 }
 
 // s3CompatReadUnsupported absorbs a "this backend does not implement the feature"

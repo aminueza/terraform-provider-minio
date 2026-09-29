@@ -33,7 +33,7 @@ if garage key info "$KEY_ID" >/dev/null 2>&1; then
 fi
 
 node_id="$(garage node id -q 2>/dev/null | head -1 | cut -d@ -f1)"
-if ! garage layout show 2>/dev/null | grep -q "$node_id"; then
+if ! garage layout show 2>/dev/null | grep -q "${node_id:0:16}"; then
 	garage layout assign -z tfacc -c 10G "$node_id"
 	garage layout apply --version 1
 fi

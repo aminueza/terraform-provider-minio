@@ -1761,3 +1761,108 @@ func TestMinioReadBucket_taggingNotImplemented(t *testing.T) {
 		})
 	}
 }
+
+// TestBucketHasObjectsFallsBackWithoutVersions pins the fallback that lets a
+// bucket be deleted on a backend without ListObjectVersions. The acceptance
+// suite cannot reach it: MinIO implements versioned listing, so the first call
+// always succeeds there. See issue #1174.
+func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Unimplemented action: ListObjectVersions</Message></Error>`
+	const oneObject = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>1</KeyCount><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>a.txt</Key><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>"abc"</ETag><Size>1</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>`
+	const noObjects = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>0</KeyCount><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>`
+	const oneVersion = `<?xml version="1.0" encoding="UTF-8"?><ListVersionsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated><Version><Key>a.txt</Key><VersionId>v1</VersionId><IsLatest>true</IsLatest><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>"abc"</ETag><Size>1</Size><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>`
+
+	cases := []struct {
+		name            string
+		versionedBody   string
+		versionedStatus int
+		plainBody       string
+		plainStatus     int
+		wantHasObjects  bool
+		wantErr         bool
+		wantPlainCalls  int
+	}{
+		{
+			name:            "versioned listing works, no fallback",
+			versionedBody:   oneVersion,
+			versionedStatus: http.StatusOK,
+			wantHasObjects:  true,
+			wantPlainCalls:  0,
+		},
+		{
+			name:            "versioned listing is not implemented, fallback finds an object",
+			versionedBody:   notImplemented,
+			versionedStatus: http.StatusNotImplemented,
+			plainBody:       oneObject,
+			plainStatus:     http.StatusOK,
+			wantHasObjects:  true,
+			wantPlainCalls:  1,
+		},
+		{
+			name:            "versioned listing is not implemented, fallback finds an empty bucket",
+			versionedBody:   notImplemented,
+			versionedStatus: http.StatusNotImplemented,
+			plainBody:       noObjects,
+			plainStatus:     http.StatusOK,
+			wantHasObjects:  false,
+			wantPlainCalls:  1,
+		},
+		{
+			name:            "both listings fail, the error is reported",
+			versionedBody:   notImplemented,
+			versionedStatus: http.StatusNotImplemented,
+			plainBody:       notImplemented,
+			plainStatus:     http.StatusNotImplemented,
+			wantErr:         true,
+			wantPlainCalls:  1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			plainCalls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/xml")
+				if r.URL.Query().Has("versions") {
+					w.WriteHeader(tc.versionedStatus)
+					_, _ = fmt.Fprint(w, tc.versionedBody)
+					return
+				}
+				plainCalls++
+				w.WriteHeader(tc.plainStatus)
+				_, _ = fmt.Fprint(w, tc.plainBody)
+			}))
+			defer srv.Close()
+
+			s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			// s3_compat_mode is off on purpose: the fallback must not depend on
+			// the operator setting a flag to be able to delete a bucket.
+			hasObjects, diags := bucketHasObjects(context.Background(), s3Client, &S3MinioClient{}, "test-bucket")
+
+			if tc.wantErr {
+				if !diags.HasError() {
+					t.Fatalf("bucketHasObjects() returned no error, expected one")
+				}
+			} else {
+				if diags.HasError() {
+					t.Fatalf("bucketHasObjects() returned %v, expected no error", diags)
+				}
+				if hasObjects != tc.wantHasObjects {
+					t.Fatalf("bucketHasObjects() = %v, expected %v", hasObjects, tc.wantHasObjects)
+				}
+			}
+
+			if plainCalls != tc.wantPlainCalls {
+				t.Fatalf("non-versioned listing called %d times, expected %d", plainCalls, tc.wantPlainCalls)
+			}
+		})
+	}
+}

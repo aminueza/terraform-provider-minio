@@ -458,7 +458,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	tflog.Debug(ctx, fmt.Sprintf("Deleting bucket [%s] from region [%s]", bucketName, bucketConfig.MinioRegion))
 
-	hasObjects, diagErr := bucketHasObjects(ctx, bucketConfig.MinioClient, meta.(*S3MinioClient), bucketName)
+	hasObjects, diagErr := bucketHasObjects(ctx, bucketConfig.MinioClient, bucketName)
 	if diagErr != nil {
 		return diagErr
 	}
@@ -808,14 +808,14 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 
 // bucketHasObjects checks if a bucket contains at least one object.
 // Returns (true, nil) if objects exist, (false, nil) if empty, or (false, error) on failure.
-func bucketHasObjects(ctx context.Context, client *minio.Client, compatClient *S3MinioClient, bucketName string) (bool, diag.Diagnostics) {
+func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName string) (bool, diag.Diagnostics) {
 	hasObjects, err := listBucketAnyObject(ctx, client, bucketName, true)
 	if err == nil {
 		return hasObjects, nil
 	}
 
 	errResp := minio.ToErrorResponse(err)
-	if isS3CompatNotSupported(compatClient, err) || errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
+	if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
 		tflog.Info(ctx, fmt.Sprintf("Backend does not support versioned listing for bucket %q; retrying without versions: %v", bucketName, err))
 		hasObjects, err = listBucketAnyObject(ctx, client, bucketName, false)
 		if err == nil {

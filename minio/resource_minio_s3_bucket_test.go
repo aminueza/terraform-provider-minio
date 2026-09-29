@@ -1853,7 +1853,7 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 
 			// s3_compat_mode is off on purpose: the fallback must not depend on
 			// the operator setting a flag to be able to delete a bucket.
-			hasObjects, diags := bucketHasObjects(context.Background(), s3Client, &S3MinioClient{}, "test-bucket")
+			hasObjects, diags := bucketHasObjects(context.Background(), s3Client, "test-bucket")
 
 			if tc.wantErr {
 				if !diags.HasError() {

@@ -219,7 +219,7 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	bucketConfig = BucketConfig(d, meta)
 
-	if diagErr := applyInitialBucketACL(ctx, bucketConfig, meta.(*S3MinioClient), bucket, waitTimeout); diagErr != nil {
+	if diagErr := applyInitialBucketACL(ctx, bucketConfig, bucket, waitTimeout); diagErr != nil {
 		return diagErr
 	}
 
@@ -234,9 +234,9 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 // applyInitialBucketACL sets the bucket ACL right after creation, retrying while the
 // bucket is not yet visible to the backend (eventual consistency).
-func applyInitialBucketACL(ctx context.Context, bucketConfig *S3MinioBucket, compatClient *S3MinioClient, bucket string, waitTimeout time.Duration) diag.Diagnostics {
+func applyInitialBucketACL(ctx context.Context, bucketConfig *S3MinioBucket, bucket string, waitTimeout time.Duration) diag.Diagnostics {
 	if err := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
-		if errACL := minioSetBucketACL(ctx, bucketConfig, compatClient); errACL != nil {
+		if errACL := minioSetBucketACL(ctx, bucketConfig); errACL != nil {
 			for _, d := range errACL {
 				if strings.Contains(d.Summary, "NoSuchBucket") || strings.Contains(d.Summary, "does not exist") {
 					tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for ACL, retrying...", bucket))
@@ -400,7 +400,7 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 	if d.HasChange("acl") {
 		tflog.Debug(ctx, fmt.Sprintf("Updating bucket. Bucket: [%s], Region: [%s]", bucketConfig.MinioBucket, bucketConfig.MinioRegion))
 
-		if err := minioSetBucketACL(ctx, bucketConfig, meta.(*S3MinioClient)); err != nil {
+		if err := minioSetBucketACL(ctx, bucketConfig); err != nil {
 			tflog.Error(ctx, NewResourceErrorStr("unable to update bucket", bucketConfig.MinioBucket, err))
 			return NewResourceError("[ACL] Unable to update bucket", bucketConfig.MinioBucket, err)
 		}
@@ -622,7 +622,7 @@ func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bu
 	return nil
 }
 
-func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket, compatClient *S3MinioClient) diag.Diagnostics {
+func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {
 	if bucketConfig.MinioACL == "private" {
 		if err := removeBucketPolicy(ctx, bucketConfig); err != nil {
 			return err
@@ -646,11 +646,6 @@ func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket, compatC
 	// Only some providers support bucket policies, so we skip setting a policy if the bucket policy is empty. See issue #608.
 	if policyString != "" {
 		if err := bucketConfig.MinioClient.SetBucketPolicy(ctx, bucketConfig.MinioBucket, policyString); err != nil {
-			errResp := minio.ToErrorResponse(err)
-			if isS3CompatNotSupported(compatClient, err) || errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
-				tflog.Info(ctx, fmt.Sprintf("Backend does not support bucket policies; skipping ACL policy for bucket %q: %v", bucketConfig.MinioBucket, err))
-				return nil
-			}
 			tflog.Error(ctx, NewResourceErrorStr("unable to set bucket policy", bucketConfig.MinioBucket, err))
 			return NewResourceError("unable to set bucket policy", bucketConfig.MinioBucket, err)
 		}

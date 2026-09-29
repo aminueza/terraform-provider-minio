@@ -91,6 +91,10 @@
           "status": "unsupported",
           "reason": "bucket metadata export sets a bucket policy first (PutBucketPolicy not implemented)"
         },
+        "bucket_acl_write": {
+          "status": "unsupported",
+          "reason": "a non-private acl is applied with PutBucketPolicy, which is not implemented (a private acl needs no policy and still runs)"
+        },
         "bucket_import_acl": {
           "status": "unsupported",
           "reason": "bucket import reconstructs acl by calling GetBucketPolicy, which is not implemented (fails for any acl, including private)"
@@ -216,6 +220,10 @@
     ],
     "minio_bucket_metadata_export": [
       "^TestAccDataSourceMinioBucketMetadataExport_"
+    ],
+    "bucket_acl_write": [
+      "^TestAccMinioS3Bucket_UpdateAclToPrivate$",
+      "^TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent$"
     ],
     "bucket_import_acl": [
       "^TestAccMinioS3Bucket_(basic|Bucket_EmptyString|SkipBucketTagging|UpdateAcl|emptyTagsNoDrift|namePrefix|tagsNoDrift|generatedName|migrateBucketToBucketPrefix|objectLocking)$"

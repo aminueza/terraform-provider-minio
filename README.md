@@ -136,7 +136,7 @@ provider "minio" {
 }
 ```
 
-Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of the suite against [Garage](https://garagehq.decofacts.io/) (`dxflrs/garage:v1.0.1`), a non-MinIO S3 implementation. Which resources work on which backend is recorded in [`testdata/multi-backend/support.json`](./testdata/multi-backend/support.json), and that record decides what the Garage job runs and what it skips.
+Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of the suite against [Garage](https://garagehq.deuxfleurs.fr/) (`dxflrs/garage:v1.0.1`), a non-MinIO S3 implementation. Which resources work on which backend is recorded in [`testdata/multi-backend/support.json`](./testdata/multi-backend/support.json), and that record decides what the Garage job runs and what it skips.
 
 Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and Versity Gateway are reported by users and are not exercised by continuous integration. The [provider docs](https://registry.terraform.io/providers/aminueza/minio/latest/docs) carry notes on region signing.
 

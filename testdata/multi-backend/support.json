@@ -11,7 +11,7 @@
         },
         "minio_s3_bucket_lifecycle": {
           "status": "unsupported",
-          "reason": "GetBucketLifecycleConfiguration is answered with 204 No Content; the provider cannot read an existing lifecycle configuration"
+          "reason": "the test configures bucket acl = public which requires PutBucketPolicy; Garage does not implement PutBucketPolicy (the lifecycle operations themselves Put/Get/Delete are implemented in Garage v1)"
         },
         "minio_s3_bucket_lifecycle_validation": {
           "status": "supported"
@@ -29,7 +29,8 @@
           "reason": "quota uses the admin API, which this backend does not serve"
         },
         "minio_s3_bucket_tags": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the resource swallows tagging errors on backends that do not implement tagging"
         },
         "minio_s3_incomplete_upload_cleanup": {
           "status": "supported"
@@ -89,7 +90,7 @@
         },
         "minio_bucket_metadata_export": {
           "status": "unsupported",
-          "reason": "bucket metadata export sets a bucket policy first (PutBucketPolicy not implemented)"
+          "reason": "the bucket metadata export endpoint answers 400 with an empty body on this backend"
         },
         "bucket_acl_write": {
           "status": "unsupported",
@@ -121,25 +122,31 @@
           "status": "supported"
         },
         "data.minio_s3_bucket_replication_metrics": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns zero metrics on any error; Garage does not implement replication"
         },
         "data.minio_s3_bucket_replication_status": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns zero status on any error; Garage does not implement replication"
         },
         "data.minio_s3_bucket_tags": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns empty tags on any error; Garage does not implement GetBucketTagging"
         },
         "data.minio_s3_bucket_versioning": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns default versioning on any error; Garage does not implement GetBucketVersioning"
         },
         "data.minio_s3_bucket_policy": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns empty policy on any error; Garage does not implement GetBucketPolicy"
         },
         "data.minio_s3_bucket_cors_config": {
           "status": "supported"
         },
         "data.minio_s3_bucket_encryption": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "the data source returns empty encryption on any error; Garage does not implement GetBucketEncryption"
         }
       }
     }
@@ -232,7 +239,7 @@
       "^TestAccMinioS3Bucket_(forceDestroy|forceDestroyFalseObjectLockWithObjects|forceDestroyFalseWithObjects|forceDestroyObjectLockWithObjects|forceDestroyWithManyObjects)$"
     ],
     "bucket_versioning_usage": [
-      "^TestAccMinioS3Bucket_(forceDestroyFalseVersionedWithDeleteMarkers|forceDestroyVersionedMultipleVersions|forceDestroyVersionedNoObjectLock|withPolicyAndVersioning)$"
+      "^TestAccMinioS3Bucket_(forceDestroyFalseVersionedWithDeleteMarkers|forceDestroyVersionedMultipleVersions|forceDestroyVersionedNoObjectLock|forceDestroyVersionedWithDeleteMarkers|withPolicyAndVersioning)$"
     ],
     "bucket_tags_read": [
       "^TestAccMinioS3Bucket_tags$",

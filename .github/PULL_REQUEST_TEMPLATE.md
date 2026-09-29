@@ -5,13 +5,11 @@
 - [ ] I have read the [Project Vision](https://github.com/aminueza/terraform-provider-minio/blob/main/.github/VISION.md) and understand the scope
 - [ ] My code follows the project's coding standards
 - [ ] I have performed a self-review of my own code
-- [ ] I have signed my commits (`git commit -s`)
 
 ### Testing Requirements
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] Any new or modified resources have acceptance tests
-- [ ] I have tested the changes with a real MinIO setup
+- [ ] Any new or modified resources have tests
 
 ### Documentation Requirements
 - [ ] I have updated the documentation templates in `templates/` if needed

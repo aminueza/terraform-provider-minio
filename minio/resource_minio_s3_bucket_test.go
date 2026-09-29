@@ -1771,6 +1771,7 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 	const oneObject = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>1</KeyCount><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated><Contents><Key>a.txt</Key><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>"abc"</ETag><Size>1</Size><StorageClass>STANDARD</StorageClass></Contents></ListBucketResult>`
 	const noObjects = `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><KeyCount>0</KeyCount><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated></ListBucketResult>`
 	const oneVersion = `<?xml version="1.0" encoding="UTF-8"?><ListVersionsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name><MaxKeys>1</MaxKeys><IsTruncated>false</IsTruncated><Version><Key>a.txt</Key><VersionId>v1</VersionId><IsLatest>true</IsLatest><LastModified>2026-01-01T00:00:00.000Z</LastModified><ETag>"abc"</ETag><Size>1</Size><StorageClass>STANDARD</StorageClass></Version></ListVersionsResult>`
+	const accessDenied = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>`
 
 	cases := []struct {
 		name            string
@@ -1815,6 +1816,13 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 			plainStatus:     http.StatusNotImplemented,
 			wantErr:         true,
 			wantPlainCalls:  1,
+		},
+		{
+			name:            "versioned listing returns 403, no fallback attempted",
+			versionedBody:   accessDenied,
+			versionedStatus: http.StatusForbidden,
+			wantErr:         true,
+			wantPlainCalls:  0,
 		},
 	}
 

@@ -195,6 +195,24 @@ func resourceMinioILMTier() *schema.Resource {
 	}
 }
 
+// ilmTierConfigBlock returns the single nested config block named by key. The
+// backend config blocks are Optional in the schema — only their descriptions say
+// "Required when type is X" — so indexing [0] without this check panics the
+// whole provider process when the block is missing. See issue #1200.
+func ilmTierConfigBlock(d *schema.ResourceData, key string) (map[string]interface{}, diag.Diagnostics) {
+	blockList := d.Get(key).([]interface{})
+	if len(blockList) > 0 {
+		if block, ok := blockList[0].(map[string]interface{}); ok {
+			return block, nil
+		}
+	}
+	return nil, NewResourceError(
+		fmt.Sprintf("%s is required when type is %s", key, d.Get("type").(string)),
+		d.Get("name").(string),
+		fmt.Errorf("missing %s block", key),
+	)
+}
+
 func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	var err error
 	var tierConf *madmin.TierConfig
@@ -202,7 +220,10 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	name := d.Get("name").(string)
 	switch d.Get("type").(string) {
 	case madmin.S3.String():
-		s3Config := d.Get("s3_config").([]interface{})[0].(map[string]interface{})
+		s3Config, diags := ilmTierConfigBlock(d, "s3_config")
+		if diags != nil {
+			return diags
+		}
 		var s3Options []madmin.S3Options
 		if d.Get("prefix").(string) != "" {
 			s3Options = append(s3Options, madmin.S3Prefix(d.Get("prefix").(string)))
@@ -224,7 +245,10 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 			s3Options...,
 		)
 	case madmin.MinIO.String():
-		minioConfig := d.Get("minio_config").([]interface{})[0].(map[string]interface{})
+		minioConfig, diags := ilmTierConfigBlock(d, "minio_config")
+		if diags != nil {
+			return diags
+		}
 		var minioOptions []madmin.MinIOOptions
 		if d.Get("prefix").(string) != "" {
 			minioOptions = append(minioOptions, madmin.MinIOPrefix(d.Get("prefix").(string)))
@@ -242,15 +266,10 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 			minioOptions...,
 		)
 	case madmin.GCS.String():
-		gcsConfigListRaw, ok := d.GetOk("gcs_config")
-		if !ok {
-			return NewResourceError("gcs_config is required when type is gcs", name, "missing gcs_config")
+		gcsConfig, diags := ilmTierConfigBlock(d, "gcs_config")
+		if diags != nil {
+			return diags
 		}
-		gcsConfigList := gcsConfigListRaw.([]interface{})
-		if len(gcsConfigList) == 0 {
-			return NewResourceError("gcs_config is required when type is gcs", name, "empty gcs_config")
-		}
-		gcsConfig := gcsConfigList[0].(map[string]interface{})
 		var gcsOptions []madmin.GCSOptions
 		if d.Get("prefix").(string) != "" {
 			gcsOptions = append(gcsOptions, madmin.GCSPrefix(d.Get("prefix").(string)))
@@ -269,7 +288,10 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 			gcsOptions...,
 		)
 	case madmin.Azure.String():
-		azureConfig := d.Get("azure_config").([]interface{})[0].(map[string]interface{})
+		azureConfig, diags := ilmTierConfigBlock(d, "azure_config")
+		if diags != nil {
+			return diags
+		}
 		var azureOptions []madmin.AzureOptions
 		if d.Get("endpoint").(string) != "" {
 			azureOptions = append(azureOptions, madmin.AzureEndpoint(d.Get("endpoint").(string)))
@@ -398,27 +420,31 @@ func minioUpdateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	credentials := madmin.TierCreds{}
 	switch d.Get("type").(string) {
 	case madmin.MinIO.String():
-		minioConfig := d.Get("minio_config").([]interface{})[0].(map[string]interface{})
+		minioConfig, diags := ilmTierConfigBlock(d, "minio_config")
+		if diags != nil {
+			return diags
+		}
 		credentials.AccessKey = minioConfig["access_key"].(string)
 		credentials.SecretKey = minioConfig["secret_key"].(string)
 	case madmin.GCS.String():
-		gcsConfigListRaw, ok := d.GetOk("gcs_config")
-		if !ok {
-			return NewResourceError("gcs_config is required when type is gcs", name, "missing gcs_config")
+		gcsConfig, diags := ilmTierConfigBlock(d, "gcs_config")
+		if diags != nil {
+			return diags
 		}
-		gcsConfigList := gcsConfigListRaw.([]interface{})
-		if len(gcsConfigList) == 0 {
-			return NewResourceError("gcs_config is required when type is gcs", name, "empty gcs_config")
-		}
-		gcsConfig := gcsConfigList[0].(map[string]interface{})
 		credentials.CredsJSON = []byte(gcsConfig["credentials"].(string))
 	case madmin.Azure.String():
-		azureConfig := d.Get("azure_config").([]interface{})[0].(map[string]interface{})
+		azureConfig, diags := ilmTierConfigBlock(d, "azure_config")
+		if diags != nil {
+			return diags
+		}
 		credentials.SecretKey = azureConfig["account_key"].(string)
 	case madmin.S3.String():
-		minioConfig := d.Get("s3_config").([]interface{})[0].(map[string]interface{})
-		credentials.AccessKey = minioConfig["access_key"].(string)
-		credentials.SecretKey = minioConfig["secret_key"].(string)
+		s3Config, diags := ilmTierConfigBlock(d, "s3_config")
+		if diags != nil {
+			return diags
+		}
+		credentials.AccessKey = s3Config["access_key"].(string)
+		credentials.SecretKey = s3Config["secret_key"].(string)
 	}
 	if d.HasChanges("minio_config", "gcs_config", "azure_config", "s3_config") {
 		err := c.EditTier(ctx, name, credentials)

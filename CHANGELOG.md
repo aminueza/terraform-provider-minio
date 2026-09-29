@@ -34,6 +34,7 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- Deleting an empty bucket with `force_destroy` now works on backends that do not support versioned object listing (e.g. Garage), by falling back to a plain listing when the versioned call returns `NotImplemented` or `501` ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
 - `minio_s3_bucket_replication` no longer ignores a change to `bandwidth_limit`
   that rounds to the same two-digit rendering as the current value, such as
   `1000MB` to `1040MB`. The diff suppression compared rendered strings, so the

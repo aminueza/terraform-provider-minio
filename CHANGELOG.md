@@ -41,6 +41,12 @@ History older than 3.39.0 lives in the
   change never reached the server. It now compares the parsed byte counts, so
   the result no longer depends on how `go-humanize` rounds a rendering
   ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+- `minio_ilm_tier` no longer crashes the provider when `type` names a backend
+  whose configuration block is missing, such as `type = "s3"` with no
+  `s3_config` block. Create and update indexed the block's first element
+  without checking that it existed, which crashed the whole provider process.
+  They now return an error naming the block that is required
+  ([#1200](https://github.com/aminueza/terraform-provider-minio/issues/1200)).
 
 ## [3.43.0] - 2026-09-15
 

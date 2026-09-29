@@ -41,8 +41,8 @@ type s3CompatReadCase struct {
 }
 
 // s3CompatReadCases covers every resource that consults s3_compat_mode. The
-// raw maps hold a plausible non-empty state, so a read that skipped the
-// compatibility branch would leave a value behind and fail the zero assertion.
+// raw maps hold a plausible non-empty state, so an absorbed read that emptied
+// the attributes instead of leaving them would be caught against it.
 func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 	tierName := strings.ToUpper(acctest.RandString(8))
 	policy := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::` + bucket + `/*"]}]}`
@@ -110,7 +110,7 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			read:             minioReadObjectLockConfiguration,
 			create:           minioCreateObjectLockConfiguration,
 			feature:          "object lock configuration",
-			wantWriteRequest: "?versioning=",
+			wantWriteRequest: "?object-lock=",
 			id:               bucket,
 			raw: map[string]interface{}{
 				"bucket":              bucket,
@@ -227,7 +227,7 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 			read:             minioReadRetention,
 			create:           minioCreateRetention,
 			feature:          "bucket object lock configuration",
-			wantWriteRequest: "?versioning=",
+			wantWriteRequest: "?object-lock=",
 			id:               bucket,
 			raw: map[string]interface{}{
 				"bucket":          bucket,
@@ -442,19 +442,18 @@ func s3CompatDiagMessages(diags diag.Diagnostics) []string {
 // TestS3CompatWriteNamesFeatureAndFlag is the create half of the decided
 // semantics: the write still fails, but the diagnostic names the feature and
 // points at s3_compat_mode instead of leaving the backend's response as the
-// only thing the user sees. One S3 resource and one admin-API resource, since
-// the two clients build their errors differently.
+// only thing the user sees. It runs every resource in s3CompatReadCases, three
+// of which reach the backend through the admin client, where the error carries
+// no HTTP status and is recognised by its code alone.
 func TestS3CompatWriteNamesFeatureAndFlag(t *testing.T) {
 	bucket := "compat-stub-" + acctest.RandString(8)
 	key := "object-" + acctest.RandString(8)
 
 	for _, status := range []int{http.StatusNotImplemented, http.StatusMethodNotAllowed} {
 		for _, tc := range s3CompatReadCases(bucket, key) {
-			if tc.create == nil {
-				continue
-			}
 			t.Run(tc.name+"/"+s3CompatStubCode(status), func(t *testing.T) {
 				stub := newS3CompatStub(t, bucket, status)
+				stub.objectLockEnabled = true
 				d := schema.TestResourceDataRaw(t, tc.resource().Schema, tc.raw)
 
 				wantRequest := tc.wantRequest

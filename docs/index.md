@@ -224,7 +224,7 @@ All non-MinIO backends should use `s3_compat_mode = true`. This single flag hand
 
 ✅ = Fully supported
 ⚠️ = Partial support (may return errors on some operations)
-❌ = Not supported by backend (readable with `s3_compat_mode = true`, which empties the attributes the backend cannot store; a write to it still fails)
+❌ = Not supported by backend (readable with `s3_compat_mode = true`, which keeps the attributes the last write stored; a write to it still fails)
 
 -> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends, and `s3_compat_mode` does not make them available. The legacy `skip_bucket_tagging` flag continues to work independently.
 

@@ -30,6 +30,15 @@ type s3CompatStub struct {
 
 	mu       sync.Mutex
 	requests []string
+
+	// objectLockEnabled answers the versioning and object-lock reads that
+	// minio_s3_bucket_object_lock_configuration and minio_s3_bucket_retention
+	// run before they write. Both check that the bucket has versioning and an
+	// object lock before writing either, so with those reads failing the write
+	// is never reached and the test only covers the pre-flight. Only the write
+	// test sets it; the reads of those two resources are the feature itself, and
+	// they need those endpoints to fail.
+	objectLockEnabled bool
 }
 
 // s3CompatStubCode is the error code the stub reports for a given HTTP status.
@@ -63,6 +72,20 @@ func newS3CompatStub(t *testing.T, bucket string, status int) *s3CompatStub {
 			w.Header().Set("Content-Type", "application/xml")
 			fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><LocationConstraint xmlns="http://s3.amazonaws.com/doc/2006-03-01/">us-east-1</LocationConstraint>`)
 			return
+		}
+		// The write that follows these two reads must still fail, so only the GET
+		// is answered. A PUT to either endpoint is the feature under test.
+		if stub.objectLockEnabled && r.Method == http.MethodGet {
+			if _, ok := r.URL.Query()["versioning"]; ok {
+				w.Header().Set("Content-Type", "application/xml")
+				fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Status>Enabled</Status></VersioningConfiguration>`)
+				return
+			}
+			if _, ok := r.URL.Query()["object-lock"]; ok {
+				w.Header().Set("Content-Type", "application/xml")
+				fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><ObjectLockConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><ObjectLockEnabled>Enabled</ObjectLockEnabled></ObjectLockConfiguration>`)
+				return
+			}
 		}
 
 		w.Header().Set("Content-Type", "application/xml")

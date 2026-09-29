@@ -11,7 +11,7 @@
         },
         "minio_s3_bucket_lifecycle": {
           "status": "unsupported",
-          "reason": "the test configures bucket acl = public which requires PutBucketPolicy; Garage does not implement PutBucketPolicy (the lifecycle operations themselves Put/Get/Delete are implemented in Garage v1)"
+          "reason": "Garage answers 204 No Content for GetBucketLifecycle when no configuration exists; the provider treats this as an error instead of 'no lifecycle config' (verbatim: 'reading existing lifecycle: 204 No Content')"
         },
         "minio_s3_bucket_lifecycle_validation": {
           "status": "supported"
@@ -90,7 +90,7 @@
         },
         "minio_bucket_metadata_export": {
           "status": "unsupported",
-          "reason": "the bucket metadata export endpoint answers 400 with an empty body on this backend"
+          "reason": "the bucket metadata export admin API call (ExportBucketMetadata) answers 400 with an empty body on this backend"
         },
         "bucket_acl_write": {
           "status": "unsupported",

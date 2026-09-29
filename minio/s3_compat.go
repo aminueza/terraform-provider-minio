@@ -14,6 +14,12 @@ import (
 
 const s3CompatMethodNotAllowed = "MethodNotAllowed"
 
+// s3CompatModeDescription is the description of the s3_compat_mode provider
+// attribute. The SDK provider and the framework provider both serve it, and the
+// sentence was once written out twice and drifted, leaving one provider
+// describing a read that no longer emptied anything.
+const s3CompatModeDescription = "Tolerate S3 features the backend does not implement (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces), detected from a 501 NotImplemented response, or from a 405 MethodNotAllowed response on a bucket sub-resource or a write. On Read the resource stays in state with the attributes the last write stored, with a warning naming the feature. Create and Update still fail, naming the feature and this flag, because a policy or encryption rule that is silently dropped is worse than an error. With this flag off every such response is an error."
+
 // A backend that never implemented an S3 feature answers with 501 NotImplemented,
 // and one that implements it on another method answers with 405 MethodNotAllowed.
 // Matching the typed response keeps an unrelated error whose text happens to carry

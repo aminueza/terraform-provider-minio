@@ -12,6 +12,29 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- With `s3_compat_mode = true`, a read the backend cannot answer now leaves the
+  resource in state with the attributes the last write stored, where it emptied
+  them. Emptying them reproduced the perpetual diff of
+  [#1173](https://github.com/aminueza/terraform-provider-minio/issues/1173),
+  regressed CORS on a backend without it, and reset `ForceNew` identity
+  attributes such as `name`, `bucket` and `endpoint`, which forced a replacement
+  and then failed the delete. The warning naming the feature is unchanged
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
+- With `s3_compat_mode = true`, a 405 `MethodNotAllowed` response is treated as
+  a missing feature on the bucket sub-resources and on writes, but no longer on
+  the object-level reads of `minio_s3_object`, `minio_s3_object_tags`,
+  `minio_s3_object_legal_hold` and `minio_s3_object_retention`. A GET or HEAD
+  whose `versionId` is a delete marker is answered with 405, so there it is an
+  answer about the object rather than an absent feature, and absorbing it
+  reported an object as readable when it is gone. A 501 `NotImplemented`
+  response is still treated as a missing feature on every resource, and every
+  such response is an error with the flag off
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
+- The `s3_compat_mode` provider attribute now describes those two rules, and
+  states that the admin API resources `minio_ilm_tier` and
+  `minio_s3_bucket_quota` are recognised by error code alone, because the admin
+  client reports no HTTP status
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
 - Bumped `github.com/hashicorp/awspolicyequivalence` from 1.7.0 to 1.8.0. The
   release rewrites `interface{}` as `any`, requires Go 1.26 and moves its
   indirect `aws-sdk-go-v2` dependency to 1.47.0; the policy comparison the
@@ -34,6 +57,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_anonymous_access` now sets its id only after the policy has
+  been written. It set the id first, so a backend that rejected the write left a
+  resource in state for one that was never created, and the next plan read it
+  back
+  ([#1173](https://github.com/aminueza/terraform-provider-minio/issues/1173)).
 - `minio_s3_bucket_replication` no longer ignores a change to `bandwidth_limit`
   that rounds to the same two-digit rendering as the current value, such as
   `1000MB` to `1040MB`. The diff suppression compared rendered strings, so the

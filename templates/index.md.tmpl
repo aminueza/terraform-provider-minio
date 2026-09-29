@@ -111,7 +111,7 @@ The following arguments are supported in the `provider` block:
 
 * `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
-* `s3_compat_mode` - (Optional) Tolerate S3 features the backend does not implement. A read then keeps the resource in state with the attributes the backend cannot answer emptied, and a warning names the feature; a create or an update still fails, naming the feature and this flag (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
+* `s3_compat_mode` - (Optional) Tolerate S3 features the backend does not implement. A 501 response is a missing feature everywhere, and a 405 response only on a bucket sub-resource or a write, where it means the backend implements the feature on another method. A read then keeps the resource in state with the attributes the last write stored, and a warning names the feature; a create or an update still fails, naming the feature and this flag (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
 
 * `request_timeout_seconds` - (Optional) Global HTTP request timeout in seconds for all MinIO API calls. A value of 0 or less falls back to the default of `30`. Can be sourced from `MINIO_REQUEST_TIMEOUT_SECONDS`.
 

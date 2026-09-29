@@ -94,7 +94,7 @@ func (p *frameworkProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			},
 			"s3_compat_mode": schema.BoolAttribute{
 				Optional:    true,
-				Description: "Tolerate S3 features the backend does not implement (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces), detected as a 501 NotImplemented or 405 MethodNotAllowed response. On Read the resource stays in state and the attributes the backend cannot answer are emptied, with a warning naming the feature. Create and Update still fail, naming the feature and this flag, because a policy or encryption rule that is silently dropped is worse than an error. With this flag off every such response is an error.",
+				Description: s3CompatModeDescription,
 			},
 			"minio_edition": schema.StringAttribute{
 				Optional:    true,

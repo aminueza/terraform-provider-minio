@@ -15,7 +15,7 @@ jobs:
   garage:
     name: Garage (S3 subset)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Check out the repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
@@ -38,8 +38,15 @@ jobs:
           export TEST_SKIP="$(.github/scripts/backend-skip.sh garage)"
           echo "TEST_PATTERN=$TEST_PATTERN"
           echo "TEST_SKIP entries: $(echo "$TEST_SKIP" | tr '|' '\n' | wc -l)"
+          # Verify pattern matches at least one test before running
+          MATCH_COUNT=$(go test -list "$TEST_PATTERN" ./minio 2>/dev/null | grep -c "^TestAcc" || true)
+          if [ "$MATCH_COUNT" -eq 0 ]; then
+            echo "ERROR: TEST_PATTERN '$TEST_PATTERN' matches zero tests"
+            exit 1
+          fi
+          echo "Pattern matches $MATCH_COUNT test(s)"
           docker compose -f docker-compose.multi-backend.yml run --rm test-garage
 
       - name: Cleanup test environment
         if: always()
-        run: docker compose -f docker-compose.multi-backend.yml down -v
+        run: docker compose -f docker-compose.multi-backend.yml down

@@ -211,6 +211,8 @@ This applies to the whole S3 surface: bucket notifications, CORS, object lock an
 
 All non-MinIO backends should use `s3_compat_mode = true`. This single flag handles all unsupported features including tagging.
 
+Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of that suite against [Garage](https://garagehq.deuxfleurs.fr/), a non-MinIO S3 implementation. `testdata/multi-backend/support.json` in the repository records which resources each continuously tested backend supports, and drives what that job runs and what it skips. The remaining backends in this table are reported by users and are not exercised by continuous integration.
+
 | Backend | Buckets | Objects | Policies | Versioning | Tags | Notifications | CORS | Object Lock | Lifecycle |
 |---------|---------|---------|----------|------------|------|---------------|------|-------------|-----------|
 | **MinIO** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |

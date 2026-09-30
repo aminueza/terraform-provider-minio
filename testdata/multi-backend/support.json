@@ -1,0 +1,279 @@
+{
+  "schema": 1,
+  "_comment": "Per-backend acceptance-test support record (issue #1174). A test runs unless some matching resource is 'unsupported' for the backend; 'unsupported' entries are skipped. 'env-gated' tests self-skip when the variable is unset, exactly as in the MinIO job. Resources with no entry run: an unexpected failure fails the job.",
+  "backends": {
+    "garage": {
+      "image": "dxflrs/garage:v1.0.1",
+      "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
+      "support": {
+        "minio_s3_bucket": {
+          "status": "supported"
+        },
+        "minio_s3_bucket_lifecycle": {
+          "status": "unsupported",
+          "reason": "Garage answers 204 No Content for GetBucketLifecycle when no configuration exists; the provider treats this as an error instead of 'no lifecycle config' (verbatim: 'reading existing lifecycle: 204 No Content')"
+        },
+        "minio_s3_bucket_lifecycle_validation": {
+          "status": "supported"
+        },
+        "minio_s3_bucket_notification": {
+          "status": "unsupported",
+          "reason": "GetBucketNotificationConfiguration is not implemented"
+        },
+        "minio_s3_bucket_object_lock_configuration": {
+          "status": "unsupported",
+          "reason": "object lock requires bucket versioning and PutBucketVersioning is not implemented"
+        },
+        "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the admin API, which this backend does not serve"
+        },
+        "minio_s3_bucket_tags": {
+          "status": "partial",
+          "reason": "the resource swallows tagging errors on backends that do not implement tagging"
+        },
+        "minio_s3_incomplete_upload_cleanup": {
+          "status": "supported"
+        },
+        "minio_s3_object": {
+          "status": "supported"
+        },
+        "minio_s3_object_legal_hold": {
+          "status": "unsupported",
+          "reason": "PutObjectLegalHold is not implemented"
+        },
+        "minio_s3_object_retention": {
+          "status": "unsupported",
+          "reason": "PutObjectRetention is not implemented"
+        },
+        "minio_s3_object_tags": {
+          "status": "unsupported",
+          "reason": "Put/GetObjectTagging are not implemented"
+        },
+        "minio_s3_bucket_anonymous_access": {
+          "status": "unsupported",
+          "reason": "anonymous-access policies need Put/Get/DeleteBucketPolicy, none implemented"
+        },
+        "minio_s3_bucket_cors": {
+          "status": "env-gated",
+          "env": "MINIO_CORS_ENABLED"
+        },
+        "minio_s3_bucket_policy": {
+          "status": "unsupported",
+          "reason": "Put/GetBucketPolicy are not implemented"
+        },
+        "minio_s3_bucket_replication": {
+          "status": "unsupported",
+          "reason": "replication requires bucket versioning and the admin API"
+        },
+        "minio_s3_bucket_replication_plan_only": {
+          "status": "supported"
+        },
+        "minio_s3_bucket_versioning": {
+          "status": "unsupported",
+          "reason": "PutBucketVersioning is not implemented"
+        },
+        "minio_s3_bucket_server_side_encryption": {
+          "status": "env-gated",
+          "env": "MINIO_KMS_CONFIGURED"
+        },
+        "minio_s3_bucket_retention": {
+          "status": "unsupported",
+          "reason": "retention requires object lock, which requires versioning"
+        },
+        "minio_bucket_metadata_import": {
+          "status": "unsupported",
+          "reason": "the bucket metadata export endpoint answers 400 with an empty body on this backend"
+        },
+        "minio_bucket_metadata_import_validation": {
+          "status": "supported"
+        },
+        "minio_bucket_metadata_export": {
+          "status": "unsupported",
+          "reason": "the bucket metadata export admin API call (ExportBucketMetadata) answers 400 with an empty body on this backend"
+        },
+        "bucket_acl_write": {
+          "status": "unsupported",
+          "reason": "a non-private acl is applied with PutBucketPolicy, which is not implemented (a private acl needs no policy and still runs)"
+        },
+        "bucket_import_acl": {
+          "status": "unsupported",
+          "reason": "bucket import reconstructs acl by calling GetBucketPolicy, which is not implemented (fails for any acl, including private)"
+        },
+        "bucket_force_destroy_objects": {
+          "status": "unsupported",
+          "reason": "emptying a non-empty bucket before delete lists it with versions; ListObjectVersions is not implemented (other call sites of the same pattern as the bucketHasObjects fallback)"
+        },
+        "bucket_versioning_usage": {
+          "status": "unsupported",
+          "reason": "the test enables bucket versioning (PutBucketVersioning not implemented)"
+        },
+        "bucket_tags_read": {
+          "status": "unsupported",
+          "reason": "GetBucketTagging is not implemented; tags cannot be read back or re-imported"
+        },
+        "data.minio_s3_bucket": {
+          "status": "supported"
+        },
+        "data.minio_s3_buckets": {
+          "status": "supported"
+        },
+        "data.minio_s3_objects": {
+          "status": "supported"
+        },
+        "data.minio_s3_bucket_replication_metrics": {
+          "status": "partial",
+          "reason": "the data source returns zero metrics on any error; Garage does not implement replication"
+        },
+        "data.minio_s3_bucket_replication_status": {
+          "status": "partial",
+          "reason": "the data source returns zero status on any error; Garage does not implement replication"
+        },
+        "data.minio_s3_bucket_tags": {
+          "status": "partial",
+          "reason": "the data source returns empty tags on any error; Garage does not implement GetBucketTagging"
+        },
+        "data.minio_s3_bucket_versioning": {
+          "status": "partial",
+          "reason": "the data source returns default versioning on any error; Garage does not implement GetBucketVersioning"
+        },
+        "data.minio_s3_bucket_policy": {
+          "status": "partial",
+          "reason": "the data source returns empty policy on any error; Garage does not implement GetBucketPolicy"
+        },
+        "data.minio_s3_bucket_cors_config": {
+          "status": "supported"
+        },
+        "data.minio_s3_bucket_encryption": {
+          "status": "partial",
+          "reason": "the data source returns empty encryption on any error; Garage does not implement GetBucketEncryption"
+        }
+      }
+    }
+  },
+  "resources": {
+    "minio_s3_bucket": [
+      "^TestAccMinioS3Bucket_"
+    ],
+    "minio_s3_bucket_lifecycle": [
+      "^TestAccMinioS3BucketLifecycle_(abortIncompleteMultipart|addAndRemoveRule|basic|dateExpiration|expiredObjectDeleteMarker|filterAndComposite|filterPrefix|filterSingleTag|multipleRules|noncurrentVersion|noncurrentVersionTransition|objectSizeFilter|richConfigImport|transition|updateRule)$"
+    ],
+    "minio_s3_bucket_lifecycle_validation": [
+      "^TestAccMinioS3BucketLifecycle_validation_"
+    ],
+    "minio_s3_bucket_notification": [
+      "^TestAccMinioS3BucketNotification_",
+      "^TestAccDataSourceMinioS3BucketNotificationConfig_"
+    ],
+    "minio_s3_bucket_object_lock_configuration": [
+      "^TestAccMinioS3BucketObjectLockConfiguration_",
+      "^TestAccDataSourceMinioS3BucketObjectLockConfiguration_"
+    ],
+    "minio_s3_bucket_quota": [
+      "^TestAccMinioS3BucketQuota_",
+      "^TestAccDataSourceMinioS3BucketQuota_"
+    ],
+    "minio_s3_bucket_tags": [
+      "^TestAccMinioS3BucketTags_"
+    ],
+    "minio_s3_incomplete_upload_cleanup": [
+      "^TestAccMinioS3IncompleteUploadCleanup_"
+    ],
+    "minio_s3_object": [
+      "^TestAccMinioS3Object_(basic|withACL|withACLUpdate|withContentType|withMetadata|withMetadataUpdate)$"
+    ],
+    "minio_s3_object_legal_hold": [
+      "^TestAccMinioS3ObjectLegalHold_"
+    ],
+    "minio_s3_object_retention": [
+      "^TestAccMinioS3ObjectRetention_"
+    ],
+    "minio_s3_object_tags": [
+      "^TestAccMinioS3ObjectTags_"
+    ],
+    "minio_s3_bucket_anonymous_access": [
+      "^TestAccS3BucketAnonymousAccess_",
+      "^TestAccDataSourceMinioS3BucketAnonymousAccess_"
+    ],
+    "minio_s3_bucket_cors": [
+      "^TestAccS3BucketCors_"
+    ],
+    "minio_s3_bucket_policy": [
+      "^TestAccS3BucketPolicy_"
+    ],
+    "minio_s3_bucket_replication": [
+      "^TestAccS3BucketReplication_(oneway|twoway|resync)",
+      "^TestAccDataSourceMinioS3BucketReplication_basic$",
+      "^TestAccDataSourceMinioS3BucketReplicationStatus_withReplication$"
+    ],
+    "minio_s3_bucket_replication_plan_only": [
+      "^TestAccS3BucketReplication_attribute_migration$"
+    ],
+    "minio_s3_bucket_versioning": [
+      "^TestAccS3BucketVersioning_"
+    ],
+    "minio_s3_bucket_server_side_encryption": [
+      "^TestAccMinioBucketServerSideEncryption_"
+    ],
+    "minio_s3_bucket_retention": [
+      "^TestAccMinioBucketRetention_",
+      "^TestAccDataSourceMinioS3BucketRetention_"
+    ],
+    "minio_bucket_metadata_import": [
+      "^TestAccMinioBucketMetadataImport_basic$"
+    ],
+    "minio_bucket_metadata_import_validation": [
+      "^TestAccMinioBucketMetadataImport_invalidBase64$"
+    ],
+    "minio_bucket_metadata_export": [
+      "^TestAccDataSourceMinioBucketMetadataExport_"
+    ],
+    "bucket_acl_write": [
+      "^TestAccMinioS3Bucket_UpdateAclToPrivate$",
+      "^TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent$"
+    ],
+    "bucket_import_acl": [
+      "^TestAccMinioS3Bucket_(basic|Bucket_EmptyString|SkipBucketTagging|UpdateAcl|emptyTagsNoDrift|namePrefix|tagsNoDrift|generatedName|migrateBucketToBucketPrefix|objectLocking)$"
+    ],
+    "bucket_force_destroy_objects": [
+      "^TestAccMinioS3Bucket_(forceDestroy|forceDestroyFalseObjectLockWithObjects|forceDestroyFalseWithObjects|forceDestroyObjectLockWithObjects|forceDestroyWithManyObjects)$"
+    ],
+    "bucket_versioning_usage": [
+      "^TestAccMinioS3Bucket_(forceDestroyFalseVersionedWithDeleteMarkers|forceDestroyVersionedMultipleVersions|forceDestroyVersionedNoObjectLock|forceDestroyVersionedWithDeleteMarkers|withPolicyAndVersioning)$"
+    ],
+    "bucket_tags_read": [
+      "^TestAccMinioS3Bucket_tags$",
+      "^TestAccMinioS3BucketTags_basic$"
+    ],
+    "data.minio_s3_bucket": [
+      "^TestAccDataSourceMinioS3Bucket_(basic|CorsConfig|Encryption|Policy|Tags|Versioning)$"
+    ],
+    "data.minio_s3_buckets": [
+      "^TestAccDataSourceMinioS3Buckets_"
+    ],
+    "data.minio_s3_objects": [
+      "^TestAccDataSourceMinioS3Objects_"
+    ],
+    "data.minio_s3_bucket_replication_metrics": [
+      "^TestAccDataSourceMinioS3BucketReplicationMetrics_"
+    ],
+    "data.minio_s3_bucket_replication_status": [
+      "^TestAccDataSourceMinioS3BucketReplicationStatus_basic$"
+    ],
+    "data.minio_s3_bucket_tags": [
+      "^TestAccDataSourceMinioS3BucketTags_"
+    ],
+    "data.minio_s3_bucket_versioning": [
+      "^TestAccDataSourceMinioS3BucketVersioning_"
+    ],
+    "data.minio_s3_bucket_policy": [
+      "^TestAccDataSourceMinioS3BucketPolicy_"
+    ],
+    "data.minio_s3_bucket_cors_config": [
+      "^TestAccDataSourceMinioS3BucketCorsConfig_"
+    ],
+    "data.minio_s3_bucket_encryption": [
+      "^TestAccDataSourceMinioS3BucketEncryption_"
+    ]
+  }
+}

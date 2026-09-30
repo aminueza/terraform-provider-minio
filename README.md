@@ -49,7 +49,7 @@ Provision and manage [MinIO](https://min.io) with the same Terraform workflow yo
 - **Broad coverage**: resources and data sources spanning buckets and objects, IAM, ILM, replication, encryption, notifications, and server and cluster configuration.
 - **Proven in production**: over 18 million downloads on the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest), with frequent releases.
 - **Flexible auth**: static keys, environment variables, STS AssumeRole, OIDC web identity (passwordless CI/CD), and mTLS.
-- **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores.
+- **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores. Continuous integration exercises MinIO and Garage; the other stores are reported by users (see [S3-compatible backends](#s3-compatible-backends)).
 - **Import everywhere**: every resource supports `terraform import`, so you can bring existing infrastructure under management.
 - **AI-agent ready**: ships a [Claude Code](https://docs.claude.com/en/docs/claude-code) skill and an [`AGENTS.md`](./AGENTS.md) so coding agents produce correct configuration out of the box.
 
@@ -136,7 +136,9 @@ provider "minio" {
 }
 ```
 
-Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and Versity Gateway are tested. The [provider docs](https://registry.terraform.io/providers/aminueza/minio/latest/docs) carry the per-backend support matrix and notes on region signing.
+Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of the suite against [Garage](https://garagehq.deuxfleurs.fr/) (`dxflrs/garage:v1.0.1`), a non-MinIO S3 implementation. Which resources work on which backend is recorded in [`testdata/multi-backend/support.json`](./testdata/multi-backend/support.json), and that record decides what the Garage job runs and what it skips.
+
+Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and Versity Gateway are reported by users and are not exercised by continuous integration. The [provider docs](https://registry.terraform.io/providers/aminueza/minio/latest/docs) carry notes on region signing.
 
 ## Use with AI coding agents
 

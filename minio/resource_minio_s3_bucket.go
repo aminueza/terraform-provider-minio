@@ -809,10 +809,30 @@ func waitForBucketReady(ctx context.Context, client *minio.Client, bucket string
 // bucketHasObjects checks if a bucket contains at least one object.
 // Returns (true, nil) if objects exist, (false, nil) if empty, or (false, error) on failure.
 func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName string) (bool, diag.Diagnostics) {
+	hasObjects, err := listBucketAnyObject(ctx, client, bucketName, true)
+	if err == nil {
+		return hasObjects, nil
+	}
+
+	errResp := minio.ToErrorResponse(err)
+	if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
+		tflog.Info(ctx, fmt.Sprintf("Backend does not support versioned listing for bucket %q; retrying without versions: %v", bucketName, err))
+		hasObjects, err = listBucketAnyObject(ctx, client, bucketName, false)
+		if err == nil {
+			return hasObjects, nil
+		}
+	}
+
+	return false, NewResourceError("error listing bucket objects", bucketName, err)
+}
+
+// listBucketAnyObject reports whether the bucket holds at least one entry,
+// reading at most one result so the check stays O(1) on large buckets.
+func listBucketAnyObject(ctx context.Context, client *minio.Client, bucketName string, withVersions bool) (bool, error) {
 	objectsCh := client.ListObjects(ctx, bucketName, minio.ListObjectsOptions{
 		Recursive:    true,
 		MaxKeys:      1,
-		WithVersions: true,
+		WithVersions: withVersions,
 	})
 
 	obj, ok := <-objectsCh
@@ -823,7 +843,7 @@ func bucketHasObjects(ctx context.Context, client *minio.Client, bucketName stri
 		if isNoSuchBucketError(obj.Err) {
 			return false, nil
 		}
-		return false, NewResourceError("error listing bucket objects", bucketName, obj.Err)
+		return false, obj.Err
 	}
 	return true, nil
 }

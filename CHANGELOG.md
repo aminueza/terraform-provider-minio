@@ -57,6 +57,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- Deleting an empty bucket with `force_destroy` now works on backends that
+  do not support versioned object listing (e.g. Garage), by falling back to
+  a plain listing when the versioned call returns `NotImplemented` or `501`
+  ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
 - `minio_s3_bucket_anonymous_access` now sets its id only after the policy has
   been written. It set the id first, so a backend that rejected the write left a
   resource in state for one that was never created, and the next plan read it

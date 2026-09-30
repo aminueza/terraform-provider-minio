@@ -80,11 +80,12 @@ func minioCreateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating CORS configuration for bucket: %s", bucketCorsConfig.MinioBucket))
 
+	client := meta.(*S3MinioClient)
 	corsConfig := buildCorsConfig(d)
 
 	err := bucketCorsConfig.MinioClient.SetBucketCors(ctx, bucketCorsConfig.MinioBucket, corsConfig)
 	if err != nil {
-		return NewResourceError("creating CORS configuration", bucketCorsConfig.MinioBucket, err)
+		return NewResourceError("creating CORS configuration", bucketCorsConfig.MinioBucket, s3CompatWriteError(client, "CORS configuration", err))
 	}
 
 	d.SetId(bucketCorsConfig.MinioBucket)
@@ -102,8 +103,7 @@ func minioReadBucketCors(ctx context.Context, d *schema.ResourceData, meta inter
 	client := meta.(*S3MinioClient)
 	corsConfig, err := bucketCorsConfig.MinioClient.GetBucketCors(ctx, d.Id())
 	if err != nil {
-		if isS3CompatNotSupported(client, err) {
-			tflog.Info(ctx, "CORS not supported by backend; skipping")
+		if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "CORS configuration", err) {
 			return nil
 		}
 		if isNoSuchBucketError(err) {
@@ -148,7 +148,7 @@ func minioUpdateBucketCors(ctx context.Context, d *schema.ResourceData, meta int
 
 		err := bucketCorsConfig.MinioClient.SetBucketCors(ctx, bucketCorsConfig.MinioBucket, corsConfig)
 		if err != nil {
-			return NewResourceError("updating CORS configuration", bucketCorsConfig.MinioBucket, err)
+			return NewResourceError("updating CORS configuration", bucketCorsConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "CORS configuration", err))
 		}
 	}
 

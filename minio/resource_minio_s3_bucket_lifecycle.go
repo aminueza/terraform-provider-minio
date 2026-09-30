@@ -449,7 +449,8 @@ func validateLifecycleDate(v interface{}, _ cty.Path) diag.Diagnostics {
 }
 
 func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
+	c := client.S3Client
 	bucket := d.Get("bucket").(string)
 
 	if _, err := c.BucketExists(ctx, bucket); err != nil {
@@ -458,7 +459,7 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 
 	oldConfig, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil && !isLifecycleNotFoundError(err) {
-		return NewResourceError("reading existing lifecycle", bucket, err)
+		return NewResourceError("reading existing lifecycle", bucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket lifecycle configuration", err))
 	}
 
 	config, diagErr := buildLifecycleConfig(d)
@@ -472,7 +473,7 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 				return NewResourceError("setting lifecycle (rollback failed)", bucket, fmt.Errorf("%v; rollback error: %v", err, rbErr))
 			}
 		}
-		return NewResourceError("setting lifecycle", bucket, err)
+		return NewResourceError("setting lifecycle", bucket, s3CompatWriteError(client, "bucket lifecycle configuration", err))
 	}
 
 	d.SetId(bucket)
@@ -480,14 +481,13 @@ func minioCreateS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, m
 }
 
 func minioReadS3BucketLifecycle(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
+	c := client.S3Client
 	bucket := d.Id()
 
 	config, err := c.GetBucketLifecycle(ctx, bucket)
 	if err != nil {
-		if isS3CompatNotSupported(meta.(*S3MinioClient), err) {
-			tflog.Info(ctx, fmt.Sprintf("Lifecycle rules not supported by backend; dropping %s from state", bucket))
-			d.SetId("")
+		if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "bucket lifecycle configuration", err) {
 			return nil
 		}
 		if isLifecycleNotFoundError(err) {

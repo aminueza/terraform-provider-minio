@@ -11,7 +11,7 @@ It ships a broad set of resources and data sources. On the storage side, it mana
 
 For authentication, the provider accepts static credentials or environment variables and supports STS AssumeRole, OIDC web identity for CI/CD pipelines, and mutual TLS.
 
-Although built for MinIO, the provider also works with other S3-compatible stores. Set `s3_compat_mode` to gracefully skip features a backend does not implement; tested backends include Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage.
+Although built for MinIO, the provider also works with other S3-compatible stores. Set `s3_compat_mode` to read a backend that does not implement every feature; tested backends include Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage.
 
 ## Example Provider Configuration
 
@@ -111,7 +111,7 @@ The following arguments are supported in the `provider` block:
 
 * `skip_bucket_tagging` - (Optional) Skip bucket tagging API calls. Useful when your S3-compatible endpoint does not support tagging (default: `false`). Can be sourced from `MINIO_SKIP_BUCKET_TAGGING`.
 
-* `s3_compat_mode` - (Optional) Enable S3 compatibility mode for non-MinIO backends. Gracefully handles unsupported features instead of erroring (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
+* `s3_compat_mode` - (Optional) Tolerate S3 features the backend does not implement. A 501 response is a missing feature everywhere, and a 405 response only on a bucket sub-resource or a write, where it means the backend implements the feature on another method. A read then keeps the resource in state with the attributes the last write stored, and a warning names the feature; a create or an update still fails, naming the feature and this flag (default: `false`). Can be sourced from `MINIO_S3_COMPAT_MODE`. See [S3 Compatibility Mode](#s3-compatibility-mode) below.
 
 * `request_timeout_seconds` - (Optional) Global HTTP request timeout in seconds for all MinIO API calls. A value of 0 or less falls back to the default of `30`. Can be sourced from `MINIO_REQUEST_TIMEOUT_SECONDS`.
 
@@ -186,7 +186,7 @@ provider "minio" {
 
 ## S3 Compatibility Mode
 
-This provider is built for MinIO but also works with other S3-compatible storage backends. Enable `s3_compat_mode` to gracefully handle unsupported features:
+This provider is built for MinIO but also works with other S3-compatible storage backends. Enable `s3_compat_mode` to read a backend that does not implement every feature:
 
 ```terraform
 provider "minio" {
@@ -199,11 +199,13 @@ provider "minio" {
 }
 ```
 
-When enabled, the provider will skip features that return "Not Implemented" errors instead of failing. This affects:
-- Bucket notifications
-- CORS configuration
-- Object lock, retention, and legal hold
-- Lifecycle rules (ILM)
+A missing feature is recognised from the typed response the backend returns: the S3 error code `NotImplemented`, or the HTTP status 501. The code `MethodNotAllowed` (405) counts as a missing feature on the bucket sub-resources and on writes, where it means the backend implements the feature on another method. On the object-level reads a 405 is a real answer instead, because S3 and MinIO answer a GET or HEAD whose `versionId` is a delete marker with 405, so those reads still fail. Admin API calls, such as ILM tiers and bucket quota, are recognised from the error code alone, because the admin client reports no HTTP status. What the flag does with a missing feature is the same for every resource:
+
+- **Read** — the resource stays in state with the attributes the provider last managed to write, and the provider logs a warning that names the feature and points at `s3_compat_mode`. The resource is never removed from state, because that would plan a create which fails the same way. The attributes are not emptied either, because a read the backend cannot answer says nothing about what the write stored: resetting them would manufacture a diff that the next successful read removes again, and would force a replacement on the attributes that cannot be changed. While the backend keeps ignoring the feature, the plan stays empty.
+- **Create and Update** — the operation still fails, and the error names the feature and points at `s3_compat_mode` instead of showing the backend's raw XML. `s3_compat_mode` never skips a write: a bucket policy, a retention rule or an encryption configuration that was silently dropped is worse than an error.
+- **With the flag off** — every such response is an error, exactly as it is on MinIO.
+
+This applies to the whole S3 surface: bucket notifications, CORS, object lock and bucket retention, object legal hold and object retention, lifecycle rules, bucket policy and anonymous access, bucket versioning, bucket encryption, bucket replication, object tagging and object metadata. ILM tiers and bucket quota are covered as well, although they are read through the admin API rather than through S3.
 
 ### Tested S3-Compatible Backends
 
@@ -224,9 +226,9 @@ Continuous integration runs the full acceptance suite against MinIO, and on ever
 
 ✅ = Fully supported
 ⚠️ = Partial support (may return errors on some operations)
-❌ = Not supported by backend (silently skipped with `s3_compat_mode = true`)
+❌ = Not supported by backend (readable with `s3_compat_mode = true`, which keeps the attributes the last write stored; a write to it still fails)
 
--> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends. The legacy `skip_bucket_tagging` flag continues to work independently.
+-> **Note:** MinIO-specific features (IAM, server configuration, site replication, notification targets, audit logging) require a MinIO server and are not available on other S3 backends, and `s3_compat_mode` does not make them available. The legacy `skip_bucket_tagging` flag continues to work independently.
 
 ## LDAP Integration
 

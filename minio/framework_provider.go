@@ -94,7 +94,7 @@ func (p *frameworkProvider) Schema(_ context.Context, _ provider.SchemaRequest, 
 			},
 			"s3_compat_mode": schema.BoolAttribute{
 				Optional:    true,
-				Description: "Enable S3 compatibility mode for non-MinIO backends (Hetzner, Cloudflare R2, Backblaze B2, DigitalOcean Spaces). Gracefully handles unsupported S3 features instead of erroring.",
+				Description: s3CompatModeDescription,
 			},
 			"minio_edition": schema.StringAttribute{
 				Optional:    true,

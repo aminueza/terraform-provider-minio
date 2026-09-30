@@ -299,7 +299,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	cfg, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	err = bucketReplicationConfig.MinioClient.SetBucketReplication(
@@ -309,7 +309,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
@@ -360,6 +360,9 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket replication configuration", err) {
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}

@@ -317,7 +317,7 @@ func minioCreateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 	err = c.AddTier(ctx, tierConf)
 	if err != nil {
-		return NewResourceError("adding remote tier failed", name, err)
+		return NewResourceError("adding remote tier failed", name, s3CompatWriteError(meta.(*S3MinioClient), "remote tier", err))
 	}
 	d.SetId(name)
 	tflog.Debug(ctx, fmt.Sprintf("Created Tier %s", name))
@@ -329,6 +329,9 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 	name := d.Id()
 	tier, err := getTier(c, ctx, name)
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "remote tier", err) {
+			return nil
+		}
 		return NewResourceError("reading remote tier failed", name, err)
 	}
 	if tier == nil {
@@ -446,7 +449,7 @@ func minioUpdateILMTier(ctx context.Context, d *schema.ResourceData, meta interf
 	if d.HasChanges("minio_config", "gcs_config", "azure_config", "s3_config") {
 		err := c.EditTier(ctx, name, credentials)
 		if err != nil {
-			return NewResourceError("updating ILM tier", d.Id(), err)
+			return NewResourceError("updating ILM tier", d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "remote tier", err))
 		}
 	}
 	return minioReadILMTier(ctx, d, meta)

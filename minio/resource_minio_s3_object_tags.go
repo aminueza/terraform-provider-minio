@@ -82,7 +82,7 @@ func minioCreateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 		}
 
 		if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
-			return NewResourceError("creating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+			return NewResourceError("creating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), s3CompatWriteError(meta.(*S3MinioClient), "object tags", err))
 		}
 	}
 
@@ -105,6 +105,9 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 	opts := minio.GetObjectTaggingOptions{}
 	objectTags, err := cfg.MinioClient.GetObjectTagging(ctx, bucket, objectKey, opts)
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsAnAnswer, d, "object tags", err) {
+			return nil
+		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			if err := d.Set("bucket", bucket); err != nil {
@@ -160,7 +163,7 @@ func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 			}
 
 			if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
-				return NewResourceError("updating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+				return NewResourceError("updating object tags", fmt.Sprintf("%s/%s", bucket, objectKey), s3CompatWriteError(meta.(*S3MinioClient), "object tags", err))
 			}
 		} else {
 			srcOpts := minio.CopySrcOptions{
@@ -175,7 +178,7 @@ func minioUpdateObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 			}
 
 			if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
-				return NewResourceError("removing object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+				return NewResourceError("removing object tags", fmt.Sprintf("%s/%s", bucket, objectKey), s3CompatWriteError(meta.(*S3MinioClient), "object tags", err))
 			}
 		}
 	}

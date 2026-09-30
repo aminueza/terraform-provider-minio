@@ -84,6 +84,31 @@ one scope per `MINIO_VERSION`, so a run with a warm cache skips the compile.
 The override is not used locally, because the `gha` cache backend needs the
 Actions runtime credentials.
 
+## Debugging a Failing Test
+
+The steps are cumulative; each one adds to the ones above it.
+
+1. Re-run with `-count=1`. `go test` caches a passing result, so a plain re-run
+   of a test that just passed proves nothing.
+2. Add `-v` for the per-step output of the test case.
+3. Raise the log level with `TF_ACC_LOG=debug`. Do not use `TF_LOG` here: in an
+   acceptance test the SDK reads `TF_LOG` as the Go standard library log level
+   and sets Terraform's own `TF_LOG` from `TF_ACC_LOG`, so setting the former
+   changes the framework's logging, not Terraform's. Use `TF_LOG_CORE` and
+   `TF_LOG_PROVIDER` to separate Terraform core from provider logs.
+4. Send the logs to a file with `TF_ACC_LOG_PATH=/tmp/tf-acc.log`, or
+   `TF_LOG_PATH_MASK=/tmp/tf-acc-%s.log` for one file per test. `%s` is
+   replaced with the test name. The test's Terraform working directory is
+   always deleted on exit (`plugintest.WorkingDir.Close` calls `os.RemoveAll`)
+   and SDKv2 has no switch to keep it, so the log file is the only record of
+   the config and the plan. `TF_ACC_TEMP_DIR` only moves the directory, it does
+   not preserve it.
+
+A passing test can be a false negative. To prove a check asserts anything,
+change the expected value in one of its `TestCheckFunc`s and run it again. A
+test that still passes is not testing that field. Revert the edit once it fails
+for the right reason.
+
 ## Common Issues
 
 **Config KV resources (notify_\*, audit_\*, logger_\*, server_config_\*):** These use `SetConfigKV`/`GetConfigKV`/`DelConfigKV` instead of the payload struct pattern. Named targets (e.g., `notify_kafka:primary`) use the shared helpers in `resource_minio_notify_common.go`. Singleton subsystems (e.g., `api`, `scanner`, `heal`) use the subsystem name as resource ID. Some subsystems (notably `notify_*` and `region`) require a server restart before `GetConfigKV` returns new values — handle the "there is no target" error by keeping state as-is.

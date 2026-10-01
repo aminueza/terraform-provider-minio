@@ -119,7 +119,8 @@
           "reason": "GetBucketTagging is not implemented; tags cannot be read back or re-imported"
         },
         "data.minio_s3_bucket": {
-          "status": "supported"
+          "status": "partial",
+          "reason": "Garage implements neither bucket versioning, object lock nor bucket policies; with s3_compat_mode the data source returns region and warns that versioning_enabled, object_lock_enabled and policy hold zero values"
         },
         "data.minio_s3_buckets": {
           "status": "supported"

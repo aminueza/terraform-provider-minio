@@ -693,7 +693,6 @@ func testAccS3BucketLifecycleBasic(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -713,7 +712,6 @@ func testAccS3BucketLifecycleFilterPrefix(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -731,7 +729,6 @@ func testAccS3BucketLifecycleFilterAnd(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -757,7 +754,6 @@ func testAccS3BucketLifecycleObjectSize(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -775,7 +771,6 @@ func testAccS3BucketLifecycleNoncurrent(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_versioning" "v" {
@@ -802,7 +797,6 @@ func testAccS3BucketLifecycleAbortMultipart(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -822,7 +816,6 @@ func testAccS3BucketLifecycleMultipleRules(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -856,7 +849,6 @@ func testAccS3BucketLifecycleExpirationDays(bucket string, days int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -873,7 +865,6 @@ func testAccS3BucketLifecycleDeleteMarker(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_versioning" "v" {
@@ -899,7 +890,6 @@ func testAccS3BucketLifecycleDuplicateID(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -920,7 +910,6 @@ func testAccS3BucketLifecycleNoAction(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -936,7 +925,6 @@ func testAccS3BucketLifecycleExpirationConflict(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -956,7 +944,6 @@ func testAccS3BucketLifecycleFilterConflict(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -979,7 +966,6 @@ func testAccS3BucketLifecycleDateExpiration(bucket, date string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -998,7 +984,6 @@ func testAccS3BucketLifecycleFilterSingleTag(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {
@@ -1075,7 +1060,6 @@ func testAccS3BucketLifecycleSizeInvalid(bucket string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = %[1]q
-  acl    = "public"
 }
 
 resource "minio_s3_bucket_lifecycle" "test" {

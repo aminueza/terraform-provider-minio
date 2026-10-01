@@ -10,8 +10,11 @@
           "status": "supported"
         },
         "minio_s3_bucket_lifecycle": {
+          "status": "supported"
+        },
+        "minio_s3_bucket_lifecycle_unsupported_actions": {
           "status": "unsupported",
-          "reason": "Garage answers 204 No Content for GetBucketLifecycle when no configuration exists; the provider treats this as an error instead of 'no lifecycle config' (verbatim: 'reading existing lifecycle: 204 No Content')"
+          "reason": "Garage v1 implements Expiration and AbortIncompleteMultipartUpload with a prefix filter only; transitions, noncurrent-version actions, expired delete markers, tag and object-size filters and the rich import fixture that combines them are rejected"
         },
         "minio_s3_bucket_lifecycle_validation": {
           "status": "supported"
@@ -156,7 +159,10 @@
       "^TestAccMinioS3Bucket_"
     ],
     "minio_s3_bucket_lifecycle": [
-      "^TestAccMinioS3BucketLifecycle_(abortIncompleteMultipart|addAndRemoveRule|basic|dateExpiration|expiredObjectDeleteMarker|filterAndComposite|filterPrefix|filterSingleTag|multipleRules|noncurrentVersion|noncurrentVersionTransition|objectSizeFilter|richConfigImport|transition|updateRule)$"
+      "^TestAccMinioS3BucketLifecycle_(abortIncompleteMultipart|addAndRemoveRule|basic|dateExpiration|filterPrefix|multipleRules|updateRule)$"
+    ],
+    "minio_s3_bucket_lifecycle_unsupported_actions": [
+      "^TestAccMinioS3BucketLifecycle_(expiredObjectDeleteMarker|filterAndComposite|filterSingleTag|noncurrentVersion|noncurrentVersionTransition|objectSizeFilter|richConfigImport|transition)$"
     ],
     "minio_s3_bucket_lifecycle_validation": [
       "^TestAccMinioS3BucketLifecycle_validation_"

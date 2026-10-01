@@ -80,6 +80,13 @@ History older than 3.39.0 lives in the
   Garage, including the Expiration and AbortIncompleteMultipartUpload rules it
   supports. The check now reads the typed error instead of its message text
   ([#1205](https://github.com/aminueza/terraform-provider-minio/issues/1205)).
+- Importing a `minio_s3_bucket` now works on a backend without bucket policies,
+  such as Garage. The import derives `acl` from the bucket policy and failed on
+  `NotImplemented`; a backend that cannot hold a policy can only hold the
+  default, so the bucket is imported as `private`. Any other policy error still
+  fails the import. Importing a bucket that does not exist now says so by name,
+  where it reported `Bucket name cannot be empty`
+  ([#1206](https://github.com/aminueza/terraform-provider-minio/issues/1206)).
 - `minio_ilm_tier` no longer crashes the provider when `type` names a backend
   whose configuration block is missing, such as `type = "s3"` with no
   `s3_config` block. Create and update indexed the block's first element

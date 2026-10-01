@@ -99,9 +99,12 @@
           "status": "unsupported",
           "reason": "a non-private acl is applied with PutBucketPolicy, which is not implemented (a private acl needs no policy and still runs)"
         },
+        "bucket_import_private": {
+          "status": "supported"
+        },
         "bucket_import_acl": {
           "status": "unsupported",
-          "reason": "bucket import reconstructs acl by calling GetBucketPolicy, which is not implemented (fails for any acl, including private)"
+          "reason": "these tests import a bucket created with a public acl, object locking or bucket tags; Garage implements none of the three, so the fixture fails before the import step"
         },
         "bucket_force_destroy_objects": {
           "status": "unsupported",
@@ -238,8 +241,11 @@
       "^TestAccMinioS3Bucket_UpdateAclToPrivate$",
       "^TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent$"
     ],
+    "bucket_import_private": [
+      "^TestAccMinioS3Bucket_(Bucket_EmptyString|SkipBucketTagging|generatedName|migrateBucketToBucketPrefix|namePrefix)$"
+    ],
     "bucket_import_acl": [
-      "^TestAccMinioS3Bucket_(basic|Bucket_EmptyString|SkipBucketTagging|UpdateAcl|emptyTagsNoDrift|namePrefix|tagsNoDrift|generatedName|migrateBucketToBucketPrefix|objectLocking)$"
+      "^TestAccMinioS3Bucket_(basic|UpdateAcl|emptyTagsNoDrift|objectLocking|tagsNoDrift)$"
     ],
     "bucket_force_destroy_objects": [
       "^TestAccMinioS3Bucket_(forceDestroy|forceDestroyFalseObjectLockWithObjects|forceDestroyFalseWithObjects|forceDestroyObjectLockWithObjects|forceDestroyWithManyObjects)$"

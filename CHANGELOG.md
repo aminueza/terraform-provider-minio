@@ -87,6 +87,14 @@ History older than 3.39.0 lives in the
   fails the import. Importing a bucket that does not exist now says so by name,
   where it reported `Bucket name cannot be empty`
   ([#1206](https://github.com/aminueza/terraform-provider-minio/issues/1206)).
+- `data.minio_s3_bucket` no longer reports `versioning_enabled = false`,
+  `object_lock_enabled = false` and an empty `policy` when it fails to read
+  them. It ignored the errors of those three reads, so a permission or network
+  error looked like a bucket with versioning off and no policy. An error now
+  fails the read; a bucket without object lock still reads as `false`. With
+  `s3_compat_mode = true`, a backend that does not implement one of the three
+  calls returns the zero value with a warning that names the attribute
+  ([#1207](https://github.com/aminueza/terraform-provider-minio/issues/1207)).
 - `minio_ilm_tier` no longer crashes the provider when `type` names a backend
   whose configuration block is missing, such as `type = "s3"` with no
   `s3_config` block. Create and update indexed the block's first element

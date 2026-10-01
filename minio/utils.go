@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"hash/crc32"
 	"math"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
+	"github.com/minio/minio-go/v7"
 )
 
 const (
@@ -285,9 +287,19 @@ func convertToStringMap(v interface{}) map[string]string {
 	return result
 }
 
+// isLifecycleNotFoundError reports whether a GetBucketLifecycle error means the
+// bucket has no lifecycle configuration. AWS and MinIO answer 404
+// NoSuchLifecycleConfiguration; Garage answers 204 No Content, which minio-go
+// turns into an error because it accepts only 200. See issue #1205.
 func isLifecycleNotFoundError(err error) bool {
 	if err == nil {
 		return false
+	}
+	var errResp minio.ErrorResponse
+	if errors.As(err, &errResp) {
+		if errResp.Code == "NoSuchLifecycleConfiguration" || errResp.StatusCode == http.StatusNoContent {
+			return true
+		}
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "NoSuchLifecycleConfiguration") ||

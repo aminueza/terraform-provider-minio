@@ -72,6 +72,14 @@ History older than 3.39.0 lives in the
   change never reached the server. It now compares the parsed byte counts, so
   the result no longer depends on how `go-humanize` rounds a rendering
   ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+- `minio_s3_bucket_lifecycle` and `minio_ilm_policy` now treat a `204 No Content`
+  answer to `GetBucketLifecycle` as "no lifecycle configuration", the same as
+  `NoSuchLifecycleConfiguration`. Garage answers 204 on a bucket without one,
+  and the provider failed every create there with
+  `reading existing lifecycle: 204 No Content`, so no rule could be managed on
+  Garage, including the Expiration and AbortIncompleteMultipartUpload rules it
+  supports. The check now reads the typed error instead of its message text
+  ([#1205](https://github.com/aminueza/terraform-provider-minio/issues/1205)).
 - `minio_ilm_tier` no longer crashes the provider when `type` names a backend
   whose configuration block is missing, such as `type = "s3"` with no
   `s3_config` block. Create and update indexed the block's first element

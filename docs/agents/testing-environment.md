@@ -92,7 +92,7 @@ Storage. It runs on `workflow_dispatch`, for one backend or all four, and every
 Monday at 07:00 UTC. It never runs on `pull_request`, because a fork cannot read
 the secrets and every outside contributor would see it fail.
 
-Each backend reads four repository secrets. A backend with any of them missing
+Each backend reads four repository secrets. Its job passes those four, by name, to the reusable `.github/workflows/hosted-backend-run.yml`, so no job receives another service's credentials or any other secret. A backend with any of them missing
 is skipped with a notice, not failed, so the workflow stays green until a
 maintainer sets them.
 

@@ -34,11 +34,14 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_region": {
 				Type:     schema.TypeString,
 				Optional: true,
-				Default:  "us-east-1",
 				Description: "Region used for request signing and sent to the S3 client. " +
 					"Defaults to `us-east-1`. Set this to match the region configured on your " +
 					"server, or to any non-empty string when using S3-compatible stores that " +
-					"require a specific region (e.g. Versity Gateway, Hetzner Object Storage).",
+					"require a specific region (e.g. Versity Gateway, Hetzner Object Storage). " +
+					"Can be sourced from `MINIO_REGION`.",
+				DefaultFunc: schema.MultiEnvDefaultFunc([]string{
+					prefix + "MINIO_REGION",
+				}, "us-east-1"),
 			},
 			"minio_user": {
 				Type:        schema.TypeString,

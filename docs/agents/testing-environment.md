@@ -84,6 +84,45 @@ one scope per `MINIO_VERSION`, so a run with a warm cache skips the compile.
 The override is not used locally, because the `gha` cache backend needs the
 Actions runtime credentials.
 
+## Hosted S3 Backends
+
+`.github/workflows/hosted-backends.yml` runs the same S3 subset as the Garage
+job against Cloudflare R2, Backblaze B2, DigitalOcean Spaces and Hetzner Object
+Storage. It runs on `workflow_dispatch`, for one backend or all four, and every
+Monday at 07:00 UTC. It never runs on `pull_request`, because a fork cannot read
+the secrets and every outside contributor would see it fail.
+
+Each backend reads four repository secrets. A backend with any of them missing
+is skipped with a notice, not failed, so the workflow stays green until a
+maintainer sets them.
+
+| Backend | Secret prefix | Endpoint secret, host only | Region secret |
+| --- | --- | --- | --- |
+| Cloudflare R2 | `R2_` | `<account id>.r2.cloudflarestorage.com` | `auto` |
+| Backblaze B2 | `B2_` | `s3.<region>.backblazeb2.com` | the region in the endpoint, e.g. `us-west-004` |
+| DigitalOcean Spaces | `SPACES_` | `<region>.digitaloceanspaces.com` | the region in the endpoint, e.g. `nyc3` |
+| Hetzner Object Storage | `HETZNER_` | `<location>.your-objectstorage.com` | the location, e.g. `fsn1` |
+
+The four secrets are `<prefix>S3_ENDPOINT`, `<prefix>S3_REGION`,
+`<prefix>S3_ACCESS_KEY` and `<prefix>S3_SECRET_KEY`. The region reaches the
+provider through `MINIO_REGION`, because B2 and Hetzner reject a request signed
+for another region.
+
+Use an account, or a project inside one, that holds nothing but these runs.
+After the tests, `tools/hosted-cleanup` removes every bucket whose name starts
+with `tfacc` or `tf-` and that was created after the run started, emptying
+noncurrent versions and delete markers first. It never touches a bucket created
+before the run, but a key that can reach production buckets with those prefixes
+should not be used here.
+
+The record in `testdata/multi-backend/support.json` starts provisional for the
+four services: only the groups that need the MinIO admin API, which no hosted
+service serves, are marked `unsupported`. Everything else runs. The first run is
+expected to fail; its job summary groups every test by its `support.json` group
+with pass, fail and skip counts and the first error line of each failure. Copy
+that into the record, a group per failure with the quoted error as the reason,
+and the next run is green with the real map of what each service supports.
+
 ## Debugging a Failing Test
 
 The steps are cumulative; each one adds to the ones above it.

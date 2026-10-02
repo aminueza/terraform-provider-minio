@@ -11,7 +11,7 @@ It ships a broad set of resources and data sources. On the storage side, it mana
 
 For authentication, the provider accepts static credentials or environment variables and supports STS AssumeRole, OIDC web identity for CI/CD pipelines, and mutual TLS.
 
-Although built for MinIO, the provider also works with other S3-compatible stores. Set `s3_compat_mode` to read a backend that does not implement every feature; tested backends include Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage.
+Although built for MinIO, the provider also works with other S3-compatible stores. Set `s3_compat_mode` to read a backend that does not implement every feature; users report it working with Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage.
 
 ## Example Provider Configuration
 
@@ -93,7 +93,7 @@ The following arguments are supported in the `provider` block:
 
 * `minio_session_token` - (Optional, Sensitive) Session token for temporary credentials. Can be sourced from `MINIO_SESSION_TOKEN`.
 
-* `minio_region` - (Optional) Region used for request signing by the S3 client (default: `us-east-1`). Set this to match the region your server expects. S3-compatible stores that enforce a custom region (e.g. Versity Gateway, Hetzner Object Storage) will reject requests signed with the wrong region — set `minio_region` to whatever value your backend is configured with.
+* `minio_region` - (Optional) Region used for request signing by the S3 client (default: `us-east-1`). Set this to match the region your server expects. S3-compatible stores that enforce a custom region (e.g. Versity Gateway, Hetzner Object Storage) will reject requests signed with the wrong region — set `minio_region` to whatever value your backend is configured with. Can be sourced from `MINIO_REGION`.
 
 * `minio_api_version` - (Optional) MinIO API version (`v2` or `v4`, default: `v4`).
 
@@ -211,7 +211,7 @@ This applies to the whole S3 surface: bucket notifications, CORS, object lock an
 
 All non-MinIO backends should use `s3_compat_mode = true`. This single flag handles all unsupported features including tagging.
 
-Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of that suite against [Garage](https://garagehq.deuxfleurs.fr/), a non-MinIO S3 implementation. `testdata/multi-backend/support.json` in the repository records which resources each continuously tested backend supports, and drives what that job runs and what it skips. The remaining backends in this table are reported by users and are not exercised by continuous integration.
+Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of that suite against [Garage](https://garagehq.deuxfleurs.fr/), a non-MinIO S3 implementation. `testdata/multi-backend/support.json` in the repository records which resources each continuously tested backend supports, and drives what that job runs and what it skips. A scheduled workflow runs the same subset against Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage when the repository holds credentials for them; until it does, those backends are reported by users, as are the other backends in this table.
 
 | Backend | Buckets | Objects | Policies | Versioning | Tags | Notifications | CORS | Object Lock | Lifecycle |
 |---------|---------|---------|----------|------------|------|---------------|------|-------------|-----------|

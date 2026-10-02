@@ -1,0 +1,111 @@
+name: Hosted S3 Backend Run
+
+# Called once per hosted service by hosted-backends.yml. Each caller passes only
+# the four secrets of its own service by name, so a job never receives the
+# credentials of another service or any other repository secret.
+on:
+  workflow_call:
+    inputs:
+      backend:
+        description: "Backend key in testdata/multi-backend/support.json"
+        type: string
+        required: true
+      name:
+        description: "Display name of the service"
+        type: string
+        required: true
+      secret-prefix:
+        description: "Prefix of the secret names, used in the notice when some are missing"
+        type: string
+        required: true
+    secrets:
+      endpoint:
+        required: false
+      region:
+        required: false
+      access-key:
+        required: false
+      secret-key:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ inputs.name }} (S3 subset)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TF_ACC: "1"
+      TF_ACC_TERRAFORM_VERSION: "1.11.4"
+      MINIO_ENDPOINT: ${{ secrets.endpoint }}
+      MINIO_REGION: ${{ secrets.region }}
+      MINIO_USER: ${{ secrets.access-key }}
+      MINIO_PASSWORD: ${{ secrets.secret-key }}
+      MINIO_ENABLE_HTTPS: "true"
+      MINIO_S3_COMPAT_MODE: "true"
+      MADMIN_API_VERSION: "v3"
+      BACKEND: ${{ inputs.backend }}
+      SERVICE: ${{ inputs.name }}
+      SECRET_PREFIX: ${{ inputs.secret-prefix }}
+    steps:
+      - name: Check that the credentials are configured
+        id: gate
+        run: |
+          missing=""
+          [ -n "$MINIO_ENDPOINT" ] || missing="$missing ${SECRET_PREFIX}_S3_ENDPOINT"
+          [ -n "$MINIO_REGION" ] || missing="$missing ${SECRET_PREFIX}_S3_REGION"
+          [ -n "$MINIO_USER" ] || missing="$missing ${SECRET_PREFIX}_S3_ACCESS_KEY"
+          [ -n "$MINIO_PASSWORD" ] || missing="$missing ${SECRET_PREFIX}_S3_SECRET_KEY"
+          if [ -n "$missing" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SERVICE skipped: secrets not configured:$missing"
+            exit 0
+          fi
+          echo "run=true" >> "$GITHUB_OUTPUT"
+          echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the repository
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2
+
+      - name: Set up Go
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: "go.mod"
+          cache: true
+
+      - name: Run the S3 subset
+        if: steps.gate.outputs.run == 'true'
+        run: |
+          # The hosted services are reached by every provider alias the tests
+          # declare, so the replication fixtures resolve; their tests are in the
+          # unsupported record of every hosted backend.
+          for prefix in SECOND THIRD FOURTH; do
+            export "${prefix}_MINIO_ENDPOINT=$MINIO_ENDPOINT" "${prefix}_MINIO_REGION=$MINIO_REGION" \
+              "${prefix}_MINIO_USER=$MINIO_USER" "${prefix}_MINIO_PASSWORD=$MINIO_PASSWORD" \
+              "${prefix}_MINIO_ENABLE_HTTPS=true" "${prefix}_MINIO_S3_COMPAT_MODE=true"
+          done
+
+          TEST_PATTERN="$(jq -r --arg b "$BACKEND" '.backends[$b].run' testdata/multi-backend/support.json)"
+          TEST_SKIP="$(.github/scripts/backend-skip.sh "$BACKEND")"
+          MATCH_COUNT=$(go test -list "$TEST_PATTERN" ./minio | grep -c "^TestAcc" || true)
+          if [ "$MATCH_COUNT" -eq 0 ]; then
+            echo "::error::TEST_PATTERN '$TEST_PATTERN' matches zero tests"
+            exit 1
+          fi
+          echo "Pattern matches $MATCH_COUNT test(s); skip list has $(echo "$TEST_SKIP" | tr '|' '\n' | grep -c . || true) pattern(s)"
+
+          # No -failfast: the point of the run is the full map of what works.
+          set +e
+          go test -json -timeout 50m ./minio -run "$TEST_PATTERN" ${TEST_SKIP:+-skip "$TEST_SKIP"} > go-test.json
+          status=$?
+          set -e
+          python3 .github/scripts/backend-report.py "$BACKEND" testdata/multi-backend/support.json go-test.json >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
+      - name: Remove the buckets this run created
+        if: always() && steps.gate.outputs.run == 'true'
+        run: go run ./tools/hosted-cleanup -since "${{ steps.gate.outputs.started }}"

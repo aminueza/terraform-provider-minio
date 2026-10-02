@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_region` can now be set from the `MINIO_REGION` environment variable,
+  like the other provider settings. Backends that check the signing region,
+  such as Backblaze B2 and Hetzner Object Storage, could only be configured
+  through the provider block before
+  ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
+
 ## [3.44.0] - 2026-10-02
 
 ### Changed

@@ -16,7 +16,7 @@
 
 services:
   garage:
-    image: dxflrs/garage:v1.0.1
+    image: dxflrs/garage:v2.4.1
     volumes:
       - ./testdata/multi-backend/garage.toml:/etc/garage.toml:ro
       - garage-meta:/var/lib/garage/meta

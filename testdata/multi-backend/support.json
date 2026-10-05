@@ -156,6 +156,98 @@
           "reason": "the data source returns empty encryption on any error; Garage does not implement GetBucketEncryption"
         }
       }
+    },
+    "r2": {
+      "service": "Cloudflare R2",
+      "note": "Provisional: only the admin API groups are recorded. Every other group runs, and the summary of the first run of the Hosted S3 Backends workflow lists what to record here.",
+      "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
+      "support": {
+        "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_s3_bucket_replication": {
+          "status": "unsupported",
+          "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_import": {
+          "status": "unsupported",
+          "reason": "bucket metadata import uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_export": {
+          "status": "unsupported",
+          "reason": "bucket metadata export uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        }
+      }
+    },
+    "b2": {
+      "service": "Backblaze B2",
+      "note": "Provisional: only the admin API groups are recorded. Every other group runs, and the summary of the first run of the Hosted S3 Backends workflow lists what to record here.",
+      "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
+      "support": {
+        "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_s3_bucket_replication": {
+          "status": "unsupported",
+          "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_import": {
+          "status": "unsupported",
+          "reason": "bucket metadata import uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_export": {
+          "status": "unsupported",
+          "reason": "bucket metadata export uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        }
+      }
+    },
+    "spaces": {
+      "service": "DigitalOcean Spaces",
+      "note": "Provisional: only the admin API groups are recorded. Every other group runs, and the summary of the first run of the Hosted S3 Backends workflow lists what to record here.",
+      "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
+      "support": {
+        "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_s3_bucket_replication": {
+          "status": "unsupported",
+          "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_import": {
+          "status": "unsupported",
+          "reason": "bucket metadata import uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_export": {
+          "status": "unsupported",
+          "reason": "bucket metadata export uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        }
+      }
+    },
+    "hetzner": {
+      "service": "Hetzner Object Storage",
+      "note": "Provisional: only the admin API groups are recorded. Every other group runs, and the summary of the first run of the Hosted S3 Backends workflow lists what to record here.",
+      "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
+      "support": {
+        "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_s3_bucket_replication": {
+          "status": "unsupported",
+          "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_import": {
+          "status": "unsupported",
+          "reason": "bucket metadata import uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "minio_bucket_metadata_export": {
+          "status": "unsupported",
+          "reason": "bucket metadata export uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        }
+      }
     }
   },
   "resources": {

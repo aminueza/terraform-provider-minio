@@ -1,0 +1,76 @@
+name: Hosted S3 Backends
+
+# Runs the S3 acceptance subset against the hosted services the README names.
+# They need accounts and cost money, so this never runs on pull_request: a fork
+# cannot read the secrets, and every outside contributor would see it fail.
+# Each job names its own four secrets; see hosted-backend-run.yml.
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: "Backend to run, or all of them"
+        type: choice
+        default: all
+        options: [all, r2, b2, spaces, hetzner]
+  schedule:
+    - cron: "0 7 * * 1" # Monday 7am UTC, an hour after the latest-MinIO run
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  r2:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend == 'all' || inputs.backend == 'r2'
+    uses: ./.github/workflows/hosted-backend-run.yml
+    with:
+      backend: r2
+      name: Cloudflare R2
+      secret-prefix: R2
+    secrets:
+      endpoint: ${{ secrets.R2_S3_ENDPOINT }}
+      region: ${{ secrets.R2_S3_REGION }}
+      access-key: ${{ secrets.R2_S3_ACCESS_KEY }}
+      secret-key: ${{ secrets.R2_S3_SECRET_KEY }}
+
+  b2:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend == 'all' || inputs.backend == 'b2'
+    uses: ./.github/workflows/hosted-backend-run.yml
+    with:
+      backend: b2
+      name: Backblaze B2
+      secret-prefix: B2
+    secrets:
+      endpoint: ${{ secrets.B2_S3_ENDPOINT }}
+      region: ${{ secrets.B2_S3_REGION }}
+      access-key: ${{ secrets.B2_S3_ACCESS_KEY }}
+      secret-key: ${{ secrets.B2_S3_SECRET_KEY }}
+
+  spaces:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend == 'all' || inputs.backend == 'spaces'
+    uses: ./.github/workflows/hosted-backend-run.yml
+    with:
+      backend: spaces
+      name: DigitalOcean Spaces
+      secret-prefix: SPACES
+    secrets:
+      endpoint: ${{ secrets.SPACES_S3_ENDPOINT }}
+      region: ${{ secrets.SPACES_S3_REGION }}
+      access-key: ${{ secrets.SPACES_S3_ACCESS_KEY }}
+      secret-key: ${{ secrets.SPACES_S3_SECRET_KEY }}
+
+  hetzner:
+    if: github.event_name != 'workflow_dispatch' || inputs.backend == 'all' || inputs.backend == 'hetzner'
+    uses: ./.github/workflows/hosted-backend-run.yml
+    with:
+      backend: hetzner
+      name: Hetzner Object Storage
+      secret-prefix: HETZNER
+    secrets:
+      endpoint: ${{ secrets.HETZNER_S3_ENDPOINT }}
+      region: ${{ secrets.HETZNER_S3_REGION }}
+      access-key: ${{ secrets.HETZNER_S3_ACCESS_KEY }}
+      secret-key: ${{ secrets.HETZNER_S3_SECRET_KEY }}

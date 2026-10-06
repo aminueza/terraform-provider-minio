@@ -84,6 +84,40 @@ func TestIsLifecycleNotFoundErrorOnBackendResponses(t *testing.T) {
 	}
 }
 
+// The old check read only the value form of minio.ErrorResponse; s3CompatErrorResponse
+// reads the pointer form as well. See issue #1212.
+func TestIsLifecycleNotFoundErrorOnPointerErrorResponse(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "Garage answers 204 No Content",
+			err:  &minio.ErrorResponse{StatusCode: http.StatusNoContent},
+			want: true,
+		},
+		{
+			name: "AWS and MinIO answer 404 NoSuchLifecycleConfiguration",
+			err:  &minio.ErrorResponse{Code: "NoSuchLifecycleConfiguration", StatusCode: http.StatusNotFound},
+			want: true,
+		},
+		{
+			name: "access denied is not a missing configuration",
+			err:  &minio.ErrorResponse{Code: "AccessDenied", StatusCode: http.StatusForbidden},
+			want: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isLifecycleNotFoundError(tc.err); got != tc.want {
+				t.Errorf("isLifecycleNotFoundError(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCreateS3BucketLifecycleOnBackendAnswering204(t *testing.T) {
 	var mu sync.Mutex
 	var stored string

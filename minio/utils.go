@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
-	"github.com/minio/minio-go/v7"
 )
 
 const (
@@ -295,11 +294,9 @@ func isLifecycleNotFoundError(err error) bool {
 	if err == nil {
 		return false
 	}
-	var errResp minio.ErrorResponse
-	if errors.As(err, &errResp) {
-		if errResp.Code == "NoSuchLifecycleConfiguration" || errResp.StatusCode == http.StatusNoContent {
-			return true
-		}
+	code, status := s3CompatErrorResponse(err)
+	if code == "NoSuchLifecycleConfiguration" || status == http.StatusNoContent {
+		return true
 	}
 	msg := err.Error()
 	return strings.Contains(msg, "NoSuchLifecycleConfiguration") ||

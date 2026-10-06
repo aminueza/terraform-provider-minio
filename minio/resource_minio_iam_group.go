@@ -182,7 +182,43 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("deleting IAM group", d.Id(), err)
 	}
 
+	if err := confirmGroupRemoved(ctx, iamGroupConfig, d.Id(), groupDrainAttempts, groupDrainDelay); err != nil {
+		return NewResourceError("deleting IAM group", d.Id(), err)
+	}
+
 	return nil
+}
+
+// confirmGroupRemoved re-reads the group after the removal call and removes it
+// again while MinIO still lists it. CI saw a group answer a successful removal
+// and then stay listed for more than six seconds, which left the old group of a
+// replacement behind while Terraform recorded it as destroyed (see #1218). A
+// group that is still listed after every attempt fails the delete instead of
+// being dropped from state.
+func confirmGroupRemoved(ctx context.Context, iamGroupConfig *S3MinioIAMGroupConfig, group string, attempts int, delay time.Duration) error {
+	for attempt := 1; ; attempt++ {
+		_, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, group)
+		if err != nil {
+			if strings.Contains(err.Error(), "not exist") {
+				return nil
+			}
+			return fmt.Errorf("checking that the group was removed: %w", err)
+		}
+		if attempt == attempts {
+			return fmt.Errorf("group %s is still listed after %d removals", group, attempts)
+		}
+
+		tflog.Warn(ctx, "IAM group is still listed after its removal; removing it again", map[string]interface{}{"name": group, "attempt": attempt})
+		if err := deleteMinioGroup(ctx, iamGroupConfig, group, []string{}); err != nil && !strings.Contains(err.Error(), "not exist") {
+			return fmt.Errorf("removing the group again: %w", err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+	}
 }
 
 // MinIO keeps serving a group's old member list for a short while after a

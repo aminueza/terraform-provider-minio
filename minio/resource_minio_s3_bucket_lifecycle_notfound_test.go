@@ -84,9 +84,8 @@ func TestIsLifecycleNotFoundErrorOnBackendResponses(t *testing.T) {
 	}
 }
 
-// A backend error reaches the provider as *minio.ErrorResponse when it comes from
-// a wrapped call chain, so the pointer form has to be recognised as well as the
-// value form. See issue #1212.
+// The old check read only the value form of minio.ErrorResponse; s3CompatErrorResponse
+// reads the pointer form as well. See issue #1212.
 func TestIsLifecycleNotFoundErrorOnPointerErrorResponse(t *testing.T) {
 	cases := []struct {
 		name string

@@ -18,6 +18,16 @@ History older than 3.39.0 lives in the
   through the provider block before
   ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
 
+### Fixed
+
+- Destroying a `minio_iam_group`, including the old group of a replacement
+  after a rename, now confirms that MinIO no longer lists the group and removes
+  it again while it does. CI saw a group answer a successful removal and stay
+  listed for more than six seconds, so Terraform recorded it as destroyed while
+  it still existed. A group still listed after six attempts now fails the
+  destroy instead of being dropped from state
+  ([#1218](https://github.com/aminueza/terraform-provider-minio/pull/1218)).
+
 ## [3.44.0] - 2026-10-02
 
 ### Changed

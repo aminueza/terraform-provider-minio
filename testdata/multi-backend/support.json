@@ -3,7 +3,7 @@
   "_comment": "Per-backend acceptance-test support record (issue #1174). A test runs unless some matching resource is 'unsupported' for the backend; 'unsupported' entries are skipped. 'env-gated' tests self-skip when the variable is unset, exactly as in the MinIO job. Resources with no entry run: an unexpected failure fails the job.",
   "backends": {
     "garage": {
-      "image": "dxflrs/garage:v1.0.1",
+      "image": "dxflrs/garage:v2.4.1",
       "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
       "support": {
         "minio_s3_bucket": {
@@ -14,7 +14,7 @@
         },
         "minio_s3_bucket_lifecycle_unsupported_actions": {
           "status": "unsupported",
-          "reason": "Garage v1 implements Expiration and AbortIncompleteMultipartUpload with a prefix filter only; transitions, noncurrent-version actions, expired delete markers, tag and object-size filters and the rich import fixture that combines them are rejected"
+          "reason": "Garage v1.0.1 implemented Expiration and AbortIncompleteMultipartUpload with a prefix filter only, and these tests were not re-run when the job moved to v2.4.1; transitions, noncurrent-version actions, expired delete markers, tag and object-size filters and the rich import fixture that combines them are rejected"
         },
         "minio_s3_bucket_lifecycle_validation": {
           "status": "supported"

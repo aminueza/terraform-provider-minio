@@ -14,7 +14,7 @@
         },
         "minio_s3_bucket_lifecycle_unsupported_actions": {
           "status": "unsupported",
-          "reason": "Garage v1.0.1 implemented Expiration and AbortIncompleteMultipartUpload with a prefix filter only, and these tests were not re-run when the job moved to v2.4.1; transitions, noncurrent-version actions, expired delete markers, tag and object-size filters and the rich import fixture that combines them are rejected"
+          "reason": "Garage v1.0.1 implemented Expiration and AbortIncompleteMultipartUpload with a prefix filter only, and these tests were not re-run when the job moved to v2.4.1; transitions, noncurrent-version actions, expired delete markers, tag and object-size filters are rejected"
         },
         "minio_s3_bucket_lifecycle_validation": {
           "status": "supported"
@@ -255,10 +255,10 @@
       "^TestAccMinioS3Bucket_"
     ],
     "minio_s3_bucket_lifecycle": [
-      "^TestAccMinioS3BucketLifecycle_(abortIncompleteMultipart|addAndRemoveRule|basic|dateExpiration|filterPrefix|multipleRules|updateRule)$"
+      "^TestAccMinioS3BucketLifecycle_(abortIncompleteMultipart|addAndRemoveRule|basic|dateExpiration|filterPrefix|multipleRules|richConfigImport|updateRule)$"
     ],
     "minio_s3_bucket_lifecycle_unsupported_actions": [
-      "^TestAccMinioS3BucketLifecycle_(expiredObjectDeleteMarker|filterAndComposite|filterSingleTag|noncurrentVersion|noncurrentVersionTransition|objectSizeFilter|richConfigImport|transition)$"
+      "^TestAccMinioS3BucketLifecycle_(expiredObjectDeleteMarker|filterAndComposite|filterSingleTag|noncurrentVersion|noncurrentVersionTransition|objectSizeFilter|transition)$"
     ],
     "minio_s3_bucket_lifecycle_validation": [
       "^TestAccMinioS3BucketLifecycle_validation_"

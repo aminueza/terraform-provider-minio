@@ -19,7 +19,7 @@ require (
 	github.com/minio/minio-go/v7 v7.3.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0
-	golang.org/x/sync v0.23.0
+	golang.org/x/sync v0.24.0
 	gotest.tools/v3 v3.5.2
 )
 

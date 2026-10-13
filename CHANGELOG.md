@@ -28,6 +28,19 @@ History older than 3.39.0 lives in the
   destroy instead of being dropped from state
   ([#1218](https://github.com/aminueza/terraform-provider-minio/pull/1218)).
 
+### Security
+
+- Bumped `golang.org/x/net` from 0.58.0 to 0.60.0, which fixes four HTTP/2
+  vulnerabilities that `govulncheck` finds reachable from the provider through
+  the plugin server: an HPACK encoder race that crashes the server
+  ([GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617)), a double flow-control
+  refund ([GO-2026-6612](https://pkg.go.dev/vuln/GO-2026-6612)), CPU exhaustion
+  from repeated window changes
+  ([GO-2026-6611](https://pkg.go.dev/vuln/GO-2026-6611)) and memory exhaustion
+  from trailer headers ([GO-2026-6603](https://pkg.go.dev/vuln/GO-2026-6603)).
+  `golang.org/x/crypto`, `x/mod`, `x/sys` and `x/text` move to the versions it
+  requires.
+
 ## [3.44.0] - 2026-10-02
 
 ### Changed

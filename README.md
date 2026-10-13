@@ -124,7 +124,7 @@ Every area is mirrored by read-only data sources. Browse the full list in the [T
 
 ## S3-compatible backends
 
-The provider is built for MinIO but works with other S3-compatible stores. Set `s3_compat_mode = true` and the provider gracefully skips features a backend does not implement (notifications, CORS, object lock, lifecycle) instead of failing:
+The provider is built for MinIO but works with other S3-compatible stores. Set `s3_compat_mode = true` for a backend that does not implement every S3 feature. A read of a feature the backend does not implement then keeps the resource in state with the attributes the last write stored and logs a warning naming the feature. A create or an update of such a feature still fails, with an error that names the feature and the flag, because a policy or an encryption setting that is silently dropped is worse than an error:
 
 ```hcl
 provider "minio" {

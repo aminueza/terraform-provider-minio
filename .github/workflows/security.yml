@@ -100,6 +100,8 @@ jobs:
     name: Dependency Security Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Check out the repository
@@ -111,28 +113,32 @@ jobs:
           go-version-file: "go.mod"
           cache: true
 
+      # govulncheck exits non-zero only for vulnerabilities the code can reach,
+      # so an advisory in a module that is imported but never called, such as
+      # GO-2026-5662 in prometheus/prometheus via madmin-go, does not fail the
+      # job, and no allowlist is needed. A reachable one must fail it.
       - name: Run govulncheck
-        id: govulncheck
-        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./...
+          set -o pipefail
+          govulncheck ./... | tee govulncheck.txt
 
       - name: Report govulncheck findings
-        if: steps.govulncheck.outcome == 'failure'
+        if: failure()
         run: |
-          echo "## govulncheck Found Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "GO-2026-5662 (Prometheus Stored XSS) is a web UI vulnerability in the Prometheus server." >> $GITHUB_STEP_SUMMARY
-          echo "This project uses prometheus/prometheus only as a transitive dependency via madmin-go" >> $GITHUB_STEP_SUMMARY
-          echo "and does not run a Prometheus web UI. The vulnerability is marked 'all versions, no known fixed'" >> $GITHUB_STEP_SUMMARY
-          echo "for standard Go modules. See: https://pkg.go.dev/vuln/GO-2026-5662" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## govulncheck found reachable vulnerabilities"
+            echo ""
+            echo '```'
+            cat govulncheck.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
+      # Without SNYK_TOKEN the action can only report an authentication error.
       - name: Run Snyk to check for vulnerabilities
+        if: env.SNYK_TOKEN != ''
         uses: snyk/actions/golang@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
         continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
 

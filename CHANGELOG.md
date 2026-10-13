@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.45.0] - 2026-10-13
+
 ### Added
 
 - `minio_region` can now be set from the `MINIO_REGION` environment variable,
@@ -341,7 +343,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.44.0...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.45.0...HEAD
+[3.45.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.44.0...v3.45.0
 [3.44.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.43.0...v3.44.0
 [3.43.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.42.0...v3.43.0
 [3.42.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...v3.42.0

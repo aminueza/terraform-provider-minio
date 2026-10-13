@@ -94,9 +94,11 @@ provider "minio" {
 }
 ```
 **Caveats:**
-- In compat mode the provider **silently skips** features the backend doesn't
-  support — bucket notifications, object lock, CORS, lifecycle. Don't expect
-  those `minio_*` resources to take effect.
+- In compat mode a **read** of a feature the backend doesn't implement keeps
+  the resource in state with its last written attributes and logs a warning;
+  a **create or update** of that feature still **fails**, naming the feature
+  and `s3_compat_mode`. Remove such resources from the configuration rather
+  than expect them to be skipped.
 - MinIO-specific features (IAM users/groups/policies, service accounts, server
   config, site replication, notify targets, audit) require a **real MinIO
   server** and won't work against generic S3.

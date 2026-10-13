@@ -18,6 +18,13 @@ History older than 3.39.0 lives in the
   through the provider block before
   ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
 
+### Changed
+
+- Bumped `golang.org/x/sync` from 0.23.0 to 0.24.0
+  ([#1222](https://github.com/aminueza/terraform-provider-minio/pull/1222)).
+- Bumped the Go toolchain to go1.26.9
+  ([#1221](https://github.com/aminueza/terraform-provider-minio/pull/1221)).
+
 ### Fixed
 
 - Destroying a `minio_iam_group`, including the old group of a replacement

@@ -8,6 +8,7 @@ on:
   schedule:
     # Run security scan daily at 2 AM UTC
     - cron: "0 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -44,7 +45,7 @@ jobs:
           args: "-fmt sarif -out gosec.sarif -exclude-generated -exclude-dir=vendor -tests=false -exclude=G101 ./..."
 
       - name: Upload Gosec SARIF file
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('gosec.sarif') != ''
         with:
           sarif_file: gosec.sarif
@@ -77,7 +78,7 @@ jobs:
           severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy SARIF file
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: "trivy-results.sarif"
@@ -100,6 +101,8 @@ jobs:
     name: Dependency Security Check
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Check out the repository
@@ -111,28 +114,32 @@ jobs:
           go-version-file: "go.mod"
           cache: true
 
+      # govulncheck exits non-zero only for vulnerabilities the code can reach,
+      # so an advisory in a module that is imported but never called, such as
+      # GO-2026-5662 in prometheus/prometheus via madmin-go, does not fail the
+      # job, and no allowlist is needed. A reachable one must fail it.
       - name: Run govulncheck
-        id: govulncheck
-        continue-on-error: true
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
-          govulncheck ./...
+          set -o pipefail
+          govulncheck ./... | tee govulncheck.txt
 
       - name: Report govulncheck findings
-        if: steps.govulncheck.outcome == 'failure'
+        if: failure()
         run: |
-          echo "## govulncheck Found Vulnerabilities" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "GO-2026-5662 (Prometheus Stored XSS) is a web UI vulnerability in the Prometheus server." >> $GITHUB_STEP_SUMMARY
-          echo "This project uses prometheus/prometheus only as a transitive dependency via madmin-go" >> $GITHUB_STEP_SUMMARY
-          echo "and does not run a Prometheus web UI. The vulnerability is marked 'all versions, no known fixed'" >> $GITHUB_STEP_SUMMARY
-          echo "for standard Go modules. See: https://pkg.go.dev/vuln/GO-2026-5662" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## govulncheck found reachable vulnerabilities"
+            echo ""
+            echo '```'
+            cat govulncheck.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
+      # Without SNYK_TOKEN the action can only report an authentication error.
       - name: Run Snyk to check for vulnerabilities
+        if: env.SNYK_TOKEN != ''
         uses: snyk/actions/golang@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
         continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
 
@@ -149,7 +156,7 @@ jobs:
 
       - name: Run TruffleHog OSS on PR
         if: github.event_name == 'pull_request'
-        uses: trufflesecurity/trufflehog@363923b901c911a9164f50b6c423f47c15372b1c # v3.97.4
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
         with:
           path: ./
           base: ${{ github.event.pull_request.base.sha }}
@@ -158,7 +165,7 @@ jobs:
 
       - name: Run TruffleHog OSS on push
         if: github.event_name != 'pull_request'
-        uses: trufflesecurity/trufflehog@363923b901c911a9164f50b6c423f47c15372b1c # v3.97.4
+        uses: trufflesecurity/trufflehog@e76dff8a7e57d6df0c60ad8cbf5d5cba505a8fc9 # v3.99.2
         with:
           path: ./
           extra_args: --only-verified
@@ -186,7 +193,7 @@ jobs:
           publish_results: true
 
       - name: Upload SARIF results to GitHub
-        uses: github/codeql-action/upload-sarif@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
+        uses: github/codeql-action/upload-sarif@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
         with:
           sarif_file: results.sarif
 

@@ -10,6 +10,140 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.45.0] - 2026-10-13
+
+### Added
+
+- `minio_region` can now be set from the `MINIO_REGION` environment variable,
+  like the other provider settings. Backends that check the signing region,
+  such as Backblaze B2 and Hetzner Object Storage, could only be configured
+  through the provider block before
+  ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
+
+### Changed
+
+- Bumped `golang.org/x/sync` from 0.23.0 to 0.24.0
+  ([#1222](https://github.com/aminueza/terraform-provider-minio/pull/1222)).
+- Bumped the Go toolchain to go1.26.9
+  ([#1221](https://github.com/aminueza/terraform-provider-minio/pull/1221)).
+
+### Fixed
+
+- Destroying a `minio_iam_group`, including the old group of a replacement
+  after a rename, now confirms that MinIO no longer lists the group and removes
+  it again while it does. CI saw a group answer a successful removal and stay
+  listed for more than six seconds, so Terraform recorded it as destroyed while
+  it still existed. A group still listed after six attempts now fails the
+  destroy instead of being dropped from state
+  ([#1218](https://github.com/aminueza/terraform-provider-minio/pull/1218)).
+
+### Security
+
+- Bumped `golang.org/x/net` from 0.58.0 to 0.60.0, which fixes four HTTP/2
+  vulnerabilities that `govulncheck` finds reachable from the provider through
+  the plugin server: an HPACK encoder race that crashes the server
+  ([GO-2026-6617](https://pkg.go.dev/vuln/GO-2026-6617)), a double flow-control
+  refund ([GO-2026-6612](https://pkg.go.dev/vuln/GO-2026-6612)), CPU exhaustion
+  from repeated window changes
+  ([GO-2026-6611](https://pkg.go.dev/vuln/GO-2026-6611)) and memory exhaustion
+  from trailer headers ([GO-2026-6603](https://pkg.go.dev/vuln/GO-2026-6603)).
+  `golang.org/x/crypto`, `x/mod`, `x/sys` and `x/text` move to the versions it
+  requires.
+
+## [3.44.0] - 2026-10-02
+
+### Changed
+
+- With `s3_compat_mode = true`, a read the backend cannot answer now leaves the
+  resource in state with the attributes the last write stored, where it emptied
+  them. Emptying them reproduced the perpetual diff of
+  [#1173](https://github.com/aminueza/terraform-provider-minio/issues/1173),
+  regressed CORS on a backend without it, and reset `ForceNew` identity
+  attributes such as `name`, `bucket` and `endpoint`, which forced a replacement
+  and then failed the delete. The warning naming the feature is unchanged
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
+- With `s3_compat_mode = true`, a 405 `MethodNotAllowed` response is treated as
+  a missing feature on the bucket sub-resources and on writes, but no longer on
+  the object-level reads of `minio_s3_object`, `minio_s3_object_tags`,
+  `minio_s3_object_legal_hold` and `minio_s3_object_retention`. A GET or HEAD
+  whose `versionId` is a delete marker is answered with 405, so there it is an
+  answer about the object rather than an absent feature, and absorbing it
+  reported an object as readable when it is gone. A 501 `NotImplemented`
+  response is still treated as a missing feature on every resource, and every
+  such response is an error with the flag off
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
+- The `s3_compat_mode` provider attribute now describes those two rules, and
+  states that the admin API resources `minio_ilm_tier` and
+  `minio_s3_bucket_quota` are recognised by error code alone, because the admin
+  client reports no HTTP status
+  ([#1198](https://github.com/aminueza/terraform-provider-minio/pull/1198)).
+- Bumped `github.com/hashicorp/awspolicyequivalence` from 1.7.0 to 1.8.0. The
+  release rewrites `interface{}` as `any`, requires Go 1.26 and moves its
+  indirect `aws-sdk-go-v2` dependency to 1.47.0; the policy comparison the
+  provider uses to suppress diffs between equivalent policies is unchanged
+  ([#1182](https://github.com/aminueza/terraform-provider-minio/pull/1182)).
+- Bumped `github.com/dustin/go-humanize` from 1.0.1 to 1.1.0. `Bytes()` now
+  rounds once at the target precision instead of twice, which changes the
+  rendering of values at a `.x5` boundary such as `10.5GB`, shown as `11 GB`
+  where 1.0.1 showed `10 GB`. The provider renders `bandwidth_limit` on
+  `minio_s3_bucket_replication` with it, see
+  [#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)
+  ([#1181](https://github.com/aminueza/terraform-provider-minio/pull/1181)).
+- `minio_s3_bucket_replication` now stores `bandwidth_limit` in state as the
+  exact number of bytes per second the server reports, for example
+  `10500000000`, where it used to store a rounded rendering such as `10 GB`.
+  The configuration keeps accepting suffixes such as `100M` or `1.5G`. A state
+  written by an older release shows a one-time diff on the next refresh, and no
+  request goes to the server for it
+  ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+
+### Fixed
+
+- Deleting an empty bucket with `force_destroy` now works on backends that
+  do not support versioned object listing (e.g. Garage), by falling back to
+  a plain listing when the versioned call returns `NotImplemented` or `501`
+  ([#1174](https://github.com/aminueza/terraform-provider-minio/issues/1174)).
+- `minio_s3_bucket_anonymous_access` now sets its id only after the policy has
+  been written. It set the id first, so a backend that rejected the write left a
+  resource in state for one that was never created, and the next plan read it
+  back
+  ([#1173](https://github.com/aminueza/terraform-provider-minio/issues/1173)).
+- `minio_s3_bucket_replication` no longer ignores a change to `bandwidth_limit`
+  that rounds to the same two-digit rendering as the current value, such as
+  `1000MB` to `1040MB`. The diff suppression compared rendered strings, so the
+  change never reached the server. It now compares the parsed byte counts, so
+  the result no longer depends on how `go-humanize` rounds a rendering
+  ([#1187](https://github.com/aminueza/terraform-provider-minio/issues/1187)).
+- `minio_s3_bucket_lifecycle` and `minio_ilm_policy` now treat a `204 No Content`
+  answer to `GetBucketLifecycle` as "no lifecycle configuration", the same as
+  `NoSuchLifecycleConfiguration`. Garage answers 204 on a bucket without one,
+  and the provider failed every create there with
+  `reading existing lifecycle: 204 No Content`, so no rule could be managed on
+  Garage, including the Expiration and AbortIncompleteMultipartUpload rules it
+  supports. The check now reads the typed error instead of its message text
+  ([#1205](https://github.com/aminueza/terraform-provider-minio/issues/1205)).
+- Importing a `minio_s3_bucket` now works on a backend without bucket policies,
+  such as Garage. The import derives `acl` from the bucket policy and failed on
+  `NotImplemented`; a backend that cannot hold a policy can only hold the
+  default, so the bucket is imported as `private`. Any other policy error still
+  fails the import. Importing a bucket that does not exist now says so by name,
+  where it reported `Bucket name cannot be empty`
+  ([#1206](https://github.com/aminueza/terraform-provider-minio/issues/1206)).
+- `data.minio_s3_bucket` no longer reports `versioning_enabled = false`,
+  `object_lock_enabled = false` and an empty `policy` when it fails to read
+  them. It ignored the errors of those three reads, so a permission or network
+  error looked like a bucket with versioning off and no policy. An error now
+  fails the read; a bucket without object lock still reads as `false`. With
+  `s3_compat_mode = true`, a backend that does not implement one of the three
+  calls returns the zero value with a warning that names the attribute
+  ([#1207](https://github.com/aminueza/terraform-provider-minio/issues/1207)).
+- `minio_ilm_tier` no longer crashes the provider when `type` names a backend
+  whose configuration block is missing, such as `type = "s3"` with no
+  `s3_config` block. Create and update indexed the block's first element
+  without checking that it existed, which crashed the whole provider process.
+  They now return an error naming the block that is required
+  ([#1200](https://github.com/aminueza/terraform-provider-minio/issues/1200)).
+
 ## [3.43.0] - 2026-09-15
 
 ### Added
@@ -209,7 +343,9 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.43.0...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.45.0...HEAD
+[3.45.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.44.0...v3.45.0
+[3.44.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.43.0...v3.44.0
 [3.43.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.42.0...v3.43.0
 [3.42.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.1...v3.42.0
 [3.41.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.41.0...v3.41.1

@@ -111,7 +111,7 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 	})
 
 	if err != nil {
-		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, err)
+		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket versioning configuration", err))
 	}
 
 	// MinIO multi-drive deployments can lose the bucket policy when versioning
@@ -163,6 +163,9 @@ func minioReadBucketVersioning(ctx context.Context, d *schema.ResourceData, meta
 
 	cfg, readErr := bucketVersioningConfig.MinioClient.GetBucketVersioning(ctx, d.Id())
 	if readErr != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket versioning configuration", readErr) {
+			return nil
+		}
 		return NewResourceError("failed to load bucket versioning", bucketVersioningConfig.MinioBucket, readErr)
 	}
 	versioningConfig = cfg

@@ -80,7 +80,7 @@ func minioCreateObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if err := cfg.MinioClient.PutObjectLegalHold(ctx, cfg.MinioBucket, cfg.MinioObjectKey, opts); err != nil {
-		return NewResourceError("creating object legal hold", fmt.Sprintf("%s/%s", cfg.MinioBucket, cfg.MinioObjectKey), err)
+		return NewResourceError("creating object legal hold", fmt.Sprintf("%s/%s", cfg.MinioBucket, cfg.MinioObjectKey), s3CompatWriteError(meta.(*S3MinioClient), "object legal hold", err))
 	}
 
 	d.SetId(legalHoldID(cfg.MinioBucket, cfg.MinioObjectKey, cfg.MinioVersionID))
@@ -105,6 +105,9 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 
 	status, err := client.GetObjectLegalHold(ctx, bucket, objectKey, opts)
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsAnAnswer, d, "object legal hold", err) {
+			return nil
+		}
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) {
 			switch minioErr.Code {
@@ -159,7 +162,7 @@ func minioUpdateObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 		}
 
 		if err := cfg.MinioClient.PutObjectLegalHold(ctx, cfg.MinioBucket, cfg.MinioObjectKey, opts); err != nil {
-			return NewResourceError("updating object legal hold", fmt.Sprintf("%s/%s", cfg.MinioBucket, cfg.MinioObjectKey), err)
+			return NewResourceError("updating object legal hold", fmt.Sprintf("%s/%s", cfg.MinioBucket, cfg.MinioObjectKey), s3CompatWriteError(meta.(*S3MinioClient), "object legal hold", err))
 		}
 	}
 

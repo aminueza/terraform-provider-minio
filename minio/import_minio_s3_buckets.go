@@ -3,9 +3,11 @@ package minio
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
 )
 
 func resourceMinioS3BucketImportState(
@@ -13,8 +15,16 @@ func resourceMinioS3BucketImportState(
 	d *schema.ResourceData,
 	meta interface{}) ([]*schema.ResourceData, error) {
 
+	bucket := d.Id()
+
 	if diag := minioReadBucket(ctx, d, meta); diag.HasError() {
 		return nil, fmt.Errorf("could not read minio bucket")
+	}
+
+	// minioReadBucket clears the id instead of failing when the bucket is gone, which
+	// would send every call below with an empty bucket name. See issue #1206.
+	if d.Id() == "" {
+		return nil, fmt.Errorf("cannot import bucket %q: the bucket does not exist", bucket)
 	}
 
 	bucketConfig := BucketConfig(d, meta)
@@ -27,7 +37,13 @@ func resourceMinioS3BucketImportState(
 
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
-		return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
+		// A backend without bucket policies, such as Garage, can only hold the default,
+		// so the bucket is private and the import can go on. See issue #1206.
+		errResp := minio.ToErrorResponse(err)
+		if errResp.Code != "NotImplemented" && errResp.StatusCode != http.StatusNotImplemented {
+			return nil, fmt.Errorf("error importing Minio S3 bucket policy: %s", err)
+		}
+		pol = ""
 	}
 
 	if pol == "" {

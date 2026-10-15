@@ -17,8 +17,8 @@
   <a href="https://github.com/aminueza/terraform-provider-minio/actions/workflows/go.yml?query=branch%3Amain">
     <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/aminueza/terraform-provider-minio/go.yml?branch=main&label=ci">
   </a>
-  <a href="https://codecov.io/gh/aminueza/terraform-provider-minio">
-    <img alt="Coverage" src="https://codecov.io/gh/aminueza/terraform-provider-minio/graph/badge.svg">
+  <a href="https://app.codecov.io/gh/aminueza/terraform-provider-minio/tree/main" > 
+    <img src="https://codecov.io/gh/aminueza/terraform-provider-minio/branch/main/graph/badge.svg?token=VwVse1EyIU"/> 
   </a>
   <a href="go.mod">
     <img alt="Go version" src="https://img.shields.io/github/go-mod/go-version/aminueza/terraform-provider-minio">
@@ -49,7 +49,7 @@ Provision and manage [MinIO](https://min.io) with the same Terraform workflow yo
 - **Broad coverage**: resources and data sources spanning buckets and objects, IAM, ILM, replication, encryption, notifications, and server and cluster configuration.
 - **Proven in production**: over 18 million downloads on the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest), with frequent releases.
 - **Flexible auth**: static keys, environment variables, STS AssumeRole, OIDC web identity (passwordless CI/CD), and mTLS.
-- **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores.
+- **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores. Continuous integration exercises MinIO and Garage; the other stores are reported by users (see [S3-compatible backends](#s3-compatible-backends)).
 - **Import everywhere**: every resource supports `terraform import`, so you can bring existing infrastructure under management.
 - **AI-agent ready**: ships a [Claude Code](https://docs.claude.com/en/docs/claude-code) skill and an [`AGENTS.md`](./AGENTS.md) so coding agents produce correct configuration out of the box.
 
@@ -124,7 +124,7 @@ Every area is mirrored by read-only data sources. Browse the full list in the [T
 
 ## S3-compatible backends
 
-The provider is built for MinIO but works with other S3-compatible stores. Set `s3_compat_mode = true` and the provider gracefully skips features a backend does not implement (notifications, CORS, object lock, lifecycle) instead of failing:
+The provider is built for MinIO but works with other S3-compatible stores. Set `s3_compat_mode = true` for a backend that does not implement every S3 feature. A read of a feature the backend does not implement then keeps the resource in state with the attributes the last write stored and logs a warning naming the feature. A create or an update of such a feature still fails, with an error that names the feature and the flag, because a policy or an encryption setting that is silently dropped is worse than an error:
 
 ```hcl
 provider "minio" {
@@ -136,7 +136,9 @@ provider "minio" {
 }
 ```
 
-Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and Versity Gateway are tested. The [provider docs](https://registry.terraform.io/providers/aminueza/minio/latest/docs) carry the per-backend support matrix and notes on region signing.
+Continuous integration runs the full acceptance suite against MinIO, and on every pull request it also runs the S3 subset of the suite against [Garage](https://garagehq.deuxfleurs.fr/) (`dxflrs/garage:v2.4.1`), a non-MinIO S3 implementation. Which resources work on which backend is recorded in [`testdata/multi-backend/support.json`](./testdata/multi-backend/support.json), and that record decides what the Garage job runs and what it skips.
+
+Cloudflare R2, Backblaze B2, DigitalOcean Spaces, and Hetzner Object Storage have a scheduled workflow, `Hosted S3 Backends`, that runs the same S3 subset against each of them once a week when the repository holds credentials for that service; a service without credentials is skipped, so until they are configured these stores are reported by users and not exercised by continuous integration. Versity Gateway is reported by users only. The [provider docs](https://registry.terraform.io/providers/aminueza/minio/latest/docs) carry notes on region signing.
 
 ## Use with AI coding agents
 
@@ -181,14 +183,16 @@ docker compose run --rm test
 # Run a subset by name:
 TEST_PATTERN=TestAccMinioS3Bucket_basic docker compose run --rm test
 
-# Pull the MinIO images from somewhere else, for a mirror or another release.
-# This replaces the image for every MinIO service at once:
-MINIO_IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z task test
+# Build the MinIO servers from another release. This rebuilds the image for
+# every MinIO service at once:
+MINIO_VERSION=RELEASE.2025-10-15T17-29-55Z task test
 ```
 
-The images come from `quay.io/minio/minio`. Docker Hub stopped serving
-`minio/minio` to anonymous clients, including GitHub Actions runners, so
-`MINIO_IMAGE` is there to point the suite at any registry you can reach.
+The MinIO servers and the `mc` client are built from source through the Go
+module proxy, in `testdata/minio/Dockerfile`. MinIO stopped serving its images
+to anonymous clients, first on Docker Hub and then on `quay.io`, and GitHub
+Actions runners are anonymous clients. `MINIO_VERSION` and `MC_VERSION` pick
+the release tags.
 
 Full setup, project layout, and the MinIO consoles used during testing are covered in [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
@@ -204,10 +208,6 @@ Full setup, project layout, and the MinIO consoles used during testing are cover
 ## Contributing
 
 Contributions are welcome, from bug reports and feature requests to documentation and new resources. Start with [CONTRIBUTING.md](./.github/CONTRIBUTING.md) for the development setup and conventions, and see [GOVERNANCE.md](./.github/GOVERNANCE.md) for how decisions are made.
-
-<a href="https://github.com/aminueza/terraform-provider-minio/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=aminueza/terraform-provider-minio" alt="Contributors">
-</a>
 
 ## License
 

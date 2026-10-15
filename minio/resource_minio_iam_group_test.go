@@ -335,14 +335,17 @@ func testAccAddGroupMemberOutsideTerraform(groupName string, userName string) re
 
 // testAccCheckMinioGroupGone asserts the group is really gone from MinIO. Only
 // a not-found error proves that: treating every error as success would let a
-// transient admin API failure pass the destroy check.
+// transient admin API failure pass the destroy check. The failure message
+// carries the group's update time, which tells a group that was never removed
+// from one that came back after its removal.
 func testAccCheckMinioGroupGone(groupName string) func(*terraform.State) error {
 	return func(*terraform.State) error {
 		minioIam := testAccClient().S3Admin
 
-		_, err := minioIam.GetGroupDescription(context.Background(), groupName)
+		desc, err := minioIam.GetGroupDescription(context.Background(), groupName)
 		if err == nil {
-			return fmt.Errorf("group %s still exists", groupName)
+			return fmt.Errorf("group %s still exists at %s: updated at %s, %d member(s), policy %q",
+				groupName, time.Now().UTC().Format(time.RFC3339Nano), desc.UpdatedAt.UTC().Format(time.RFC3339Nano), len(desc.Members), desc.Policy)
 		}
 		if !strings.Contains(err.Error(), "not exist") {
 			return fmt.Errorf("checking group %s was destroyed: %w", groupName, err)

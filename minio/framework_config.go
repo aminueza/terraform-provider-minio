@@ -80,7 +80,7 @@ func frameworkConfig(ctx context.Context, model frameworkProviderModel, diags *d
 
 	config := &S3MinioConfig{
 		S3HostPort:            frameworkString(model.MinioServer, []string{"MINIO_ENDPOINT"}, ""),
-		S3Region:              frameworkString(model.MinioRegion, nil, "us-east-1"),
+		S3Region:              frameworkString(model.MinioRegion, []string{"MINIO_REGION"}, "us-east-1"),
 		S3UserAccess:          user,
 		S3UserSecret:          password,
 		S3SessionToken:        frameworkString(model.MinioSessionToken, []string{"MINIO_SESSION_TOKEN"}, ""),

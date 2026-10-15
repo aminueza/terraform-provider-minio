@@ -28,6 +28,7 @@ data "minio_s3_bucket" "test" {
 					resource.TestCheckResourceAttrSet("data.minio_s3_bucket.test", "region"),
 					resource.TestCheckResourceAttr("data.minio_s3_bucket.test", "versioning_enabled", "false"),
 					resource.TestCheckResourceAttr("data.minio_s3_bucket.test", "object_lock_enabled", "false"),
+					resource.TestCheckResourceAttr("data.minio_s3_bucket.test", "policy", ""),
 				),
 			},
 		},

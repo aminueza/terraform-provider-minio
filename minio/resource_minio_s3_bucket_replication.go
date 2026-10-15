@@ -208,14 +208,11 @@ func bucketReplicationTargetResource() *schema.Resource {
 				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[0-9]+\s?[s|m|h]$`), "must be a valid golang duration"),
 			},
 			"bandwidth_limit": {
-				Type:        schema.TypeString,
-				Description: "Maximum bandwidth in byte per second that MinIO can used when syncronysing this target. Minimum is 100MB",
-				Optional:    true,
-				Default:     "0",
-				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
-					newVal, err := humanize.ParseBytes(newValue)
-					return err == nil && humanize.Bytes(newVal) == oldValue
-				},
+				Type:             schema.TypeString,
+				Description:      "Maximum bandwidth in bytes per second that MinIO can use when synchronising this target. Accepts suffixes such as `100M` or `1.5G`. Minimum is 100MB. The state holds the exact number of bytes per second the server reports.",
+				Optional:         true,
+				Default:          "0",
+				DiffSuppressFunc: suppressBandwidthLimitDiff,
 				ValidateDiagFunc: validateReplicationBandwidthLimit,
 			},
 			"bandwidth_limt": {
@@ -247,6 +244,12 @@ func bucketReplicationTargetResource() *schema.Resource {
 			},
 		},
 	}
+}
+
+func suppressBandwidthLimitDiff(_, oldValue, newValue string, _ *schema.ResourceData) bool {
+	oldBytes, oldErr := humanize.ParseBytes(oldValue)
+	newBytes, newErr := humanize.ParseBytes(newValue)
+	return oldErr == nil && newErr == nil && oldBytes == newBytes
 }
 
 func validateReplicationBandwidthLimit(i interface{}, _ cty.Path) (diags diag.Diagnostics) {
@@ -296,7 +299,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	cfg, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	err = bucketReplicationConfig.MinioClient.SetBucketReplication(
@@ -306,7 +309,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), err)
+		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
@@ -357,6 +360,9 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketName)
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket replication configuration", err) {
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}
@@ -512,7 +518,7 @@ func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketRep
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-		target["bandwidth_limit"] = humanize.Bytes(bwUint64)
+		target["bandwidth_limit"] = strconv.FormatUint(bwUint64, 10)
 		target["region"] = remoteTarget.Region
 
 		target["access_key"] = remoteTarget.Credentials.AccessKey

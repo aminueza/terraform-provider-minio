@@ -267,9 +267,10 @@ Read the file that matches the task — don't load everything up front.
 - **Plan shows a forced replacement of a user/key you didn't change** → likely a
   `secret`/`update_secret` interaction; see the `secret` vs `secret_wo`
   clarification in `references/resources.md`.
-- **Feature silently does nothing on a non-MinIO backend** → with
-  `s3_compat_mode = true` the provider skips unsupported features
-  (notifications, object-lock, CORS, lifecycle) on backends like R2/B2/Spaces.
+- **Create fails on a non-MinIO backend with an error naming a feature and
+  `s3_compat_mode`** → the backend (R2/B2/Spaces/Garage) does not implement that
+  feature. Compat mode only lets reads of it keep the last state with a warning;
+  writes fail on purpose. Drop the resource for that backend.
 - **Drift / unexpected diffs** → something changed the resource via `mc` or the
   console. Reconcile with `terraform apply` or `terraform import`, and stop
   managing it both ways.

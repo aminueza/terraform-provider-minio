@@ -541,3 +541,37 @@ func TestFrameworkProviderConfigureStopsOnAnInvalidEnvironment(t *testing.T) {
 		t.Error("the provider handed out a configuration it could not build correctly")
 	}
 }
+
+func TestRegionComesFromMinioRegionInBothProviderHalves(t *testing.T) {
+	cases := []struct {
+		name string
+		env  string
+		want string
+	}{
+		{name: "unset falls back to us-east-1", env: "", want: "us-east-1"},
+		{name: "MINIO_REGION is used for signing", env: "us-west-004", want: "us-west-004"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("MINIO_REGION", tc.env)
+
+			sdkDefault, err := Provider().Schema["minio_region"].DefaultValue()
+			if err != nil {
+				t.Fatalf("reading the SDKv2 default: %s", err)
+			}
+			if sdkDefault != tc.want {
+				t.Errorf("SDKv2 minio_region default = %v, want %q", sdkDefault, tc.want)
+			}
+
+			var diags diag.Diagnostics
+			config := frameworkConfig(context.Background(), nullFrameworkModel(), &diags)
+			if diags.HasError() {
+				t.Fatalf("framework config: %v", diags)
+			}
+			if config.S3Region != tc.want {
+				t.Errorf("framework S3Region = %q, want %q", config.S3Region, tc.want)
+			}
+		})
+	}
+}

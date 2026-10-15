@@ -19,6 +19,10 @@
     {
       "comment": "Contact addresses in the code of conduct. The checker resolves mailto: links against DNS, so an unrelated lookup failure fails an unchanged file on an unrelated pull request",
       "pattern": "^mailto:"
+    },
+    {
+      "comment": "The Codecov app is a JavaScript page that does not answer the checker from CI runners (status 0), so the badge link in the README fails every pull request whatever it changes",
+      "pattern": "^https://app\\.codecov\\.io/"
     }
   ]
 }

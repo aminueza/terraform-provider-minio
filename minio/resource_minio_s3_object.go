@@ -219,7 +219,7 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 	)
 
 	if err != nil {
-		return NewResourceError("putting object failed", d.Id(), err)
+		return NewResourceError("putting object failed", d.Id(), s3CompatWriteError(m, "object", err))
 	}
 
 	d.SetId(d.Get("object_name").(string))
@@ -239,6 +239,9 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	)
 
 	if err != nil {
+		if s3CompatReadUnsupported(ctx, m, s3Compat405IsAnAnswer, d, "object", err) {
+			return nil
+		}
 		if err.Error() == "The specified key does not exist." {
 			d.SetId("")
 			return nil

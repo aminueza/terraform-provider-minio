@@ -4,12 +4,89 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
+
+// The config blocks are Optional in the schema, so a tier whose type names a
+// backend without its matching block used to panic the provider on create and
+// update (issue #1200). These unit tests need no MinIO server: the guard must
+// return a diagnostic before any API call, and removing the guard makes them
+// fail with an index-out-of-range panic.
+func TestILMTierConfigBlockMissing(t *testing.T) {
+	res := resourceMinioILMTier()
+
+	for _, tierType := range []string{"s3", "minio", "gcs", "azure"} {
+		configKey := tierType + "_config"
+
+		t.Run("create_"+tierType, func(t *testing.T) {
+			d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+				"name":   "TFTIER",
+				"type":   tierType,
+				"bucket": "cold-storage",
+			})
+			diags := minioCreateILMTier(context.Background(), d, &S3MinioClient{})
+			assertMissingBlockError(t, diags, configKey, tierType)
+			if d.Id() != "" {
+				t.Errorf("expected no resource ID after a failed create, got %q", d.Id())
+			}
+		})
+
+		t.Run("update_"+tierType, func(t *testing.T) {
+			d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+				"name":   "TFTIER",
+				"type":   tierType,
+				"bucket": "cold-storage",
+			})
+			d.SetId("TFTIER")
+			assertMissingBlockError(t, minioUpdateILMTier(context.Background(), d, &S3MinioClient{}), configKey, tierType)
+		})
+	}
+}
+
+func TestILMTierConfigBlockPresent(t *testing.T) {
+	res := resourceMinioILMTier()
+	d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+		"name":   "TFTIER",
+		"type":   "s3",
+		"bucket": "cold-storage",
+		"s3_config": []interface{}{
+			map[string]interface{}{
+				"access_key":    "AKIAEXAMPLE",
+				"secret_key":    "secret",
+				"storage_class": "GLACIER",
+			},
+		},
+	})
+
+	block, diags := ilmTierConfigBlock(d, "s3_config")
+	if diags.HasError() {
+		t.Fatalf("expected no error for a present block, got: %v", diags)
+	}
+	if block["access_key"] != "AKIAEXAMPLE" {
+		t.Errorf("expected access_key %q, got %v", "AKIAEXAMPLE", block["access_key"])
+	}
+	if block["storage_class"] != "GLACIER" {
+		t.Errorf("expected storage_class %q, got %v", "GLACIER", block["storage_class"])
+	}
+}
+
+func assertMissingBlockError(t *testing.T, diags diag.Diagnostics, configKey, tierType string) {
+	t.Helper()
+	if !diags.HasError() {
+		t.Fatalf("expected an error diagnostic for missing %s, got: %v", configKey, diags)
+	}
+	want := fmt.Sprintf("%s is required when type is %s", configKey, tierType)
+	if !strings.Contains(diags[0].Summary, want) {
+		t.Errorf("expected summary to contain %q, got: %q", want, diags[0].Summary)
+	}
+}
 
 func testAccILMTierPreCheck(t *testing.T) {
 	t.Helper()

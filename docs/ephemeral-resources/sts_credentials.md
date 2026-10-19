@@ -53,7 +53,7 @@ Terraform opens an ephemeral resource on every operation, including `plan`. Each
 
 ### Optional
 
-- `duration_seconds` (Number) Lifetime of the returned credentials in seconds. Defaults to 3600, which is also the minimum: the MinIO client library replaces any lower value with 3600, so shorter lifetimes are rejected here rather than silently ignored.
+- `duration_seconds` (Number) Lifetime of the returned credentials in seconds. Defaults to 3600, which is also the minimum this resource accepts.
 - `external_id` (String) External ID for cross-account role assumption.
 - `policy` (String) IAM policy in JSON format that scopes down the permissions of the returned credentials.
 - `role_arn` (String) ARN of the role to assume. MinIO accepts an empty value and derives the policy from the requesting user.

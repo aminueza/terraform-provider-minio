@@ -23,7 +23,7 @@ require (
 	github.com/rs/xid v1.6.0
 	golang.org/x/sync v0.24.0
 	google.golang.org/grpc v1.83.2
-	google.golang.org/protobuf v1.36.11
+	google.golang.org/protobuf v1.36.12
 	gotest.tools/v3 v3.5.2
 )
 

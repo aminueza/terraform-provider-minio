@@ -37,7 +37,7 @@ func (r *stsCredentialsEphemeralResource) Schema(_ context.Context, _ ephemeral.
 			},
 			"duration_seconds": schema.Int64Attribute{
 				Optional:    true,
-				Description: "Lifetime of the returned credentials in seconds. Defaults to 3600, which is also the minimum: the MinIO client library replaces any lower value with 3600, so shorter lifetimes are rejected here rather than silently ignored.",
+				Description: "Lifetime of the returned credentials in seconds. Defaults to 3600, which is also the minimum this resource accepts.",
 				Validators: []validator.Int64{
 					int64validator.AtLeast(3600),
 				},

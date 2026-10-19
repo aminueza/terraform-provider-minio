@@ -172,7 +172,10 @@ func TestSTSCredentialsEphemeralResourceConfigureAcceptsClient(t *testing.T) {
 	}
 }
 
-func TestRequestSTSCredentialsCannotShortenBelowOneHour(t *testing.T) {
+// minio-go up to 7.3.0 replaced a DurationSeconds below 3600 with 3600; 7.4.1
+// sends the requested value. The schema still rejects values below 3600, so
+// this pins what reaches the server in case that floor is ever lowered.
+func TestRequestSTSCredentialsSendsTheRequestedDuration(t *testing.T) {
 	var sent string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = r.ParseForm()
@@ -193,8 +196,8 @@ func TestRequestSTSCredentialsCannotShortenBelowOneHour(t *testing.T) {
 		t.Fatalf("requesting STS credentials: %s", err)
 	}
 
-	if sent != "3600" {
-		t.Fatalf("DurationSeconds = %q; minio-go is expected to replace values below 3600 with 3600, which is why the schema validator rejects them", sent)
+	if sent != "900" {
+		t.Fatalf("DurationSeconds = %q, want the requested 900", sent)
 	}
 }
 

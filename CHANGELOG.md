@@ -10,6 +10,19 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Changed
+
+- Bumped `github.com/minio/minio-go/v7` from 7.3.0 to 7.4.1
+  ([#1232](https://github.com/aminueza/terraform-provider-minio/pull/1232)).
+  It no longer replaces an STS `DurationSeconds` below 3600 with 3600.
+  `minio_sts_credentials` keeps rejecting values below 3600, and the
+  `duration_seconds` description no longer gives the old client behaviour as
+  the reason.
+- Bumped `google.golang.org/grpc` from 1.83.2 to 1.84.0
+  ([#1231](https://github.com/aminueza/terraform-provider-minio/pull/1231)).
+- Bumped `google.golang.org/protobuf` from 1.36.11 to 1.36.12
+  ([#1233](https://github.com/aminueza/terraform-provider-minio/pull/1233)).
+
 ## [3.45.0] - 2026-10-13
 
 ### Added

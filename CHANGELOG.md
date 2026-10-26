@@ -23,6 +23,15 @@ History older than 3.39.0 lives in the
 - Bumped `google.golang.org/protobuf` from 1.36.11 to 1.36.12
   ([#1233](https://github.com/aminueza/terraform-provider-minio/pull/1233)).
 
+### Security
+
+- Bumped the Go toolchain from go1.26.9 to go1.26.10, which fixes
+  [GO-2026-6809](https://pkg.go.dev/vuln/GO-2026-6809): `crypto/x509`
+  trusted compromised intermediate certificates. Release binaries are built
+  with this toolchain, so the fix reaches the TLS connections the provider
+  opens to MinIO.
+
+
 ## [3.45.0] - 2026-10-13
 
 ### Added

@@ -31,7 +31,6 @@ History older than 3.39.0 lives in the
   with this toolchain, so the fix reaches the TLS connections the provider
   opens to MinIO.
 
-
 ## [3.45.0] - 2026-10-13
 
 ### Added

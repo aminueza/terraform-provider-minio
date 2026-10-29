@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Security
+
+- Bumped `golang.org/x/net` from 0.60.0 to 0.62.0 for
+  [GO-2026-6860](https://pkg.go.dev/vuln/GO-2026-6860) and
+  [GO-2026-6866](https://pkg.go.dev/vuln/GO-2026-6866) in `x/net/html`. The
+  provider does not import `x/net/html`, so released binaries were not
+  affected; the bump clears the advisories from the dependency scan.
+
 ## [3.45.1] - 2026-10-26
 
 ### Changed

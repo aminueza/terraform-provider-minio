@@ -1,6 +1,6 @@
 module github.com/aminueza/terraform-provider-minio/v3
 
-go 1.26.4
+go 1.26.9
 
 toolchain go1.26.10
 
@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.11.0
 	github.com/hashicorp/terraform-plugin-mux v0.23.1
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.40.1
-	github.com/minio/madmin-go/v4 v4.10.5
+	github.com/minio/madmin-go/v4 v4.10.6
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/rs/xid v1.6.0

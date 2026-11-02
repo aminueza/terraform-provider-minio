@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_ilm_policy`: new `all_versions_expiration` block (`days`,
+  `delete_marker`) mapping the MinIO AIStor `AllVersionsExpiration` lifecycle
+  action. With `delete_marker = true` it purges objects whose latest version is
+  a delete marker, delete marker included. MinIO community servers reject this
+  action.
+
 ### Security
 
 - Bumped `golang.org/x/net` from 0.60.0 to 0.62.0 for

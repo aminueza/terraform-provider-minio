@@ -90,6 +90,16 @@ resource "minio_ilm_policy" "test_policy" {
     }
     filter = "versioned/"
   }
+
+  rule {
+    id = "rule8"
+    # MinIO AIStor only: purge objects whose latest version is a delete marker
+    all_versions_expiration {
+      days          = "1d"
+      delete_marker = true
+    }
+    filter = "purged/"
+  }
 }
 ```
 
@@ -142,6 +152,16 @@ resource "minio_ilm_policy" "my_bucket_lifecycle" {
 ## Limitations
 
 Abort-only lifecycle rules are not persisted by the MinIO server. If you configure a rule with only `abort_incomplete_multipart_upload`, the provider preserves that rule in Terraform state to avoid perpetual diffs, but it is not sent to the server. Combine it with at least one other action (e.g., `expiration` or `transition`) to persist on the server.
+
+`all_versions_expiration` maps the `AllVersionsExpiration` lifecycle action, which only MinIO AIStor supports. MinIO community servers reject a lifecycle configuration that contains it. It matches the `mc ilm rule add` flags as follows:
+
+| `mc ilm rule add` flag | Attribute |
+|------------------------|-----------|
+| `--purge-all-object-versions-days N` | `days = "Nd"` |
+| `--purge-all-object-versions-delete-marker` | `delete_marker = true` |
+
+- With `delete_marker = true`, all versions of objects whose latest version is a delete marker are purged, the delete marker included, `days` after the delete marker was created. Objects whose latest version is not a delete marker are left alone. This is the setting that cleans up delete markers left behind by a time-based `expiration` on a versioned bucket.
+- Without `delete_marker`, all versions of every object matching the rule, live objects included, are expired `days` after the latest version was created, and delete markers are not removed. `days = "1d"` in this mode empties the matching objects after one day.
 
 ## Mutually Exclusive Attributes
 

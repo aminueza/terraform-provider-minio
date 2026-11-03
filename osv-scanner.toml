@@ -1,7 +1,12 @@
-# GO-2026-5932 covers the golang.org/x/crypto/openpgp packages and has no
-# fixed version, so every golang.org/x/crypto release matches it. The provider
+# GO-2026-5932 covers the golang.org/x/crypto/openpgp packages. Its fix moves
+# them into their own module at golang.org/x/crypto
+# 0.58.1-0.20261009181718-2f1f834330b2, which no tagged release contains yet,
+# so every golang.org/x/crypto release up to v0.58.0 matches it. The provider
 # builds no openpgp package: `go list -deps ./... | grep x/crypto/openpgp` is
 # empty, and govulncheck, which checks reachability, does not report it.
+# ignoreUntil makes the scan report it again, to drop this entry once a tagged
+# x/crypto release with the fix is out.
 [[IgnoredVulns]]
 id = "GO-2026-5932"
-reason = "No golang.org/x/crypto/openpgp package is compiled into the provider; the advisory has no fixed version of golang.org/x/crypto."
+ignoreUntil = 2027-02-01
+reason = "No golang.org/x/crypto/openpgp package is compiled into the provider, and no tagged golang.org/x/crypto release contains the fix yet."

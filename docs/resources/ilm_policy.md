@@ -153,7 +153,7 @@ Abort-only lifecycle rules are not persisted by the MinIO server. If you configu
 - With `delete_marker = true`, all versions of objects whose latest version is a delete marker are purged, the delete marker included, `days` after the delete marker was created. Objects whose latest version is not a delete marker are left alone. This is the setting that cleans up delete markers left behind by a time-based `expiration` on a versioned bucket.
 - Without `delete_marker`, all versions of every object matching the rule, live objects included, are expired `days` after the latest version was created, and delete markers are not removed. `days = "1d"` in this mode empties the matching objects after one day.
 
-The following policy only applies on MinIO AIStor. It expires objects after a year and purges the delete markers that expiration leaves behind on a versioned bucket:
+The following policy expires objects after a year and purges the delete markers that expiration leaves behind on a versioned bucket. Its second rule uses `all_versions_expiration`, so it requires MinIO AIStor:
 
 ```terraform
 resource "minio_ilm_policy" "purge_delete_markers" {

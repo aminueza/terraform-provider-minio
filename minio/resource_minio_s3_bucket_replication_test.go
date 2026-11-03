@@ -911,6 +911,182 @@ func TestAccS3BucketReplication_oneway_complex(t *testing.T) {
 	})
 }
 
+func testAccBucketReplicationRulesResource(hostIdentifiers ...string) string {
+	var rules string
+	for _, id := range hostIdentifiers {
+		letter := map[string]string{"second": "b", "third": "c", "fourth": "d"}[id]
+		rules += fmt.Sprintf(`
+  rule {
+    delete_replication          = true
+    delete_marker_replication   = true
+    existing_object_replication = true
+
+    target {
+        bucket     = minio_s3_bucket.my_bucket_in_%[2]s.bucket
+        host       = local.%[1]s_minio_host
+        secure     = false
+        access_key = minio_iam_service_account.replication_in_%[2]s.access_key
+        secret_key = minio_iam_service_account.replication_in_%[2]s.secret_key
+    }
+  }
+`, id, letter)
+	}
+	return fmt.Sprintf(`
+resource "minio_s3_bucket_replication" "replication_in_all" {
+  bucket = minio_s3_bucket.my_bucket_in_a.bucket
+%s
+  depends_on = [
+    minio_s3_bucket_versioning.my_bucket_in_a,
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    minio_s3_bucket_versioning.my_bucket_in_c,
+    minio_s3_bucket_versioning.my_bucket_in_d,
+  ]
+}`, rules)
+}
+
+func testAccBucketReplicationExpectedRule(priority int, bucket string, host string) S3MinioBucketReplicationRule {
+	return S3MinioBucketReplicationRule{
+		Enabled:                   true,
+		Priority:                  priority,
+		Tags:                      map[string]string{},
+		DeleteReplication:         true,
+		DeleteMarkerReplication:   true,
+		ExistingObjectReplication: true,
+		Target: S3MinioBucketReplicationRuleTarget{
+			Bucket:            bucket,
+			Host:              host,
+			Path:              "/",
+			PathStyle:         S3PathStyleAuto,
+			HealthCheckPeriod: time.Second * 30,
+		},
+	}
+}
+
+// testAccCheckBucketReplicationTargetIdentity records, or compares against a
+// previous record, the ARN of the remote target for endpoint and the ID of the
+// rule replicating to it, as MinIO reports them.
+func testAccCheckBucketReplicationTargetIdentity(n string, endpoint string, identity *[2]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+		client := testAccClient()
+		targets, err := client.S3Admin.ListRemoteTargets(context.Background(), rs.Primary.ID, "")
+		if err != nil {
+			return fmt.Errorf("error on ListRemoteTargets: %v", err)
+		}
+		var arn string
+		for _, target := range targets {
+			if target.Endpoint == endpoint {
+				arn = target.Arn
+			}
+		}
+		if arn == "" {
+			return fmt.Errorf("no remote target for endpoint %q on %q", endpoint, rs.Primary.ID)
+		}
+		cfg, err := client.S3Client.GetBucketReplication(context.Background(), rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("error on GetBucketReplication: %v", err)
+		}
+		var ruleID string
+		for _, rule := range cfg.Rules {
+			if rule.Destination.Bucket == arn {
+				ruleID = rule.ID
+			}
+		}
+		if ruleID == "" {
+			return fmt.Errorf("no rule replicates to %q on %q", arn, rs.Primary.ID)
+		}
+		if identity[0] == "" {
+			*identity = [2]string{arn, ruleID}
+			return nil
+		}
+		if identity[0] != arn || identity[1] != ruleID {
+			return fmt.Errorf("remote target for %q changed: expected ARN %q and rule ID %q, got %q and %q", endpoint, identity[0], identity[1], arn, ruleID)
+		}
+		return nil
+	}
+}
+
+// Removing a rule that is not the last one, then reordering the rest, must keep
+// every remaining rule on its own remote target. See issue #1250.
+func TestAccS3BucketReplication_remove_and_reorder_rules(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
+	fourthBucketName := acctest.RandomWithPrefix("tf-acc-test-d")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+	thirdMinioEndpoint := os.Getenv("THIRD_MINIO_ENDPOINT")
+	fourthMinioEndpoint := os.Getenv("FOURTH_MINIO_ENDPOINT")
+
+	base := testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint, thirdMinioEndpoint, fourthMinioEndpoint) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_c", "thirdminio", thirdBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_d", "fourthminio", fourthBucketName) +
+		testAccBucketReplicationConfigPolicy(bucketName, secondBucketName, thirdBucketName, fourthBucketName) +
+		testAccBucketReplicationConfigServiceAccount(username, 4)
+
+	const resourceName = "minio_s3_bucket_replication.replication_in_all"
+	var secondIdentity, fourthIdentity [2]string
+
+	// Test in parallel cannot work as remote target endpoint would conflict
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: base + testAccBucketReplicationRulesResource("second", "third", "fourth"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(3, secondBucketName, secondaryMinioEndpoint),
+						testAccBucketReplicationExpectedRule(2, thirdBucketName, thirdMinioEndpoint),
+						testAccBucketReplicationExpectedRule(1, fourthBucketName, fourthMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &secondIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, fourthMinioEndpoint, &fourthIdentity),
+				),
+			},
+			{
+				Config: base + testAccBucketReplicationRulesResource("second", "fourth"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(2, secondBucketName, secondaryMinioEndpoint),
+						testAccBucketReplicationExpectedRule(1, fourthBucketName, fourthMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &secondIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, fourthMinioEndpoint, &fourthIdentity),
+				),
+			},
+			{
+				Config: base + testAccBucketReplicationRulesResource("fourth", "second"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(2, fourthBucketName, fourthMinioEndpoint),
+						testAccBucketReplicationExpectedRule(1, secondBucketName, secondaryMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &secondIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, fourthMinioEndpoint, &fourthIdentity),
+				),
+			},
+			{
+				Config: base + testAccBucketReplicationRulesResource("fourth"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(1, fourthBucketName, fourthMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, fourthMinioEndpoint, &fourthIdentity),
+				),
+			},
+		},
+	})
+}
+
 func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")

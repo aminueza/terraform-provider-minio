@@ -296,7 +296,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put replication configuration: %v", bucketReplicationConfig.MinioBucket, replicationConfig))
 
-	cfg, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
+	cfg, staleARNs, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
 		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
@@ -310,6 +310,13 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	if err != nil {
 		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
+	}
+
+	// MinIO refuses to remove a remote target while the bucket configuration
+	// still references its ARN, so the targets of dropped rules can only go once
+	// the new configuration is written.
+	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, staleARNs); err != nil {
+		return NewResourceError("removing unused replication remote targets", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	d.SetId(bucketReplicationConfig.MinioBucket)
@@ -571,16 +578,30 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 		return NewResourceError("disabling bucket replication", bucketReplicationConfig.MinioBucket, err)
 	}
 
-	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, "")
+	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, string(madmin.ReplicationService))
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("reading replication remote target configuration", bucketReplicationConfig.MinioBucket, err)
 	}
-	if len(existingRemoteTargets) != 0 {
-		return NewResourceError("deleting replication configuration", bucketReplicationConfig.MinioBucket, fmt.Errorf("%d remote targets are still present on the bucket while none are expected", len(existingRemoteTargets)))
+	arns := make([]string, 0, len(existingRemoteTargets))
+	for _, target := range existingRemoteTargets {
+		arns = append(arns, target.Arn)
+	}
+	if err := removeRemoteTargets(ctx, admclient, bucketReplicationConfig.MinioBucket, arns); err != nil {
+		return NewResourceError("removing replication remote targets", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	return diags
+}
+
+func removeRemoteTargets(ctx context.Context, admclient *madmin.AdminClient, bucket string, arns []string) error {
+	for _, arn := range arns {
+		tflog.Debug(ctx, fmt.Sprintf("Removing remote target %q from bucket %q", arn, bucket))
+		if err := admclient.RemoveRemoteTarget(ctx, bucket, arn); err != nil {
+			return fmt.Errorf("removing remote target %q: %w", arn, err)
+		}
+	}
+	return nil
 }
 
 func toEnableFlag(b bool) string {
@@ -590,7 +611,16 @@ func toEnableFlag(b bool) string {
 	return "disable"
 }
 
-func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, c []S3MinioBucketReplicationRule) (rcfg replication.Config, err error) {
+// convertBucketReplicationConfig builds the replication configuration for the
+// rules of the plan and returns the ARNs of the remote targets no rule uses any
+// more. The caller removes those after writing the configuration.
+//
+// The computed id and arn of a rule are not used: Terraform pairs them with the
+// rule at the same index in the state, so they belong to another rule as soon
+// as a rule before it is removed or the rules are reordered. A remote target is
+// identified by its endpoint and target bucket, and a rule by the ARN of its
+// remote target. See issue #1250.
+func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, c []S3MinioBucketReplicationRule) (rcfg replication.Config, staleARNs []string, err error) {
 	client := bucketReplicationConfig.MinioClient
 	admclient := bucketReplicationConfig.MinioAdmin
 
@@ -600,13 +630,23 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		return
 	}
 
-	usedARNs := make([]string, len(c))
-	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, "")
+	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, string(madmin.ReplicationService))
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return
 	}
 
+	ruleIDs := make(map[string]string, len(rcfg.Rules))
+	for _, rule := range rcfg.Rules {
+		ruleIDs[rule.Destination.Bucket] = rule.ID
+	}
+
+	// AddRule and EditRule reject a priority another rule already holds, so
+	// editing the rules in place fails when a kept rule takes the priority of a
+	// removed or reordered one. The list is rebuilt instead.
+	rcfg.Rules = nil
+
+	usedARNs := make([]string, 0, len(c))
 	for i, rule := range c {
 		err = s3utils.CheckValidBucketName(rule.Target.Bucket)
 		if err != nil {
@@ -621,10 +661,15 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		tflog.Debug(ctx, fmt.Sprintf("Full path to target bucket is %s", tgtBucket))
 
 		bktTarget := buildBucketReplicationTarget(rule, tgtBucket)
+		existingRemoteTarget := findRemoteTarget(existingRemoteTargets, bktTarget.Endpoint, bktTarget.TargetBucket)
 
 		var arn string
-		arn, err = ensureRemoteTarget(ctx, admclient, bucketReplicationConfig.MinioBucket, rule, bktTarget)
+		arn, err = ensureRemoteTarget(ctx, admclient, bucketReplicationConfig.MinioBucket, existingRemoteTarget, bktTarget)
 		if err != nil {
+			return
+		}
+		if slices.Contains(usedARNs, arn) {
+			err = fmt.Errorf("rule[%d] replicates to %q on %q, which another rule already uses", i, bktTarget.TargetBucket, bktTarget.Endpoint)
 			return
 		}
 
@@ -634,35 +679,37 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 			return
 		}
 
-		if strings.TrimSpace(opts.ID) == "" {
-			rule.Id = xid.New().String()
-			opts.ID = rule.Id
-			opts.Op = replication.AddOption
-			tflog.Debug(ctx, fmt.Sprintf("Adding replication option for rule#%d: %v", i, opts))
-			err = rcfg.AddRule(opts)
-		} else {
-			opts.Op = replication.SetOption
-			tflog.Debug(ctx, fmt.Sprintf("Editing replication option for rule#%d: %v", i, opts))
-			err = rcfg.EditRule(opts)
+		opts.ID = ruleIDs[arn]
+		if opts.ID == "" {
+			opts.ID = xid.New().String()
 		}
-
-		if err != nil {
+		opts.Op = replication.AddOption
+		tflog.Debug(ctx, fmt.Sprintf("Setting replication option for rule#%d: %v", i, opts))
+		if err = rcfg.AddRule(opts); err != nil {
 			return
 		}
-		usedARNs[i] = arn
+		usedARNs = append(usedARNs, arn)
 	}
 
 	for _, existingRemoteTarget := range existingRemoteTargets {
 		if !slices.Contains(usedARNs, existingRemoteTarget.Arn) {
-			err = admclient.RemoveRemoteTarget(ctx, bucketReplicationConfig.MinioBucket, existingRemoteTarget.Arn)
-		}
-
-		if err != nil {
-			return
+			staleARNs = append(staleARNs, existingRemoteTarget.Arn)
 		}
 	}
 
 	return
+}
+
+// findRemoteTarget returns the remote target replicating to targetBucket on
+// endpoint, which identifies it whatever the order of the rules. Hostnames are
+// case-insensitive, so the endpoint is compared the same way.
+func findRemoteTarget(targets []madmin.BucketTarget, endpoint string, targetBucket string) *madmin.BucketTarget {
+	for i := range targets {
+		if strings.EqualFold(targets[i].Endpoint, endpoint) && targets[i].TargetBucket == targetBucket {
+			return &targets[i]
+		}
+	}
+	return nil
 }
 
 func buildBucketReplicationTarget(rule S3MinioBucketReplicationRule, tgtBucket string) *madmin.BucketTarget {
@@ -683,22 +730,7 @@ func buildBucketReplicationTarget(rule S3MinioBucketReplicationRule, tgtBucket s
 	}
 }
 
-func ensureRemoteTarget(ctx context.Context, admclient *madmin.AdminClient, bucket string, rule S3MinioBucketReplicationRule, bktTarget *madmin.BucketTarget) (arn string, err error) {
-	targets, _ := admclient.ListRemoteTargets(ctx, bucket, string(madmin.ReplicationService))
-	tflog.Debug(ctx, fmt.Sprintf("Existing remote targets %q: %v", bucket, targets))
-
-	var existingRemoteTarget *madmin.BucketTarget
-	if rule.Arn != "" {
-		for i, target := range targets {
-			if target.Arn == rule.Arn {
-				existingRemoteTarget = &targets[i]
-				break
-			}
-			// At this stage, we could also anticipate already existing remote target failure since endpoint is unique
-			// per bucket (https://github.com/minio/minio/blob/master/cmd/bucket-targets.go#L356) but this behavior could change in the future
-		}
-	}
-
+func ensureRemoteTarget(ctx context.Context, admclient *madmin.AdminClient, bucket string, existingRemoteTarget *madmin.BucketTarget, bktTarget *madmin.BucketTarget) (arn string, err error) {
 	if existingRemoteTarget == nil || existingRemoteTarget.ReplicationSync != bktTarget.ReplicationSync {
 		if existingRemoteTarget != nil {
 			tflog.Debug(ctx, fmt.Sprintf("Synchronous mode change detected (current: %t, new: %t). Re-creating remote target for bucket %q", existingRemoteTarget.ReplicationSync, bktTarget.ReplicationSync, bucket))

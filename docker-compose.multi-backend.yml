@@ -30,7 +30,7 @@ services:
       retries: 12
       start_period: 5s
   test-garage:
-    image: golang:1.26.8
+    image: golang:1.26.10
     volumes:
       - .:/app
       - go-modules:/go/pkg/mod

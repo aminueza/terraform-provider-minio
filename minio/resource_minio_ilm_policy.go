@@ -110,6 +110,13 @@ func ilmPolicyRuleSchema() map[string]*schema.Schema {
 			Description: "Expiration configuration for noncurrent object versions.",
 			Elem:        &schema.Resource{Schema: ilmNoncurrentExpirationSchema()},
 		},
+		"all_versions_expiration": {
+			Type:        schema.TypeList,
+			MaxItems:    1,
+			Optional:    true,
+			Description: "Expiration of all versions of an object: the `AllVersionsExpiration` action, MinIO AIStor only. One block sets one action; `days` and `delete_marker` fill its two fields, like the `mc ilm rule add` flags `--purge-all-object-versions-days` and `--purge-all-object-versions-delete-marker` do.",
+			Elem:        &schema.Resource{Schema: ilmAllVersionsExpirationSchema()},
+		},
 		"abort_incomplete_multipart_upload": {
 			Type:        schema.TypeList,
 			MaxItems:    1,
@@ -190,6 +197,23 @@ func ilmNoncurrentExpirationSchema() map[string]*schema.Schema {
 			Optional:         true,
 			ValidateDiagFunc: validateILMVersions,
 			Description:      "Number of newer versions to retain.",
+		},
+	}
+}
+
+func ilmAllVersionsExpirationSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"days": {
+			Type:             schema.TypeString,
+			Required:         true,
+			ValidateDiagFunc: validateILMDays,
+			Description:      "Number of days, in format 'Nd' (at least 1d), as set by `--purge-all-object-versions-days`. Without `delete_marker`, all versions of an object, live objects included, are expired `days` after its latest version was created, and delete markers are not removed. With `delete_marker = true`, it is the delay after the delete marker was created.",
+		},
+		"delete_marker": {
+			Type:        schema.TypeBool,
+			Optional:    true,
+			Default:     false,
+			Description: "If true, purges all versions of objects whose latest version is a delete marker, including the delete marker, as set by `--purge-all-object-versions-delete-marker`.",
 		},
 	}
 }
@@ -338,6 +362,9 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		if nct, ok := rule["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
 			hasSupportedAction = true
 		}
+		if ave, ok := rule["all_versions_expiration"].([]interface{}); ok && len(ave) > 0 {
+			hasSupportedAction = true
+		}
 
 		if hasAbort && !hasSupportedAction {
 			tflog.Warn(ctx, fmt.Sprintf("Skipping abort-only rule %q: MinIO server doesn't persist AbortIncompleteMultipartUpload-only rules. The configuration is preserved in Terraform state.", id))
@@ -434,12 +461,18 @@ func createLifecycleRule(ruleData map[string]interface{}) (lifecycle.Rule, error
 		return lifecycle.Rule{}, err
 	}
 
+	allVersionsExpiration, err := parseILMAllVersionsExpiration(ruleData["all_versions_expiration"])
+	if err != nil {
+		return lifecycle.Rule{}, err
+	}
+
 	return lifecycle.Rule{
 		ID:                          id,
 		Expiration:                  parseILMExpiration(expiration, expiredObjectDeleteMarker),
 		Transition:                  parseILMTransition(ruleData["transition"]),
 		NoncurrentVersionExpiration: parseILMNoncurrentExpiration(ruleData["noncurrent_expiration"]),
 		NoncurrentVersionTransition: noncurrentTransition,
+		AllVersionsExpiration:       allVersionsExpiration,
 		Status:                      status,
 		RuleFilter:                  filter,
 	}, nil
@@ -513,6 +546,10 @@ func ilmRulesFromState(existingRulesRaw []interface{}) (rulesFromState []map[str
 				continue
 			}
 			if nct, ok := rm["noncurrent_transition"].([]interface{}); ok && len(nct) > 0 {
+				hasAnySupportedAction = true
+				continue
+			}
+			if ave, ok := rm["all_versions_expiration"].([]interface{}); ok && len(ave) > 0 {
 				hasAnySupportedAction = true
 				continue
 			}
@@ -616,6 +653,14 @@ func flattenILMRule(r lifecycle.Rule, stateAbortByID map[string][]map[string]int
 		})
 	}
 
+	allVersionsExpiration := make([]map[string]interface{}, 0)
+	if !r.AllVersionsExpiration.IsNull() {
+		allVersionsExpiration = append(allVersionsExpiration, map[string]interface{}{
+			"days":          fmt.Sprintf("%dd", r.AllVersionsExpiration.Days),
+			"delete_marker": bool(r.AllVersionsExpiration.DeleteMarker),
+		})
+	}
+
 	abortIncompleteMultipartUpload := make([]map[string]interface{}, 0)
 	if !r.AbortIncompleteMultipartUpload.IsDaysNull() {
 		abortIncompleteMultipartUpload = append(abortIncompleteMultipartUpload, map[string]interface{}{
@@ -647,6 +692,7 @@ func flattenILMRule(r lifecycle.Rule, stateAbortByID map[string][]map[string]int
 		"transition":                        transitions,
 		"noncurrent_expiration":             noncurrentExpiration,
 		"noncurrent_transition":             noncurrentTransition,
+		"all_versions_expiration":           allVersionsExpiration,
 		"abort_incomplete_multipart_upload": abortIncompleteMultipartUpload,
 		"status":                            r.Status,
 		"filter":                            prefix,
@@ -787,4 +833,36 @@ func parseILMNoncurrentExpiration(noncurrentExpiration interface{}) lifecycle.No
 	}
 
 	return lifecycle.NoncurrentVersionExpiration{}
+}
+
+func parseILMAllVersionsExpiration(allVersionsExpiration interface{}) (lifecycle.AllVersionsExpiration, error) {
+	expirations, ok := allVersionsExpiration.([]interface{})
+	if !ok || len(expirations) == 0 {
+		return lifecycle.AllVersionsExpiration{}, nil
+	}
+
+	t, ok := expirations[0].(map[string]interface{})
+	if !ok || t == nil {
+		return lifecycle.AllVersionsExpiration{}, fmt.Errorf("invalid all_versions_expiration format")
+	}
+
+	days, ok := getStringValue(t, "days")
+	if !ok {
+		return lifecycle.AllVersionsExpiration{}, fmt.Errorf("days is required for all_versions_expiration")
+	}
+
+	var daysInt int
+	if _, err := fmt.Sscanf(days, "%dd", &daysInt); err != nil {
+		return lifecycle.AllVersionsExpiration{}, fmt.Errorf("invalid days format: %s", days)
+	}
+	if daysInt < 1 {
+		return lifecycle.AllVersionsExpiration{}, fmt.Errorf("all_versions_expiration days must be at least 1d, got: %s", days)
+	}
+
+	deleteMarker, _ := t["delete_marker"].(bool)
+
+	return lifecycle.AllVersionsExpiration{
+		Days:         daysInt,
+		DeleteMarker: lifecycle.ExpireDeleteMarker(deleteMarker),
+	}, nil
 }

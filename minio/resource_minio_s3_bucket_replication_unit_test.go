@@ -1,6 +1,8 @@
 package minio
 
 import (
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/minio/madmin-go/v4"
@@ -62,5 +64,64 @@ func TestFindRemoteTargetMatchesEndpointAndTargetBucket(t *testing.T) {
 				t.Errorf("findRemoteTarget(%q, %q) = %q, want %q", tc.endpoint, tc.targetBucket, gotArn, tc.wantArn)
 			}
 		})
+	}
+}
+
+func TestValidateReplicationRuleTargetsRejectsSharedTargets(t *testing.T) {
+	rule := func(host string, bucket string, path string) S3MinioBucketReplicationRule {
+		return S3MinioBucketReplicationRule{Target: S3MinioBucketReplicationRuleTarget{Host: host, Bucket: bucket, Path: path}}
+	}
+
+	cases := []struct {
+		name    string
+		rules   []S3MinioBucketReplicationRule
+		wantErr string
+	}{
+		{name: "distinct endpoints", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "bucket", "")}},
+		{name: "same endpoint, distinct buckets", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket-1", ""), rule("minio-b:9000", "bucket-2", "")}},
+		{name: "same endpoint, same bucket, distinct paths", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", "a"), rule("minio-b:9000", "bucket", "b")}},
+		{name: "same endpoint and bucket", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "other", ""), rule("minio-b:9000", "bucket", "")}, wantErr: `rule[0] and rule[2] both replicate to "bucket" on "minio-b:9000"`},
+		{name: "endpoint differing only in case", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("MINIO-B:9000", "bucket", "")}, wantErr: `rule[0] and rule[1] both replicate to "bucket" on "MINIO-B:9000"`},
+		{name: "same path written differently", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", "/a/"), rule("minio-b:9000", "bucket", "a")}, wantErr: `rule[0] and rule[1] both replicate to "a/bucket" on "minio-b:9000"`},
+		{name: "invalid bucket name", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "ab", "")}, wantErr: "rule[1].target.bucket: "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateReplicationRuleTargets(tc.rules)
+			switch {
+			case tc.wantErr == "" && err != nil:
+				t.Fatalf("unexpected error: %v", err)
+			case tc.wantErr != "" && err == nil:
+				t.Fatalf("expected an error containing %q, got none", tc.wantErr)
+			case tc.wantErr != "" && !strings.Contains(err.Error(), tc.wantErr):
+				t.Fatalf("expected an error containing %q, got %q", tc.wantErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestSplitReferencedRemoteTargetsKeepsOnlyTargetsOfRules(t *testing.T) {
+	targets := []madmin.BucketTarget{
+		{Arn: "arn:minio:replication::b:bucket-b"},
+		{Arn: "arn:minio:replication::stale:bucket-x"},
+		{Arn: "arn:minio:replication::d:bucket-d"},
+	}
+	ruleArnMap := map[string]int{
+		"arn:minio:replication::b:bucket-b": 0,
+		"arn:minio:replication::d:bucket-d": 1,
+	}
+
+	referenced, unreferenced := splitReferencedRemoteTargets(targets, ruleArnMap)
+
+	var referencedARNs []string
+	for _, target := range referenced {
+		referencedARNs = append(referencedARNs, target.Arn)
+	}
+	if want := []string{"arn:minio:replication::b:bucket-b", "arn:minio:replication::d:bucket-d"}; !slices.Equal(referencedARNs, want) {
+		t.Errorf("referenced = %v, want %v", referencedARNs, want)
+	}
+	if want := []string{"arn:minio:replication::stale:bucket-x"}; !slices.Equal(unreferenced, want) {
+		t.Errorf("unreferenced = %v, want %v", unreferenced, want)
 	}
 }

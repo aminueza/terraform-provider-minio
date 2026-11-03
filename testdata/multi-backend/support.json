@@ -304,7 +304,7 @@
       "^TestAccS3BucketPolicy_"
     ],
     "minio_s3_bucket_replication": [
-      "^TestAccS3BucketReplication_(oneway|twoway|resync|remove_and_reorder_rules)",
+      "^TestAccS3BucketReplication_(oneway|twoway|resync|remove_and_reorder_rules|unreferenced_remote_target)",
       "^TestAccDataSourceMinioS3BucketReplication_basic$",
       "^TestAccDataSourceMinioS3BucketReplicationStatus_withReplication$"
     ],

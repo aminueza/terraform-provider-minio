@@ -1087,6 +1087,80 @@ func TestAccS3BucketReplication_remove_and_reorder_rules(t *testing.T) {
 	})
 }
 
+// A remote target no rule references, as left by a failed removal after the
+// configuration was written, must not break refresh, and destroying the
+// replication configuration must remove it with the others. See issue #1255.
+func TestAccS3BucketReplication_unreferenced_remote_target(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
+	fourthBucketName := acctest.RandomWithPrefix("tf-acc-test-d")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+	thirdMinioEndpoint := os.Getenv("THIRD_MINIO_ENDPOINT")
+	fourthMinioEndpoint := os.Getenv("FOURTH_MINIO_ENDPOINT")
+
+	base := testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint, thirdMinioEndpoint, fourthMinioEndpoint) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_c", "thirdminio", thirdBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_d", "fourthminio", fourthBucketName) +
+		testAccBucketReplicationConfigPolicy(bucketName, secondBucketName, thirdBucketName, fourthBucketName) +
+		testAccBucketReplicationConfigServiceAccount(username, 4)
+	config := base + testAccBucketReplicationRulesResource("second")
+
+	// Test in parallel cannot work as remote target endpoint would conflict
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: testAccCheckBucketHasReplication("minio_s3_bucket_replication.replication_in_all", []S3MinioBucketReplicationRule{
+					testAccBucketReplicationExpectedRule(1, secondBucketName, secondaryMinioEndpoint),
+				}),
+			},
+			{
+				PreConfig: func() {
+					_, err := testAccClient().S3Admin.SetRemoteTarget(context.Background(), bucketName, &madmin.BucketTarget{
+						TargetBucket: thirdBucketName,
+						Endpoint:     thirdMinioEndpoint,
+						Secure:       false,
+						Credentials:  &madmin.Credentials{AccessKey: os.Getenv("THIRD_MINIO_USER"), SecretKey: os.Getenv("THIRD_MINIO_PASSWORD")},
+						API:          "s3v4",
+						Type:         madmin.ReplicationService,
+					})
+					if err != nil {
+						t.Fatalf("adding an unreferenced remote target: %v", err)
+					}
+				},
+				Config:   config,
+				PlanOnly: true,
+			},
+			{
+				Config: base,
+				Check:  testAccCheckBucketHasNoRemoteTargets(bucketName),
+			},
+		},
+	})
+}
+
+func testAccCheckBucketHasNoRemoteTargets(bucket string) resource.TestCheckFunc {
+	return func(_ *terraform.State) error {
+		targets, err := testAccClient().S3Admin.ListRemoteTargets(context.Background(), bucket, "")
+		if err != nil {
+			return fmt.Errorf("error on ListRemoteTargets: %v", err)
+		}
+		if len(targets) != 0 {
+			return fmt.Errorf("%d remote targets are left on %q after the replication configuration was destroyed", len(targets), bucket)
+		}
+		return nil
+	}
+}
+
 func TestAccS3BucketReplication_twoway_simple(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")

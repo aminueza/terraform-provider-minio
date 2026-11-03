@@ -385,11 +385,19 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("reading replication remote target configuration", bucketName, err)
 	}
 
-	if len(existingRemoteTargets) != len(rules) {
-		return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(existingRemoteTargets), len(rules)))
+	// A remote target no rule references is left behind when the removal that
+	// follows a successful write fails. Failing the read on it would break every
+	// later plan; ignoring it lets the next apply remove it. See issue #1255.
+	referencedRemoteTargets, unreferencedARNs := splitReferencedRemoteTargets(existingRemoteTargets, ruleArnMap)
+	for _, arn := range unreferencedARNs {
+		tflog.Warn(ctx, fmt.Sprintf("Remote target %q on bucket %q is not used by any replication rule; the next apply removes it", arn, bucketName))
 	}
 
-	if targetDiags := applyRemoteTargetsToRules(ctx, bucketName, bucketReplicationConfig, existingRemoteTargets, rules, ruleArnMap); targetDiags.HasError() {
+	if len(referencedRemoteTargets) != len(rules) {
+		return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(referencedRemoteTargets), len(rules)))
+	}
+
+	if targetDiags := applyRemoteTargetsToRules(ctx, bucketName, bucketReplicationConfig, referencedRemoteTargets, rules, ruleArnMap); targetDiags.HasError() {
 		return targetDiags
 	}
 
@@ -481,6 +489,17 @@ func buildReplicationRuleStates(ctx context.Context, bucketName string, bucketRe
 	}
 
 	return rules, ruleArnMap, nil
+}
+
+func splitReferencedRemoteTargets(targets []madmin.BucketTarget, ruleArnMap map[string]int) (referenced []madmin.BucketTarget, unreferencedARNs []string) {
+	for _, target := range targets {
+		if _, ok := ruleArnMap[target.Arn]; ok {
+			referenced = append(referenced, target)
+		} else {
+			unreferencedARNs = append(unreferencedARNs, target.Arn)
+		}
+	}
+	return
 }
 
 // applyRemoteTargetsToRules enriches the rule state with the remote target details
@@ -624,6 +643,12 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 	client := bucketReplicationConfig.MinioClient
 	admclient := bucketReplicationConfig.MinioAdmin
 
+	// Every rule is checked before the first remote target is created or
+	// updated, so an invalid rule cannot leave a target half-changed.
+	if err = validateReplicationRuleTargets(c); err != nil {
+		return
+	}
+
 	rcfg, err = client.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 	if err != nil {
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
@@ -648,16 +673,7 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 
 	usedARNs := make([]string, 0, len(c))
 	for i, rule := range c {
-		err = s3utils.CheckValidBucketName(rule.Target.Bucket)
-		if err != nil {
-			tflog.Warn(ctx, fmt.Sprintf("Invalid bucket name for %q: %v", rule.Target.Bucket, err))
-			return
-		}
-
-		tgtBucket := rule.Target.Bucket
-		if rule.Target.Path != "" {
-			tgtBucket = path.Clean("./" + rule.Target.Path + "/" + tgtBucket)
-		}
+		tgtBucket := replicationTargetBucket(rule)
 		tflog.Debug(ctx, fmt.Sprintf("Full path to target bucket is %s", tgtBucket))
 
 		bktTarget := buildBucketReplicationTarget(rule, tgtBucket)
@@ -666,10 +682,6 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		var arn string
 		arn, err = ensureRemoteTarget(ctx, admclient, bucketReplicationConfig.MinioBucket, existingRemoteTarget, bktTarget)
 		if err != nil {
-			return
-		}
-		if slices.Contains(usedARNs, arn) {
-			err = fmt.Errorf("rule[%d] replicates to %q on %q, which another rule already uses", i, bktTarget.TargetBucket, bktTarget.Endpoint)
 			return
 		}
 
@@ -698,6 +710,31 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 	}
 
 	return
+}
+
+// validateReplicationRuleTargets rejects an invalid target bucket name, and two
+// rules replicating to the same bucket on the same endpoint, which would share
+// one remote target.
+func validateReplicationRuleTargets(rules []S3MinioBucketReplicationRule) error {
+	seen := make(map[string]int, len(rules))
+	for i, rule := range rules {
+		if err := s3utils.CheckValidBucketName(rule.Target.Bucket); err != nil {
+			return fmt.Errorf("rule[%d].target.bucket: %w", i, err)
+		}
+		key := strings.ToLower(rule.Target.Host) + "/" + replicationTargetBucket(rule)
+		if first, ok := seen[key]; ok {
+			return fmt.Errorf("rule[%d] and rule[%d] both replicate to %q on %q", first, i, replicationTargetBucket(rule), rule.Target.Host)
+		}
+		seen[key] = i
+	}
+	return nil
+}
+
+func replicationTargetBucket(rule S3MinioBucketReplicationRule) string {
+	if rule.Target.Path == "" {
+		return rule.Target.Bucket
+	}
+	return path.Clean("./" + rule.Target.Path + "/" + rule.Target.Bucket)
 }
 
 // findRemoteTarget returns the remote target replicating to targetBucket on

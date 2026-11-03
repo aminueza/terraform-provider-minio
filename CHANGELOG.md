@@ -32,6 +32,15 @@ History older than 3.39.0 lives in the
   removed rules are deleted after the new configuration is written.
 - Destroying `minio_s3_bucket_replication` removes its remote targets instead of
   failing with `remote targets are still present on the bucket`.
+- Reading `minio_s3_bucket_replication` no longer fails with `inconsistent
+  number of remote target and bucket replication rules` when the bucket has a
+  remote target that no rule uses
+  ([#1255](https://github.com/aminueza/terraform-provider-minio/issues/1255)).
+  The provider logs a warning, and the next apply that changes the resource, or
+  destroying it, removes the target.
+- Two `minio_s3_bucket_replication` rules that replicate to the same bucket on
+  the same endpoint are now rejected before any remote target is created or
+  updated.
 
 ### Security
 

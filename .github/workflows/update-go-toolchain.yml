@@ -50,14 +50,16 @@ jobs:
           fi
 
       # The official golang images set GOTOOLCHAIN=local, so the image of both
-      # test compose files must be at least the go directive of go.mod.
-      - name: Update the Go image of the test compose files
+      # test compose files must be at least the go directive of go.mod. The
+      # MinIO test image is built with the same Go so its pin does not go stale.
+      - name: Update the Go images of the test environment
         if: steps.diff.outputs.changed == 'true'
         run: |
           TOOLCHAIN="${{ steps.diff.outputs.toolchain }}"
           # Strip the 'go' prefix for the image tag: go1.27.3 -> 1.27.3
           TAG="${TOOLCHAIN#go}"
           sed -i "s/^    image: golang:.*/    image: golang:${TAG}/" docker-compose.yml docker-compose.multi-backend.yml
+          sed -i "s/^ARG GO_IMAGE=golang:.*/ARG GO_IMAGE=golang:${TAG}/" testdata/minio/Dockerfile
 
       - name: Open pull request
         if: steps.diff.outputs.changed == 'true'
@@ -71,7 +73,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "${BRANCH}"
-          git add go.mod go.sum docker-compose.yml docker-compose.multi-backend.yml
+          git add go.mod go.sum docker-compose.yml docker-compose.multi-backend.yml testdata/minio/Dockerfile
           git commit -m "chore: update Go toolchain to ${TOOLCHAIN}"
           git push origin "${BRANCH}"
 

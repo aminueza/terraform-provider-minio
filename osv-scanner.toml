@@ -1,0 +1,7 @@
+# GO-2026-5932 covers the golang.org/x/crypto/openpgp packages and has no
+# fixed version, so every golang.org/x/crypto release matches it. The provider
+# builds no openpgp package: `go list -deps ./... | grep x/crypto/openpgp` is
+# empty, and govulncheck, which checks reachability, does not report it.
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+reason = "No golang.org/x/crypto/openpgp package is compiled into the provider; the advisory has no fixed version of golang.org/x/crypto."

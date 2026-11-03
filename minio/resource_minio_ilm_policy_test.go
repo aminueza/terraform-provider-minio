@@ -838,3 +838,154 @@ resource "minio_ilm_policy" "rule" {
 }
 `, randInt)
 }
+
+func TestCreateLifecycleRuleAllVersionsExpiration(t *testing.T) {
+	tests := []struct {
+		name    string
+		ave     []interface{}
+		wantXML string
+		wantErr string
+	}{
+		{
+			name:    "with delete marker",
+			ave:     []interface{}{map[string]interface{}{"days": "1d", "delete_marker": true}},
+			wantXML: "<AllVersionsExpiration><Days>1</Days><DeleteMarker>true</DeleteMarker></AllVersionsExpiration>",
+		},
+		{
+			name:    "without delete marker",
+			ave:     []interface{}{map[string]interface{}{"days": "30d", "delete_marker": false}},
+			wantXML: "<AllVersionsExpiration><Days>30</Days></AllVersionsExpiration>",
+		},
+		{
+			name:    "zero days rejected",
+			ave:     []interface{}{map[string]interface{}{"days": "0d", "delete_marker": true}},
+			wantErr: "all_versions_expiration days must be at least 1d",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ruleData := map[string]interface{}{
+				"id":                                "purge-all",
+				"status":                            "Enabled",
+				"expiration":                        "",
+				"filter":                            "",
+				"tags":                              map[string]interface{}{},
+				"expired_object_delete_marker":      false,
+				"transition":                        []interface{}{},
+				"noncurrent_expiration":             []interface{}{},
+				"noncurrent_transition":             []interface{}{},
+				"all_versions_expiration":           tc.ave,
+				"abort_incomplete_multipart_upload": []interface{}{},
+			}
+
+			rule, err := createLifecycleRule(ruleData)
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("expected error containing %q, got: %v", tc.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("createLifecycleRule failed: %v", err)
+			}
+
+			config := lifecycle.NewConfiguration()
+			config.Rules = append(config.Rules, rule)
+			xmlData, err := xml.Marshal(config)
+			if err != nil {
+				t.Fatalf("xml.Marshal failed: %v", err)
+			}
+			if !strings.Contains(string(xmlData), tc.wantXML) {
+				t.Errorf("expected XML to contain %q, got:\n%s", tc.wantXML, xmlData)
+			}
+
+			flat := flattenILMRule(rule, nil, nil)
+			got, ok := flat["all_versions_expiration"].([]map[string]interface{})
+			if !ok || len(got) != 1 {
+				t.Fatalf("expected one all_versions_expiration block, got: %#v", flat["all_versions_expiration"])
+			}
+			want := tc.ave[0].(map[string]interface{})
+			if got[0]["days"] != want["days"] || got[0]["delete_marker"] != want["delete_marker"] {
+				t.Errorf("round trip mismatch: got %#v, want %#v", got[0], want)
+			}
+			if flat["expiration"] != "" || flat["expired_object_delete_marker"] != false {
+				t.Errorf("unexpected expiration fields: %q / %v", flat["expiration"], flat["expired_object_delete_marker"])
+			}
+		})
+	}
+}
+
+func TestAccILMPolicy_allVersionsExpiration(t *testing.T) {
+	if os.Getenv("MINIO_AISTOR") == "" {
+		t.Skip("Skipping AllVersionsExpiration tests: MINIO_AISTOR not set. AllVersionsExpiration requires MinIO AIStor; community servers reject it.")
+	}
+
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-all-versions-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.all_versions"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigAllVersionsExpiration(name, "1d", true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.expiration", "365d"),
+					resource.TestCheckResourceAttr(resourceName, "rule.1.all_versions_expiration.0.days", "1d"),
+					resource.TestCheckResourceAttr(resourceName, "rule.1.all_versions_expiration.0.delete_marker", "true"),
+				),
+			},
+			{
+				Config: testAccMinioILMPolicyConfigAllVersionsExpiration(name, "7d", true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+					resource.TestCheckResourceAttr(resourceName, "rule.1.all_versions_expiration.0.days", "7d"),
+					resource.TestCheckResourceAttr(resourceName, "rule.1.all_versions_expiration.0.delete_marker", "true"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
+func testAccMinioILMPolicyConfigAllVersionsExpiration(randInt string, days string, deleteMarker bool) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public"
+}
+
+resource "minio_s3_bucket_versioning" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "minio_ilm_policy" "all_versions" {
+  bucket = minio_s3_bucket_versioning.bucket.bucket
+  rule {
+    id         = "keep-x-days"
+    expiration = "365d"
+  }
+  rule {
+    id = "purge-all-versions"
+    all_versions_expiration {
+      days          = "%s"
+      delete_marker = %t
+    }
+  }
+}
+`, randInt, days, deleteMarker)
+}

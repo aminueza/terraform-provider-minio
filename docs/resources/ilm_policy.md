@@ -143,6 +143,37 @@ resource "minio_ilm_policy" "my_bucket_lifecycle" {
 
 Abort-only lifecycle rules are not persisted by the MinIO server. If you configure a rule with only `abort_incomplete_multipart_upload`, the provider preserves that rule in Terraform state to avoid perpetual diffs, but it is not sent to the server. Combine it with at least one other action (e.g., `expiration` or `transition`) to persist on the server.
 
+`all_versions_expiration` maps the `AllVersionsExpiration` lifecycle action, which only MinIO AIStor supports. MinIO community servers reject a lifecycle configuration that contains it. It matches the `mc ilm rule add` flags as follows:
+
+| `mc ilm rule add` flag | Attribute |
+|------------------------|-----------|
+| `--purge-all-object-versions-days N` | `days = "Nd"` |
+| `--purge-all-object-versions-delete-marker` | `delete_marker = true` |
+
+- With `delete_marker = true`, all versions of objects whose latest version is a delete marker are purged, the delete marker included, `days` after the delete marker was created. Objects whose latest version is not a delete marker are left alone. This is the setting that cleans up delete markers left behind by a time-based `expiration` on a versioned bucket.
+- Without `delete_marker`, all versions of every object matching the rule, live objects included, are expired `days` after the latest version was created, and delete markers are not removed. `days = "1d"` in this mode empties the matching objects after one day.
+
+The following policy expires objects after a year and purges the delete markers that expiration leaves behind on a versioned bucket. Its second rule uses `all_versions_expiration`, so it requires MinIO AIStor:
+
+```terraform
+resource "minio_ilm_policy" "purge_delete_markers" {
+  bucket = "versioned-bucket"
+
+  rule {
+    id         = "expire-after-one-year"
+    expiration = "365d"
+  }
+
+  rule {
+    id = "purge-delete-markers"
+    all_versions_expiration {
+      days          = "1d"
+      delete_marker = true
+    }
+  }
+}
+```
+
 ## Mutually Exclusive Attributes
 
 The following attributes within a `rule` block are **mutually exclusive** per MinIO/S3 lifecycle behavior:
@@ -178,6 +209,7 @@ Required:
 Optional:
 
 - `abort_incomplete_multipart_upload` (Block List, Max: 1) Configuration for aborting incomplete multipart uploads. (see [below for nested schema](#nestedblock--rule--abort_incomplete_multipart_upload))
+- `all_versions_expiration` (Block List, Max: 1) Expiration of all versions of an object: the `AllVersionsExpiration` action, MinIO AIStor only. One block sets one action; `days` and `delete_marker` fill its two fields, like the `mc ilm rule add` flags `--purge-all-object-versions-days` and `--purge-all-object-versions-delete-marker` do. (see [below for nested schema](#nestedblock--rule--all_versions_expiration))
 - `expiration` (String) Value may be duration (5d) or date (1970-01-01) to expire objects
 - `expired_object_delete_marker` (Boolean) Whether to delete the delete marker when the object has a single version (i.e., all other versions have been expired by `noncurrent_version_expiration_days`).
 - `filter` (String) Object key prefix to filter which objects the rule applies to.
@@ -193,6 +225,18 @@ Optional:
 Required:
 
 - `days_after_initiation` (String) Number of days after which incomplete multipart uploads should be aborted, in format 'Nd'.
+
+
+<a id="nestedblock--rule--all_versions_expiration"></a>
+### Nested Schema for `rule.all_versions_expiration`
+
+Required:
+
+- `days` (String) Number of days, in format 'Nd' (at least 1d), as set by `--purge-all-object-versions-days`. Without `delete_marker`, all versions of an object, live objects included, are expired `days` after its latest version was created, and delete markers are not removed. With `delete_marker = true`, it is the delay after the delete marker was created.
+
+Optional:
+
+- `delete_marker` (Boolean) If true, purges all versions of objects whose latest version is a delete marker, including the delete marker, as set by `--purge-all-object-versions-delete-marker`.
 
 
 <a id="nestedblock--rule--noncurrent_expiration"></a>

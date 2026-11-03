@@ -18,6 +18,30 @@ History older than 3.39.0 lives in the
   a delete marker, delete marker included. MinIO community servers reject this
   action.
 
+### Fixed
+
+- `minio_s3_bucket_replication` no longer pairs a rule with the remote target
+  of the rule that used to sit at the same position
+  ([#1250](https://github.com/aminueza/terraform-provider-minio/issues/1250)).
+  Removing a rule that is not the last one used to send its neighbour's
+  credentials to the wrong remote target and fail the apply. A remote target is
+  now identified by its endpoint and target bucket, and a rule keeps its ID
+  through its remote target, so rules can be removed or reordered.
+- Removing a rule from `minio_s3_bucket_replication` no longer fails with
+  `This ARN is in use by an existing configuration`: the remote targets of
+  removed rules are deleted after the new configuration is written.
+- Destroying `minio_s3_bucket_replication` removes its remote targets instead of
+  failing with `remote targets are still present on the bucket`.
+- Reading `minio_s3_bucket_replication` no longer fails with `inconsistent
+  number of remote target and bucket replication rules` when the bucket has a
+  remote target that no rule uses
+  ([#1255](https://github.com/aminueza/terraform-provider-minio/issues/1255)).
+  The provider logs a warning, and the next apply that changes the resource, or
+  destroying it, removes the target.
+- Two `minio_s3_bucket_replication` rules that replicate to the same bucket on
+  the same endpoint are now rejected before any remote target is created or
+  updated.
+
 ### Security
 
 - Bumped `golang.org/x/net` from 0.60.0 to 0.62.0 for

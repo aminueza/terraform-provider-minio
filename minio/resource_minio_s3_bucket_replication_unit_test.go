@@ -78,11 +78,10 @@ func TestValidateReplicationRuleTargetsRejectsSharedTargets(t *testing.T) {
 		wantErr string
 	}{
 		{name: "distinct endpoints", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "bucket", "")}},
-		{name: "same endpoint, distinct buckets", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket-1", ""), rule("minio-b:9000", "bucket-2", "")}},
-		{name: "same endpoint, same bucket, distinct paths", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", "a"), rule("minio-b:9000", "bucket", "b")}},
-		{name: "same endpoint and bucket", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "other", ""), rule("minio-b:9000", "bucket", "")}, wantErr: `rule[0] and rule[2] both replicate to "bucket" on "minio-b:9000"`},
-		{name: "endpoint differing only in case", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("MINIO-B:9000", "bucket", "")}, wantErr: `rule[0] and rule[1] both replicate to "bucket" on "MINIO-B:9000"`},
-		{name: "same path written differently", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", "/a/"), rule("minio-b:9000", "bucket", "a")}, wantErr: `rule[0] and rule[1] both replicate to "a/bucket" on "minio-b:9000"`},
+		{name: "same endpoint, distinct buckets", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket-1", ""), rule("minio-b:9000", "bucket-2", "")}, wantErr: `rule[0] and rule[1] both replicate to "minio-b:9000"`},
+		{name: "same endpoint, same bucket, distinct paths", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", "a"), rule("minio-b:9000", "bucket", "b")}, wantErr: `rule[0] and rule[1] both replicate to "minio-b:9000"`},
+		{name: "same endpoint and bucket", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "other", ""), rule("minio-b:9000", "bucket", "")}, wantErr: `rule[0] and rule[2] both replicate to "minio-b:9000"`},
+		{name: "endpoint differing only in case", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("MINIO-B:9000", "other", "")}, wantErr: `rule[0] and rule[1] both replicate to "MINIO-B:9000"`},
 		{name: "invalid bucket name", rules: []S3MinioBucketReplicationRule{rule("minio-b:9000", "bucket", ""), rule("minio-c:9000", "ab", "")}, wantErr: "rule[1].target.bucket: "},
 	}
 

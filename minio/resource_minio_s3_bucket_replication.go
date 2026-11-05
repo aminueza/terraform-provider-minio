@@ -156,7 +156,7 @@ func bucketReplicationTargetResource() *schema.Resource {
 			},
 			"host": {
 				Type:        schema.TypeString,
-				Description: "The target host (pair IP/port or domain port). If port is omitted, HTTPS port (or HTTP if unsecure) will be used. This host must be reachable by the MinIO instance itself",
+				Description: "The target host (pair IP/port or domain port). If port is omitted, HTTPS port (or HTTP if unsecure) will be used. This host must be reachable by the MinIO instance itself. MinIO allows only one remote target per host for a bucket, so each rule must use a different host",
 				Required:    true,
 			},
 			"secure": {
@@ -715,17 +715,18 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 }
 
 // validateReplicationRuleTargets rejects an invalid target bucket name, and two
-// rules replicating to the same bucket on the same endpoint, which would share
-// one remote target.
+// rules replicating to the same endpoint, which MinIO does not support.
 func validateReplicationRuleTargets(rules []S3MinioBucketReplicationRule) error {
 	seen := make(map[string]int, len(rules))
 	for i, rule := range rules {
 		if err := s3utils.CheckValidBucketName(rule.Target.Bucket); err != nil {
 			return fmt.Errorf("rule[%d].target.bucket: %w", i, err)
 		}
-		key := strings.ToLower(rule.Target.Host) + "/" + replicationTargetBucket(rule)
+		// The server rejects a second remote target on an endpoint the bucket already
+		// uses (BucketRemoteAlreadyExists), whatever its target bucket or path.
+		key := strings.ToLower(rule.Target.Host)
 		if first, ok := seen[key]; ok {
-			return fmt.Errorf("rule[%d] and rule[%d] both replicate to %q on %q", first, i, replicationTargetBucket(rule), rule.Target.Host)
+			return fmt.Errorf("rule[%d] and rule[%d] both replicate to %q: MinIO allows only one remote target per endpoint for a bucket", first, i, rule.Target.Host)
 		}
 		seen[key] = i
 	}

@@ -240,7 +240,7 @@ Required:
 
 - `access_key` (String) Access key for the replication service account in the target MinIO
 - `bucket` (String) The name of the existing target bucket to replicate into
-- `host` (String) The target host (pair IP/port or domain port). If port is omitted, HTTPS port (or HTTP if unsecure) will be used. This host must be reachable by the MinIO instance itself
+- `host` (String) The target host (pair IP/port or domain port). If port is omitted, HTTPS port (or HTTP if unsecure) will be used. This host must be reachable by the MinIO instance itself. MinIO allows only one remote target per host for a bucket, so each rule must use a different host
 
 Optional:
 

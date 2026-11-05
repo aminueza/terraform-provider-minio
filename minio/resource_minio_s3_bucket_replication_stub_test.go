@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
@@ -74,8 +75,11 @@ func TestPutBucketReplicationKeepsIDWhenStaleTargetRemovalFails(t *testing.T) {
 
 	diags := minioPutBucketReplication(context.Background(), d, &S3MinioClient{S3Client: s3Client, S3Admin: admin})
 
-	if !diags.HasError() {
-		t.Fatal("expected the failed removal of the stale remote target to be reported")
+	if diags.HasError() {
+		t.Fatalf("expected no error, got %v", diags)
+	}
+	if len(diags) != 1 || diags[0].Severity != diag.Warning {
+		t.Fatalf("expected a single warning for the failed removal of the stale remote target, got %v", diags)
 	}
 	if removals == 0 {
 		t.Fatal("expected the stale remote target to be removed")

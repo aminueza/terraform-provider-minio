@@ -318,18 +318,25 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	// MinIO refuses to remove a remote target while the bucket configuration
 	// still references its ARN, so the targets of dropped rules can only go once
-	// the new configuration is written.
+	// the new configuration is written. A failure here is only a warning: an
+	// error would taint the resource and force a replacement, and Read already
+	// ignores remote targets that no rule uses.
+	var warnings diag.Diagnostics
 	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, staleARNs); err != nil {
-		return NewResourceError("removing unused replication remote targets", bucketReplicationConfig.MinioBucket, err)
+		warnings = append(warnings, diag.Diagnostic{
+			Severity: diag.Warning,
+			Summary:  fmt.Sprintf("Could not remove unused replication remote targets of bucket %q", bucketReplicationConfig.MinioBucket),
+			Detail:   fmt.Sprintf("The replication configuration was written, but removing the remote targets no rule uses failed: %v. They are left on the bucket and the next apply tries to remove them again.", err),
+		})
 	}
 
 	if d.HasChange("resync_version") {
 		if resyncDiags := triggerBucketReplicationResync(ctx, bucketReplicationConfig, d); resyncDiags.HasError() {
-			return resyncDiags
+			return append(warnings, resyncDiags...)
 		}
 	}
 
-	return nil
+	return warnings
 }
 
 // triggerBucketReplicationResync resets replication on every configured target so

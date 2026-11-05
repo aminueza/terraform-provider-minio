@@ -661,6 +661,11 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		return
 	}
 
+	existingRemoteTargets, err = releaseRetargetedRemoteTargets(ctx, bucketReplicationConfig, rcfg, existingRemoteTargets, c)
+	if err != nil {
+		return
+	}
+
 	ruleIDs := make(map[string]string, len(rcfg.Rules))
 	for _, rule := range rcfg.Rules {
 		ruleIDs[rule.Destination.Bucket] = rule.ID
@@ -710,6 +715,48 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 	}
 
 	return
+}
+
+// releaseRetargetedRemoteTargets removes the remote targets whose endpoint a
+// rule keeps while it replicates to another target bucket or path, and returns
+// the remote targets left. MinIO allows one remote target per endpoint for a
+// bucket, so the new target cannot be created next to the old one
+// (BucketRemoteAlreadyExists), and a remote target cannot be removed while the
+// replication configuration references its ARN. The rules using those targets
+// are dropped from the configuration first, then the targets are removed. The
+// caller creates the new targets and writes the final configuration. See issue
+// #1257.
+func releaseRetargetedRemoteTargets(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, rcfg replication.Config, targets []madmin.BucketTarget, rules []S3MinioBucketReplicationRule) ([]madmin.BucketTarget, error) {
+	var retargetedARNs []string
+	for _, rule := range rules {
+		tgtBucket := replicationTargetBucket(rule)
+		for _, target := range targets {
+			if strings.EqualFold(target.Endpoint, rule.Target.Host) && target.TargetBucket != tgtBucket && !slices.Contains(retargetedARNs, target.Arn) {
+				retargetedARNs = append(retargetedARNs, target.Arn)
+			}
+		}
+	}
+	if len(retargetedARNs) == 0 {
+		return targets, nil
+	}
+
+	interim := replication.Config{Role: rcfg.Role}
+	for _, rule := range rcfg.Rules {
+		if !slices.Contains(retargetedARNs, rule.Destination.Bucket) {
+			interim.Rules = append(interim.Rules, rule)
+		}
+	}
+	tflog.Debug(ctx, fmt.Sprintf("Releasing remote targets %v of bucket %q before changing their target bucket", retargetedARNs, bucketReplicationConfig.MinioBucket))
+	if err := bucketReplicationConfig.MinioClient.SetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, interim); err != nil {
+		return nil, fmt.Errorf("dropping the rules of retargeted remote targets: %w", err)
+	}
+	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, retargetedARNs); err != nil {
+		return nil, err
+	}
+
+	return slices.DeleteFunc(slices.Clone(targets), func(target madmin.BucketTarget) bool {
+		return slices.Contains(retargetedARNs, target.Arn)
+	}), nil
 }
 
 // validateReplicationRuleTargets rejects an invalid target bucket name, and two
@@ -769,12 +816,12 @@ func buildBucketReplicationTarget(rule S3MinioBucketReplicationRule, tgtBucket s
 }
 
 func ensureRemoteTarget(ctx context.Context, admclient *madmin.AdminClient, bucket string, existingRemoteTarget *madmin.BucketTarget, bktTarget *madmin.BucketTarget) (arn string, err error) {
-	if existingRemoteTarget == nil || existingRemoteTarget.ReplicationSync != bktTarget.ReplicationSync {
-		if existingRemoteTarget != nil {
-			tflog.Debug(ctx, fmt.Sprintf("Synchronous mode change detected (current: %t, new: %t). Re-creating remote target for bucket %q", existingRemoteTarget.ReplicationSync, bktTarget.ReplicationSync, bucket))
-		} else {
-			tflog.Debug(ctx, fmt.Sprintf("Adding new remote target for bucket %q: %s", bucket, formatBucketTargetForLog(bktTarget)))
-		}
+	// A change of the synchronous mode goes through UpdateRemoteTarget like the
+	// other settings. SetRemoteTarget would return the ARN of the existing target
+	// unchanged, or fail with BucketRemoteAlreadyExists when the credentials
+	// changed too. See issue #1257.
+	if existingRemoteTarget == nil {
+		tflog.Debug(ctx, fmt.Sprintf("Adding new remote target for bucket %q: %s", bucket, formatBucketTargetForLog(bktTarget)))
 		arn, err = admclient.SetRemoteTarget(ctx, bucket, bktTarget)
 		if err != nil {
 			tflog.Warn(ctx, fmt.Sprintf("Unable to configure remote target for bucket %q and targetBucket=%q at endpoint=%q: %v", bucket,

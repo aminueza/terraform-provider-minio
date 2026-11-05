@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_bucket_replication` keeps the resource in state when the removal
+  of unused remote targets fails during create
+  ([#1260](https://github.com/aminueza/terraform-provider-minio/issues/1260)).
+  The replication configuration is already written at that point, so the next
+  plan used to propose creating it again.
+
 ## [3.46.0] - 2026-11-03
 
 ### Added

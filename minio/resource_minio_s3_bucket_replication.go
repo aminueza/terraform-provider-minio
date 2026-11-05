@@ -312,14 +312,16 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
 	}
 
+	// The configuration is written, so track the resource before cleaning up:
+	// a failed removal below must not leave it out of state. See issue #1260.
+	d.SetId(bucketReplicationConfig.MinioBucket)
+
 	// MinIO refuses to remove a remote target while the bucket configuration
 	// still references its ARN, so the targets of dropped rules can only go once
 	// the new configuration is written.
 	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, staleARNs); err != nil {
 		return NewResourceError("removing unused replication remote targets", bucketReplicationConfig.MinioBucket, err)
 	}
-
-	d.SetId(bucketReplicationConfig.MinioBucket)
 
 	if d.HasChange("resync_version") {
 		if resyncDiags := triggerBucketReplicationResync(ctx, bucketReplicationConfig, d); resyncDiags.HasError() {

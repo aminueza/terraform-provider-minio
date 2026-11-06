@@ -123,6 +123,38 @@ with pass, fail and skip counts and the first error line of each failure. Copy
 that into the record, a group per failure with the quoted error as the reason,
 and the next run is green with the real map of what each service supports.
 
+## MinIO AIStor
+
+`all_versions_expiration` on `minio_ilm_policy` maps a lifecycle action that
+only MinIO AIStor accepts, so `TestAccILMPolicy_allVersionsExpiration` skips
+unless `MINIO_AISTOR` is set. `.github/workflows/aistor.yml` runs it against
+the `quay.io/minio/aistor/minio` image, on `workflow_dispatch` and on pull
+requests that change `minio/resource_minio_ilm_policy*.go`, `go.mod` or the
+workflow itself. The image pulls without credentials, but without a license
+the server stays up and denies every S3 request.
+
+The job reads the license from the `AISTOR_LICENSE` repository secret: the
+contents of the `minio.license` file of an AIStor Free license, which covers a
+single-node deployment. Without the secret, and on every pull request from a
+fork, the job is skipped with a notice. Pull requests opened by Dependabot read
+Dependabot secrets instead, so the `go.mod` bumps that are most likely to break
+this action only run the test when `AISTOR_LICENSE` is set there as well.
+
+Until the secret is set, run the test by hand before a release that touches the
+ILM resource. Port 9100 keeps it clear of the Compose stack; the test only uses
+the primary endpoint, and `testAccPreCheck` only checks that the other
+variables listed above exist:
+
+```bash
+docker run -d --name aistor -p 9100:9000 \
+  -v "$PWD/minio.license:/minio.license:ro" \
+  -e MINIO_ROOT_USER=minio -e MINIO_ROOT_PASSWORD=minio123 \
+  quay.io/minio/aistor/minio:<tag from aistor.yml> minio server /data --license /minio.license
+# Export the variables listed above, then:
+MINIO_ENDPOINT=localhost:9100 MINIO_AISTOR=1 TF_ACC=1 \
+  go test -v -count=1 ./minio -run '^TestAccILMPolicy_allVersionsExpiration$'
+```
+
 ## Debugging a Failing Test
 
 The steps are cumulative; each one adds to the ones above it.

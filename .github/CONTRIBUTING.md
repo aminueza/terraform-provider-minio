@@ -329,10 +329,10 @@ written by hand or by an earlier release, the workflow tags straight away and
 opens nothing. When `[Unreleased]` is empty it stops, because a release with no
 notes is almost always a mistake.
 
-`all_versions_expiration` on `minio_ilm_policy` only works on MinIO AIStor, and
-its acceptance test runs in CI only when the `AISTOR_LICENSE` secret is set
-(see `docs/agents/testing-environment.md`). Until then, run that test by hand
-against AIStor before releasing a change to the ILM resource.
+`all_versions_expiration` on `minio_ilm_policy` only works on MinIO AIStor,
+which needs a license, so its acceptance test never runs in CI. Before
+releasing a change to the ILM resource, run that test by hand against AIStor
+(see `docs/agents/testing-environment.md`).
 
 ### Commit Message Format
 

@@ -18,6 +18,12 @@ History older than 3.39.0 lives in the
   MinIO allows only one remote target per endpoint for a bucket, so this
   configuration used to fail with `BucketRemoteAlreadyExists` after the first
   remote target was already created.
+- `minio_s3_bucket_replication` reports a failed removal of unused remote
+  targets as a warning and keeps the resource in state
+  ([#1260](https://github.com/aminueza/terraform-provider-minio/issues/1260)).
+  The replication configuration is already written at that point, so the next
+  plan used to propose creating it again. Read already ignores remote targets
+  no rule uses.
 - `minio_s3_bucket_replication` can change a rule's `target.bucket` or
   `target.path` while it keeps its `target.host`
   ([#1257](https://github.com/aminueza/terraform-provider-minio/issues/1257)).

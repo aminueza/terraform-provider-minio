@@ -24,7 +24,9 @@ History older than 3.39.0 lives in the
   The provider now drops the rule from the configuration and removes the old
   remote target before it creates the new one; this used to fail with
   `BucketRemoteAlreadyExists`. Toggling `target.synchronous` now updates the
-  remote target in place, where it used to be ignored or fail the same way.
+  remote target in place, where it used to be ignored or fail the same way. If
+  creating the new remote target fails, the error says that replication to
+  that host is stopped until an apply succeeds.
 
 ## [3.46.0] - 2026-11-03
 

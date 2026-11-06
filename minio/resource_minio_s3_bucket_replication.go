@@ -661,7 +661,8 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		return
 	}
 
-	existingRemoteTargets, err = releaseRetargetedRemoteTargets(ctx, bucketReplicationConfig, rcfg, existingRemoteTargets, c)
+	var releasedEndpoints []string
+	existingRemoteTargets, releasedEndpoints, err = releaseRetargetedRemoteTargets(ctx, bucketReplicationConfig, rcfg, existingRemoteTargets, c)
 	if err != nil {
 		return
 	}
@@ -687,6 +688,9 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 		var arn string
 		arn, err = ensureRemoteTarget(ctx, admclient, bucketReplicationConfig.MinioBucket, existingRemoteTarget, bktTarget)
 		if err != nil {
+			if slices.ContainsFunc(releasedEndpoints, func(endpoint string) bool { return strings.EqualFold(endpoint, bktTarget.Endpoint) }) {
+				err = fmt.Errorf("creating the remote target for bucket %q on %s failed after the rule and the remote target for its previous bucket were removed, so replication to %s is stopped until an apply succeeds: %w", bktTarget.TargetBucket, bktTarget.Endpoint, bktTarget.Endpoint, err)
+			}
 			return
 		}
 
@@ -719,25 +723,29 @@ func convertBucketReplicationConfig(ctx context.Context, bucketReplicationConfig
 
 // releaseRetargetedRemoteTargets removes the remote targets whose endpoint a
 // rule keeps while it replicates to another target bucket or path, and returns
-// the remote targets left. MinIO allows one remote target per endpoint for a
-// bucket, so the new target cannot be created next to the old one
-// (BucketRemoteAlreadyExists), and a remote target cannot be removed while the
-// replication configuration references its ARN. The rules using those targets
-// are dropped from the configuration first, then the targets are removed. The
-// caller creates the new targets and writes the final configuration. See issue
-// #1257.
-func releaseRetargetedRemoteTargets(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, rcfg replication.Config, targets []madmin.BucketTarget, rules []S3MinioBucketReplicationRule) ([]madmin.BucketTarget, error) {
-	var retargetedARNs []string
+// the remote targets left and the endpoints released. MinIO allows one remote
+// target per endpoint for a bucket, so the new target cannot be created next to
+// the old one (BucketRemoteAlreadyExists), and a remote target cannot be removed
+// while the replication configuration references its ARN. The rules using those
+// targets are dropped from the configuration first, then the targets are
+// removed. When no rule is left, MinIO deletes the configuration and every
+// remote target of the bucket with it, so the targets are listed again before
+// and after the removal. The caller creates the new targets and writes the
+// final configuration. Until it does, nothing replicates to the released
+// endpoints. See issue #1257.
+func releaseRetargetedRemoteTargets(ctx context.Context, bucketReplicationConfig *S3MinioBucketReplication, rcfg replication.Config, targets []madmin.BucketTarget, rules []S3MinioBucketReplicationRule) ([]madmin.BucketTarget, []string, error) {
+	var retargetedARNs, releasedEndpoints []string
 	for _, rule := range rules {
 		tgtBucket := replicationTargetBucket(rule)
 		for _, target := range targets {
 			if strings.EqualFold(target.Endpoint, rule.Target.Host) && target.TargetBucket != tgtBucket && !slices.Contains(retargetedARNs, target.Arn) {
 				retargetedARNs = append(retargetedARNs, target.Arn)
+				releasedEndpoints = append(releasedEndpoints, target.Endpoint)
 			}
 		}
 	}
 	if len(retargetedARNs) == 0 {
-		return targets, nil
+		return targets, nil, nil
 	}
 
 	interim := replication.Config{Role: rcfg.Role}
@@ -748,15 +756,32 @@ func releaseRetargetedRemoteTargets(ctx context.Context, bucketReplicationConfig
 	}
 	tflog.Debug(ctx, fmt.Sprintf("Releasing remote targets %v of bucket %q before changing their target bucket", retargetedARNs, bucketReplicationConfig.MinioBucket))
 	if err := bucketReplicationConfig.MinioClient.SetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, interim); err != nil {
-		return nil, fmt.Errorf("dropping the rules of retargeted remote targets: %w", err)
+		return nil, nil, fmt.Errorf("dropping the rules of retargeted remote targets: %w", err)
 	}
-	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, retargetedARNs); err != nil {
-		return nil, err
+	stopped := func(err error) error {
+		return fmt.Errorf("the rules replicating to %s were dropped but their old remote targets were not removed, so replication to those endpoints is stopped until an apply succeeds: %w", strings.Join(releasedEndpoints, ", "), err)
+	}
+	admclient := bucketReplicationConfig.MinioAdmin
+	bucket := bucketReplicationConfig.MinioBucket
+	targets, err := admclient.ListRemoteTargets(ctx, bucket, string(madmin.ReplicationService))
+	if err != nil {
+		return nil, nil, stopped(err)
+	}
+	var left []string
+	for _, target := range targets {
+		if slices.Contains(retargetedARNs, target.Arn) {
+			left = append(left, target.Arn)
+		}
+	}
+	if err := removeRemoteTargets(ctx, admclient, bucket, left); err != nil {
+		return nil, nil, stopped(err)
+	}
+	targets, err = admclient.ListRemoteTargets(ctx, bucket, string(madmin.ReplicationService))
+	if err != nil {
+		return nil, nil, stopped(err)
 	}
 
-	return slices.DeleteFunc(slices.Clone(targets), func(target madmin.BucketTarget) bool {
-		return slices.Contains(retargetedARNs, target.Arn)
-	}), nil
+	return targets, releasedEndpoints, nil
 }
 
 // validateReplicationRuleTargets rejects an invalid target bucket name, and two

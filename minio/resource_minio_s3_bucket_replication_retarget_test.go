@@ -19,9 +19,10 @@ import (
 )
 
 // fakeReplicationServer keeps the remote targets and the replication
-// configuration of the bucket "source" and enforces the two MinIO rules that
-// matter here: one remote target per endpoint, and no removal of a remote
-// target the configuration still references.
+// configuration of the bucket "source" and enforces the MinIO rules that
+// matter here: one remote target per endpoint, no removal of a remote target
+// the configuration still references, and deleting the configuration deletes
+// every remote target of the bucket.
 type fakeReplicationServer struct {
 	t *testing.T
 
@@ -30,6 +31,8 @@ type fakeReplicationServer struct {
 	config   string
 	newARN   string
 	requests []string
+	// failCreate makes the creation of a new remote target fail.
+	failCreate bool
 }
 
 func (f *fakeReplicationServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +75,11 @@ func (f *fakeReplicationServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 				return
 			}
 		}
+		if f.failCreate {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprint(w, `{"Code":"XMinioAdminRemoteTargetConnectionErr","Message":"Remote service connection error"}`)
+			return
+		}
 		target.Arn = f.newARN
 		f.targets = append(f.targets, target)
 		_, _ = fmt.Fprintf(w, "%q", f.newARN)
@@ -102,7 +110,8 @@ func (f *fakeReplicationServer) ServeHTTP(w http.ResponseWriter, r *http.Request
 			f.requests = append(f.requests, "put-replication "+f.ruleARNs())
 		case http.MethodDelete:
 			f.config = `<ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></ReplicationConfiguration>`
-			f.requests = append(f.requests, "put-replication []")
+			f.targets = nil
+			f.requests = append(f.requests, "delete-replication")
 		}
 	default:
 		f.t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
@@ -197,8 +206,7 @@ func TestPutBucketReplicationChangesTargetBucketOnSameEndpoint(t *testing.T) {
 	}
 
 	want := []string{
-		"put-replication []",
-		"remove-remote-target " + oldARN,
+		"delete-replication",
 		"set-remote-target",
 		"put-replication [" + newARN + "]",
 	}
@@ -237,5 +245,32 @@ func TestPutBucketReplicationUpdatesSynchronousModeInPlace(t *testing.T) {
 	}
 	if len(f.targets) != 1 || !f.targets[0].ReplicationSync {
 		t.Fatalf("remote targets = %+v, want %q switched to synchronous replication", f.targets, arn)
+	}
+}
+
+func TestPutBucketReplicationRetargetFailureSaysReplicationStopped(t *testing.T) {
+	const oldARN = "arn:minio:replication::old:bucket-1"
+
+	f := &fakeReplicationServer{
+		t: t,
+		targets: []madmin.BucketTarget{{
+			SourceBucket: "source",
+			Endpoint:     "minio-b:9000",
+			TargetBucket: "bucket-1",
+			Arn:          oldARN,
+			Type:         madmin.ReplicationService,
+			Credentials:  &madmin.Credentials{AccessKey: "replication", SecretKey: "replication-secret"},
+		}},
+		config:     replicationConfigFor(oldARN),
+		failCreate: true,
+	}
+
+	d := replicationRuleData(t, "bucket-2", false)
+	diags := minioPutBucketReplication(context.Background(), d, newFakeReplicationClient(t, f))
+	if !diags.HasError() {
+		t.Fatalf("expected an error, got none (requests: %q)", f.requests)
+	}
+	if msg := fmt.Sprint(diags); !strings.Contains(msg, "replication to minio-b:9000 is stopped until an apply succeeds") {
+		t.Fatalf("error does not say replication stopped: %s", msg)
 	}
 }

@@ -1087,6 +1087,214 @@ func TestAccS3BucketReplication_remove_and_reorder_rules(t *testing.T) {
 	})
 }
 
+func testAccBucketReplicationRetargetResource(bucketResource string, synchronous bool, withThird bool) string {
+	var thirdRule string
+	if withThird {
+		thirdRule = `
+  rule {
+    delete_replication          = true
+    delete_marker_replication   = true
+    existing_object_replication = true
+
+    target {
+        bucket     = minio_s3_bucket.my_bucket_in_c.bucket
+        host       = local.third_minio_host
+        secure     = false
+        access_key = minio_iam_service_account.replication_in_c.access_key
+        secret_key = minio_iam_service_account.replication_in_c.secret_key
+    }
+  }
+`
+	}
+	return fmt.Sprintf(`
+resource "minio_s3_bucket_replication" "replication_in_all" {
+  bucket = minio_s3_bucket.my_bucket_in_a.bucket
+
+  rule {
+    delete_replication          = true
+    delete_marker_replication   = true
+    existing_object_replication = true
+
+    target {
+        bucket      = minio_s3_bucket.%[1]s.bucket
+        host        = local.second_minio_host
+        secure      = false
+        synchronous = %[2]t
+        access_key  = minio_iam_service_account.replication_in_b.access_key
+        secret_key  = minio_iam_service_account.replication_in_b.secret_key
+    }
+  }
+%[3]s
+  depends_on = [
+    minio_s3_bucket_versioning.my_bucket_in_a,
+    minio_s3_bucket_versioning.my_bucket_in_b,
+    minio_s3_bucket_versioning.my_bucket_in_b2,
+    minio_s3_bucket_versioning.my_bucket_in_c,
+  ]
+}`, bucketResource, synchronous, thirdRule)
+}
+
+// testAccCheckBucketReplicationTargetReplaced checks that the remote target of
+// endpoint is not the one recorded in previous.
+func testAccCheckBucketReplicationTargetReplaced(n string, endpoint string, previous *[2]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		var current [2]string
+		if err := testAccCheckBucketReplicationTargetIdentity(n, endpoint, &current)(s); err != nil {
+			return err
+		}
+		if current[0] == previous[0] {
+			return fmt.Errorf("remote target for %q kept ARN %q, expected a new remote target", endpoint, current[0])
+		}
+		return nil
+	}
+}
+
+// testAccCheckSetRemoteTargetKeepsExistingTarget calls SetRemoteTarget for the
+// remote target recorded in identity with the synchronous mode flipped back to
+// asynchronous, and checks that MinIO returns the existing ARN and leaves the
+// target synchronous. This is why the provider changes the synchronous mode with
+// UpdateRemoteTarget. See issue #1257.
+func testAccCheckSetRemoteTargetKeepsExistingTarget(n string, serviceAccount string, endpoint string, targetBucket string, identity *[2]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+		sa, ok := s.RootModule().Resources[serviceAccount]
+		if !ok {
+			return fmt.Errorf("not found: %s", serviceAccount)
+		}
+		admin := testAccClient().S3Admin
+		arn, err := admin.SetRemoteTarget(context.Background(), rs.Primary.ID, &madmin.BucketTarget{
+			TargetBucket:    targetBucket,
+			Endpoint:        endpoint,
+			Secure:          false,
+			Credentials:     &madmin.Credentials{AccessKey: sa.Primary.Attributes["access_key"], SecretKey: sa.Primary.Attributes["secret_key"]},
+			API:             "s3v4",
+			Type:            madmin.ReplicationService,
+			ReplicationSync: false,
+		})
+		if err != nil {
+			return fmt.Errorf("error on SetRemoteTarget: %v", err)
+		}
+		if arn != identity[0] {
+			return fmt.Errorf("SetRemoteTarget returned ARN %q, expected the existing %q", arn, identity[0])
+		}
+		targets, err := admin.ListRemoteTargets(context.Background(), rs.Primary.ID, "")
+		if err != nil {
+			return fmt.Errorf("error on ListRemoteTargets: %v", err)
+		}
+		for _, target := range targets {
+			if target.Arn == arn && !target.ReplicationSync {
+				return fmt.Errorf("SetRemoteTarget changed the synchronous mode of %q", arn)
+			}
+		}
+		return nil
+	}
+}
+
+// Changing the target bucket of a rule on the same endpoint must replace its
+// remote target, alone or next to another rule, and toggling the synchronous
+// mode must update the remote target in place. See issue #1257.
+func TestAccS3BucketReplication_retarget_same_endpoint(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	otherSecondBucketName := acctest.RandomWithPrefix("tf-acc-test-b2")
+	thirdBucketName := acctest.RandomWithPrefix("tf-acc-test-c")
+	fourthBucketName := acctest.RandomWithPrefix("tf-acc-test-d")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+	thirdMinioEndpoint := os.Getenv("THIRD_MINIO_ENDPOINT")
+	fourthMinioEndpoint := os.Getenv("FOURTH_MINIO_ENDPOINT")
+
+	base := testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint, thirdMinioEndpoint, fourthMinioEndpoint) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_b2", "secondminio", otherSecondBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_c", "thirdminio", thirdBucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_d", "fourthminio", fourthBucketName) +
+		testAccBucketReplicationConfigPolicy(bucketName, secondBucketName, otherSecondBucketName, thirdBucketName, fourthBucketName) +
+		testAccBucketReplicationConfigServiceAccount(username, 4)
+
+	const resourceName = "minio_s3_bucket_replication.replication_in_all"
+	var firstIdentity, secondIdentity, thirdIdentity, backIdentity [2]string
+
+	synchronousRule := func(priority int, bucket string) S3MinioBucketReplicationRule {
+		rule := testAccBucketReplicationExpectedRule(priority, bucket, secondaryMinioEndpoint)
+		rule.Target.Synchronous = true
+		return rule
+	}
+
+	// Test in parallel cannot work as remote target endpoint would conflict
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: base + testAccBucketReplicationRetargetResource("my_bucket_in_b", false, false),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(1, secondBucketName, secondaryMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &firstIdentity),
+				),
+			},
+			{
+				// The only rule changes its target bucket: the interim
+				// configuration has no rule left.
+				Config: base + testAccBucketReplicationRetargetResource("my_bucket_in_b2", false, false),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(1, otherSecondBucketName, secondaryMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetReplaced(resourceName, secondaryMinioEndpoint, &firstIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &secondIdentity),
+				),
+			},
+			{
+				Config: base + testAccBucketReplicationRetargetResource("my_bucket_in_b2", true, true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						synchronousRule(2, otherSecondBucketName),
+						testAccBucketReplicationExpectedRule(1, thirdBucketName, thirdMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &secondIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, thirdMinioEndpoint, &thirdIdentity),
+					testAccCheckSetRemoteTargetKeepsExistingTarget(resourceName, "minio_iam_service_account.replication_in_b", secondaryMinioEndpoint, otherSecondBucketName, &secondIdentity),
+				),
+			},
+			{
+				// The rule changes its target bucket back while the rule to
+				// the third instance stays in the interim configuration.
+				Config: base + testAccBucketReplicationRetargetResource("my_bucket_in_b", true, true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						synchronousRule(2, secondBucketName),
+						testAccBucketReplicationExpectedRule(1, thirdBucketName, thirdMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetReplaced(resourceName, secondaryMinioEndpoint, &secondIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &backIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, thirdMinioEndpoint, &thirdIdentity),
+				),
+			},
+			{
+				Config: base + testAccBucketReplicationRetargetResource("my_bucket_in_b", false, true),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckBucketHasReplication(resourceName, []S3MinioBucketReplicationRule{
+						testAccBucketReplicationExpectedRule(2, secondBucketName, secondaryMinioEndpoint),
+						testAccBucketReplicationExpectedRule(1, thirdBucketName, thirdMinioEndpoint),
+					}),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, secondaryMinioEndpoint, &backIdentity),
+					testAccCheckBucketReplicationTargetIdentity(resourceName, thirdMinioEndpoint, &thirdIdentity),
+				),
+			},
+		},
+	})
+}
+
 // A remote target no rule references, as left by a failed removal after the
 // configuration was written, must not break refresh, and destroying the
 // replication configuration must remove it with the others. See issue #1255.

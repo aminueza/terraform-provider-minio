@@ -116,8 +116,11 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 
 // isKMSKeyNotFound reports whether a key status error means the key does not
 // exist. MinIO answers the status call with 200 and puts the KMS error in
-// EncryptionErr: "key with given key ID does not exist" for the built-in KMS
-// and MinIO KMS, "key does not exist" for KES.
+// EncryptionErr: "key with given key ID does not exist" for a missing key.
+// "key does not exist" is the raw KES and MinIO KMS error. A bare "does not
+// exist" also matches other wrapped KMS errors (a wrong enclave is "enclave
+// does not exist") and would drop a key that still exists.
 func isKMSKeyNotFound(encryptionErr string) bool {
-	return strings.Contains(encryptionErr, "does not exist")
+	return strings.Contains(encryptionErr, "key with given key ID does not exist") ||
+		strings.Contains(encryptionErr, "key does not exist")
 }

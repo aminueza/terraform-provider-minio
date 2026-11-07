@@ -15,11 +15,12 @@ import (
 
 func TestMinioReadKMSKey(t *testing.T) {
 	cases := []struct {
-		name       string
-		statusCode int
-		body       string
-		wantErr    bool
-		wantGone   bool
+		name        string
+		statusCode  int
+		body        string
+		newResource bool
+		wantErr     bool
+		wantGone    bool
 	}{
 		{
 			name:       "existing key stays in state",
@@ -43,6 +44,19 @@ func TestMinioReadKMSKey(t *testing.T) {
 			statusCode: http.StatusOK,
 			body:       `{"key-id":"test-key","encryption-error":"kms is unavailable"}`,
 			wantErr:    true,
+		},
+		{
+			name:       "unrelated does-not-exist error is reported",
+			statusCode: http.StatusOK,
+			body:       `{"key-id":"test-key","encryption-error":"failed to generate data key with KMS key: enclave does not exist"}`,
+			wantErr:    true,
+		},
+		{
+			name:        "missing key right after create is reported",
+			statusCode:  http.StatusOK,
+			body:        `{"key-id":"test-key","encryption-error":"key with given key ID does not exist"}`,
+			newResource: true,
+			wantErr:     true,
 		},
 		{
 			name:       "request error is reported and the key stays in state",
@@ -79,6 +93,9 @@ func TestMinioReadKMSKey(t *testing.T) {
 				"key_id": "test-key",
 			})
 			d.SetId("test-key")
+			if tc.newResource {
+				d.MarkNewResource()
+			}
 
 			diags := minioReadKMSKey(context.Background(), d, &S3MinioClient{S3Admin: adminClient})
 

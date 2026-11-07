@@ -109,6 +109,11 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 			return nil
 		}
 		var minioErr minio.ErrorResponse
+		if errors.As(err, &minioErr) && isMissingObjectCode(minioErr.Code) {
+			tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing object tags from state", bucket, objectKey))
+			d.SetId("")
+			return nil
+		}
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
 			if err := d.Set("bucket", bucket); err != nil {
 				return NewResourceError("setting bucket", fmt.Sprintf("%s/%s", bucket, objectKey), err)
@@ -209,8 +214,17 @@ func minioDeleteObjectTags(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	if _, err := cfg.MinioClient.CopyObject(ctx, dstOpts, srcOpts); err != nil {
+		var minioErr minio.ErrorResponse
+		if errors.As(err, &minioErr) && isMissingObjectCode(minioErr.Code) {
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("deleting object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)
 	}
 	d.SetId("")
 	return nil
+}
+
+func isMissingObjectCode(code string) bool {
+	return code == "NoSuchKey" || code == "NoSuchBucket"
 }

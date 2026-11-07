@@ -10,6 +10,13 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_object_tags` is removed from state when its object or bucket was
+  deleted outside Terraform, and destroying it no longer fails in that case.
+  Every plan used to fail with `NoSuchKey` or `NoSuchBucket` until the
+  resource was removed from state by hand.
+
 ## [3.46.1] - 2026-11-07
 
 ### Fixed

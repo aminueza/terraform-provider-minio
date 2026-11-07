@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -68,5 +69,31 @@ func TestObjectTagsMissingObjectOrBucket(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestObjectTagsCreateOnMissingObjectReportsError(t *testing.T) {
+	client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code><Message>error</Message></Error>`)
+	})
+
+	d := resourceMinioObjectTags().TestResourceData()
+	d.MarkNewResource()
+	if err := d.Set("bucket", "test-bucket"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Set("key", "path/to/object"); err != nil {
+		t.Fatal(err)
+	}
+
+	diags := minioCreateObjectTags(context.Background(), d, &S3MinioClient{S3Client: client})
+
+	if !diags.HasError() {
+		t.Fatalf("expected an error when the object does not exist at create time, id is %q", d.Id())
+	}
+	if !strings.Contains(fmt.Sprint(diags), "NoSuchKey") {
+		t.Fatalf("expected the error to name NoSuchKey, got %v", diags)
 	}
 }

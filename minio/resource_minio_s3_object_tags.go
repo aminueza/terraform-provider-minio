@@ -109,7 +109,9 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 			return nil
 		}
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) && isMissingObjectCode(minioErr.Code) {
+		// With no tags, Create never touches the object, so this is the only place
+		// a wrong bucket or key can surface as an error.
+		if !d.IsNewResource() && errors.As(err, &minioErr) && isMissingObjectCode(minioErr.Code) {
 			tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing object tags from state", bucket, objectKey))
 			d.SetId("")
 			return nil

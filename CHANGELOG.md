@@ -12,6 +12,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_object_tags` is removed from state when its object or bucket was
+  deleted outside Terraform, and destroying it no longer fails in that case.
+  Every plan used to fail with `NoSuchKey` or `NoSuchBucket` until the
+  resource was removed from state by hand.
 - `minio_kms_key` no longer drops the key from state when reading its status
   fails (network, permissions, server error); the error is reported instead.
   A key deleted outside Terraform is now detected and removed from state,

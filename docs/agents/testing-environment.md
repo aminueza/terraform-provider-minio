@@ -123,6 +123,32 @@ with pass, fail and skip counts and the first error line of each failure. Copy
 that into the record, a group per failure with the quoted error as the reason,
 and the next run is green with the real map of what each service supports.
 
+## MinIO AIStor
+
+`all_versions_expiration` on `minio_ilm_policy` maps a lifecycle action that
+only MinIO AIStor accepts, so `TestAccILMPolicy_allVersionsExpiration` skips
+unless `MINIO_AISTOR` is set. CI never sets it: the `quay.io/minio/aistor/minio`
+image pulls without credentials, but without a license the server stays up and
+denies every S3 request, and the repository has no license to give it. In CI
+the feature is covered only by `TestCreateLifecycleRuleAllVersionsExpiration`,
+which checks the parse and flatten round trip in memory.
+
+Run the test by hand against AIStor before a release that changes the ILM
+resource. An AIStor Free license covers a single-node deployment; the server
+reads its `minio.license` file through `--license`. Port 9100 keeps it clear of
+the Compose stack; the test only uses the primary endpoint, and
+`testAccPreCheck` only checks that the other variables listed above exist:
+
+```bash
+docker run -d --name aistor -p 9100:9000 \
+  -v "$PWD/minio.license:/minio.license:ro" \
+  -e MINIO_ROOT_USER=minio -e MINIO_ROOT_PASSWORD=minio123 \
+  quay.io/minio/aistor/minio:RELEASE.2026-09-19T17-05-25Z minio server /data --license /minio.license
+# Export the variables listed above, then:
+MINIO_ENDPOINT=localhost:9100 MINIO_AISTOR=1 TF_ACC=1 \
+  go test -v -count=1 ./minio -run '^TestAccILMPolicy_allVersionsExpiration$'
+```
+
 ## Debugging a Failing Test
 
 The steps are cumulative; each one adds to the ones above it.

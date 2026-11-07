@@ -60,7 +60,11 @@ func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface
 
 	status, err := keyConfig.MinioAdmin.GetKeyStatus(ctx, keyConfig.MinioKMSKeyID)
 	if err != nil {
-		tflog.Error(ctx, NewResourceErrorStr("error reading KMS key", keyConfig.MinioKMSKeyID, err))
+		return NewResourceError("error reading KMS key", keyConfig.MinioKMSKeyID, err)
+	}
+
+	if !d.IsNewResource() && isKMSKeyNotFound(status.EncryptionErr) {
+		tflog.Warn(ctx, fmt.Sprintf("KMS key [%s] not found, removing from state", keyConfig.MinioKMSKeyID))
 		d.SetId("")
 
 		return nil
@@ -108,4 +112,12 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	_ = d.Set("key_id", "")
 
 	return nil
+}
+
+// isKMSKeyNotFound reports whether a key status error means the key does not
+// exist. MinIO answers the status call with 200 and puts the KMS error in
+// EncryptionErr: "key with given key ID does not exist" for the built-in KMS
+// and MinIO KMS, "key does not exist" for KES.
+func isKMSKeyNotFound(encryptionErr string) bool {
+	return strings.Contains(encryptionErr, "does not exist")
 }

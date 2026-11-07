@@ -16,6 +16,10 @@ History older than 3.39.0 lives in the
   deleted outside Terraform, and destroying it no longer fails in that case.
   Every plan used to fail with `NoSuchKey` or `NoSuchBucket` until the
   resource was removed from state by hand.
+- `minio_kms_key` no longer drops the key from state when reading its status
+  fails (network, permissions, server error); the error is reported instead.
+  A key deleted outside Terraform is now detected and removed from state,
+  where it used to fail every plan with an encryption error.
 
 ## [3.46.1] - 2026-11-07
 

@@ -153,7 +153,7 @@
         },
         "data.minio_s3_bucket_encryption": {
           "status": "partial",
-          "reason": "the data source returns empty encryption on any error; Garage does not implement GetBucketEncryption"
+          "reason": "Garage does not implement GetBucketEncryption, so with s3_compat_mode the data source reports the gap as a warning and leaves encryption_type empty"
         }
       }
     },

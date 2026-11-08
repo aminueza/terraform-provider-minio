@@ -10,6 +10,13 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_bucket_server_side_encryption` no longer shows a diff on every
+  plan when `encryption_type = "AES256"` and `kms_key_id` is set. The key is
+  ignored for SSE-S3 and MinIO does not return it, so Read always stored an
+  empty value.
+
 ## [3.46.2] - 2026-11-07
 
 ### Fixed

@@ -31,6 +31,8 @@ func TestMinioReadILMPolicyErrors(t *testing.T) {
 		{name: "access denied is reported", rule: expirationRule, status: http.StatusForbidden, code: "AccessDenied", wantErr: true},
 		{name: "missing lifecycle right after create is reported", rule: expirationRule, newResource: true, status: http.StatusNotFound, code: "NoSuchLifecycleConfiguration", wantErr: true},
 		{name: "abort-only rules the server does not store stay in state", rule: abortOnlyRule, status: http.StatusNotFound, code: "NoSuchLifecycleConfiguration"},
+		{name: "abort-only rules stay in state right after create", rule: abortOnlyRule, newResource: true, status: http.StatusNotFound, code: "NoSuchLifecycleConfiguration"},
+		{name: "abort-only rules on a deleted bucket are removed", rule: abortOnlyRule, status: http.StatusNotFound, code: "NoSuchBucket", wantGone: true},
 	}
 
 	for _, tc := range cases {

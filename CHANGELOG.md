@@ -18,6 +18,10 @@ History older than 3.39.0 lives in the
   again. It is still removed from state when the encryption configuration or
   the bucket was deleted outside Terraform, and destroying it no longer fails
   in that case.
+- `minio_s3_bucket_server_side_encryption` no longer shows a diff on every
+  plan when `encryption_type = "AES256"` and `kms_key_id` is set. The key is
+  ignored for SSE-S3 and MinIO does not return it, so Read always stored an
+  empty value.
 - `minio_ilm_policy` reports errors from reading the lifecycle configuration
   (network, permissions, server error) instead of dropping the policy from
   state, which made the next plan write it again. It is still removed from

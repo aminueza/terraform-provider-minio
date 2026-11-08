@@ -47,6 +47,9 @@ func resourceMinioBucketServerSideEncryption() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "KMS key id to use for SSE-KMS encryption. Required when encryption_type is `aws:kms`, ignored for `AES256`.",
 				Optional:    true,
+				DiffSuppressFunc: func(_, _, _ string, d *schema.ResourceData) bool {
+					return d.Get("encryption_type").(string) == "AES256"
+				},
 			},
 		},
 	}

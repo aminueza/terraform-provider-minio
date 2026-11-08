@@ -10,6 +10,15 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_s3_bucket_server_side_encryption` reports errors from reading the
+  bucket encryption (network, permissions, server error) instead of dropping
+  the resource from state, which made the next plan write the configuration
+  again. It is still removed from state when the encryption configuration or
+  the bucket was deleted outside Terraform, and destroying it no longer fails
+  in that case.
+
 ## [3.46.2] - 2026-11-07
 
 ### Fixed

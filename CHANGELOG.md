@@ -29,6 +29,10 @@ History older than 3.39.0 lives in the
   without `s3:GetEncryptionConfiguration` now fails the read. With
   `s3_compat_mode`, a backend that does not implement bucket encryption gives a
   warning.
+- `minio_s3_object_retention.retain_until_date` and `minio_s3_object.expires`
+  no longer show a diff on every plan when the timestamp is written with an
+  offset other than UTC (for example `2030-01-01T00:00:00-03:00`). MinIO
+  returns both in UTC, so the values are now compared as instants.
 
 ## [3.46.2] - 2026-11-07
 

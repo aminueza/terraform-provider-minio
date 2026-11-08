@@ -61,6 +61,13 @@ func TestDataSourceMinioS3BucketEncryptionReadAgainstStubBackend(t *testing.T) {
 			wantGapWarning: true,
 		},
 		{
+			name:           "with s3_compat_mode a 405 is a missing feature",
+			compatMode:     true,
+			status:         http.StatusMethodNotAllowed,
+			body:           dataSourceBucketStubXML("MethodNotAllowed", "The specified method is not allowed against this resource."),
+			wantGapWarning: true,
+		},
+		{
 			name:    "without s3_compat_mode a missing feature is an error",
 			status:  http.StatusNotImplemented,
 			body:    dataSourceBucketStubXML("NotImplemented", "This operation is not implemented."),
@@ -71,6 +78,9 @@ func TestDataSourceMinioS3BucketEncryptionReadAgainstStubBackend(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if !r.URL.Query().Has("encryption") {
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+				}
 				w.Header().Set("Content-Type", "application/xml")
 				w.WriteHeader(tc.status)
 				_, _ = fmt.Fprint(w, tc.body)

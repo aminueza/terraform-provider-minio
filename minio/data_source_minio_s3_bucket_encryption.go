@@ -37,7 +37,7 @@ func dataSourceMinioS3BucketEncryptionRead(ctx context.Context, d *schema.Resour
 		}
 	case isBucketEncryptionNotFoundError(err):
 	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
-		diags = append(diags, dataSourceS3CompatGap(bucket, "encryption_type and kms_master_key_id", "bucket encryption"))
+		diags = append(diags, dataSourceS3CompatGap(bucket, "encryption_type", "bucket encryption"))
 	default:
 		return NewResourceError("reading bucket encryption", bucket, err)
 	}

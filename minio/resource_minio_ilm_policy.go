@@ -501,9 +501,12 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			}
 			return nil
 		}
-		tflog.Error(ctx, NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
-		d.SetId("")
-		return nil
+		if !d.IsNewResource() && (isLifecycleNotFoundError(err) || isNoSuchBucketError(err)) {
+			tflog.Warn(ctx, fmt.Sprintf("Lifecycle configuration or bucket %s not found, removing ILM policy from state", d.Id()))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
 	}
 
 	if err = d.Set("bucket", d.Id()); err != nil {

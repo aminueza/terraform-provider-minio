@@ -140,9 +140,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 					"expiration": "30d",
 				}},
 			},
-			attributes:     []string{"rule"},
-			wantRequest:    "?lifecycle=",
-			compatOffDrops: true,
+			attributes:  []string{"rule"},
+			wantRequest: "?lifecycle=",
 		},
 		{
 			name:     "minio_s3_bucket_policy",

@@ -501,9 +501,12 @@ func minioReadILMPolicy(ctx context.Context, d *schema.ResourceData, meta interf
 			}
 			return nil
 		}
-		tflog.Error(ctx, NewResourceErrorStr("reading lifecycle configuration failed", d.Id(), err))
-		d.SetId("")
-		return nil
+		if isLifecycleNotFoundError(err) || isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Lifecycle configuration for %s not found; removing from state", d.Id()))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("reading lifecycle configuration failed", d.Id(), err)
 	}
 
 	if err = d.Set("bucket", d.Id()); err != nil {
@@ -713,7 +716,7 @@ func minioDeleteILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 
 	config := lifecycle.NewConfiguration()
 
-	if err := c.SetBucketLifecycle(ctx, d.Id(), config); err != nil {
+	if err := c.SetBucketLifecycle(ctx, d.Id(), config); err != nil && !isNoSuchBucketError(err) {
 		return NewResourceError("deleting lifecycle configuration failed", d.Id(), err)
 	}
 

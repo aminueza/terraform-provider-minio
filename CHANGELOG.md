@@ -29,6 +29,10 @@ History older than 3.39.0 lives in the
   without `s3:GetEncryptionConfiguration` now fails the read. With
   `s3_compat_mode`, a backend that does not implement bucket encryption gives a
   warning.
+- `minio_iam_group_policy` reports errors from reading the canned policy
+  (network, permissions, server error) instead of dropping it from state, and
+  destroy reports them instead of succeeding without deleting the policy. It
+  is still removed from state when the policy was deleted outside Terraform.
 
 ## [3.46.2] - 2026-11-07
 

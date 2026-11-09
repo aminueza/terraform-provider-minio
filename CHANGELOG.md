@@ -12,6 +12,23 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_server_side_encryption` reports errors from reading the
+  bucket encryption (network, permissions, server error) instead of dropping
+  the resource from state, which made the next plan write the configuration
+  again. It is still removed from state when the encryption configuration or
+  the bucket was deleted outside Terraform, and destroying it no longer fails
+  in that case.
+- `minio_s3_bucket_server_side_encryption` no longer shows a diff on every
+  plan when `encryption_type = "AES256"` and `kms_key_id` is set. The key is
+  ignored for SSE-S3 and MinIO does not return it, so Read always stored an
+  empty value.
+- The `minio_s3_bucket_encryption` data source reports errors from reading
+  the bucket encryption (missing bucket, permissions, server error) instead of
+  returning an empty `encryption_type`, which read as "this bucket is not
+  encrypted". A bucket without default encryption still reads as empty. A key
+  without `s3:GetEncryptionConfiguration` now fails the read. With
+  `s3_compat_mode`, a backend that does not implement bucket encryption gives a
+  warning.
 - `minio_ilm_policy` reports errors from reading the lifecycle configuration
   (network, permissions, server error) instead of dropping the policy from
   state, which made the next plan write it again. It is still removed from

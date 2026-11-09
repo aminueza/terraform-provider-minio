@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/sse"
 )
 
@@ -46,6 +47,9 @@ func resourceMinioBucketServerSideEncryption() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "KMS key id to use for SSE-KMS encryption. Required when encryption_type is `aws:kms`, ignored for `AES256`.",
 				Optional:    true,
+				DiffSuppressFunc: func(_, _, _ string, d *schema.ResourceData) bool {
+					return d.Get("encryption_type").(string) == "AES256"
+				},
 			},
 		},
 	}
@@ -87,8 +91,12 @@ func minioReadBucketServerSideEncryption(ctx context.Context, d *schema.Resource
 		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket encryption configuration", err) {
 			return nil
 		}
-		d.SetId("")
-		return nil
+		if !d.IsNewResource() && (isBucketEncryptionNotFoundError(err) || isNoSuchBucketError(err)) {
+			tflog.Warn(ctx, fmt.Sprintf("S3 bucket %s has no encryption configuration, removing it from state", d.Id()))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("reading bucket encryption configuration", d.Id(), err)
 	}
 
 	if len(encryptionConfig.Rules) == 0 {
@@ -117,6 +125,10 @@ func minioDeleteBucketServerSideEncryption(ctx context.Context, d *schema.Resour
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, removing bucket encryption", bucketEncryptionConfig.MinioBucket))
 
 	err := bucketEncryptionConfig.MinioClient.RemoveBucketEncryption(ctx, bucketEncryptionConfig.MinioBucket)
+	if err != nil && (isBucketEncryptionNotFoundError(err) || isNoSuchBucketError(err)) {
+		d.SetId("")
+		return nil
+	}
 	if err != nil {
 		return NewResourceError("removing bucket encryption", bucketEncryptionConfig.MinioBucket, err)
 	}
@@ -124,6 +136,12 @@ func minioDeleteBucketServerSideEncryption(ctx context.Context, d *schema.Resour
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, bucket encryption removed", bucketEncryptionConfig.MinioBucket))
 
 	return nil
+}
+
+// isBucketEncryptionNotFoundError reports whether GetBucketEncryption or
+// RemoveBucketEncryption failed because the bucket has no default encryption.
+func isBucketEncryptionNotFoundError(err error) bool {
+	return minio.ToErrorResponse(err).Code == "ServerSideEncryptionConfigurationNotFoundError"
 }
 
 func getBucketServerSideEncryptionConfig(d *schema.ResourceData) *sse.Configuration {

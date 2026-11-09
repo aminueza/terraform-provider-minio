@@ -200,9 +200,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 				"encryption_type": "aws:kms",
 				"kms_key_id":      "compat-stub-key",
 			},
-			attributes:     []string{"encryption_type", "kms_key_id"},
-			wantRequest:    "?encryption=",
-			compatOffDrops: true,
+			attributes:  []string{"encryption_type", "kms_key_id"},
+			wantRequest: "?encryption=",
 		},
 		{
 			name:             "minio_s3_bucket_quota",

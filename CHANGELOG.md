@@ -29,6 +29,11 @@ History older than 3.39.0 lives in the
   without `s3:GetEncryptionConfiguration` now fails the read. With
   `s3_compat_mode`, a backend that does not implement bucket encryption gives a
   warning.
+- `minio_ilm_policy` reports errors from reading the lifecycle configuration
+  (network, permissions, server error) instead of dropping the policy from
+  state, which made the next plan write it again. It is still removed from
+  state when the lifecycle configuration or the bucket was deleted outside
+  Terraform, and destroying it no longer fails when the bucket is gone.
 
 ## [3.46.2] - 2026-11-07
 

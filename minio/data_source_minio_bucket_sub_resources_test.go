@@ -78,6 +78,7 @@ resource "minio_s3_bucket" "test" { bucket = "` + bucket + `" }
 data "minio_ilm_policy" "test" { bucket = minio_s3_bucket.test.bucket }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.minio_ilm_policy.test", "bucket", bucket),
+					resource.TestCheckResourceAttr("data.minio_ilm_policy.test", "rules.#", "0"),
 				),
 			},
 		},

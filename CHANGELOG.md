@@ -29,6 +29,13 @@ History older than 3.39.0 lives in the
   without `s3:GetEncryptionConfiguration` now fails the read. With
   `s3_compat_mode`, a backend that does not implement bucket encryption gives a
   warning.
+- The `minio_ilm_policy` data source reports errors from reading the lifecycle
+  configuration (missing bucket, permissions, server error) instead of
+  returning an empty `rules` list, which read as "this bucket has no lifecycle
+  rules". A bucket without lifecycle rules still reads as an empty list. A key
+  without `s3:GetLifecycleConfiguration` now fails the read. With
+  `s3_compat_mode`, a backend that does not implement bucket lifecycle gives a
+  warning.
 - `minio_ilm_policy` reports errors from reading the lifecycle configuration
   (network, permissions, server error) instead of dropping the policy from
   state, which made the next plan write it again. It is still removed from

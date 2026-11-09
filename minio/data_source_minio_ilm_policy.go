@@ -45,15 +45,26 @@ func dataSourceMinioILMPolicy() *schema.Resource {
 }
 
 func dataSourceMinioILMPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
 	d.SetId(bucket)
 
-	cfg, err := client.GetBucketLifecycle(ctx, bucket)
-	if err != nil {
-		_ = d.Set("rules", []interface{}{})
+	cfg, err := client.S3Client.GetBucketLifecycle(ctx, bucket)
+	switch {
+	case err == nil:
+	case isLifecycleNotFoundError(err):
+		if err := d.Set("rules", []interface{}{}); err != nil {
+			return NewResourceError("setting rules", bucket, err)
+		}
 		return nil
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		if err := d.Set("rules", []interface{}{}); err != nil {
+			return NewResourceError("setting rules", bucket, err)
+		}
+		return diag.Diagnostics{dataSourceS3CompatGap(bucket, "rules", "bucket lifecycle")}
+	default:
+		return NewResourceError("reading lifecycle", bucket, err)
 	}
 
 	var rules []map[string]interface{}
@@ -78,6 +89,8 @@ func dataSourceMinioILMPolicyRead(ctx context.Context, d *schema.ResourceData, m
 		rules = append(rules, rule)
 	}
 
-	_ = d.Set("rules", rules)
+	if err := d.Set("rules", rules); err != nil {
+		return NewResourceError("setting rules", bucket, err)
+	}
 	return nil
 }

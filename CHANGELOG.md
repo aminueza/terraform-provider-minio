@@ -22,6 +22,13 @@ History older than 3.39.0 lives in the
   plan when `encryption_type = "AES256"` and `kms_key_id` is set. The key is
   ignored for SSE-S3 and MinIO does not return it, so Read always stored an
   empty value.
+- The `minio_s3_bucket_encryption` data source reports errors from reading
+  the bucket encryption (missing bucket, permissions, server error) instead of
+  returning an empty `encryption_type`, which read as "this bucket is not
+  encrypted". A bucket without default encryption still reads as empty. A key
+  without `s3:GetEncryptionConfiguration` now fails the read. With
+  `s3_compat_mode`, a backend that does not implement bucket encryption gives a
+  warning.
 
 ## [3.46.2] - 2026-11-07
 

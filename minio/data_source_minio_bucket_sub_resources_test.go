@@ -39,6 +39,7 @@ resource "minio_s3_bucket" "test" { bucket = "` + bucket + `" }
 data "minio_s3_bucket_encryption" "test" { bucket = minio_s3_bucket.test.bucket }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("data.minio_s3_bucket_encryption.test", "bucket", bucket),
+					resource.TestCheckResourceAttr("data.minio_s3_bucket_encryption.test", "encryption_type", ""),
 				),
 			},
 		},

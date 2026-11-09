@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -92,5 +93,39 @@ func TestILMPolicyDeleteWhenBucketIsGone(t *testing.T) {
 				t.Fatalf("wantErr %v, got %v", tc.wantErr, diags)
 			}
 		})
+	}
+}
+
+func TestMinioUpdateILMPolicyReportsWriteErrors(t *testing.T) {
+	client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		switch r.Method {
+		case http.MethodHead:
+			w.WriteHeader(http.StatusOK)
+		case http.MethodGet:
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchLifecycleConfiguration</Code><Message>error</Message></Error>`)
+		default:
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>error</Message></Error>`)
+		}
+	})
+
+	d := schema.TestResourceDataRaw(t, resourceMinioILMPolicy().Schema, map[string]interface{}{
+		"bucket": "test-bucket",
+		"rule":   []interface{}{map[string]interface{}{"id": "expire", "status": "Enabled", "expiration": "30d"}},
+	})
+	d.SetId("test-bucket")
+
+	diags := minioUpdateILMPolicy(context.Background(), d, &S3MinioClient{S3Client: client})
+
+	if !diags.HasError() {
+		t.Fatal("expected the failed lifecycle write to be reported")
+	}
+	if !strings.Contains(diags[0].Summary, "setting lifecycle") {
+		t.Fatalf("expected the error from the lifecycle write, got %q", diags[0].Summary)
+	}
+	if d.Id() != "test-bucket" {
+		t.Fatalf("expected the policy to stay in state, id is %q", d.Id())
 	}
 }

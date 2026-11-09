@@ -34,6 +34,9 @@ History older than 3.39.0 lives in the
   state, which made the next plan write it again. It is still removed from
   state when the lifecycle configuration or the bucket was deleted outside
   Terraform, and destroying it no longer fails when the bucket is gone.
+- `minio_ilm_policy` reports errors from updating its rules, such as a denied
+  lifecycle write. Update ignored them, so the apply succeeded, and the next
+  plan showed the same change again or planned to create the policy.
 
 ## [3.46.2] - 2026-11-07
 

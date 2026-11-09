@@ -34,10 +34,6 @@ type s3CompatReadCase struct {
 	// pass s3Compat405IsAnAnswer, because 405 on an object GET or HEAD is an
 	// answer about the object rather than a missing feature.
 	methodNotAllowed string
-	// compatOffDrops records that the read already dropped the resource on a
-	// failed read before s3_compat_mode existed. The regression test pins that
-	// behaviour instead of asserting a uniform one.
-	compatOffDrops bool
 }
 
 // s3CompatReadCases covers every resource that consults s3_compat_mode. The
@@ -140,9 +136,8 @@ func s3CompatReadCases(bucket, key string) []s3CompatReadCase {
 					"expiration": "30d",
 				}},
 			},
-			attributes:     []string{"rule"},
-			wantRequest:    "?lifecycle=",
-			compatOffDrops: true,
+			attributes:  []string{"rule"},
+			wantRequest: "?lifecycle=",
 		},
 		{
 			name:     "minio_s3_bucket_policy",
@@ -508,18 +503,6 @@ func TestS3CompatOffLeavesReadsUnchanged(t *testing.T) {
 					if strings.Contains(message, "s3_compat_mode") {
 						t.Errorf("diagnostic %q mentions s3_compat_mode with the flag off", message)
 					}
-				}
-
-				if tc.compatOffDrops {
-					// Pinned pre-existing behaviour: this read swallowed every
-					// read error and removed the resource from state.
-					if diags.HasError() {
-						t.Errorf("read returned %v, want the pre-existing silent drop", s3CompatDiagMessages(diags))
-					}
-					if d.Id() != "" {
-						t.Errorf("resource %q is still in state, want it removed as it was before", d.Id())
-					}
-					return
 				}
 
 				if !diags.HasError() {

@@ -114,9 +114,10 @@ func resourceMinioObject() *schema.Resource {
 				Optional: true,
 			},
 			"expires": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.IsRFC3339Time,
+				Type:             schema.TypeString,
+				Optional:         true,
+				ValidateFunc:     validation.IsRFC3339Time,
+				DiffSuppressFunc: suppressTimeDiffs,
 			},
 			"storage_class": {
 				Type:     schema.TypeString,

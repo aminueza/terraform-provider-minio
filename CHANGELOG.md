@@ -38,6 +38,10 @@ History older than 3.39.0 lives in the
   no longer show a diff on every plan when the timestamp is written with an
   offset other than UTC (for example `2030-01-01T00:00:00-03:00`). MinIO
   returns both in UTC, so the values are now compared as instants.
+- `minio_iam_group_policy` reports errors from reading the canned policy
+  (network, permissions, server error) instead of dropping it from state, and
+  destroy reports them instead of succeeding without deleting the policy. It
+  is still removed from state when the policy was deleted outside Terraform.
 
 ## [3.46.2] - 2026-11-07
 

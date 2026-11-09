@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v4"
 )
 
 func resourceMinioIAMGroupPolicy() *schema.Resource {
@@ -95,10 +97,13 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Group Policy: %s", d.Id()))
 
 	info, err := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
-	if info == nil {
-		tflog.Warn(ctx, fmt.Sprintf("No IAM group policy by name (%s) found, removing from state: %s", d.Id(), err))
-		d.SetId("")
-		return nil
+	if err != nil {
+		if isNoSuchPolicyError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("No IAM group policy by name (%s) found, removing from state", d.Id()))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("unable to read group policy", d.Id(), err)
 	}
 
 	if err := d.Set("name", policyName); err != nil {
@@ -144,9 +149,11 @@ func minioDeleteGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	info, _ := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName)
-	if info == nil {
-		return nil
+	if _, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName); err != nil {
+		if isNoSuchPolicyError(err) {
+			return nil
+		}
+		return NewResourceError("unable to read group policy before deleting it", d.Id(), err)
 	}
 
 	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, policyName)
@@ -167,4 +174,11 @@ func resourceMinioIamGroupPolicyParseID(id string) (groupName, policyName string
 	groupName = parts[0]
 	policyName = parts[1]
 	return
+}
+
+// isNoSuchPolicyError reports whether a madmin call failed because the canned
+// policy does not exist.
+func isNoSuchPolicyError(err error) bool {
+	var errResp madmin.ErrorResponse
+	return errors.As(err, &errResp) && errResp.Code == "XMinioAdminNoSuchPolicy"
 }

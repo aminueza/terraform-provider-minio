@@ -48,10 +48,11 @@ func resourceMinioObjectRetention() *schema.Resource {
 				Description:  "Retention mode: GOVERNANCE or COMPLIANCE.",
 			},
 			"retain_until_date": {
-				Type:         schema.TypeString,
-				Required:     true,
-				Description:  "Date until which the object is retained (RFC3339 format).",
-				ValidateFunc: validation.IsRFC3339Time,
+				Type:             schema.TypeString,
+				Required:         true,
+				Description:      "Date until which the object is retained (RFC3339 format).",
+				ValidateFunc:     validation.IsRFC3339Time,
+				DiffSuppressFunc: suppressTimeDiffs,
 			},
 			"governance_bypass": {
 				Type:        schema.TypeBool,

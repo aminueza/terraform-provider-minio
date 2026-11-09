@@ -34,6 +34,14 @@ History older than 3.39.0 lives in the
   state, which made the next plan write it again. It is still removed from
   state when the lifecycle configuration or the bucket was deleted outside
   Terraform, and destroying it no longer fails when the bucket is gone.
+- `minio_s3_object_retention.retain_until_date` and `minio_s3_object.expires`
+  no longer show a diff on every plan when the timestamp is written with an
+  offset other than UTC (for example `2030-01-01T00:00:00-03:00`). MinIO
+  returns both in UTC, so the values are now compared as instants.
+- `minio_iam_group_policy` reports errors from reading the canned policy
+  (network, permissions, server error) instead of dropping it from state, and
+  destroy reports them instead of succeeding without deleting the policy. It
+  is still removed from state when the policy was deleted outside Terraform.
 - `minio_ilm_policy` reports errors from updating its rules, such as a denied
   lifecycle write. Update ignored them, so the apply succeeded, and the next
   plan showed the same change again or planned to create the policy.

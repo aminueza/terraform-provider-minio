@@ -2,13 +2,10 @@ package minio
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"strings"
-
-	"github.com/minio/madmin-go/v4"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
@@ -89,14 +86,10 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 
 	info, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, d.Id())
 	if err != nil {
-		errResp := madmin.ErrorResponse{}
-		if errors.As(err, &errResp) {
-			if errResp.Code == "XMinioAdminNoSuchPolicy" {
-				tflog.Debug(ctx, fmt.Sprintf("IAM Policy does not exist: [%s]", d.Id()))
-				d.SetId("")
-				return nil
-			}
-			return NewResourceError("unable to read policy", d.Id(), err)
+		if isNoSuchPolicyError(err) {
+			tflog.Debug(ctx, fmt.Sprintf("IAM Policy does not exist: [%s]", d.Id()))
+			d.SetId("")
+			return nil
 		}
 		return NewResourceError("unable to read policy", d.Id(), err)
 	}

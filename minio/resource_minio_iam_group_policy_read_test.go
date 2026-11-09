@@ -109,3 +109,37 @@ func TestIAMGroupPolicyReadAfterCreateReportsMissingPolicy(t *testing.T) {
 		t.Fatal("expected an error when the policy is missing right after create")
 	}
 }
+
+func TestIAMPolicyReadErrors(t *testing.T) {
+	const policyBody = `{"PolicyName":"test-policy","Policy":{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::bucket/*"]}]}}`
+
+	cases := []struct {
+		name    string
+		status  int
+		body    string
+		wantErr bool
+		gone    bool
+	}{
+		{name: "policy exists", status: http.StatusOK, body: policyBody},
+		{name: "policy deleted", status: http.StatusNotFound, body: `{"Code":"XMinioAdminNoSuchPolicy","Message":"The canned policy does not exist"}`, gone: true},
+		{name: "access denied", status: http.StatusForbidden, body: `{"Code":"AccessDenied","Message":"Access Denied."}`, wantErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			removed := false
+			client := groupPolicyAdminStub(t, tc.status, tc.body, &removed)
+
+			d := resourceMinioIAMPolicy().TestResourceData()
+			d.SetId("test-policy")
+
+			diags := minioReadPolicy(context.Background(), d, &S3MinioClient{S3Admin: client})
+			if diags.HasError() != tc.wantErr {
+				t.Fatalf("wantErr %v, got %v", tc.wantErr, diags)
+			}
+			if gone := d.Id() == ""; gone != tc.gone {
+				t.Fatalf("wantGone %v, id is %q", tc.gone, d.Id())
+			}
+		})
+	}
+}

@@ -3,7 +3,6 @@
   "_comment": "Per-backend acceptance-test support record (issue #1174). A test runs unless some matching resource is 'unsupported' for the backend; 'unsupported' entries are skipped. 'env-gated' tests self-skip when the variable is unset, exactly as in the MinIO job. Resources with no entry run: an unexpected failure fails the job.",
   "backends": {
     "garage": {
-      "image": "dxflrs/garage:v2.4.1",
       "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
       "support": {
         "minio_s3_bucket": {

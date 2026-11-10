@@ -705,7 +705,7 @@ func flattenILMRule(r lifecycle.Rule, stateAbortByID map[string][]map[string]int
 
 func minioUpdateILMPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if d.HasChange("rule") {
-		minioCreateILMPolicy(ctx, d, meta)
+		return minioCreateILMPolicy(ctx, d, meta)
 	}
 
 	return minioReadILMPolicy(ctx, d, meta)

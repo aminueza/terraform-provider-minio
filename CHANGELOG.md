@@ -42,6 +42,9 @@ History older than 3.39.0 lives in the
   (network, permissions, server error) instead of dropping it from state, and
   destroy reports them instead of succeeding without deleting the policy. It
   is still removed from state when the policy was deleted outside Terraform.
+- `minio_ilm_policy` reports errors from updating its rules, such as a denied
+  lifecycle write. Update ignored them, so the apply succeeded, and the next
+  plan showed the same change again or planned to create the policy.
 
 ## [3.46.2] - 2026-11-07
 

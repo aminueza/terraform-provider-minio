@@ -10,6 +10,16 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- The `minio_ilm_policy` data source reports errors from reading the bucket
+  lifecycle (missing bucket, permissions, server error) instead of returning an
+  empty `rules` list, which read as "this bucket has no lifecycle rules". A
+  bucket without lifecycle rules still reads as empty. A key without
+  `s3:GetLifecycleConfiguration` now fails the read. With `s3_compat_mode`, a
+  backend that does not implement bucket lifecycle gives a warning.
+  ([#1282](https://github.com/aminueza/terraform-provider-minio/issues/1282)).
+
 ## [3.46.3] - 2026-11-10
 
 ### Fixed

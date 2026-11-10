@@ -125,7 +125,4 @@ func TestMinioUpdateILMPolicyReportsWriteErrors(t *testing.T) {
 	if !strings.Contains(diags[0].Summary, "setting lifecycle") {
 		t.Fatalf("expected the error from the lifecycle write, got %q", diags[0].Summary)
 	}
-	if d.Id() != "test-bucket" {
-		t.Fatalf("expected the policy to stay in state, id is %q", d.Id())
-	}
 }

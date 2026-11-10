@@ -21,6 +21,10 @@
       "pattern": "^mailto:"
     },
     {
+      "comment": "Links to this repository's own issues and pull requests, mostly in CHANGELOG.md. The checker makes one request per number and github.com answers some of them with status 0 or 502 from CI runners, so a pull request fails on links it did not touch. The numbers are written by maintainers and already exist",
+      "pattern": "^https://github\\.com/aminueza/terraform-provider-minio/(issues|pull)/[0-9]+"
+    },
+    {
       "comment": "The Codecov app is a JavaScript page that does not answer the checker from CI runners (status 0), so the badge link in the README fails every pull request whatever it changes",
       "pattern": "^https://app\\.codecov\\.io/"
     }

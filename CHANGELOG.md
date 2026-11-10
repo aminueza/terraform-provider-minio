@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.46.3] - 2026-11-10
+
 ### Fixed
 
 - `minio_s3_bucket_server_side_encryption` reports errors from reading the
@@ -483,7 +485,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.2...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.3...HEAD
+[3.46.3]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.2...v3.46.3
 [3.46.2]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.1...v3.46.2
 [3.46.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.0...v3.46.1
 [3.46.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.45.1...v3.46.0

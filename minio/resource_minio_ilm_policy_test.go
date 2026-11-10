@@ -82,6 +82,65 @@ func TestAccILMPolicy_abortOnlyNoExpiration(t *testing.T) {
 	})
 }
 
+func testAccMinioILMPolicyConfigAbortOnlyWithExpiration(randInt string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+    bucket = "%s"
+    acl    = "public"
+}
+
+resource "minio_ilm_policy" "abort_only" {
+    bucket = minio_s3_bucket.bucket.bucket
+    rule {
+        id         = "abort-only-rule"
+        expiration = "30d"
+    }
+}
+`, randInt)
+}
+
+func TestAccILMPolicy_expirationToAbortOnly(t *testing.T) {
+	var lifecycleConfig lifecycle.Configuration
+	name := fmt.Sprintf("test-ilm-to-abort-only-%d", acctest.RandInt())
+	resourceName := "minio_ilm_policy.abort_only"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioILMPolicyConfigAbortOnlyWithExpiration(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyExists(resourceName, &lifecycleConfig),
+					testAccCheckMinioLifecycleConfigurationValid(&lifecycleConfig),
+				),
+			},
+			{
+				Config: testAccMinioILMPolicyConfigAbortOnly(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioILMPolicyBucketHasNoLifecycle(name),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.abort_incomplete_multipart_upload.0.days_after_initiation", "7d"),
+					resource.TestCheckResourceAttr(resourceName, "rule.0.expiration", ""),
+				),
+			},
+		},
+	})
+}
+
+func testAccCheckMinioILMPolicyBucketHasNoLifecycle(bucket string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		_, err := testAccClient().S3Client.GetBucketLifecycle(context.Background(), bucket)
+		if err == nil {
+			return fmt.Errorf("bucket %s still has a lifecycle configuration", bucket)
+		}
+		if !isLifecycleNotFoundError(err) {
+			return fmt.Errorf("reading lifecycle of bucket %s: %w", bucket, err)
+		}
+		return nil
+	}
+}
+
 func TestAccILMPolicy_deleteMarkerDays(t *testing.T) {
 	var lifecycleConfig lifecycle.Configuration
 	name := fmt.Sprintf("test-ilm-rule2-%d", acctest.RandInt())

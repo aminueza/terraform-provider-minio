@@ -380,6 +380,11 @@ func minioCreateILMPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if len(config.Rules) == 0 {
+		if oldConfig != nil && len(oldConfig.Rules) > 0 {
+			if err := c.SetBucketLifecycle(ctx, bucket, lifecycle.NewConfiguration()); err != nil {
+				return NewResourceError("removing lifecycle", bucket, s3CompatWriteError(client, "ILM policy", err))
+			}
+		}
 		d.SetId(bucket)
 		return minioReadILMPolicy(ctx, d, meta)
 	}

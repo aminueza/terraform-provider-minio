@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_ilm_policy` removes the bucket's lifecycle configuration when an
+  update leaves only abort-only rules (`abort_incomplete_multipart_upload`
+  without another action). The old rules, for example an `expiration`, stayed
+  on the bucket and every plan showed the same change again
+  ([#1286](https://github.com/aminueza/terraform-provider-minio/issues/1286)).
+
 ## [3.46.3] - 2026-11-10
 
 ### Fixed

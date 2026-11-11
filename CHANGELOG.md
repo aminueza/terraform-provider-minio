@@ -12,11 +12,27 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- The `minio_ilm_policy` data source reports errors from reading the bucket
+  lifecycle (missing bucket, permissions, server error) instead of returning an
+  empty `rules` list, which read as "this bucket has no lifecycle rules". A
+  bucket without lifecycle rules still reads as empty. A key without
+  `s3:GetLifecycleConfiguration` now fails the read. With `s3_compat_mode`, a
+  backend that does not implement bucket lifecycle gives a warning.
+  ([#1282](https://github.com/aminueza/terraform-provider-minio/issues/1282)).
 - `minio_ilm_policy` removes the bucket's lifecycle configuration when an
   update leaves only abort-only rules (`abort_incomplete_multipart_upload`
   without another action). The old rules, for example an `expiration`, stayed
   on the bucket and every plan showed the same change again
   ([#1286](https://github.com/aminueza/terraform-provider-minio/issues/1286)).
+
+### Security
+
+- Bumped the Go toolchain from go1.26.10 to go1.26.11, which fixes
+  [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859): an HTTP/1 server
+  using `MaxBytesReader` could crash on a header race in `net/http`. The
+  provider only makes HTTP client calls, so it was not exposed, but release
+  binaries are built with this toolchain and the security scan blocks every
+  pull request until it moves.
 
 ## [3.46.3] - 2026-11-10
 

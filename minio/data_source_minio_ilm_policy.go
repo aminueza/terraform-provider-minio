@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7/pkg/lifecycle"
 )
 
 func dataSourceMinioILMPolicy() *schema.Resource {
@@ -45,19 +46,35 @@ func dataSourceMinioILMPolicy() *schema.Resource {
 }
 
 func dataSourceMinioILMPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
 	d.SetId(bucket)
 
-	cfg, err := client.GetBucketLifecycle(ctx, bucket)
-	if err != nil {
-		_ = d.Set("rules", []interface{}{})
-		return nil
+	var diags diag.Diagnostics
+	rules := []map[string]interface{}{}
+
+	cfg, err := client.S3Client.GetBucketLifecycle(ctx, bucket)
+	switch {
+	case err == nil:
+		rules = flattenILMDataSourceRules(cfg.Rules)
+	case isLifecycleNotFoundError(err):
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "rules", "bucket lifecycle"))
+	default:
+		return NewResourceError("reading bucket lifecycle", bucket, err)
 	}
 
-	var rules []map[string]interface{}
-	for _, r := range cfg.Rules {
+	if err := d.Set("rules", rules); err != nil {
+		return NewResourceError("setting rules", bucket, err)
+	}
+
+	return diags
+}
+
+func flattenILMDataSourceRules(lifecycleRules []lifecycle.Rule) []map[string]interface{} {
+	rules := make([]map[string]interface{}, 0, len(lifecycleRules))
+	for _, r := range lifecycleRules {
 		rule := map[string]interface{}{
 			"id":     r.ID,
 			"status": r.Status,
@@ -77,7 +94,5 @@ func dataSourceMinioILMPolicyRead(ctx context.Context, d *schema.ResourceData, m
 
 		rules = append(rules, rule)
 	}
-
-	_ = d.Set("rules", rules)
-	return nil
+	return rules
 }

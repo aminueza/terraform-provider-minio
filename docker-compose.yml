@@ -169,7 +169,7 @@ services:
       retries: 6
       start_period: 10s
   test:
-    image: golang:1.26.10
+    image: golang:1.26.11
     volumes:
       - .:/app
       - go-modules:/go/pkg/mod

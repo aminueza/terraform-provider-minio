@@ -10,6 +10,15 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Security
+
+- Bumped the Go toolchain from go1.26.10 to go1.26.11, which fixes
+  [GO-2026-6859](https://pkg.go.dev/vuln/GO-2026-6859): an HTTP/1 server
+  using `MaxBytesReader` could crash on a header race in `net/http`. The
+  provider only makes HTTP client calls, so it was not exposed, but release
+  binaries are built with this toolchain and the security scan blocks every
+  pull request until it moves.
+
 ## [3.46.3] - 2026-11-10
 
 ### Fixed

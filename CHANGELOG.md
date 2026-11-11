@@ -19,6 +19,11 @@ History older than 3.39.0 lives in the
   `s3:GetLifecycleConfiguration` now fails the read. With `s3_compat_mode`, a
   backend that does not implement bucket lifecycle gives a warning.
   ([#1282](https://github.com/aminueza/terraform-provider-minio/issues/1282)).
+- `minio_ilm_policy` removes the bucket's lifecycle configuration when an
+  update leaves only abort-only rules (`abort_incomplete_multipart_upload`
+  without another action). The old rules, for example an `expiration`, stayed
+  on the bucket and every plan showed the same change again
+  ([#1286](https://github.com/aminueza/terraform-provider-minio/issues/1286)).
 
 ### Security
 

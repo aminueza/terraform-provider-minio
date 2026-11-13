@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- Config values that MinIO prints in double quotes because they contain a
+  space, such as `comment = "primary webhook"`, are read back whole. The
+  `minio_notify_*`, `minio_audit_webhook`, `minio_iam_idp_ldap` and
+  `minio_server_config_*` resources stored only `"primary` and showed the
+  same change on every plan.
 - The `minio_ilm_policy` data source reports errors from reading the bucket
   lifecycle (missing bucket, permissions, server error) instead of returning an
   empty `rules` list, which read as "this bucket has no lifecycle rules". A

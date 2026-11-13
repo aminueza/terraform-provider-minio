@@ -260,19 +260,36 @@ func minioDeleteConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	return nil
 }
 
-// parseConfigParams parses a space-separated key=value string into a map
+// parseConfigParams parses a space-separated key=value string into a map.
+// MinIO prints a value that contains whitespace in double quotes, for example
+// `comment="primary webhook"`, so a quoted value is read up to its closing
+// quote.
 func parseConfigParams(configStr string) map[string]string {
 	params := make(map[string]string)
-	if configStr == "" {
-		return params
-	}
+	text := strings.TrimSpace(configStr)
 
-	pairs := strings.Fields(configStr)
-	for _, pair := range pairs {
-		parts := strings.SplitN(pair, "=", 2)
-		if len(parts) == 2 {
-			params[parts[0]] = parts[1]
+	for text != "" {
+		key, rest, found := strings.Cut(text, "=")
+		if !found {
+			break
 		}
+		if i := strings.LastIndexAny(key, " \t\n"); i >= 0 {
+			key = key[i+1:]
+		}
+
+		var value string
+		if strings.HasPrefix(rest, `"`) {
+			value, rest, _ = strings.Cut(rest[1:], `"`)
+		} else if i := strings.IndexAny(rest, " \t\n"); i >= 0 {
+			value, rest = rest[:i], rest[i:]
+		} else {
+			value, rest = rest, ""
+		}
+
+		if key != "" {
+			params[key] = value
+		}
+		text = strings.TrimSpace(rest)
 	}
 
 	return params

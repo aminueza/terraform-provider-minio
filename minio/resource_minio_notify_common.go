@@ -228,17 +228,30 @@ func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
 			_ = d.Set("queue_limit", n)
 		}
 	}
-	if v, ok := cfgMap["queue_dir"]; ok && v != "" {
+	if v, ok := cfgMap["queue_dir"]; ok {
 		_ = d.Set("queue_dir", v)
 	}
-	if v, ok := cfgMap["comment"]; ok && v != "" {
+	if v, ok := cfgMap["comment"]; ok {
 		_ = d.Set("comment", v)
 	}
 }
 
+// notifyBuildCfgClearableParam adds key=value like notifyBuildCfgAddParam, and
+// sends an empty key= when the value was removed from the configuration.
+// MinIO merges set-config-kv into the target's current settings, so a key
+// that is left out keeps its old value.
+func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key string) {
+	val := getOptionalField(d, key, "").(string)
+	if val == "" && d.HasChange(key) {
+		*parts = append(*parts, key+"=")
+		return
+	}
+	notifyBuildCfgAddParam(parts, key, val)
+}
+
 func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interface{}) {
-	notifyBuildCfgAddParam(parts, "queue_dir", getOptionalField(d, "queue_dir", "").(string))
-	notifyBuildCfgAddParam(parts, "comment", getOptionalField(d, "comment", "").(string))
+	notifyBuildCfgClearableParam(parts, d, "queue_dir")
+	notifyBuildCfgClearableParam(parts, d, "comment")
 	notifyBuildCfgAddInt(parts, "queue_limit", getOptionalField(d, "queue_limit", 0).(int))
 	notifyBuildCfgAddBool(parts, "enable", getOptionalField(d, "enable", true).(bool))
 }

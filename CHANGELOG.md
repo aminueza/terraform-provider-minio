@@ -12,6 +12,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- Removing `comment` or `queue_dir` from a `minio_notify_*` resource clears it
+  on the server. MinIO merges a config update into the target's current
+  settings, so the old value stayed and every plan showed the removal again.
+  Read also picks up a comment or queue directory cleared outside Terraform.
 - The `minio_ilm_policy` data source reports errors from reading the bucket
   lifecycle (missing bucket, permissions, server error) instead of returning an
   empty `rules` list, which read as "this bucket has no lifecycle rules". A

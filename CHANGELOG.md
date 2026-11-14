@@ -12,6 +12,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_object_lock_configuration` clears `rule` from the state when
+  the bucket's default retention was removed outside Terraform. The old rule
+  stayed in the state, so the plan showed no change and the retention was never
+  put back.
 - The `minio_ilm_policy` data source reports errors from reading the bucket
   lifecycle (missing bucket, permissions, server error) instead of returning an
   empty `rules` list, which read as "this bucket has no lifecycle rules". A

@@ -167,6 +167,8 @@ func minioReadObjectLockConfiguration(ctx context.Context, d *schema.ResourceDat
 		if err := d.Set("rule", rule); err != nil {
 			return NewResourceError("setting rule", bucket, err)
 		}
+	} else if err := d.Set("rule", nil); err != nil {
+		return NewResourceError("setting rule", bucket, err)
 	}
 
 	return nil

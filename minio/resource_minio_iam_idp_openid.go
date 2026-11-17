@@ -344,11 +344,7 @@ func buildIdpOpenIdCfgData(config *S3MinioIdpOpenId) string {
 
 	addParam := func(key, val string) {
 		if val != "" {
-			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
-			} else {
-				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
-			}
+			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
 

@@ -223,11 +223,7 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 
 	addStr := func(key, val string) {
 		if val != "" {
-			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
-			} else {
-				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
-			}
+			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
 	addBool := func(key string, val bool) {

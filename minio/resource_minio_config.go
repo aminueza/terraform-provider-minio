@@ -295,6 +295,18 @@ func parseConfigParams(configStr string) map[string]string {
 	return params
 }
 
+// buildConfigParam renders one config key=value pair the way MinIO's config
+// format parses it. A value with whitespace is wrapped in plain double quotes
+// with no escaping: the server reads a quoted value up to the next '"' and
+// never unescapes, so Go's %q escaping stored doubled backslashes and made
+// values containing '"' never converge (issue #1300).
+func buildConfigParam(key, val string) string {
+	if strings.ContainsAny(val, " \t") {
+		return fmt.Sprintf(`%s="%s"`, key, val)
+	}
+	return key + "=" + val
+}
+
 func validateConfigKey(val interface{}, key string) (warns []string, errs []error) {
 	v := val.(string)
 	if v == "" {

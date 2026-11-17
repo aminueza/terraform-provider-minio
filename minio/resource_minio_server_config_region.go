@@ -48,11 +48,7 @@ func minioServerConfigRegionSet(ctx context.Context, d *schema.ResourceData, met
 	parts = append(parts, fmt.Sprintf("name=%s", d.Get("name").(string)))
 	if v, ok := d.GetOk("comment"); ok && v.(string) != "" {
 		val := v.(string)
-		if strings.ContainsAny(val, " \t") {
-			parts = append(parts, fmt.Sprintf("comment=%q", val))
-		} else {
-			parts = append(parts, fmt.Sprintf("comment=%s", val))
-		}
+		parts = append(parts, buildConfigParam("comment", val))
 	}
 
 	configString := "region " + strings.Join(parts, " ")

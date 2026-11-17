@@ -146,14 +146,11 @@ func handleNotifyReadError(ctx context.Context, err error, subsystem, name strin
 	return NewResourceError(fmt.Sprintf("reading %s target", subsystem), name, err)
 }
 
-// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with spaces.
+// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with
+// whitespace the way buildConfigParam does (no escaping, issue #1300).
 func notifyBuildCfgAddParam(parts *[]string, key, val string) {
 	if val != "" {
-		if strings.ContainsAny(val, " \t") {
-			*parts = append(*parts, fmt.Sprintf("%s=%q", key, val))
-		} else {
-			*parts = append(*parts, fmt.Sprintf("%s=%s", key, val))
-		}
+		*parts = append(*parts, buildConfigParam(key, val))
 	}
 }
 

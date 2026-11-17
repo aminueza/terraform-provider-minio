@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.46.4] - 2026-11-17
+
 ### Fixed
 
 - Config values that MinIO prints in double quotes because they contain a
@@ -522,7 +524,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.3...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.4...HEAD
+[3.46.4]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.3...v3.46.4
 [3.46.3]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.2...v3.46.3
 [3.46.2]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.1...v3.46.2
 [3.46.1]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.0...v3.46.1

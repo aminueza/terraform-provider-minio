@@ -216,6 +216,15 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	for k, v := range specific {
 		result[k] = v
 	}
+	// Every string field of a notification target is written as a MinIO
+	// config KV value, so each must be representable; this covers all
+	// notify-family resources, including the common comment and queue_dir.
+	for k, v := range result {
+		if v.Type != schema.TypeString || k == "name" || v.ValidateFunc != nil || v.ValidateDiagFunc != nil {
+			continue
+		}
+		v.ValidateFunc = validateConfigValue
+	}
 	return result
 }
 

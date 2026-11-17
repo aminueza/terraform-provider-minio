@@ -27,10 +27,11 @@ func resourceMinioServerConfigRegion() *schema.Resource {
 				Description: "Region or site name (e.g., \"us-east-1\", \"dc1-rack2\").",
 			},
 			"comment": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				Description: "Region description.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Region description.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,

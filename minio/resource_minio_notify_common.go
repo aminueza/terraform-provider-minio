@@ -72,7 +72,16 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		_ = d.Set("name", name)
 
-		if d.Get("restart_required").(bool) && len(cfgMap) > 0 {
+		if len(cfgMap) == 0 {
+			// The response carried no keys for this target: env-override
+			// comment lines only, or a line the matcher did not find. Nothing
+			// can be compared, so keep the state values instead of letting the
+			// read store defaults for keys the response never had.
+			tflog.Warn(ctx, "Notification target response carried no keys, keeping state values", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+			return nil
+		}
+
+		if d.Get("restart_required").(bool) && nrc.buildCfg != nil {
 			if !notifyRunningConfigMatchesState(nrc, cfgMap, d, meta) {
 				tflog.Warn(ctx, "Notification target still shows the pre-restart config, keeping configured values in state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 				return nil

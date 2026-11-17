@@ -20,7 +20,8 @@ History older than 3.39.0 lives in the
   values. A target with `enable = false` is also written as `enable=off`; it
   used to be written enabled, so state and server never agreed after a
   restart. Such existing targets show one `enable` diff and get corrected on
-  the next apply.
+  the next apply. The `minio_notify_*` data sources now report `enable` too,
+  instead of leaving it empty.
 
 ## [3.46.4] - 2026-11-17
 

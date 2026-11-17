@@ -22,6 +22,7 @@ import (
 // get-config-kv keeps serving the running config until restart() is called.
 // Like Config.SetKVS it fills the subsystem defaults for keys never sent, and
 // like SubsysInfo.WriteTo the served line omits empty values and enable=on.
+// Unlike the real server it does not omit secret keys, and no test sets one.
 // See issue #1299.
 type notifyStaleConfigStub struct {
 	mu        sync.Mutex
@@ -335,5 +336,180 @@ func TestNotifyKafkaRestartClearsDespiteSeededDefaults(t *testing.T) {
 	}
 	if got := state.Attributes["enable"]; got != "false" {
 		t.Errorf("enable after restart = %q, want %q", got, "false")
+	}
+}
+
+// TestNotifyUpdateKeepsRemovedCommentUntilRestart covers the removal case of
+// issue #1299: while the restart that applies a removed comment is pending,
+// the server still shows the old value and must not put it back into state.
+func TestNotifyUpdateKeepsRemovedCommentUntilRestart(t *testing.T) {
+	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	apply := func(state *terraform.InstanceState, raw map[string]interface{}) *terraform.InstanceState {
+		t.Helper()
+		diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+		if err != nil {
+			t.Fatalf("diff: %v", err)
+		}
+		newState, diags := res.Apply(ctx, state, diff, meta)
+		if diags.HasError() {
+			t.Fatalf("apply: %v", diags)
+		}
+		return newState
+	}
+
+	state := apply(nil, map[string]interface{}{
+		"name":     "primary",
+		"endpoint": "http://hook:8080",
+		"comment":  "primary",
+	})
+	stub.restart()
+
+	raw := map[string]interface{}{
+		"name":     "primary",
+		"endpoint": "http://hook:8080",
+	}
+	state = apply(state, raw)
+	if got := state.Attributes["comment"]; got != "" {
+		t.Fatalf("comment after removing it = %q, want empty", got)
+	}
+	if got := state.Attributes["restart_required"]; got != "true" {
+		t.Fatalf("restart_required after removing comment = %q, want %q", got, "true")
+	}
+
+	state, diags := res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh before restart: %v", diags)
+	}
+	if got := state.Attributes["comment"]; got != "" {
+		t.Errorf("comment after refresh before restart = %q, want empty (the server still shows the pre-restart value)", got)
+	}
+	diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff after refresh: %v", err)
+	}
+	if diff != nil && len(diff.Attributes) > 0 {
+		t.Errorf("plan after refresh before restart is not empty: %v", diff.Attributes)
+	}
+
+	stub.restart()
+
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh after restart: %v", diags)
+	}
+	if got := state.Attributes["restart_required"]; got != "false" {
+		t.Errorf("restart_required after restart = %q, want %q", got, "false")
+	}
+}
+
+// TestNotifyEnableFlipKeepsPlannedValuesUntilRestart covers the upgrade path:
+// a target the older provider wrote as enabled while the config disables it.
+// The server prints enable only when off, so an enabled target shows no enable
+// key and the gate must read that as still-on while the fix is pending.
+func TestNotifyEnableFlipKeepsPlannedValuesUntilRestart(t *testing.T) {
+	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	apply := func(state *terraform.InstanceState, raw map[string]interface{}) *terraform.InstanceState {
+		t.Helper()
+		diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+		if err != nil {
+			t.Fatalf("diff: %v", err)
+		}
+		newState, diags := res.Apply(ctx, state, diff, meta)
+		if diags.HasError() {
+			t.Fatalf("apply: %v", diags)
+		}
+		return newState
+	}
+
+	rawOn := map[string]interface{}{
+		"name":     "primary",
+		"endpoint": "http://hook:8080",
+	}
+	state := apply(nil, rawOn)
+	stub.restart()
+
+	state, diags := res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh after create restart: %v", diags)
+	}
+	if got := state.Attributes["enable"]; got != "true" {
+		t.Fatalf("enable after restart with no enable key on the server = %q, want %q (missing means on)", got, "true")
+	}
+	if got := state.Attributes["restart_required"]; got != "false" {
+		t.Fatalf("restart_required after restart = %q, want %q", got, "false")
+	}
+
+	rawOff := map[string]interface{}{
+		"name":     "primary",
+		"endpoint": "http://hook:8080",
+		"enable":   false,
+	}
+	state = apply(state, rawOff)
+	if got := state.Attributes["enable"]; got != "false" {
+		t.Fatalf("enable after disabling = %q, want %q", got, "false")
+	}
+
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh before second restart: %v", diags)
+	}
+	if got := state.Attributes["enable"]; got != "false" {
+		t.Errorf("enable after refresh before restart = %q, want %q (the server shows no enable key while still on)", got, "false")
+	}
+	if got := state.Attributes["restart_required"]; got != "true" {
+		t.Errorf("restart_required before second restart = %q, want %q", got, "true")
+	}
+
+	stub.restart()
+
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh after second restart: %v", diags)
+	}
+	if got := state.Attributes["enable"]; got != "false" {
+		t.Errorf("enable after second restart = %q, want %q", got, "false")
+	}
+	if got := state.Attributes["restart_required"]; got != "false" {
+		t.Errorf("restart_required after second restart = %q, want %q", got, "false")
+	}
+}
+
+// TestNotifyReadKeepsStateOnEmptyResponse covers a response that carries no
+// keys for the target: the read must keep the state values, not store schema
+// defaults for keys the response never had.
+func TestNotifyReadKeepsStateOnEmptyResponse(t *testing.T) {
+	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	d := res.TestResourceData()
+	d.SetId("primary")
+	_ = d.Set("name", "primary")
+	_ = d.Set("endpoint", "http://hook:8080")
+	_ = d.Set("comment", "primary")
+	_ = d.Set("enable", false)
+
+	stub.mu.Lock()
+	stub.running = map[string]string{}
+	stub.visible = true
+	stub.mu.Unlock()
+
+	if diags := res.ReadContext(ctx, d, meta); diags.HasError() {
+		t.Fatalf("read: %v", diags)
+	}
+	if got := d.Get("comment").(string); got != "primary" {
+		t.Errorf("comment after empty response = %q, want %q", got, "primary")
+	}
+	if got := d.Get("enable").(bool); got {
+		t.Errorf("enable after empty response = %v, want false (an empty response must not flip enable to on)", got)
 	}
 }

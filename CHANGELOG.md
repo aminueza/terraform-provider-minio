@@ -15,14 +15,16 @@ History older than 3.39.0 lives in the
 - Config values containing backslashes, for example a Windows path like
   `C:\path to\dir`, are stored as written instead of with doubled
   backslashes, so the plan stops showing the same change over and over.
-  Values containing a double quote together with whitespace are rejected
-  at plan time with a clear error instead of never converging. That
-  rejection also applies when the field is a secret that MinIO never
-  returns (auth_token, client_secret, lookup_bind_password, client_key),
-  where the old config applied cleanly but kept a mangled value on the
-  server. Affected resources are `minio_notify_*`, `minio_logger_webhook`,
-  `minio_audit_kafka`, `minio_audit_webhook`, `minio_iam_idp_ldap`,
-  `minio_iam_idp_openid` and `minio_server_config_region`
+  Values MinIO cannot represent, one starting with a double quote,
+  containing a double quote together with whitespace, or containing a
+  line break, are rejected at plan time with a clear error instead of
+  never converging. That rejection also applies when the field is a
+  secret that MinIO never returns (auth_token, client_secret,
+  lookup_bind_password, client_key), where the old config applied
+  cleanly but kept a mangled value on the server. Affected resources
+  are `minio_notify_*`, `minio_logger_webhook`, `minio_audit_kafka`,
+  `minio_audit_webhook`, `minio_iam_idp_ldap`, `minio_iam_idp_openid`,
+  `minio_server_config_region` and `minio_server_config_etcd`
   ([#1300](https://github.com/aminueza/terraform-provider-minio/issues/1300)).
 
 ## [3.46.4] - 2026-11-17

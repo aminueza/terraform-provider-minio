@@ -18,7 +18,9 @@ History older than 3.39.0 lives in the
   that followed a successful apply showed the same change again.
   `restart_required` now clears on its own once the server reports the new
   values. A target with `enable = false` is also written as `enable=off`; it
-  used to be written enabled, so state and server never agreed after a restart.
+  used to be written enabled, so state and server never agreed after a
+  restart. Such existing targets show one `enable` diff and get corrected on
+  the next apply.
 
 ## [3.46.4] - 2026-11-17
 

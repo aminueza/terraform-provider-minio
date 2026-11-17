@@ -20,12 +20,15 @@ import (
 // notifyStaleConfigStub models a MinIO server that has a pending restart: every
 // set-config-kv lands in pending and answers with "restart required", while
 // get-config-kv keeps serving the running config until restart() is called.
+// Like Config.SetKVS it fills the subsystem defaults for keys never sent, and
+// like SubsysInfo.WriteTo the served line omits empty values and enable=on.
 // See issue #1299.
 type notifyStaleConfigStub struct {
 	mu        sync.Mutex
 	key       string
 	subsystem string
 	name      string
+	defaults  map[string]string
 	pending   map[string]string
 	running   map[string]string
 	visible   bool
@@ -39,7 +42,11 @@ func (s *notifyStaleConfigStub) line() string {
 	sort.Strings(keys)
 	parts := []string{s.key}
 	for _, k := range keys {
-		parts = append(parts, fmt.Sprintf("%s=%s", k, s.running[k]))
+		v := s.running[k]
+		if v == "" || (k == "enable" && v == "on") {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s=%s", k, v))
 	}
 	return strings.Join(parts, " ")
 }
@@ -54,13 +61,14 @@ func (s *notifyStaleConfigStub) restart() {
 	s.visible = len(s.running) > 0
 }
 
-func newNotifyStaleConfigStub(t *testing.T, key string) (*notifyStaleConfigStub, *madmin.AdminClient) {
+func newNotifyStaleConfigStub(t *testing.T, key string, defaults map[string]string) (*notifyStaleConfigStub, *madmin.AdminClient) {
 	t.Helper()
 	subsystem, name, _ := strings.Cut(key, ":")
 	stub := &notifyStaleConfigStub{
 		key:       key,
 		subsystem: subsystem,
 		name:      name,
+		defaults:  defaults,
 		pending:   map[string]string{},
 		running:   map[string]string{},
 	}
@@ -77,6 +85,11 @@ func newNotifyStaleConfigStub(t *testing.T, key string) (*notifyStaleConfigStub,
 				return
 			}
 			_, rest, _ := strings.Cut(string(plain), " ")
+			for k, v := range stub.defaults {
+				if _, ok := stub.pending[k]; !ok {
+					stub.pending[k] = v
+				}
+			}
 			for k, v := range parseConfigParams(rest) {
 				stub.pending[k] = v
 			}
@@ -121,8 +134,25 @@ func newNotifyStaleConfigStub(t *testing.T, key string) (*notifyStaleConfigStub,
 	return stub, client
 }
 
+// webhookStubDefaults and kafkaStubDefaults mirror DefaultWebhookKVS and
+// DefaultKafkaKVS from MinIO's internal/config/notify, the defaults
+// Config.SetKVS seeds into every target.
+var webhookStubDefaults = map[string]string{
+	"enable": "off", "endpoint": "", "auth_token": "", "queue_limit": "0",
+	"queue_dir": "", "client_cert": "", "client_key": "",
+}
+
+var kafkaStubDefaults = map[string]string{
+	"enable": "off", "topic": "", "brokers": "", "sasl_username": "",
+	"sasl_password": "", "sasl_mechanism": "plain", "client_tls_cert": "",
+	"client_tls_key": "", "tls_client_auth": "0", "sasl": "off", "tls": "off",
+	"tls_skip_verify": "off", "queue_limit": "0", "queue_dir": "", "version": "",
+	"batch_size": "0", "batch_commit_timeout": "0s", "compression_codec": "",
+	"compression_level": "",
+}
+
 func TestNotifyUpdateKeepsPlannedValuesUntilRestart(t *testing.T) {
-	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary")
+	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
 	meta := &S3MinioClient{S3Admin: client}
 	res := resourceMinioNotifyWebhook()
 	ctx := context.Background()
@@ -203,7 +233,7 @@ func TestNotifyUpdateKeepsPlannedValuesUntilRestart(t *testing.T) {
 }
 
 func TestNotifyCreateKeepsPlannedValuesWhileTargetInvisible(t *testing.T) {
-	_, client := newNotifyStaleConfigStub(t, "notify_webhook:primary")
+	stub, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
 	meta := &S3MinioClient{S3Admin: client}
 	res := resourceMinioNotifyWebhook()
 	ctx := context.Background()
@@ -247,5 +277,63 @@ func TestNotifyCreateKeepsPlannedValuesWhileTargetInvisible(t *testing.T) {
 	}
 	if diff != nil && len(diff.Attributes) > 0 {
 		t.Errorf("plan after refresh is not empty: %v", diff.Attributes)
+	}
+
+	stub.restart()
+
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh after restart: %v", diags)
+	}
+	if got := state.Attributes["comment"]; got != "primary" {
+		t.Errorf("comment after restart = %q, want %q", got, "primary")
+	}
+	if got := state.Attributes["restart_required"]; got != "false" {
+		t.Errorf("restart_required after restart = %q, want %q", got, "false")
+	}
+}
+
+// TestNotifyKafkaRestartClearsDespiteSeededDefaults covers the defaults
+// Config.SetKVS seeds into a target the provider never sent, such as
+// sasl_mechanism=plain: they must not keep the restart-pending gate closed.
+func TestNotifyKafkaRestartClearsDespiteSeededDefaults(t *testing.T) {
+	stub, client := newNotifyStaleConfigStub(t, "notify_kafka:primary", kafkaStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyKafka()
+	ctx := context.Background()
+
+	raw := map[string]interface{}{
+		"name":    "primary",
+		"brokers": "kafka:9092",
+		"topic":   "events",
+		"enable":  false,
+	}
+
+	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	state, diags := res.Apply(ctx, nil, diff, meta)
+	if diags.HasError() {
+		t.Fatalf("apply: %v", diags)
+	}
+	if got := state.Attributes["restart_required"]; got != "true" {
+		t.Fatalf("restart_required after create = %q, want %q", got, "true")
+	}
+
+	stub.restart()
+
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh after restart: %v", diags)
+	}
+	if got := state.Attributes["restart_required"]; got != "false" {
+		t.Errorf("restart_required after restart = %q, want %q (seeded defaults like sasl_mechanism=plain must not hold the gate closed)", got, "false")
+	}
+	if got := state.Attributes["brokers"]; got != "kafka:9092" {
+		t.Errorf("brokers after restart = %q, want %q", got, "kafka:9092")
+	}
+	if got := state.Attributes["enable"]; got != "false" {
+		t.Errorf("enable after restart = %q, want %q", got, "false")
 	}
 }

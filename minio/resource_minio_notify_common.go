@@ -72,8 +72,8 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		_ = d.Set("name", name)
 
-		if d.Get("restart_required").(bool) {
-			if !notifyRunningConfigMatchesState(cfgMap, d) {
+		if d.Get("restart_required").(bool) && len(cfgMap) > 0 {
+			if !notifyRunningConfigMatchesState(nrc, cfgMap, d, meta) {
 				tflog.Warn(ctx, "Notification target still shows the pre-restart config, keeping configured values in state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 				return nil
 			}
@@ -93,31 +93,39 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 	}
 }
 
-// notifyRunningConfigMatchesState reports whether every key the server reports
-// for the target agrees with the values held in state.
+// notifyRunningConfigMatchesState reports whether the values the server
+// reports for the target agree with what the provider would write for the
+// current state.
 //
 // While a restart is pending, get-config-kv serves the pre-restart config:
 // changed values are stale and a removed value is still shown with its old
-// value. The server omits secret keys, omits enable=on and omits empty
-// hidden-if-empty keys, so only keys present in the response are compared.
-// Keys the resource does not manage are skipped: d.Get returns nil for them.
-// See issue #1299.
-func notifyRunningConfigMatchesState(cfgMap map[string]string, d *schema.ResourceData) bool {
+// value. Only keys the provider itself sends are compared: MinIO seeds the
+// subsystem defaults into every target (Config.SetKVS), and a default the
+// provider never sent, such as sasl_mechanism=plain, is not the provider's to
+// converge on. Keys missing from the response are treated as stale only where
+// the stored value is always printed: a cleared comment or queue_dir must come
+// back empty, and enable=off must come back as off, because the server prints
+// enable only when it is off. Secret keys are absent from the response and are
+// never compared. See issue #1299.
+func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string]string, d *schema.ResourceData, meta interface{}) bool {
+	intended := parseConfigParams(nrc.buildCfg(d, meta))
 	for key, serverValue := range cfgMap {
-		switch current := d.Get(key).(type) {
-		case string:
-			if serverValue != current {
-				return false
+		want, sent := intended[key]
+		if !sent {
+			if key == "comment" || key == "queue_dir" {
+				if serverValue != "" {
+					return false
+				}
 			}
-		case bool:
-			if (serverValue == "on") != current {
-				return false
-			}
-		case int:
-			n, err := parseInt(serverValue)
-			if err != nil || n != current {
-				return false
-			}
+			continue
+		}
+		if serverValue != want {
+			return false
+		}
+	}
+	if intended["enable"] == "off" {
+		if got, ok := cfgMap["enable"]; !ok || got != "off" {
+			return false
 		}
 	}
 	return true
@@ -264,6 +272,13 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 }
 
 func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
+	if v, ok := cfgMap["enable"]; ok {
+		_ = d.Set("enable", v == "on")
+	} else {
+		// The server prints enable only when it is off (SubsysInfo.WriteTo),
+		// so a response without it means the target is on.
+		_ = d.Set("enable", true)
+	}
 	if v, ok := cfgMap["queue_limit"]; ok {
 		if n, err := parseInt(v); err == nil {
 			_ = d.Set("queue_limit", n)

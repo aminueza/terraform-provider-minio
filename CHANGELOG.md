@@ -16,8 +16,11 @@ History older than 3.39.0 lives in the
   `C:\path to\dir`, are stored as written instead of with doubled
   backslashes, so the plan stops showing the same change over and over.
   Values containing a double quote together with whitespace are rejected
-  at plan time with a clear error instead of never converging. Affected
-  resources are `minio_notify_*`, `minio_logger_webhook`,
+  at plan time with a clear error instead of never converging. That
+  rejection also applies when the field is a secret that MinIO never
+  returns (auth_token, client_secret, lookup_bind_password, client_key),
+  where the old config applied cleanly but kept a mangled value on the
+  server. Affected resources are `minio_notify_*`, `minio_logger_webhook`,
   `minio_audit_kafka`, `minio_audit_webhook`, `minio_iam_idp_ldap`,
   `minio_iam_idp_openid` and `minio_server_config_region`
   ([#1300](https://github.com/aminueza/terraform-provider-minio/issues/1300)).

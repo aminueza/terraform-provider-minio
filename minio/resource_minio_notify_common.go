@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func notifyConfigKey(subsystem, name string) string {
@@ -220,10 +221,14 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	// config KV value, so each must be representable; this covers all
 	// notify-family resources, including the common comment and queue_dir.
 	for k, v := range result {
-		if v.Type != schema.TypeString || k == "name" || v.ValidateFunc != nil || v.ValidateDiagFunc != nil {
+		if v.Type != schema.TypeString || k == "name" || v.ValidateDiagFunc != nil {
 			continue
 		}
-		v.ValidateFunc = validateConfigValue
+		if v.ValidateFunc != nil {
+			v.ValidateFunc = validation.All(v.ValidateFunc, validateConfigValue)
+		} else {
+			v.ValidateFunc = validateConfigValue
+		}
 	}
 	return result
 }

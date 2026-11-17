@@ -3,7 +3,12 @@ package minio
 import (
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
+
+const badValue = `say "hi" there`
 
 func TestBuildConfigParam(t *testing.T) {
 	cases := []struct {
@@ -101,8 +106,10 @@ func TestValidateConfigValue(t *testing.T) {
 		val     string
 		wantErr bool
 	}{
-		{name: "double quote together with whitespace", val: `say "hi" there`, wantErr: true},
+		{name: "double quote together with whitespace", val: badValue, wantErr: true},
 		{name: "leading double quote", val: `"leading`, wantErr: true},
+		{name: "line feed in value", val: "a\nb", wantErr: true},
+		{name: "carriage return in value", val: "a\rb", wantErr: true},
 		{name: "windows path", val: `C:\path to\dir`},
 		{name: "double quote without whitespace", val: `say"hi`},
 		{name: "value with spaces", val: "primary webhook"},
@@ -124,6 +131,130 @@ func TestValidateConfigValue(t *testing.T) {
 			}
 			if len(errs) != 0 {
 				t.Fatalf("errors = %v, want none", errs)
+			}
+		})
+	}
+}
+
+func TestValidateConfigValueWired(t *testing.T) {
+	cases := []struct {
+		name    string
+		res     *schema.Resource
+		raw     map[string]interface{}
+		want    string
+		wantNot string
+	}{
+		{
+			name: "notify webhook comment",
+			res:  resourceMinioNotifyWebhook(),
+			raw: map[string]interface{}{
+				"name":     "primary",
+				"endpoint": "http://hook:8080",
+				"comment":  badValue,
+			},
+			want: `"comment" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "notify webhook queue_dir",
+			res:  resourceMinioNotifyWebhook(),
+			raw: map[string]interface{}{
+				"name":      "primary",
+				"endpoint":  "http://hook:8080",
+				"queue_dir": badValue,
+			},
+			want: `"queue_dir" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "notify webhook endpoint",
+			res:  resourceMinioNotifyWebhook(),
+			raw: map[string]interface{}{
+				"name":     "primary",
+				"endpoint": badValue,
+			},
+			want: `"endpoint" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "audit webhook endpoint",
+			res:  resourceMinioAuditWebhook(),
+			raw: map[string]interface{}{
+				"name":     "t",
+				"endpoint": badValue,
+			},
+			want: `"endpoint" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "ldap lookup_bind_dn",
+			res:  resourceMinioIAMIdpLdap(),
+			raw: map[string]interface{}{
+				"server_addr":    "ldap:389",
+				"lookup_bind_dn": badValue,
+			},
+			want: `"lookup_bind_dn" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "openid config_url",
+			res:  resourceMinioIAMIdpOpenId(),
+			raw: map[string]interface{}{
+				"config_url": badValue,
+			},
+			want: `"config_url" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "openid client_secret_wo",
+			res:  resourceMinioIAMIdpOpenId(),
+			raw: map[string]interface{}{
+				"config_url":               "https://idp/.well-known/openid-configuration",
+				"client_id":                "cid",
+				"client_secret_wo":         badValue,
+				"client_secret_wo_version": 1,
+			},
+			want: `"client_secret_wo" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "region comment",
+			res:  resourceMinioServerConfigRegion(),
+			raw: map[string]interface{}{
+				"name":    "r",
+				"comment": badValue,
+			},
+			want: `"comment" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "etcd comment",
+			res:  resourceMinioServerConfigEtcd(),
+			raw: map[string]interface{}{
+				"endpoints": "http://e:2379",
+				"comment":   badValue,
+			},
+			want: `"comment" cannot contain a double quote together with whitespace`,
+		},
+		{
+			name: "notify webhook name is not a config value",
+			res:  resourceMinioNotifyWebhook(),
+			raw: map[string]interface{}{
+				"name":     badValue,
+				"endpoint": "http://hook:8080",
+			},
+			wantNot: `"name"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			diags := tc.res.Validate(terraform.NewResourceConfigRaw(tc.raw))
+			var parts []string
+			for _, d := range diags {
+				parts = append(parts, d.Summary, d.Detail)
+			}
+			joined := strings.Join(parts, " ")
+			if tc.wantNot != "" {
+				if strings.Contains(joined, tc.wantNot) {
+					t.Fatalf("diagnostics = %q, must not mention %q", joined, tc.wantNot)
+				}
+				return
+			}
+			if !strings.Contains(joined, tc.want) {
+				t.Fatalf("diagnostics = %q, want it to contain %q", joined, tc.want)
 			}
 		})
 	}

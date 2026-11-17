@@ -82,7 +82,8 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				ConflictsWith: []string{
 					"client_secret",
 				},
-				Description: "Write-only OAuth2 client secret for this OIDC configuration.",
+				ValidateFunc: validateConfigValue,
+				Description:  "Write-only OAuth2 client secret for this OIDC configuration.",
 			},
 			"client_secret_wo_version": {
 				Type:     schema.TypeInt,

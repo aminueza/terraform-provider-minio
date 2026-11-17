@@ -295,11 +295,9 @@ func parseConfigParams(configStr string) map[string]string {
 	return params
 }
 
-// buildConfigParam renders one config key=value pair the way MinIO's config
-// format parses it. A value with whitespace is wrapped in plain double quotes
-// with no escaping: the server reads a quoted value up to the next '"' and
-// never unescapes, so Go's %q escaping stored doubled backslashes and made
-// values containing '"' never converge (issue #1300).
+// buildConfigParam quotes without escaping: the server reads a quoted value
+// up to the next '"' and never unescapes, so %q escaping corrupts
+// backslashes and quotes (issue #1300).
 func buildConfigParam(key, val string) string {
 	if strings.ContainsAny(val, " \t") {
 		return fmt.Sprintf(`%s="%s"`, key, val)
@@ -307,19 +305,21 @@ func buildConfigParam(key, val string) string {
 	return key + "=" + val
 }
 
-// validateConfigValue rejects config values MinIO cannot represent: a value
-// starting with '"' is mis-parsed as a quoted value, and a quoted value
-// cannot contain '"' at all because the format has no escape for it
-// (issue #1300). A '"' in an unquoted value is stored literally and
-// round-trips, so it is allowed.
+// validateConfigValue rejects config values MinIO cannot represent: a line
+// break splits the one-key=value-per-line storage, a value starting with '"'
+// is mis-parsed as a quoted value, and a quoted value cannot contain '"' at
+// all because the format has no escape for it (issue #1300). A '"' in an
+// unquoted value is stored literally and round-trips, so it is allowed.
 func validateConfigValue(val interface{}, key string) (warns []string, errs []error) {
 	v := val.(string)
 	switch {
 	case v == "":
+	case strings.ContainsAny(v, "\r\n"):
+		errs = append(errs, fmt.Errorf("%q cannot contain a line break: MinIO's config format stores one key=value pair per line", key))
 	case strings.HasPrefix(v, `"`):
-		errs = append(errs, fmt.Errorf("%s cannot start with a double quote: MinIO's config format cannot parse it (issue #1300)", key))
+		errs = append(errs, fmt.Errorf("%q cannot start with a double quote: MinIO's config format cannot parse it", key))
 	case strings.Contains(v, `"`) && strings.ContainsAny(v, " \t\n"):
-		errs = append(errs, fmt.Errorf(`%s cannot contain a double quote together with whitespace: MinIO's config format cannot store a double quote inside a quoted value (issue #1300)`, key))
+		errs = append(errs, fmt.Errorf(`%q cannot contain a double quote together with whitespace: MinIO's config format cannot store a double quote inside a quoted value`, key))
 	}
 	return
 }

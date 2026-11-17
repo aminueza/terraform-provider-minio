@@ -72,6 +72,17 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		_ = d.Set("name", name)
 
+		if d.Get("restart_required").(bool) {
+			if !notifyRunningConfigMatchesState(cfgMap, d) {
+				tflog.Warn(ctx, "Notification target still shows the pre-restart config, keeping configured values in state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+				return nil
+			}
+			if err := d.Set("restart_required", false); err != nil {
+				return NewResourceError("clearing restart_required", name, err)
+			}
+			tflog.Debug(ctx, "Notification target config took effect after restart", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+		}
+
 		if nrc.readFields != nil {
 			if diags := nrc.readFields(cfgMap, d); diags != nil {
 				return diags
@@ -80,6 +91,36 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		return nil
 	}
+}
+
+// notifyRunningConfigMatchesState reports whether every key the server reports
+// for the target agrees with the values held in state.
+//
+// While a restart is pending, get-config-kv serves the pre-restart config:
+// changed values are stale and a removed value is still shown with its old
+// value. The server omits secret keys, omits enable=on and omits empty
+// hidden-if-empty keys, so only keys present in the response are compared.
+// Keys the resource does not manage are skipped: d.Get returns nil for them.
+// See issue #1299.
+func notifyRunningConfigMatchesState(cfgMap map[string]string, d *schema.ResourceData) bool {
+	for key, serverValue := range cfgMap {
+		switch current := d.Get(key).(type) {
+		case string:
+			if serverValue != current {
+				return false
+			}
+		case bool:
+			if (serverValue == "on") != current {
+				return false
+			}
+		case int:
+			n, err := parseInt(serverValue)
+			if err != nil || n != current {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
@@ -253,7 +294,9 @@ func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interfac
 	notifyBuildCfgClearableParam(parts, d, "queue_dir")
 	notifyBuildCfgClearableParam(parts, d, "comment")
 	notifyBuildCfgAddInt(parts, "queue_limit", getOptionalField(d, "queue_limit", 0).(int))
-	notifyBuildCfgAddBool(parts, "enable", getOptionalField(d, "enable", true).(bool))
+	// d.Get, not getOptionalField: GetOk reads false as unset and would send
+	// enable=on for a target the configuration disables.
+	notifyBuildCfgAddBool(parts, "enable", d.Get("enable").(bool))
 }
 
 func parseInt(s string) (int, error) {

@@ -142,6 +142,7 @@ Comments are the exception, not the rule. A comment must explain *why*, never *w
 | [AI Coding Standards](docs/agents/ai-coding-standards.md) | Error handling, debug logging, payload pattern, CRUD structure, schema definitions, validation, type conversions, MinIO SDK notes, idempotency, performance, naming, provider registration, new-resource and new-data-source checklists |
 | [Testing & Development Environment](docs/agents/testing-environment.md) | Test framework and rules, the four MinIO test instances, environment variables, running and skipping tests, common issues |
 | [Documentation Workflow & Pull Request Guidelines](docs/agents/documentation-workflow.md) | Template structure and rules, `task generate-docs`, commit message format, pull request expectations |
+| [Release Process](docs/agents/release-process.md) | Cutting a release: the workflow dispatch, the bot release pull request, tagging, goreleaser, registry pickup, CHANGELOG rules |
 
 ## Reference Implementation & Questions
 

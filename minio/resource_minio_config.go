@@ -307,9 +307,11 @@ func buildConfigParam(key, val string) string {
 
 // validateConfigValue rejects config values MinIO cannot represent: a line
 // break splits the one-key=value-per-line storage, a value starting with '"'
-// is mis-parsed as a quoted value, and a quoted value cannot contain '"' at
-// all because the format has no escape for it (issue #1300). A '"' in an
-// unquoted value is stored literally and round-trips, so it is allowed.
+// is mis-parsed as a quoted value, a value ending with '"' is stored without
+// that quote so it never matches the configuration, and a quoted value cannot
+// contain '"' at all because the format has no escape for it (issue #1300).
+// A '"' inside an unquoted value is stored literally and round-trips, so it
+// is allowed.
 func validateConfigValue(val interface{}, key string) (warns []string, errs []error) {
 	v := val.(string)
 	switch {
@@ -318,6 +320,8 @@ func validateConfigValue(val interface{}, key string) (warns []string, errs []er
 		errs = append(errs, fmt.Errorf("%q cannot contain a line break: MinIO's config format stores one key=value pair per line", key))
 	case strings.HasPrefix(v, `"`):
 		errs = append(errs, fmt.Errorf("%q cannot start with a double quote: MinIO's config format cannot parse it", key))
+	case strings.HasSuffix(v, `"`):
+		errs = append(errs, fmt.Errorf("%q cannot end with a double quote: MinIO's config format drops it from an unquoted value", key))
 	case strings.Contains(v, `"`) && strings.ContainsAny(v, " \t\n"):
 		errs = append(errs, fmt.Errorf(`%q cannot contain a double quote together with whitespace: MinIO's config format cannot store a double quote inside a quoted value`, key))
 	}

@@ -108,6 +108,8 @@ func TestValidateConfigValue(t *testing.T) {
 	}{
 		{name: "double quote together with whitespace", val: badValue, wantErr: true},
 		{name: "leading double quote", val: `"leading`, wantErr: true},
+		{name: "trailing double quote", val: `ab"`, wantErr: true},
+		{name: "trailing double quote with inner quotes", val: `say"hi"`, wantErr: true},
 		{name: "line feed in value", val: "a\nb", wantErr: true},
 		{name: "carriage return in value", val: "a\rb", wantErr: true},
 		{name: "windows path", val: `C:\path to\dir`},

@@ -30,17 +30,12 @@ func testAccLDAPPreCheck(t *testing.T) {
 // shared server with LDAP off: an active server refuses to create the
 // built-in IAM users later tests need. The SDK skips CheckDestroy in that
 // case, so this is the safety net; testAccCheckMinioIAMIdpLdapRemoved stays
-// the check.
+// the check. It is registered from PreCheck, after the LDAP checks pass, so
+// it runs only when the test will run: with TF_ACC unset or the LDAP
+// variables missing the test is skipped before the cleanup is registered.
 func testAccCleanupIdpLdap(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {
-		// Same gate as testAccLDAPPreCheck: a skipped test never applied a
-		// config, so there is nothing to clean up and the server may be
-		// unreachable.
-		if os.Getenv("MINIO_LDAP_ENABLED") != "1" || os.Getenv("MINIO_LDAP_SERVER_ADDR") == "" {
-			return
-		}
-
 		admin := testAccClient().S3Admin
 		if _, err := admin.DelConfigKV(context.Background(), "identity_ldap"); err != nil {
 			// The test's own destroy already removed the config, in which
@@ -56,12 +51,11 @@ func testAccCleanupIdpLdap(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
-	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccLDAPPreCheck(t) },
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
 		Steps: []resource.TestStep{
@@ -84,12 +78,11 @@ func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
-	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccLDAPPreCheck(t) },
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
 		Steps: []resource.TestStep{
@@ -107,12 +100,11 @@ func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
-	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccLDAPPreCheck(t) },
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
 		Steps: []resource.TestStep{
@@ -133,12 +125,11 @@ func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_enableFalse(t *testing.T) {
-	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccLDAPPreCheck(t) },
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
 		ProviderFactories: testAccProviders,
 		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
 		Steps: []resource.TestStep{

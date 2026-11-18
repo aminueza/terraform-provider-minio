@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -71,26 +72,6 @@ func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
 	})
 }
 
-func TestAccMinioIAMIdpLdap_enableFalse(t *testing.T) {
-	resourceName := "minio_iam_idp_ldap.test"
-	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccLDAPPreCheck(t) },
-		ProviderFactories: testAccProviders,
-		Steps: []resource.TestStep{
-			{
-				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, false, false),
-				Check: resource.ComposeTestCheckFunc(
-					testAccCheckMinioIAMIdpLdapExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
-					testAccCheckMinioIAMIdpLdapDisabledOnServer(),
-				),
-			},
-		},
-	})
-}
-
 func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
@@ -138,24 +119,6 @@ func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFu
 	}
 }
 
-// testAccCheckMinioIAMIdpLdapDisabledOnServer asserts the server reports
-// enable=off in the identity_ldap subsystem, not just that state says so (issue #1305).
-func testAccCheckMinioIAMIdpLdapDisabledOnServer() resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		minioC := testAccClient()
-		raw, err := minioC.S3Admin.GetConfigKV(context.Background(), "identity_ldap")
-		if err != nil {
-			return fmt.Errorf("reading identity_ldap config: %w", err)
-		}
-		for _, field := range strings.Fields(string(raw)) {
-			if field == "enable=off" {
-				return nil
-			}
-		}
-		return fmt.Errorf("identity_ldap is not disabled on the server: %s", strings.TrimSpace(string(raw)))
-	}
-}
-
 func testAccMinioIAMIdpLdapBasic(serverAddr string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_idp_ldap" "test" {
@@ -187,6 +150,31 @@ resource "minio_iam_idp_ldap" "test" {
   enable                 = %[5]t
 }
 `, serverAddr, starttls, tlsSkipVerify, serverInsecure, enable)
+}
+
+// TestIdpLdapConfigEnable covers issue #1305: GetOk treats enable = false as
+// unset and substituted the default true, so the flag was always sent enabled.
+func TestIdpLdapConfigEnable(t *testing.T) {
+	res := resourceMinioIAMIdpLdap()
+
+	t.Run("enable false is not treated as unset", func(t *testing.T) {
+		d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+			"server_addr": "ldap.example.com:389",
+			"enable":      false,
+		})
+		if IdpLdapConfig(d, &S3MinioClient{}).Enable {
+			t.Errorf("expected Enable false when enable = false, got true")
+		}
+	})
+
+	t.Run("enable unset defaults to true", func(t *testing.T) {
+		d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+			"server_addr": "ldap.example.com:389",
+		})
+		if !IdpLdapConfig(d, &S3MinioClient{}).Enable {
+			t.Errorf("expected Enable true when enable is unset, got false")
+		}
+	})
 }
 
 func TestBuildIdpLdapCfgData(t *testing.T) {

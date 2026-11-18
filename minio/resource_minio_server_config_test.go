@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -286,8 +287,19 @@ func TestAccMinioServerConfigSite_existingValuesCleared(t *testing.T) {
 	// Sequential on purpose: the site subsystem is a shared singleton and the
 	// checks restart the primary test server.
 	resource.Test(t, resource.TestCase{
-		PreCheck:          func() { testAccPreCheck(t) },
+		PreCheck:          func() { testAccPreCheck(t); testAccCleanupSite(t) },
 		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the site and region defaults.
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckServerStoredTarget("site", "", map[string]string{
+				"name":   "",
+				"region": "",
+			}),
+			testAccCheckServerStoredTarget("region", "", map[string]string{
+				"name": "",
+			}),
+		),
 		Steps: []resource.TestStep{
 			{
 				PreConfig: func() { testAccSeedSiteOutsideTerraform(t) },
@@ -297,8 +309,11 @@ resource "minio_server_config_site" "test" {
 }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
-					resource.TestCheckResourceAttr(resourceName, "region", ""),
-					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					// region and comment are absent from the flat state, not
+					// empty: an Optional string the configuration never set has no
+					// key to check.
+					resource.TestCheckNoResourceAttr(resourceName, "region"),
+					resource.TestCheckNoResourceAttr(resourceName, "comment"),
 					testAccCheckServerStoredTarget("site", "", map[string]string{
 						"name":    "tf-site",
 						"region":  "",
@@ -327,6 +342,29 @@ func testAccSeedSiteOutsideTerraform(t *testing.T) {
 	if err := testAccRestartPrimaryServer(); err != nil {
 		t.Fatalf("restarting the server: %v", err)
 	}
+}
+
+// testAccCleanupSite resets the site subsystem and restarts the primary
+// server so a test that ends before its own destroy leaves the shared
+// server with the site defaults: the SDK skips CheckDestroy when a step
+// fails, so this is the safety net. It is registered from PreCheck, like
+// the LDAP tests, so it runs only when the test will run.
+func testAccCleanupSite(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		admin := testAccClient().S3Admin
+		if _, err := admin.DelConfigKV(context.Background(), "site"); err != nil {
+			// The test's own destroy already reset the subsystem, in which
+			// case the delete reports it as missing.
+			if !strings.Contains(strings.ToLower(err.Error()), "not found") &&
+				!strings.Contains(strings.ToLower(err.Error()), "there is no target") {
+				t.Errorf("resetting the site config after the test: %v", err)
+			}
+		}
+		if err := testAccRestartPrimaryServer(); err != nil {
+			t.Errorf("restarting the primary server after the test: %v", err)
+		}
+	})
 }
 
 func TestBuildServerConfigSiteCfgData(t *testing.T) {

@@ -482,6 +482,55 @@ func TestNotifyEnableFlipKeepsPlannedValuesUntilRestart(t *testing.T) {
 	}
 }
 
+// TestNotifyReadRemovesStateWhenTargetGone covers issue #1306: with
+// restart_required already cleared, a "there is no target" answer means the
+// target was removed outside Terraform, and the read must drop it from state.
+func TestNotifyReadRemovesStateWhenTargetGone(t *testing.T) {
+	_, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	d := res.TestResourceData()
+	d.SetId("primary")
+	_ = d.Set("name", "primary")
+	_ = d.Set("endpoint", "http://hook:8080")
+	_ = d.Set("enable", false)
+	_ = d.Set("restart_required", false)
+
+	// The stub starts invisible, so get-config-kv answers "there is no target".
+	if diags := res.ReadContext(ctx, d, meta); diags.HasError() {
+		t.Fatalf("read: %v", diags)
+	}
+	if d.Id() != "" {
+		t.Fatalf("target id after read = %q, want empty (a removed target must leave the state once restart_required is false)", d.Id())
+	}
+}
+
+// TestNotifyDataSourceReadKeepsNameWhileTargetInvisible covers the data source
+// path of issue #1306: it carries no restart_required state, so a "there is no
+// target" answer is always "restart pending" and the read must keep the name.
+func TestNotifyDataSourceReadKeepsNameWhileTargetInvisible(t *testing.T) {
+	_, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	ds := dataSourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	d := ds.TestResourceData()
+	_ = d.Set("name", "primary")
+
+	// The stub starts invisible, so get-config-kv answers "there is no target".
+	if diags := ds.ReadContext(ctx, d, meta); diags.HasError() {
+		t.Fatalf("data source read: %v", diags)
+	}
+	if got := d.Id(); got != "primary" {
+		t.Fatalf("data source id after read = %q, want %q (a data source must not drop an invisible target)", got, "primary")
+	}
+	if got := d.Get("name").(string); got != "primary" {
+		t.Errorf("name after data source read = %q, want %q", got, "primary")
+	}
+}
+
 // TestNotifyReadKeepsStateOnEmptyResponse covers a response that carries no
 // keys for the target: the read must keep the state values, not store schema
 // defaults for keys the response never had.

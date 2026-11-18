@@ -47,7 +47,7 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 		configKey := notifyConfigKey(nrc.subsystem, name)
 		configData, err := admin.GetConfigKV(ctx, configKey)
 		if err != nil {
-			return handleNotifyReadError(ctx, err, nrc.subsystem, name, d)
+			return handleNotifyReadError(ctx, nrc, err, name, d)
 		}
 
 		configStr := strings.TrimSpace(string(configData))
@@ -189,10 +189,10 @@ func notifyDelete(nrc notifyResourceConfig) schema.DeleteContextFunc {
 	}
 }
 
-func handleNotifyReadError(ctx context.Context, err error, subsystem, name string, d *schema.ResourceData) diag.Diagnostics {
+func handleNotifyReadError(ctx context.Context, nrc notifyResourceConfig, err error, name string, d *schema.ResourceData) diag.Diagnostics {
 	errMsg := strings.ToLower(err.Error())
 	if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
-		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": subsystem, "name": name})
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 		d.SetId("")
 		return nil
 	}
@@ -201,16 +201,18 @@ func handleNotifyReadError(ctx context.Context, err error, subsystem, name strin
 		// for a target that no longer exists. restart_required tells the two
 		// apart: once it is false the server has applied this target's config
 		// at least once, so the absence means it was removed outside Terraform.
-		if d.Get("restart_required").(bool) {
-			tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": subsystem, "name": name})
+		// Data sources carry no such state (keepStateOnMissingTarget), so for
+		// them the absence only ever means the restart is still pending.
+		if nrc.keepStateOnMissingTarget || d.Get("restart_required").(bool) {
+			tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 			_ = d.Set("name", name)
 			return nil
 		}
-		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": subsystem, "name": name})
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 		d.SetId("")
 		return nil
 	}
-	return NewResourceError(fmt.Sprintf("reading %s target", subsystem), name, err)
+	return NewResourceError(fmt.Sprintf("reading %s target", nrc.subsystem), name, err)
 }
 
 // notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with spaces.

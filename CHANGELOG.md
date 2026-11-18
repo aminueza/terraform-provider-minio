@@ -17,8 +17,10 @@ History older than 3.39.0 lives in the
   subsystem has no `excess_*` keys and glued the unknown key onto the value
   written before it, which corrupted `cycle` and left the configured
   thresholds at the server defaults. The Terraform attributes keep their
-  names. A scanner configuration an older provider wrote shows one `cycle`
-  diff, and the next apply rewrites it
+  names. The old provider's unknown excess keys were glued onto the value
+  written before them, usually `cycle`, so a scanner configuration an older
+  provider wrote shows one diff on that attribute, and the next apply
+  rewrites it
   ([#1322](https://github.com/aminueza/terraform-provider-minio/issues/1322)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

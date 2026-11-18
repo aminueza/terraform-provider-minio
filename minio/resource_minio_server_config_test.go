@@ -264,12 +264,14 @@ resource "minio_server_config_scanner" "test" {
 	})
 }
 
-// The upgrade path when the configuration does not set cycle: cycle is
-// Optional and Computed, so the glued value stored by an older provider
-// never shows a normal diff. The CustomizeDiff must force the cycle diff so
-// the next apply writes a clean cycle instead of gluing the old keys on
-// again. The thresholds equal the server defaults, so the forced cycle diff
-// is the only one the apply acts on.
+// The upgrade path for a cycle set outside Terraform: the old provider wrote
+// speed, delay, max_wait, cycle and then the excess thresholds, so the
+// unknown keys were glued onto the value written before them, cycle. cycle is
+// Optional and Computed, so the glued value never shows a normal diff when
+// the configuration does not set it. The CustomizeDiff must force the cycle
+// diff so the next apply writes a clean value instead of gluing the old keys
+// on again. The thresholds equal the server defaults, so the forced cycle
+// diff is the only one the apply acts on.
 func TestAccMinioServerConfigScanner_corruptedCycleWithoutCycleInConfig(t *testing.T) {
 	resourceName := "minio_server_config_scanner.test"
 	config := `
@@ -319,6 +321,72 @@ resource "minio_server_config_scanner" "test" {
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
 					testAccScannerStoredConfig(map[string]string{
 						"cycle":                 "1m",
+						"alert_excess_versions": "100",
+						"alert_excess_folders":  "50000",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+// The upgrade path when the old provider never wrote cycle: it wrote speed,
+// delay, max_wait and then the excess thresholds, so the unknown keys were
+// glued onto the value written before them, max_wait. max_wait is Optional
+// and Computed, so when the configuration does not set it, the glued value
+// never shows a normal diff and the CustomizeDiff must force it so the next
+// apply writes a clean value. The thresholds equal the server defaults, so
+// the forced max_wait diff is the only one the apply acts on.
+func TestAccMinioServerConfigScanner_corruptedMaxWaitWithoutMaxWaitInConfig(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  excess_versions = "100"
+  excess_folders  = "50000"
+}`
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				// The server prints no max_wait key for a scanner
+				// configuration that does not set one, so no max_wait
+				// attribute lands in the state.
+				Config: config,
+				Check:  resource.TestCheckNoResourceAttr(resourceName, "max_wait"),
+			},
+			{
+				PreConfig: func() {
+					admin := testAccClient().S3Admin
+					// Reset the subsystem first so the server looks like one
+					// an older provider wrote: alert_excess_* at their
+					// defaults and the excess thresholds glued onto max_wait,
+					// the value written before them.
+					if _, err := admin.DelConfigKV(context.Background(), "scanner"); err != nil {
+						t.Fatalf("resetting scanner before the corruption: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+					old := "scanner speed=slow delay=10 max_wait=15s excess_versions=100 excess_folders=50000"
+					if _, err := admin.SetConfigKV(context.Background(), old); err != nil {
+						t.Fatalf("writing scanner the way the older provider did: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "max_wait", "15s"),
+					testAccScannerStoredConfig(map[string]string{
+						"max_wait":              "15s",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
 					}),

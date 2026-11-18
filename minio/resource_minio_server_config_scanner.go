@@ -21,7 +21,7 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		CustomizeDiff: scannerCorruptedCycleCustomizeDiff,
+		CustomizeDiff: scannerCorruptedKeysCustomizeDiff,
 		Schema: map[string]*schema.Schema{
 			"speed": {
 				Type:         schema.TypeString,
@@ -69,35 +69,45 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 	}
 }
 
-// scannerCorruptedCycleCustomizeDiff forces a cycle diff when an older
-// provider left the excess thresholds glued onto cycle (issue #1322) and the
-// configuration does not set cycle: cycle is Optional and Computed, so the
-// glued state value would otherwise never show in a plan, and the apply that
-// rewrites a clean cycle would never run.
-func scannerCorruptedCycleCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
-	cycle := d.Get("cycle").(string)
-	clean := cycle
-	for _, glued := range []string{" excess_versions=", " excess_folders="} {
-		if i := strings.Index(clean, glued); i >= 0 {
-			clean = clean[:i]
+// scannerCorruptedKeysCustomizeDiff forces a diff for a scanner attribute an
+// older provider corrupted (issue #1322). It wrote speed, delay, max_wait,
+// cycle and then the excess thresholds, and MinIO glues an unknown key onto
+// the value written before it, so the thresholds were glued onto the last
+// of those written, usually cycle. Each of those attributes is Optional and
+// Computed, so when the configuration does not set one of them, the glued
+// state value would otherwise never show a diff, and the apply that rewrites
+// a clean value would never run.
+func scannerCorruptedKeysCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	// The raw config is a null object when no configuration is available,
+	// for example on the plan right after an import, and GetAttr panics on
+	// it.
+	rawConfig := d.GetRawConfig()
+	if rawConfig.IsNull() {
+		return nil
+	}
+	for _, attr := range []string{"speed", "delay", "max_wait", "cycle"} {
+		value := d.Get(attr).(string)
+		clean := value
+		for _, glued := range []string{" excess_versions=", " excess_folders="} {
+			if i := strings.Index(clean, glued); i >= 0 {
+				clean = clean[:i]
+			}
+		}
+		if clean == value || !rawConfig.GetAttr(attr).IsNull() {
+			continue
+		}
+		if err := d.SetNew(attr, clean); err != nil {
+			return err
 		}
 	}
-	if clean == cycle {
-		return nil
-	}
-	// The raw config is a null object when no configuration is available, for
-	// example on the plan right after an import, and GetAttr panics on it.
-	rawConfig := d.GetRawConfig()
-	if rawConfig.IsNull() || !rawConfig.GetAttr("cycle").IsNull() {
-		return nil
-	}
-	return d.SetNew("cycle", clean)
+	return nil
 }
 
 // scannerConfigFields maps the Terraform attributes to the scanner
 // subsystem's keys. The excess thresholds are stored as alert_excess_*:
 // MinIO accepts an unknown key without an error and glues it onto the value
-// written before it, here cycle (issue #1322).
+// written before it, usually cycle, the last key the old provider wrote
+// (issue #1322).
 var scannerConfigFields = []struct {
 	attr string
 	key  string

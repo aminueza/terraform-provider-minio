@@ -12,6 +12,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target that
+  was deleted outside Terraform (for example with `mc admin config reset`) is
+  removed from the state and recreated by the next apply. The read treated the
+  `there is no target` answer as a restart still pending, so the plan never
+  noticed the target was gone. Now that answer is only kept while
+  `restart_required` says the server has not applied this target's config yet
+  ([#1306](https://github.com/aminueza/terraform-provider-minio/issues/1306)).
+
 - A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target keeps
   its planned values in state while MinIO needs a restart to apply a change.
   The read right after a write loaded the pre-restart config back, so the plan

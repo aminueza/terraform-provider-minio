@@ -88,20 +88,15 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 }
 
 // notifyTargetConfigParams extracts the target's own key=value pairs from a
-// get-config-kv response. ok reports whether the response carried the
-// target's line; a bare single-line response without the "key " prefix is
-// the target's own value. A response with several lines and no line for this
-// target carries nothing.
+// get-config-kv response. Any single-line response counts as the target's
+// own value, as the read always did; among several lines the target's line
+// is matched by its "key " prefix.
 func notifyTargetConfigParams(response, configKey string) (cfgMap map[string]string, ok bool) {
 	configStr := strings.TrimSpace(response)
 	for _, line := range strings.Split(configStr, "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, configKey+" ") {
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) == 2 {
-				return parseConfigParams(strings.TrimSpace(parts[1])), true
-			}
-			return map[string]string{}, true
+		if value, found := strings.CutPrefix(line, configKey+" "); found {
+			return parseConfigParams(strings.TrimSpace(value)), true
 		}
 	}
 	if !strings.Contains(configStr, "\n") {

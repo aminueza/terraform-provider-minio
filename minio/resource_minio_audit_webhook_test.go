@@ -198,8 +198,9 @@ func testAccCheckMinioAuditWebhookExists(resourceName string) resource.TestCheck
 }
 
 func testAccCheckMinioAuditWebhookDestroy(s *terraform.State) error {
-	// Config subsystems persist with defaults after deletion, so we
-	// only verify the resource is removed from state (same pattern as minio_config).
+	// A removal is only visible after a server restart, and the tests that
+	// call this check run in parallel against the shared server, so they
+	// only verify the resource left the state.
 	return nil
 }
 

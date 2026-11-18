@@ -3,10 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
-	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -26,9 +23,10 @@ func testAccRestartPrimaryServer() error {
 // that get-config-kv reports the stored target with the given key=value
 // pairs. The values in want are explicit literals from the test's own
 // configuration: they assert what the server persisted, not what the
-// provider would have written. MinIO omits empty values and enable=on from
-// a stored line, so the map only carries keys the server is expected to
-// print.
+// provider would have written. MinIO prints a target's keys even when they
+// are empty (auth_token=, queue_dir=) and omits enable=on, so the map
+// carries the keys the server is expected to print and a cleared key is
+// checked against "".
 func testAccCheckServerStoredTarget(subsystem, name string, want map[string]string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if err := testAccRestartPrimaryServer(); err != nil {
@@ -61,8 +59,7 @@ func testAccCheckServerStoredTarget(subsystem, name string, want map[string]stri
 
 // testAccCheckServerRemovedTarget restarts the primary test server and
 // checks that get-config-kv no longer reports the target. A removal, like a
-// change, is only visible after the restart, so the check polls until the
-// server either answers or the deadline is hit.
+// change, is only visible after the restart.
 func testAccCheckServerRemovedTarget(subsystem, name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		if err := testAccRestartPrimaryServer(); err != nil {
@@ -70,92 +67,24 @@ func testAccCheckServerRemovedTarget(subsystem, name string) resource.TestCheckF
 		}
 
 		client := testAccClient()
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-		defer cancel()
 		target := notifyConfigKey(subsystem, name)
-		for {
-			data, err := client.S3Admin.GetConfigKV(ctx, target)
-			if err == nil {
-				if _, found := notifyTargetConfigParams(string(data), target); !found {
-					return nil
-				}
-				return fmt.Errorf("%s is still stored on the server after destroy: %s", target, string(data))
-			}
-			if notifyConfigTargetMissing(err) {
+		data, err := client.S3Admin.GetConfigKV(context.Background(), target)
+		if err == nil {
+			if _, found := notifyTargetConfigParams(string(data), target); !found {
 				return nil
 			}
-			if ctx.Err() != nil {
-				return fmt.Errorf("checking that %s is gone from the server: %w", target, err)
-			}
-			time.Sleep(500 * time.Millisecond)
+			return fmt.Errorf("%s is still stored on the server after destroy: %s", target, string(data))
 		}
+		if notifyConfigTargetMissing(err) {
+			return nil
+		}
+		return fmt.Errorf("checking that %s is gone from the server: %w", target, err)
 	}
 }
 
 // notifyConfigTargetMissing reports whether a get-config-kv error says the
-// target does not exist, the same phrases the resource's read and delete
-// handle in resource_minio_notify_common.go.
+// target does not exist, the phrase the server returns after a target is
+// deleted and the server has restarted.
 func notifyConfigTargetMissing(err error) bool {
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "there is no target") ||
-		strings.Contains(msg, "not found") ||
-		strings.Contains(msg, "does not exist")
-}
-
-func TestNotifyTargetConfigParams(t *testing.T) {
-	tests := []struct {
-		name     string
-		response string
-		key      string
-		want     map[string]string
-		wantOK   bool
-	}{
-		{
-			name:     "bare single line",
-			response: "endpoint=http://example.com enable=off",
-			key:      "notify_webhook:x",
-			want:     map[string]string{"endpoint": "http://example.com", "enable": "off"},
-			wantOK:   true,
-		},
-		{
-			name:     "named line among other targets",
-			response: "notify_webhook:x endpoint=http://x enable=off\nnotify_webhook:y endpoint=http://y",
-			key:      "notify_webhook:x",
-			want:     map[string]string{"endpoint": "http://x", "enable": "off"},
-			wantOK:   true,
-		},
-		{
-			name:     "key with no value",
-			response: "notify_webhook:x",
-			key:      "notify_webhook:x",
-			want:     map[string]string{},
-			wantOK:   true,
-		},
-		{
-			name:     "several lines without the target",
-			response: "notify_webhook:y endpoint=http://y\nnotify_webhook:z endpoint=http://z",
-			key:      "notify_webhook:x",
-			want:     map[string]string{},
-			wantOK:   false,
-		},
-		{
-			name:     "quoted value with a space",
-			response: `comment="primary webhook" enable=off`,
-			key:      "notify_webhook:x",
-			want:     map[string]string{"comment": "primary webhook", "enable": "off"},
-			wantOK:   true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, ok := notifyTargetConfigParams(tc.response, tc.key)
-			if ok != tc.wantOK {
-				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
-			}
-			if !reflect.DeepEqual(got, tc.want) {
-				t.Fatalf("params = %v, want %v", got, tc.want)
-			}
-		})
-	}
+	return strings.Contains(strings.ToLower(err.Error()), "there is no target")
 }

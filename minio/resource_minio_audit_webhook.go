@@ -29,15 +29,17 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Description: "Target name for the audit webhook (e.g., 'splunk', 'elk'). Used as the identifier in the configuration key 'audit_webhook:<name>'.",
 			},
 			"endpoint": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "HTTP(S) endpoint URL to send audit events to.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "HTTP(S) endpoint URL to send audit events to.",
 			},
 			"auth_token": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"enable": {
 				Type:        schema.TypeBool,
@@ -58,15 +60,17 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Description: "Number of audit events to send in a single batch to the endpoint.",
 			},
 			"client_cert": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.",
 			},
 			"client_key": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
@@ -222,11 +226,7 @@ func buildAuditWebhookCfgData(config *S3MinioAuditWebhook) string {
 
 	addParam := func(key, val string) {
 		if val != "" {
-			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
-			} else {
-				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
-			}
+			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
 

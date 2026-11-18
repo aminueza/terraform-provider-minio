@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func notifyConfigKey(subsystem, name string) string {
@@ -215,14 +216,11 @@ func handleNotifyReadError(ctx context.Context, nrc notifyResourceConfig, err er
 	return NewResourceError(fmt.Sprintf("reading %s target", nrc.subsystem), name, err)
 }
 
-// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with spaces.
+// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with
+// whitespace the way buildConfigParam does (no escaping, issue #1300).
 func notifyBuildCfgAddParam(parts *[]string, key, val string) {
 	if val != "" {
-		if strings.ContainsAny(val, " \t") {
-			*parts = append(*parts, fmt.Sprintf("%s=%q", key, val))
-		} else {
-			*parts = append(*parts, fmt.Sprintf("%s=%s", key, val))
-		}
+		*parts = append(*parts, buildConfigParam(key, val))
 	}
 }
 
@@ -287,6 +285,19 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	}
 	for k, v := range specific {
 		result[k] = v
+	}
+	// Every string field of a notification target is written as a MinIO
+	// config KV value, so each must be representable; this covers all
+	// notify-family resources, including the common comment and queue_dir.
+	for k, v := range result {
+		if v.Type != schema.TypeString || k == "name" || v.ValidateDiagFunc != nil {
+			continue
+		}
+		if v.ValidateFunc != nil {
+			v.ValidateFunc = validation.All(v.ValidateFunc, validateConfigValue)
+		} else {
+			v.ValidateFunc = validateConfigValue
+		}
 	}
 	return result
 }

@@ -49,14 +49,16 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description: "Name for this OIDC configuration. Use '_' (default) for the primary configuration or any identifier for named configurations.",
 			},
 			"config_url": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "URL to the OpenID Connect discovery document (e.g., https://accounts.example.com/.well-known/openid-configuration).",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "URL to the OpenID Connect discovery document (e.g., https://accounts.example.com/.well-known/openid-configuration).",
 			},
 			"client_id": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "OAuth2 client ID registered with the identity provider.",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "OAuth2 client ID registered with the identity provider.",
 			},
 			"client_secret": {
 				Type:      schema.TypeString,
@@ -66,7 +68,8 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 					"client_secret_wo",
 					"client_secret_wo_version",
 				},
-				Description: "OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				ValidateFunc: validateConfigValue,
+				Description:  "OAuth2 client secret registered with the identity provider. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"client_secret_wo": {
 				Type:      schema.TypeString,
@@ -79,7 +82,8 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				ConflictsWith: []string{
 					"client_secret",
 				},
-				Description: "Write-only OAuth2 client secret for this OIDC configuration.",
+				ValidateFunc: validateConfigValue,
+				Description:  "Write-only OAuth2 client secret for this OIDC configuration.",
 			},
 			"client_secret_wo_version": {
 				Type:     schema.TypeInt,
@@ -94,46 +98,53 @@ func resourceMinioIAMIdpOpenId() *schema.Resource {
 				Description:  "Version identifier for client_secret_wo. Change this value to trigger updates when using client_secret_wo.",
 			},
 			"claim_name": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "JWT claim attribute used to identify the policy for the authenticated user. Defaults to 'policy'. Cannot be set together with role_policy.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "JWT claim attribute used to identify the policy for the authenticated user. Defaults to 'policy'. Cannot be set together with role_policy.",
 			},
 			"claim_prefix": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				Default:       "",
 				ConflictsWith: []string{"role_policy"},
+				ValidateFunc:  validateConfigValue,
 				Description:   "Prefix to apply to JWT claim values when looking up policies. Cannot be set together with role_policy.",
 			},
 			"scopes": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Comma-separated list of OAuth2 scopes to request (e.g., 'openid,email,profile').",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "",
+				ValidateFunc: validateConfigValue,
+				Description:  "Comma-separated list of OAuth2 scopes to request (e.g., 'openid,email,profile').",
 			},
 			"redirect_uri": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Redirect URI registered with the identity provider for the OAuth2 callback.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "",
+				ValidateFunc: validateConfigValue,
+				Description:  "Redirect URI registered with the identity provider for the OAuth2 callback.",
 			},
 			"display_name": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Display name for this identity provider shown on the MinIO login screen.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "",
+				ValidateFunc: validateConfigValue,
+				Description:  "Display name for this identity provider shown on the MinIO login screen.",
 			},
 			"comment": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Default:     "",
-				Description: "Comment or description for this OIDC configuration.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Default:      "",
+				ValidateFunc: validateConfigValue,
+				Description:  "Comment or description for this OIDC configuration.",
 			},
 			"role_policy": {
 				Type:          schema.TypeString,
 				Optional:      true,
 				Default:       "",
 				ConflictsWith: []string{"claim_name", "claim_prefix"},
+				ValidateFunc:  validateConfigValue,
 				Description:   "Policy for role-based OIDC access. When set, MinIO uses a role ARN approach and ignores claim_name/claim_prefix. Cannot be set together with claim_name or claim_prefix.",
 			},
 			"enable": {
@@ -344,11 +355,7 @@ func buildIdpOpenIdCfgData(config *S3MinioIdpOpenId) string {
 
 	addParam := func(key, val string) {
 		if val != "" {
-			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, fmt.Sprintf("%s=%q", key, val))
-			} else {
-				parts = append(parts, fmt.Sprintf("%s=%s", key, val))
-			}
+			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
 

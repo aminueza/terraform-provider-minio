@@ -68,24 +68,42 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 	}
 }
 
+// scannerConfigFields maps the Terraform attributes to the scanner
+// subsystem's keys. The excess thresholds are stored as alert_excess_*:
+// MinIO accepts an unknown key without an error and glues it onto the value
+// written before it, here cycle (issue #1322).
+var scannerConfigFields = []struct {
+	attr string
+	key  string
+}{
+	{"speed", "speed"},
+	{"delay", "delay"},
+	{"max_wait", "max_wait"},
+	{"cycle", "cycle"},
+	{"excess_versions", "alert_excess_versions"},
+	{"excess_folders", "alert_excess_folders"},
+}
+
+func buildScannerCfg(d *schema.ResourceData) string {
+	var parts []string
+	for _, f := range scannerConfigFields {
+		if v, ok := d.GetOk(f.attr); ok {
+			parts = append(parts, fmt.Sprintf("%s=%s", f.key, v.(string)))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 func minioServerConfigScannerSet(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	var parts []string
-	fields := []string{"speed", "delay", "max_wait", "cycle", "excess_versions", "excess_folders"}
-	for _, f := range fields {
-		if v, ok := d.GetOk(f); ok {
-			parts = append(parts, fmt.Sprintf("%s=%s", f, v.(string)))
-		}
-	}
-
-	if len(parts) == 0 {
+	cfg := buildScannerCfg(d)
+	if cfg == "" {
 		d.SetId("scanner")
 		return minioServerConfigScannerRead(ctx, d, meta)
 	}
 
-	configString := "scanner " + strings.Join(parts, " ")
-	restart, err := admin.SetConfigKV(ctx, configString)
+	restart, err := admin.SetConfigKV(ctx, "scanner "+cfg)
 	if err != nil {
 		return NewResourceError("setting scanner configuration", "scanner", err)
 	}
@@ -117,9 +135,9 @@ func minioServerConfigScannerRead(ctx context.Context, d *schema.ResourceData, m
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId("scanner")
 
-	for _, f := range []string{"speed", "delay", "max_wait", "cycle", "excess_versions", "excess_folders"} {
-		if v, ok := cfgMap[f]; ok {
-			_ = d.Set(f, v)
+	for _, f := range scannerConfigFields {
+		if v, ok := cfgMap[f.key]; ok {
+			_ = d.Set(f.attr, v)
 		}
 	}
 

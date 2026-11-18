@@ -1,10 +1,15 @@
 package minio
 
 import (
+	"context"
+	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -108,6 +113,159 @@ resource "minio_server_config_scanner" "test" {
 			},
 		},
 	})
+}
+
+// MinIO accepts a key the scanner subsystem does not have and glues it onto
+// the value written before it. An older provider wrote the excess thresholds
+// as excess_versions and excess_folders, so the checks below assert that the
+// server stores them as alert_excess_versions and alert_excess_folders and
+// keeps cycle intact. See issue #1322.
+
+// testAccScannerStoredConfig restarts the primary test server and checks
+// that get-config-kv reports the scanner configuration with the given
+// key=value pairs. The values in want are explicit literals from the test's
+// own configuration: they assert what the server persisted, not what the
+// provider would have written.
+func testAccScannerStoredConfig(want map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if err := testAccRestartPrimaryServer(); err != nil {
+			return err
+		}
+
+		data, err := testAccClient().S3Admin.GetConfigKV(context.Background(), "scanner")
+		if err != nil {
+			return fmt.Errorf("reading scanner from the server after the restart: %w", err)
+		}
+		stored := parseConfigParams(string(data))
+		for key, value := range want {
+			got, ok := stored[key]
+			if !ok {
+				return fmt.Errorf("scanner stored on the server has no %q key; response: %s", key, data)
+			}
+			if got != value {
+				return fmt.Errorf("%q of scanner stored on the server is %q, want %q", key, got, value)
+			}
+		}
+		return nil
+	}
+}
+
+func TestAccMinioServerConfigScanner_excessThresholds(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	// Values differ from the server defaults (100 and 50000), so the stored
+	// check passes only if the thresholds reached the alert_excess_* keys.
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  max_wait        = "15s"
+  cycle           = "1m"
+  excess_versions = "10"
+  excess_folders  = "25"
+}`
+
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+					resource.TestCheckResourceAttr(resourceName, "excess_versions", "10"),
+					resource.TestCheckResourceAttr(resourceName, "excess_folders", "25"),
+					testAccScannerStoredConfig(map[string]string{
+						"speed":                 "slow",
+						"delay":                 "10",
+						"max_wait":              "15s",
+						"cycle":                 "1m",
+						"alert_excess_versions": "10",
+						"alert_excess_folders":  "25",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+// A scanner configuration written by an older provider stores the excess
+// thresholds glued onto cycle. The plan must show the cycle diff, and the
+// next apply must rewrite every key, which repairs cycle and moves the
+// thresholds to the alert_excess_* keys.
+func TestAccMinioServerConfigScanner_excessThresholdsCorruptedByOlderProvider(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  max_wait        = "15s"
+  cycle           = "1m"
+  excess_versions = "100"
+  excess_folders  = "50000"
+}`
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					old := "scanner speed=slow delay=10 max_wait=15s cycle=1m excess_versions=100 excess_folders=50000"
+					if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), old); err != nil {
+						t.Fatalf("writing scanner the way the older provider did: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+					resource.TestCheckResourceAttr(resourceName, "excess_versions", "100"),
+					resource.TestCheckResourceAttr(resourceName, "excess_folders", "50000"),
+					testAccScannerStoredConfig(map[string]string{
+						"cycle":                 "1m",
+						"alert_excess_versions": "100",
+						"alert_excess_folders":  "50000",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+func TestBuildScannerCfgUsesAlertExcessKeys(t *testing.T) {
+	d := schema.TestResourceDataRaw(t, resourceMinioServerConfigScanner().Schema, map[string]interface{}{
+		"speed":           "slow",
+		"delay":           "10",
+		"max_wait":        "15s",
+		"cycle":           "1m",
+		"excess_versions": "10",
+		"excess_folders":  "25",
+	})
+
+	got := buildScannerCfg(d)
+	for _, want := range []string{"speed=slow", "delay=10", "max_wait=15s", "cycle=1m", "alert_excess_versions=10", "alert_excess_folders=25"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("buildScannerCfg() = %q, want it to contain %q", got, want)
+		}
+	}
+	for _, bad := range []string{" excess_versions=", " excess_folders="} {
+		if strings.Contains(got, bad) {
+			t.Errorf("buildScannerCfg() = %q contains %q, a key the scanner subsystem does not have", got, bad)
+		}
+	}
 }
 
 func TestAccMinioServerConfigHeal_basic(t *testing.T) {

@@ -12,6 +12,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_server_config_scanner` stores `excess_versions` and `excess_folders`
+  as `alert_excess_versions` and `alert_excess_folders`. MinIO's `scanner`
+  subsystem has no `excess_*` keys and glued the unknown key onto the value
+  written before it, which corrupted `cycle` and left the configured
+  thresholds at the server defaults. The Terraform attributes keep their
+  names. A target an older provider wrote shows one `cycle` diff, and the
+  next apply rewrites it
+  ([#1322](https://github.com/aminueza/terraform-provider-minio/issues/1322)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

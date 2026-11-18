@@ -12,6 +12,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_audit_webhook` reads `enable` from the server, so turning the webhook
+  on or off outside Terraform shows up in the plan and the next apply puts the
+  configured value back. Import now sets `enable` too. A webhook that an older
+  provider wrote as enabled while the configuration says `enable = false`
+  shows one `enable` diff, and the next apply disables it
+  ([#1317](https://github.com/aminueza/terraform-provider-minio/issues/1317)).
 - `minio_iam_idp_ldap`, `minio_iam_idp_openid` and `minio_audit_webhook` with
   `enable = false` are written as `enable=off` on the server. The field was
   read from the configuration through a helper that treated `false` as unset

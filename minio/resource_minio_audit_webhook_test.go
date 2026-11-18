@@ -134,10 +134,61 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"auth_token", "client_key", "enable", "restart_required"},
+				ImportStateVerifyIgnore: []string{"auth_token", "client_key", "restart_required"},
 			},
 		},
 	})
+}
+
+// Turning the webhook on outside Terraform must show up as drift and be
+// reverted by the next apply. See issue #1317.
+func TestAccMinioAuditWebhook_enableChangedOutsideTerraform(t *testing.T) {
+	resourceName := "minio_audit_webhook.test"
+	name := "tfacc-" + acctest.RandString(6)
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckServerRemovedTarget("audit_webhook", name),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAuditWebhookBasic(name),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("audit_webhook", name, map[string]string{
+						"enable": "off",
+					}),
+				),
+			},
+			{
+				PreConfig:          func() { testAccEnableAuditWebhookOutsideTerraform(t, name) },
+				Config:             testAccMinioAuditWebhookBasic(name),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: testAccMinioAuditWebhookBasic(name),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("audit_webhook", name, map[string]string{
+						"enable": "off",
+					}),
+				),
+			},
+		},
+	})
+}
+
+func testAccEnableAuditWebhookOutsideTerraform(t *testing.T, name string) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), auditWebhookConfigKey(name)+" enable=on"); err != nil {
+		t.Fatalf("enabling %s outside Terraform: %v", name, err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
 }
 
 func TestAccMinioAuditWebhook_update(t *testing.T) {

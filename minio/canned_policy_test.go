@@ -108,10 +108,11 @@ func TestConfirmConfiguredAccessType_rejectsAStaleAccessType(t *testing.T) {
 	}
 }
 
-// The bucket resource maps the policy back onto acl values, so an empty policy
-// on the server means the bucket is private again no matter what the state held.
+// The read only derives acl for a bucket whose acl is a canned public value, so
+// an empty policy on the server means the bucket is private again for any of
+// them.
 func TestBucketACLFromPolicy_emptyPolicyIsPrivate(t *testing.T) {
-	for current := range map[string]bool{"private": true, "public": true, "public-read-write": true} {
+	for current := range map[string]bool{"public": true, "public-read-write": true} {
 		got, err := bucketACLFromPolicy("", "test", current)
 		if err != nil {
 			t.Fatalf("deriving acl: %v", err)
@@ -135,7 +136,6 @@ func TestBucketACLFromPolicy_keepsHeldValueForSharedShape(t *testing.T) {
 		"public":            "public",
 		"public-read-write": "public-read-write",
 		"public-read":       "public",
-		"private":           "public",
 	} {
 		t.Run(current, func(t *testing.T) {
 			got, err := bucketACLFromPolicy(built, "test", current)
@@ -162,7 +162,7 @@ func TestBucketACLFromPolicy_mapsReadAndWriteShapes(t *testing.T) {
 				t.Fatalf("building policy: %v", err)
 			}
 
-			for current := range map[string]bool{"private": true, "public": true} {
+			for current := range map[string]bool{"public": true, "public-read-write": true} {
 				got, err := bucketACLFromPolicy(built, "test", current)
 				if err != nil {
 					t.Fatalf("deriving acl: %v", err)
@@ -175,18 +175,17 @@ func TestBucketACLFromPolicy_mapsReadAndWriteShapes(t *testing.T) {
 	}
 }
 
-// A policy that matches no canned shape (for example one written by
-// minio_s3_bucket_policy) must not touch the acl in state, or a later acl
-// update would remove the custom policy.
-func TestBucketACLFromPolicy_customPolicyLeavesACLUntouched(t *testing.T) {
+// A policy that matches no canned shape is reported as private so the plan
+// shows the drift and the next apply puts the configured ACL back over it.
+func TestBucketACLFromPolicy_customPolicyReportsPrivate(t *testing.T) {
 	custom := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam::123456789012:user/bob"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::test/*"]}]}`
-	for current := range map[string]bool{"private": true, "public-read": true} {
+	for current := range map[string]bool{"public": true, "public-read": true, "public-read-write": true} {
 		got, err := bucketACLFromPolicy(custom, "test", current)
 		if err != nil {
 			t.Fatalf("deriving acl: %v", err)
 		}
-		if got != current {
-			t.Errorf("expected acl %q to be kept, got %q", current, got)
+		if got != "private" {
+			t.Errorf("expected acl %q to be reported as private, got %q", current, got)
 		}
 	}
 }

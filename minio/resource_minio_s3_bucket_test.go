@@ -507,6 +507,37 @@ func TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform(t *testing.T) {
 	})
 }
 
+// A bucket whose acl is unset (default private) shares its bucket policy with
+// minio_s3_bucket_anonymous_access; the bucket read must not claim that policy
+// or the two resources fight and the plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccBucketAnonymousAccessConfig(name, "public-read")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"

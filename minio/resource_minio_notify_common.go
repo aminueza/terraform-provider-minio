@@ -53,22 +53,7 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 		configStr := strings.TrimSpace(string(configData))
 		tflog.Debug(ctx, "Raw notification target config", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "raw": configStr})
 
-		var valueStr string
-		for _, line := range strings.Split(configStr, "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, configKey+" ") {
-				parts := strings.SplitN(line, " ", 2)
-				if len(parts) == 2 {
-					valueStr = strings.TrimSpace(parts[1])
-				}
-				break
-			}
-		}
-		if valueStr == "" && !strings.Contains(configStr, "\n") {
-			valueStr = configStr
-		}
-
-		cfgMap := parseConfigParams(valueStr)
+		cfgMap, _ := notifyTargetConfigParams(configStr, configKey)
 
 		_ = d.Set("name", name)
 
@@ -100,6 +85,29 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		return nil
 	}
+}
+
+// notifyTargetConfigParams extracts the target's own key=value pairs from a
+// get-config-kv response. ok reports whether the response carried the
+// target's line; a bare single-line response without the "key " prefix is
+// the target's own value. A response with several lines and no line for this
+// target carries nothing.
+func notifyTargetConfigParams(response, configKey string) (cfgMap map[string]string, ok bool) {
+	configStr := strings.TrimSpace(response)
+	for _, line := range strings.Split(configStr, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, configKey+" ") {
+			parts := strings.SplitN(line, " ", 2)
+			if len(parts) == 2 {
+				return parseConfigParams(strings.TrimSpace(parts[1])), true
+			}
+			return map[string]string{}, true
+		}
+	}
+	if !strings.Contains(configStr, "\n") {
+		return parseConfigParams(configStr), true
+	}
+	return map[string]string{}, false
 }
 
 // notifyRunningConfigMatchesState reports whether the values the server

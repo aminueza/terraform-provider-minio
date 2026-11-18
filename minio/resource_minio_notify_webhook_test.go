@@ -13,10 +13,12 @@ func TestAccMinioNotifyWebhook_basic(t *testing.T) {
 	resourceName := "minio_notify_webhook.test"
 	name := "tfacc-" + acctest.RandString(6)
 
-	resource.ParallelTest(t, resource.TestCase{
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckNotifyTargetDestroy,
+		CheckDestroy:      testAccCheckServerRemovedTarget("notify_webhook", name),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioNotifyWebhookBasic(name),
@@ -25,6 +27,10 @@ func TestAccMinioNotifyWebhook_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "endpoint", testAccEndpointURL("")),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("notify_webhook", name, map[string]string{
+						"endpoint": testAccEndpointURL(""),
+						"enable":   "off",
+					}),
 				),
 			},
 			// Import not tested: new targets require MinIO server restart before GetConfigKV can read them.

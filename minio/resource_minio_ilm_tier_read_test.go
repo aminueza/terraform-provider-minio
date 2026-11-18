@@ -31,6 +31,7 @@ func TestMinioReadILMTier(t *testing.T) {
 		wantErr      bool
 		wantGone     bool
 		wantCalls    int
+		minCallsOnly bool
 	}{
 		{
 			name:      "listed tier stays in state",
@@ -55,6 +56,7 @@ func TestMinioReadILMTier(t *testing.T) {
 			ctxTimeout:   1500 * time.Millisecond,
 			wantErr:      true,
 			wantCalls:    2,
+			minCallsOnly: true,
 		},
 	}
 
@@ -119,8 +121,12 @@ func TestMinioReadILMTier(t *testing.T) {
 
 			mu.Lock()
 			defer mu.Unlock()
-			if calls < tc.wantCalls {
-				t.Errorf("expected at least %d ListTiers calls, got %d", tc.wantCalls, calls)
+			if tc.minCallsOnly {
+				if calls < tc.wantCalls {
+					t.Errorf("expected at least %d ListTiers calls, got %d", tc.wantCalls, calls)
+				}
+			} else if calls != tc.wantCalls {
+				t.Errorf("expected %d ListTiers calls, got %d", tc.wantCalls, calls)
 			}
 			if tc.wantErr || tc.wantGone {
 				return

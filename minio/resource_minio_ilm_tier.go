@@ -337,9 +337,9 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("reading remote tier failed", name, err)
 	}
 	if tier == nil && d.IsNewResource() {
-		// ListTiers can lag behind AddTier, so a tier missing right after
-		// create is polled for before it counts as gone; dropping the ID
-		// instead fails the apply with an inconsistent result. See #1309.
+		// ListTiers appears to lag behind AddTier, so a tier missing right
+		// after create is polled for before it counts as gone; dropping the
+		// ID instead fails the apply with an inconsistent result. See #1309.
 		retryErr := retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
 			listed, listErr := getTier(c, ctx, name)
 			if listErr != nil {

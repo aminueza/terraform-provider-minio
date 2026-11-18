@@ -13,10 +13,10 @@ History older than 3.39.0 lives in the
 ### Fixed
 
 - `minio_ilm_tier` no longer drops a tier from state right after it was
-  created. The tier list can briefly lag behind `AddTier`, the read after
-  create did not find the new tier, and the apply failed with "Provider
-  produced inconsistent result after apply". The read right after create now
-  polls for the tier instead of treating it as removed
+  created. The tier list appears to lag behind `AddTier`, so the read after
+  create missed the new tier and the apply failed with "Provider produced
+  inconsistent result after apply". The read right after create now polls for
+  the tier instead of treating it as removed
   ([#1309](https://github.com/aminueza/terraform-provider-minio/issues/1309)).
 - A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target keeps
   its planned values in state while MinIO needs a restart to apply a change.

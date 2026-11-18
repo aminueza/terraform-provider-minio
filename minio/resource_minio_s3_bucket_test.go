@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1896,6 +1897,83 @@ func TestMinioReadBucket_quota(t *testing.T) {
 				t.Errorf("state attribute quota = %q, want %q", got, tc.wantQuota)
 			}
 		})
+	}
+}
+
+// TestMinioReadBucket_quotaUnsupportedFallsThrough pins the s3_compat_mode
+// branch of the #1334 fix: a backend without the admin API answers the quota
+// read as not implemented, and the read must keep the quota as it is instead
+// of erroring. The tagging API call is recorded so the check that it is not
+// made is explicit: with s3_compat_mode the read skips tagging by design
+// (shouldSkipBucketTagging), so the fall-through reaches preserveBucketTagsState
+// and returns without touching the tagging API.
+func TestMinioReadBucket_quotaUnsupportedFallsThrough(t *testing.T) {
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`
+
+	var mu sync.Mutex
+	var sawTagging bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "get-bucket-quota") {
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		if r.URL.Query().Has("tagging") {
+			mu.Lock()
+			sawTagging = true
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	s3Client, err := minio.New(host, &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+	})
+	if err != nil {
+		t.Fatalf("creating admin client: %v", err)
+	}
+
+	d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+		"bucket": "test-bucket",
+		"quota":  1073741824,
+	})
+	d.SetId("test-bucket")
+
+	meta := &S3MinioClient{S3Client: s3Client, S3Admin: adminClient, S3CompatMode: true}
+	if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+		t.Fatalf("read returned diagnostics: %v", diags)
+	}
+
+	state := d.State()
+	if state == nil {
+		t.Fatal("expected non-nil state after read")
+	}
+	if got := state.Attributes["quota"]; got != "1073741824" {
+		t.Errorf("state attribute quota = %q, want the state value %q", got, "1073741824")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if sawTagging {
+		t.Error("read called the tagging API; with s3_compat_mode the read must skip it (shouldSkipBucketTagging)")
 	}
 }
 

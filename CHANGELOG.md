@@ -10,6 +10,15 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_server_config_site`: manages the `site` subsystem, MinIO's
+  replacement for the legacy `region` subsystem. The fields map the
+  subsystem's keys: `name`, `region` and `comment`; when both the site
+  region and the legacy `region` subsystem are set, the site region takes
+  precedence for the region MinIO reports
+  ([#1323](https://github.com/aminueza/terraform-provider-minio/issues/1323)).
+
 ### Fixed
 
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -203,4 +204,159 @@ resource "minio_server_config_etcd" "test" {
 			},
 		},
 	})
+}
+
+func TestAccMinioServerConfigSite_basic(t *testing.T) {
+	resourceName := "minio_server_config_site.test"
+
+	// Sequential on purpose: the site subsystem is a shared singleton and the
+	// server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the site and region defaults.
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckServerStoredTarget("site", "", map[string]string{
+				"name":   "",
+				"region": "",
+			}),
+			testAccCheckServerStoredTarget("region", "", map[string]string{
+				"name": "",
+			}),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_site" "test" {
+  name    = "tf-site"
+  region  = "us-east-1"
+  comment = "managed by terraform"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					resource.TestCheckResourceAttr(resourceName, "region", "us-east-1"),
+					resource.TestCheckResourceAttr(resourceName, "comment", "managed by terraform"),
+					// The site is stored under the site subsystem.
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "us-east-1",
+						"comment": "managed by terraform",
+					}),
+					// Setting the site does not write to the legacy region
+					// subsystem: it stays at its default.
+					testAccCheckServerStoredTarget("region", "", map[string]string{
+						"name": "",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_site" "test" {
+  name   = "tf-site"
+  region = "eu-west-1"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					resource.TestCheckResourceAttr(resourceName, "region", "eu-west-1"),
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "eu-west-1",
+						"comment": "",
+					}),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+// A site name and region set outside Terraform must not survive a create that
+// leaves the fields empty: the resource owns the singleton, so the create
+// overwrites the name and clears the rest.
+func TestAccMinioServerConfigSite_existingValuesCleared(t *testing.T) {
+	resourceName := "minio_server_config_site.test"
+
+	// Sequential on purpose: the site subsystem is a shared singleton and the
+	// checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() { testAccSeedSiteOutsideTerraform(t) },
+				Config: `
+resource "minio_server_config_site" "test" {
+  name = "tf-site"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					resource.TestCheckResourceAttr(resourceName, "region", ""),
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "",
+						"comment": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the seeded values, so the next plan is
+				// empty.
+				Config: `
+resource "minio_server_config_site" "test" {
+  name = "tf-site"
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccSeedSiteOutsideTerraform(t *testing.T) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "site name=seeded-site region=seeded-region"); err != nil {
+		t.Fatalf("seeding the site outside Terraform: %v", err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+func TestBuildServerConfigSiteCfgData(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   S3MinioServerConfigSite
+		expected string
+	}{
+		{
+			name:     "all fields set",
+			config:   S3MinioServerConfigSite{Name: "dc1", Region: "us-east-1", Comment: "a comment"},
+			expected: `name=dc1 region=us-east-1 comment="a comment"`,
+		},
+		{
+			name:     "name only clears region and comment",
+			config:   S3MinioServerConfigSite{Name: "dc1"},
+			expected: "name=dc1 region= comment=",
+		},
+		{
+			name:     "name with a space is quoted",
+			config:   S3MinioServerConfigSite{Name: "dc 1", Region: "us-east-1"},
+			expected: `name="dc 1" region=us-east-1 comment=`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildServerConfigSiteCfgData(&tc.config)
+			if got != tc.expected {
+				t.Errorf("buildServerConfigSiteCfgData() = %q, want %q", got, tc.expected)
+			}
+		})
+	}
 }

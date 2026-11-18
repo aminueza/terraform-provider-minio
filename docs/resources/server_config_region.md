@@ -2,12 +2,12 @@
 page_title: "minio_server_config_region Resource - terraform-provider-minio"
 subcategory: "Server"
 description: |-
-  Manages MinIO server region/site name configuration.
+  Manages the legacy MinIO region configuration. The site subsystem (minio_server_config_site) is the current replacement: it stores the site name and region, and when both are set its region takes precedence for the region MinIO reports. The two subsystems are stored independently, so setting one does not clear the other.
 ---
 
 # minio_server_config_region (Resource)
 
-Manages MinIO server region/site name configuration.
+Manages the legacy MinIO region configuration. The site subsystem (minio_server_config_site) is the current replacement: it stores the site name and region, and when both are set its region takes precedence for the region MinIO reports. The two subsystems are stored independently, so setting one does not clear the other.
 
 ## Example Usage
 

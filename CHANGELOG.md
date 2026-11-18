@@ -12,6 +12,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_user` reads `disable_user` from the server, so enabling or
+  disabling a user outside Terraform (for example with
+  `mc admin user enable`/`disable`) shows up in the plan and the next apply
+  restores the configured value. The read only wrote the server status to the
+  computed `status` and never touched `disable_user`, so the change was
+  silently carried in state with no diff
+  ([#1329](https://github.com/aminueza/terraform-provider-minio/issues/1329)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

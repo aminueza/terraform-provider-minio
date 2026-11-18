@@ -135,6 +135,67 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 	})
 }
 
+func TestAccAWSUser_StatusChangedExternally(t *testing.T) {
+	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
+	resourceName := "minio_iam_user.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioUserConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "false", "enabled"),
+				),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccCheckMinioUserSetStatusExternally(name, madmin.AccountDisabled); err != nil {
+						t.Fatal(err)
+					}
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "true", "disabled"),
+				),
+			},
+			{
+				Config: testAccMinioUserConfig(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "false", "enabled"),
+				),
+			},
+			{
+				Config: testAccMinioUserConfigWithDisable(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "true", "disabled"),
+				),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccCheckMinioUserSetStatusExternally(name, madmin.AccountEnabled); err != nil {
+						t.Fatal(err)
+					}
+				},
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "false", "enabled"),
+				),
+			},
+			{
+				Config: testAccMinioUserConfigWithDisable(name),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioUserStatus(resourceName, "true", "disabled"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccAWSUser_RotateAccessKey(t *testing.T) {
 	var user madmin.UserInfo
 	var oldAccessKey string
@@ -387,6 +448,14 @@ func testAccMinioUserConfigDisabled(rName string) string {
 		}`, rName)
 }
 
+func testAccMinioUserConfigWithDisable(rName string) string {
+	return fmt.Sprintf(`
+	resource "minio_iam_user" "test" {
+		  name         = %q
+		  disable_user = true
+		}`, rName)
+}
+
 func testAccMinioUserConfigWithoutSecret(rName string) string {
 	return fmt.Sprintf(`
 resource "minio_iam_user" "test3" {
@@ -489,6 +558,41 @@ func testAccCheckMinioUserDestroy(s *terraform.State) error {
 
 	}
 
+	return nil
+}
+
+func testAccCheckMinioUserStatus(n string, wantDisableUser string, wantStatus string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[n]
+		if !ok {
+			return fmt.Errorf("not found: %s", n)
+		}
+
+		if got := rs.Primary.Attributes["disable_user"]; got != wantDisableUser {
+			return fmt.Errorf("disable_user = %q, want %q", got, wantDisableUser)
+		}
+
+		if got := rs.Primary.Attributes["status"]; got != wantStatus {
+			return fmt.Errorf("status = %q, want %q", got, wantStatus)
+		}
+
+		resp, err := testAccClient().S3Admin.GetUserInfo(context.Background(), rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("error getting user %s: %w", rs.Primary.ID, err)
+		}
+
+		if string(resp.Status) != wantStatus {
+			return fmt.Errorf("server status = %q, want %q", resp.Status, wantStatus)
+		}
+
+		return nil
+	}
+}
+
+func testAccCheckMinioUserSetStatusExternally(username string, status madmin.AccountStatus) error {
+	if err := testAccClient().S3Admin.SetUserStatus(context.Background(), username, status); err != nil {
+		return fmt.Errorf("error setting user %s status to %s: %w", username, status, err)
+	}
 	return nil
 }
 

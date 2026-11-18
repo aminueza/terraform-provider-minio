@@ -122,6 +122,7 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://audit.example.com/ingest"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckMinioAuditWebhookDisabledOnServer(resourceName),
 				),
 			},
 			{
@@ -132,6 +133,30 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 			},
 		},
 	})
+}
+
+// testAccCheckMinioAuditWebhookDisabledOnServer asserts the server reports
+// enable=off for the target, not just that Terraform state says so (issue #1305).
+func testAccCheckMinioAuditWebhookDisabledOnServer(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("not found: %s", resourceName)
+		}
+
+		minioC := testAccClient()
+		configKey := auditWebhookConfigKey(rs.Primary.ID)
+		raw, err := minioC.S3Admin.GetConfigKV(context.Background(), configKey)
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", configKey, err)
+		}
+		for _, field := range strings.Fields(string(raw)) {
+			if field == "enable=off" {
+				return nil
+			}
+		}
+		return fmt.Errorf("%s is not disabled on the server: %s", configKey, strings.TrimSpace(string(raw)))
+	}
 }
 
 func TestAccMinioAuditWebhook_update(t *testing.T) {

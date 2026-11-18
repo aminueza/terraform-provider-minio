@@ -71,6 +71,26 @@ func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
 	})
 }
 
+func TestAccMinioIAMIdpLdap_enableFalse(t *testing.T) {
+	resourceName := "minio_iam_idp_ldap.test"
+	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccLDAPPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, false, false),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMIdpLdapExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckMinioIAMIdpLdapDisabledOnServer(),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
@@ -115,6 +135,24 @@ func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFu
 			return fmt.Errorf("identity_ldap.server_addr is empty; config did not persist: %s", kv)
 		}
 		return nil
+	}
+}
+
+// testAccCheckMinioIAMIdpLdapDisabledOnServer asserts the server reports
+// enable=off in the identity_ldap subsystem, not just that state says so (issue #1305).
+func testAccCheckMinioIAMIdpLdapDisabledOnServer() resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		minioC := testAccClient()
+		raw, err := minioC.S3Admin.GetConfigKV(context.Background(), "identity_ldap")
+		if err != nil {
+			return fmt.Errorf("reading identity_ldap config: %w", err)
+		}
+		for _, field := range strings.Fields(string(raw)) {
+			if field == "enable=off" {
+				return nil
+			}
+		}
+		return fmt.Errorf("identity_ldap is not disabled on the server: %s", strings.TrimSpace(string(raw)))
 	}
 }
 

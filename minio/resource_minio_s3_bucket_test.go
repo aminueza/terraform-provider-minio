@@ -2002,3 +2002,70 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 		})
 	}
 }
+
+// Importing a bucket from a backend without bucket policy support
+// (GetBucketPolicy answers 501) must succeed: the import-state ResourceData
+// reads acl as "" (schema defaults are not applied), so the read must skip the
+// acl derivation and leave the policy to the importer, which tolerates the 501.
+// See issue #1206.
+func TestImportMinioS3Bucket_withoutPolicySupport(t *testing.T) {
+	const bucket = "import-bucket"
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`
+	const noObjectLock = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		switch {
+		case r.URL.Query().Has("policy"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		case r.URL.Query().Has("object-lock"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noObjectLock)
+			return
+		case r.URL.Query().Has("tagging"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noTagSet)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	// The same construction the SDK uses for import (helper/schema/provider.go):
+	// an empty state, the id, and no diff, so schema defaults are not applied.
+	d := resourceMinioBucket().Data(nil)
+	d.SetId(bucket)
+	d.SetType("minio_s3_bucket")
+	if got := d.Get("acl").(string); got != "" {
+		t.Fatalf("an import-state ResourceData must read acl as the zero value, got %q", got)
+	}
+
+	results, err := resourceMinioS3BucketImportState(context.Background(), d, &S3MinioClient{S3Client: s3Client})
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+	if len(results) != 1 || results[0].Id() != bucket {
+		t.Fatalf("import returned %v, want one resource with id %q", results, bucket)
+	}
+	if got := results[0].Get("acl").(string); got != "private" {
+		t.Errorf("acl = %q, want private", got)
+	}
+}

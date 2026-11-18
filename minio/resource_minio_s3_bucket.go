@@ -330,8 +330,12 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// A non-private acl paired with a resource that writes a different canned
 	// shape (for example acl = "public" plus minio_s3_bucket_anonymous_access with
 	// access_type = "public-read") now shows a permanent diff, where the old read
-	// left it silently in place; the fix is to drop acl from the bucket.
-	if currentACL := d.Get("acl").(string); currentACL != "private" {
+	// left it silently in place; the fix is to drop acl from the bucket. An
+	// import-state ResourceData reads acl as "" (schema defaults are not applied
+	// to the id-only state the SDK builds for import), so the importer's own
+	// GetBucketPolicy call — which tolerates backends without bucket policies,
+	// issue #1206 — must run before any policy read here.
+	if currentACL := d.Get("acl").(string); currentACL != "private" && currentACL != "" {
 		policy, unsupported, readDiags := readBucketPolicyText(ctx, meta.(*S3MinioClient), d, d.Id())
 		if readDiags.HasError() {
 			return readDiags

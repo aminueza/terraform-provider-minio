@@ -214,6 +214,12 @@ resource "minio_server_config_scanner" "test" {
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+				),
+			},
+			{
 				PreConfig: func() {
 					old := "scanner speed=slow delay=10 max_wait=15s cycle=1m excess_versions=100 excess_folders=50000"
 					if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), old); err != nil {
@@ -223,9 +229,14 @@ resource "minio_server_config_scanner" "test" {
 						t.Fatalf("restarting the server: %v", err)
 					}
 				},
+				// The resource is in state with clean values, so a non-empty
+				// plan here is the cycle drift, not a create plan, and the
+				// refreshed state must show the corruption the drift comes
+				// from.
 				Config:             config,
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
+				Check:              resource.TestCheckResourceAttr(resourceName, "cycle", "1m excess_versions=100 excess_folders=50000"),
 			},
 			{
 				Config: config,

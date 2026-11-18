@@ -12,6 +12,19 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_notify_mysql` writes the connection string to the server. The
+  provider sent it as `connection_string`, a key `notify_mysql` does not have,
+  so MinIO dropped it and every MySQL target was stored without a DSN. It is
+  now written and read as `dsn_string`, the key MinIO uses. Existing MySQL
+  targets show one `connection_string` diff, and the next apply stores the DSN.
+- `minio_notify_kafka`, `minio_notify_mqtt` and `minio_notify_nats` no longer
+  show a permanent diff for a value MinIO fills in on its own:
+  `sasl_mechanism` (kafka), `keep_alive_interval` and `reconnect_interval`
+  (mqtt), and `ping_interval` (nats). After a restart the server returns its
+  default for these fields even when the configuration doesn't set them, and
+  every plan proposed to remove it. They now accept the server's value when
+  the configuration leaves them out
+  ([#1307](https://github.com/aminueza/terraform-provider-minio/issues/1307)).
 - `minio_ilm_tier` no longer drops a tier from state right after it was
   created. The tier list appears to lag behind `AddTier`, so the read after
   create missed the new tier and the apply failed with "Provider produced

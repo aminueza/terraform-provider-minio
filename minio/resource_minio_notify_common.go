@@ -197,8 +197,17 @@ func handleNotifyReadError(ctx context.Context, err error, subsystem, name strin
 		return nil
 	}
 	if strings.Contains(errMsg, "there is no target") {
-		tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": subsystem, "name": name})
-		_ = d.Set("name", name)
+		// The same error is returned for a new target waiting on its restart and
+		// for a target that no longer exists. restart_required tells the two
+		// apart: once it is false the server has applied this target's config
+		// at least once, so the absence means it was removed outside Terraform.
+		if d.Get("restart_required").(bool) {
+			tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": subsystem, "name": name})
+			_ = d.Set("name", name)
+			return nil
+		}
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": subsystem, "name": name})
+		d.SetId("")
 		return nil
 	}
 	return NewResourceError(fmt.Sprintf("reading %s target", subsystem), name, err)

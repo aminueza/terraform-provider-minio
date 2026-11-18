@@ -1,8 +1,10 @@
 package minio
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -40,6 +42,72 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 			},
 		},
 	})
+}
+
+// Overwriting the object outside Terraform must show up as drift and be
+// reverted by the next apply. See issue #1330.
+func TestAccMinioS3Object_contentChangedOutsideTerraform(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_object.test"
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", rInt)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3ObjectConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+				),
+			},
+			{
+				PreConfig: func() {
+					testAccOverwriteObjectOutsideTerraform(t, bucketName, "test-object", "externally overwritten content")
+				},
+				Config:             testAccMinioS3ObjectConfigBasic(rInt),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: testAccMinioS3ObjectConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					testAccCheckMinioS3ObjectContent(bucketName, "test-object", "test content"),
+				),
+			},
+		},
+	})
+}
+
+func testAccOverwriteObjectOutsideTerraform(t *testing.T, bucket, object, content string) {
+	t.Helper()
+	_, err := testAccClient().S3Client.PutObject(context.Background(), bucket, object, bytes.NewBufferString(content), -1, minio.PutObjectOptions{})
+	if err != nil {
+		t.Fatalf("overwriting object %s/%s outside Terraform: %v", bucket, object, err)
+	}
+}
+
+// testAccCheckMinioS3ObjectContent reads the object straight from the server
+// and compares it against an expected literal, independently of the provider.
+func testAccCheckMinioS3ObjectContent(bucket, object, expected string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		conn := testAccClient().S3Client
+		obj, err := conn.GetObject(context.Background(), bucket, object, minio.GetObjectOptions{})
+		if err != nil {
+			return fmt.Errorf("reading object %s/%s: %w", bucket, object, err)
+		}
+		defer obj.Close()
+		data, err := io.ReadAll(obj)
+		if err != nil {
+			return fmt.Errorf("reading object %s/%s: %w", bucket, object, err)
+		}
+		if string(data) != expected {
+			return fmt.Errorf("object %s/%s content is %q, expected %q", bucket, object, string(data), expected)
+		}
+		return nil
+	}
 }
 
 func TestAccMinioS3Object_withACL(t *testing.T) {

@@ -141,6 +141,21 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 	cfgStr := strings.TrimPrefix(strings.TrimSpace(string(rawKV)), "identity_ldap ")
 	cfgMap := parseConfigParams(cfgStr)
 
+	if d.Get("restart_required").(bool) {
+		if !idpLdapRunningConfigMatchesState(IdpLdapConfig(d, meta), cfgMap) {
+			// get-config-kv serves the pre-restart config while a restart is
+			// pending, so loading it would store stale empty values; keep the
+			// configured values in state. The notify targets use the same gate
+			// (notifyRunningConfigMatchesState, issue #1304).
+			tflog.Warn(ctx, "identity_ldap still shows the pre-restart config, keeping configured values in state")
+			return nil
+		}
+		if err := d.Set("restart_required", false); err != nil {
+			return NewResourceError("clearing restart_required", "ldap", err)
+		}
+		tflog.Debug(ctx, "identity_ldap config took effect after restart")
+	}
+
 	stringFields := []string{
 		"server_addr",
 		"lookup_bind_dn",
@@ -182,6 +197,27 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 	}
 
 	return nil
+}
+
+// idpLdapRunningConfigMatchesState compares the identity_ldap values the
+// server reports with what the provider would write, using only the keys the
+// provider sends. lookup_bind_password is never printed by the server, and
+// enable is printed only when it is off, so an intended enable=on is not
+// compared and enable=off must come back as off.
+func idpLdapRunningConfigMatchesState(config *S3MinioIdpLdap, cfgMap map[string]string) bool {
+	intended := parseConfigParams(buildIdpLdapCfgData(config))
+	for key, want := range intended {
+		if key == "lookup_bind_password" || key == "enable" {
+			continue
+		}
+		if got, ok := cfgMap[key]; !ok || got != want {
+			return false
+		}
+	}
+	if intended["enable"] == "off" && cfgMap["enable"] != "off" {
+		return false
+	}
+	return true
 }
 
 func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

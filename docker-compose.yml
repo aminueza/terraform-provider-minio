@@ -226,6 +226,7 @@ services:
       KMS_MINIO_ENABLE_HTTPS: "false"
       MINIO_KMS_CONFIGURED: "1"
       MINIO_LDAP_ENABLED: "1"
+      MINIO_LDAP_SERVER_ADDR: "openldap:389"
       LDAP_MINIO_ENDPOINT: "ldapminio:9000"
       LDAP_MINIO_USER: "minio"
       LDAP_MINIO_PASSWORD: "minio999"
@@ -241,6 +242,8 @@ services:
       minio:
         condition: service_healthy
       kmsminio:
+        condition: service_healthy
+      openldap:
         condition: service_healthy
       ldapminio:
         condition: service_healthy

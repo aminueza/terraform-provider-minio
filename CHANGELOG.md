@@ -17,6 +17,11 @@ History older than 3.39.0 lives in the
   so MinIO dropped it and every MySQL target was stored without a DSN. It is
   now written and read as `dsn_string`, the key MinIO uses. Existing MySQL
   targets show one `connection_string` diff, and the next apply stores the DSN.
+- The `minio_notify_*` data sources keep the `Sensitive` flag of the
+  resource attributes they copy, so a secret the server returns in clear,
+  such as the MySQL DSN with its password, is hidden in plan output. An
+  `output` that references one of those attributes now needs
+  `sensitive = true`.
 - `minio_notify_kafka`, `minio_notify_mqtt` and `minio_notify_nats` no longer
   show a permanent diff for a value MinIO fills in on its own:
   `sasl_mechanism` (kafka), `keep_alive_interval` and `reconnect_interval`

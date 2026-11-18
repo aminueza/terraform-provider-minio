@@ -128,3 +128,35 @@ func TestBuildNotifyMysqlCfgWritesDsnString(t *testing.T) {
 		t.Errorf("config %q still sends connection_string, which notify_mysql drops", got)
 	}
 }
+
+// A secret the server returns in clear, such as the MySQL DSN read from
+// dsn_string, must stay hidden in a data source's plan output too.
+func TestNotifyDataSourcesKeepSecretsSensitive(t *testing.T) {
+	cases := []struct {
+		dataSource string
+		resource   *schema.Resource
+		field      string
+	}{
+		{"minio_notify_mysql", dataSourceMinioNotifyMysql(), "connection_string"},
+		{"minio_notify_postgres", dataSourceMinioNotifyPostgres(), "connection_string"},
+		{"minio_notify_amqp", dataSourceMinioNotifyAmqp(), "url"},
+		{"minio_notify_kafka", dataSourceMinioNotifyKafka(), "sasl_password"},
+		{"minio_notify_nats", dataSourceMinioNotifyNats(), "token"},
+		{"minio_notify_webhook", dataSourceMinioNotifyWebhook(), "auth_token"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.dataSource+"."+tc.field, func(t *testing.T) {
+			s, ok := tc.resource.Schema[tc.field]
+			if !ok {
+				t.Fatalf("%s has no %q attribute", tc.dataSource, tc.field)
+			}
+			if !s.Sensitive {
+				t.Errorf("%s.%s is not sensitive, so its value shows in clear in plan output", tc.dataSource, tc.field)
+			}
+			if !s.Computed || s.Optional || s.Required {
+				t.Errorf("%s.%s must stay computed-only in a data source", tc.dataSource, tc.field)
+			}
+		})
+	}
+}

@@ -178,6 +178,8 @@ for the right reason.
 
 **Config KV resources (notify_\*, audit_\*, logger_\*, server_config_\*):** These use `SetConfigKV`/`GetConfigKV`/`DelConfigKV` instead of the payload struct pattern. Named targets (e.g., `notify_kafka:primary`) use the shared helpers in `resource_minio_notify_common.go`. Singleton subsystems (e.g., `api`, `scanner`, `heal`) use the subsystem name as resource ID. Some subsystems (notably `notify_*` and `region`) require a server restart before `GetConfigKV` returns new values — handle the "there is no target" error by keeping state as-is.
 
+**Server-restarting checks:** `testAccCheckServerStoredTarget` and `testAccCheckServerRemovedTarget` (in `notify_server_check_test.go`) restart the shared primary server, so they must only run in a `resource.Test`, never a `resource.ParallelTest`.
+
 **Credentials and import:** MinIO returns `REDACTED` for sensitive fields (secret keys, passwords, tokens). Always add credential fields to `ImportStateVerifyIgnore` in tests.
 
 **ILM tier names:** Must be UPPERCASE:

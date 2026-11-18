@@ -151,6 +151,19 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	// The server prints enable only when it is off (SubsysInfo.WriteTo), so a
+	// response that lists the target without it means the webhook is on. See
+	// issue #1317.
+	if len(cfgMap) > 0 {
+		enabled := true
+		if v, ok := cfgMap["enable"]; ok {
+			enabled = v != "off"
+		}
+		if setErr := d.Set("enable", enabled); setErr != nil {
+			return NewResourceError("setting enable", name, setErr)
+		}
+	}
+
 	if v, ok := cfgMap["queue_size"]; ok {
 		if n, parseErr := strconv.Atoi(v); parseErr == nil {
 			if setErr := d.Set("queue_size", n); setErr != nil {

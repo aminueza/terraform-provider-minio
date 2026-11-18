@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_audit_kafka` with `tls = false` or `tls_skip_verify = false`
+  writes `tls=off` / `tls_skip_verify=off` on the server. The provider only
+  wrote the two fields when they were true, so turning them off sent nothing
+  and the server kept its old `on` value
+  ([#1331](https://github.com/aminueza/terraform-provider-minio/issues/1331)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

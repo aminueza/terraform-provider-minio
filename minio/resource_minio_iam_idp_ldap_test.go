@@ -25,7 +25,38 @@ func testAccLDAPPreCheck(t *testing.T) {
 	}
 }
 
+// testAccCleanupIdpLdap removes the identity_ldap config and restarts the
+// primary server so a test that ends before its own destroy leaves the
+// shared server with LDAP off: an active server refuses to create the
+// built-in IAM users later tests need. The SDK skips CheckDestroy in that
+// case, so this is the safety net; testAccCheckMinioIAMIdpLdapRemoved stays
+// the check.
+func testAccCleanupIdpLdap(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		// Same gate as testAccLDAPPreCheck: a skipped test never applied a
+		// config, so there is nothing to clean up and the server may be
+		// unreachable.
+		if os.Getenv("MINIO_LDAP_ENABLED") != "1" || os.Getenv("MINIO_LDAP_SERVER_ADDR") == "" {
+			return
+		}
+
+		admin := testAccClient().S3Admin
+		if _, err := admin.DelConfigKV(context.Background(), "identity_ldap"); err != nil {
+			// The test's own destroy already removed the config, in which
+			// case the delete reports it as missing.
+			if !isIDPConfigNotFound(err) && !strings.Contains(strings.ToLower(err.Error()), "there is no target") {
+				t.Errorf("removing identity_ldap after the test: %v", err)
+			}
+		}
+		if err := testAccRestartPrimaryServer(); err != nil {
+			t.Errorf("restarting the primary server after the test: %v", err)
+		}
+	})
+}
+
 func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
+	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
@@ -53,6 +84,7 @@ func TestAccMinioIAMIdpLdap_basic(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
+	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
@@ -75,6 +107,7 @@ func TestAccMinioIAMIdpLdap_regression902(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
+	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 
@@ -100,6 +133,7 @@ func TestAccMinioIAMIdpLdap_roundTripReadBack(t *testing.T) {
 }
 
 func TestAccMinioIAMIdpLdap_enableFalse(t *testing.T) {
+	testAccCleanupIdpLdap(t)
 	resourceName := "minio_iam_idp_ldap.test"
 	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
 

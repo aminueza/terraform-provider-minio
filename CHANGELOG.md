@@ -14,8 +14,9 @@ History older than 3.39.0 lives in the
 
 - `minio_iam_idp_ldap` keeps its planned values in state while MinIO needs a
   restart to apply a change. The read right after a write loaded the
-  pre-restart config back, so `server_addr` and the boolean fields ended up
-  empty in the state and the plan that followed a successful apply showed
+  pre-restart config back, so `server_addr` ended up empty in the state and
+  `server_insecure`, `tls_skip_verify` and `starttls` false, while `enable`
+  was not affected, and the plan that followed a successful apply showed
   the same change again. `restart_required` now clears on its own once the
   server reports the configured values
   ([#1318](https://github.com/aminueza/terraform-provider-minio/issues/1318)).

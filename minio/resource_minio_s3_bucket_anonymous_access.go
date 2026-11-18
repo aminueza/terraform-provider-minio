@@ -278,13 +278,20 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		// the configuration carries a custom policy instead, the policy field
 		// carries the drift, and clearing the type would leave a plan that
 		// never converges, so access_type stays untouched.
-		drivenByType, err := stateDrivenByAccessType(statePolicy, stateAccessType, bucketName)
-		if err != nil {
-			return NewResourceError("checking what drives the configuration", bucketName, err)
+		if stateAccessType != "" {
+			drivenByType, err := stateDrivenByAccessType(statePolicy, stateAccessType, bucketName)
+			if err != nil {
+				return NewResourceError("checking what drives the configuration", bucketName, err)
+			}
+			if !drivenByType {
+				return nil
+			}
 		}
-		if !drivenByType {
-			return nil
-		}
+
+		// The state holds no type, which covers an import and a resource created
+		// from a custom policy: derive the type from the server's policy, as the
+		// read did before issue #1332. The same classification rewrites a type
+		// the server no longer matches.
 		accessType, err = getAccessTypeFromPolicy(policy, bucketName)
 		if err != nil {
 			return NewResourceError("determining access_type", bucketName, err)

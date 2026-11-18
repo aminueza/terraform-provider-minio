@@ -325,7 +325,8 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// manage it (minio_s3_bucket_policy, minio_s3_bucket_anonymous_access), so a
 	// private bucket's read must not touch acl. That is the cost: a public policy
 	// added outside Terraform to such a bucket is not detected, because it cannot
-	// be told apart from one another resource manages.
+	// be told apart from one another resource manages. Likewise a public acl whose
+	// policy matches no canned shape keeps that policy, for the same reason.
 	if currentACL := d.Get("acl").(string); currentACL != "private" {
 		policy, unsupported, err := readBucketPolicyText(ctx, bucketConfig.MinioClient, d.Id())
 		if err != nil {
@@ -670,9 +671,11 @@ func readBucketPolicyText(ctx context.Context, client *minio.Client, bucket stri
 // bucketACLFromPolicy derives the acl attribute from the policy on the server
 // for a bucket whose acl is a canned public value. public and public-read-write
 // write the same policy shape, so the value already held is kept when it is one
-// of them; a policy that is missing or matches no canned shape is reported as
-// private so the plan shows the drift and the next apply puts the configured
-// ACL back.
+// of them; a missing policy is reported as private so the plan shows the drift
+// and the next apply puts the configured ACL back. A policy that matches no
+// canned shape is kept as-is: the read cannot tell it from a policy another
+// resource manages, and changing acl would make the bucket overwrite that
+// policy and the two keep fighting.
 func bucketACLFromPolicy(policy, bucket, currentACL string) (string, error) {
 	if policy == "" {
 		return "private", nil
@@ -694,7 +697,7 @@ func bucketACLFromPolicy(policy, bucket, currentACL string) (string, error) {
 		}
 		return "public", nil
 	default:
-		return "private", nil
+		return currentACL, nil
 	}
 }
 

@@ -17,7 +17,10 @@ History older than 3.39.0 lives in the
   and the next apply puts the configured ACL back. A bucket whose `acl` is
   `private` leaves the bucket policy to the resources that manage it
   (`minio_s3_bucket_policy`, `minio_s3_bucket_anonymous_access`), so a public
-  policy added outside Terraform to such a bucket is not detected
+  policy added outside Terraform to such a bucket is not detected. A public
+  `acl` whose policy was replaced by a custom `minio_s3_bucket_policy` keeps
+  that policy, because the read cannot tell it apart from one another resource
+  manages
   ([#1333](https://github.com/aminueza/terraform-provider-minio/issues/1333)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

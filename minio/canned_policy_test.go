@@ -175,17 +175,18 @@ func TestBucketACLFromPolicy_mapsReadAndWriteShapes(t *testing.T) {
 	}
 }
 
-// A policy that matches no canned shape is reported as private so the plan
-// shows the drift and the next apply puts the configured ACL back over it.
-func TestBucketACLFromPolicy_customPolicyReportsPrivate(t *testing.T) {
+// A policy that matches no canned shape must keep the acl held in state, or
+// the bucket would overwrite a policy another resource manages and the two
+// would keep fighting.
+func TestBucketACLFromPolicy_customPolicyKeepsHeldACL(t *testing.T) {
 	custom := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam::123456789012:user/bob"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::test/*"]}]}`
 	for current := range map[string]bool{"public": true, "public-read": true, "public-read-write": true} {
 		got, err := bucketACLFromPolicy(custom, "test", current)
 		if err != nil {
 			t.Fatalf("deriving acl: %v", err)
 		}
-		if got != "private" {
-			t.Errorf("expected acl %q to be reported as private, got %q", current, got)
+		if got != current {
+			t.Errorf("expected acl %q to be kept, got %q", current, got)
 		}
 	}
 }

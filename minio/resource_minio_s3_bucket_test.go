@@ -538,6 +538,59 @@ func TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources(t *testing.T) {
 	})
 }
 
+// A public acl paired with minio_s3_bucket_policy: the bucket read must keep
+// the acl and the custom policy, or each apply overwrites the other and the
+// plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["*"]},
+      "Resource": ["${minio_s3_bucket.bucket.arn}"],
+      "Action": ["s3:ListBucketVersions"]
+    }
+  ]
+}
+EOF
+}
+`, name)
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"

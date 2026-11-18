@@ -28,12 +28,13 @@ func dataSourceNotify(nrc notifyResourceConfig, resourceSchema map[string]*schem
 		dsSchema[k] = &cp
 	}
 
+	// The data source has no prior state, so a missing target must stay
+	// "restart pending", never "removed outside Terraform".
+	nrc.keepStateOnMissingTarget = true
+
 	return &schema.Resource{
 		ReadContext: func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 			d.SetId(d.Get("name").(string))
-			// The data source has no prior state, so a missing target must stay
-			// "restart pending", never "removed outside Terraform".
-			nrc.keepStateOnMissingTarget = true
 			return notifyRead(nrc)(ctx, d, meta)
 		},
 		Schema: dsSchema,

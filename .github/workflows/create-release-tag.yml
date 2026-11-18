@@ -108,8 +108,8 @@ jobs:
             exit 1
           fi
 
-      # GITHUB_TOKEN opens pull requests that get no CI runs at all (#1308), so
-      # the release pull request is opened as the GitHub App instead.
+      # Pull requests opened with GITHUB_TOKEN get no working CI: their runs fail
+      # within seconds or wait for approval (#1308), so this one uses the App.
       - name: Create the release pull request App token
         id: release-pr-token
         if: steps.changelog.outputs.changed == 'true'
@@ -117,7 +117,7 @@ jobs:
         with:
           client-id: ${{ secrets.RELEASE_PR_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_PR_APP_PRIVATE_KEY }}
-          permission-contents: write
+          permission-contents: read
           permission-pull-requests: write
 
       - name: Open the release pull request

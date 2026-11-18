@@ -18,7 +18,11 @@ History older than 3.39.0 lives in the
   unknown key onto the value written before it, so the `comment`, `queue_dir`
   or the Kafka `topic` was stored with ` queue_limit=N` appended. Both
   resources now have a `queue_size` attribute; `queue_limit` is deprecated
-  and sent as `queue_size` when `queue_size` is not set.
+  and sent as `queue_size` when `queue_size` is not set, and the two cannot
+  be set together. A target an older provider wrote with `queue_limit` shows
+  one `queue_limit` diff (the server still holds the default queue size), and
+  the next apply writes every key again, which also repairs the value
+  `queue_limit` was glued onto.
 - `minio_notify_nats` no longer sends `user_credentials`. MinIO's
   `notify_nats` has no such key and glued it onto the value written before
   it, which corrupted the `subject`, the password or the token. The

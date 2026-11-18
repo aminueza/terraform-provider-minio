@@ -124,11 +124,7 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["tls_skip_verify"]; ok {
 		_ = d.Set("tls_skip_verify", v == "on")
 	}
-	if v, ok := cfgMap["queue_size"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("queue_size", n)
-		}
-	}
+	notifyReadQueueSize(cfgMap, d)
 	notifyReadCommonFields(cfgMap, d)
 	return nil
 }

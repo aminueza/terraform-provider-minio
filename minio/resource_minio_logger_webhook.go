@@ -86,11 +86,7 @@ func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 			_ = d.Set("batch_size", n)
 		}
 	}
-	if v, ok := cfgMap["queue_size"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("queue_size", n)
-		}
-	}
+	notifyReadQueueSize(cfgMap, d)
 	notifyReadCommonFields(cfgMap, d)
 	return nil
 }

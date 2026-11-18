@@ -347,17 +347,19 @@ func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key s
 func notifyWithQueueSize(specific map[string]*schema.Schema) map[string]*schema.Schema {
 	for k, v := range map[string]*schema.Schema{
 		"queue_size": {
-			Type:        schema.TypeInt,
-			Optional:    true,
-			Computed:    true,
-			Description: "Maximum number of undelivered events to queue.",
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Computed:      true,
+			ConflictsWith: []string{"queue_limit"},
+			Description:   "Maximum number of undelivered events to queue.",
 		},
 		"queue_limit": {
-			Type:        schema.TypeInt,
-			Optional:    true,
-			Computed:    true,
-			Deprecated:  "Use 'queue_size' instead. This target has no queue_limit setting; the value is sent as queue_size. This attribute will be removed in a future major version.",
-			Description: "Deprecated: use 'queue_size' instead.",
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Computed:      true,
+			ConflictsWith: []string{"queue_size"},
+			Deprecated:    "Use 'queue_size' instead. This target has no queue_limit setting; the value is sent as queue_size. This attribute will be removed in a future major version.",
+			Description:   "Deprecated: use 'queue_size' instead.",
 		},
 	} {
 		specific[k] = v
@@ -375,6 +377,23 @@ func notifyBuildQueueSizeCommonCfg(parts *[]string, d *schema.ResourceData) {
 	// d.Get, not getOptionalField: GetOk reads false as unset and would send
 	// enable=on for a target the configuration disables.
 	notifyBuildCfgAddBool(parts, "enable", d.Get("enable").(bool))
+}
+
+// notifyReadQueueSize stores the server's queue_size in queue_size and in
+// the deprecated queue_limit. Mirroring it into queue_limit makes a target an
+// older provider corrupted show up as a diff: that provider glued queue_limit
+// onto the value written before it, so the server kept the default
+// queue_size, and only a diff on queue_limit triggers the update that writes
+// every key again.
+func notifyReadQueueSize(cfgMap map[string]string, d *schema.ResourceData) {
+	v, ok := cfgMap["queue_size"]
+	if !ok {
+		return
+	}
+	if n, err := parseInt(v); err == nil {
+		_ = d.Set("queue_size", n)
+		_ = d.Set("queue_limit", n)
+	}
 }
 
 func notifyQueueSize(d *schema.ResourceData) int {

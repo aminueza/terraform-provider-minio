@@ -289,10 +289,10 @@ resource "minio_server_config_scanner" "test" {
 		Steps: []resource.TestStep{
 			{
 				// The server prints no cycle key for a scanner configuration
-				// that does not set one, so the read leaves the attribute
-				// empty.
+				// that does not set one, so no cycle attribute lands in the
+				// state.
 				Config: config,
-				Check:  resource.TestCheckResourceAttr(resourceName, "cycle", ""),
+				Check:  resource.TestCheckNoResourceAttr(resourceName, "cycle"),
 			},
 			{
 				PreConfig: func() {

@@ -26,8 +26,8 @@ History older than 3.39.0 lives in the
   `C:\path to\dir`, are stored as written instead of with doubled
   backslashes, so the plan stops showing the same change over and over.
   Values MinIO cannot represent, one starting or ending with a double
-  quote, containing a double quote together with whitespace, or
-  containing a line break, are rejected at plan time with a clear error
+  or single quote, containing a double quote together with whitespace,
+  or containing a line break, are rejected at plan time with a clear error
   instead of never converging. That rejection also applies when the
   field is a secret that MinIO never returns (auth_token,
   client_secret, lookup_bind_password, client_key), where the old

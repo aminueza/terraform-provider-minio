@@ -110,6 +110,10 @@ func TestValidateConfigValue(t *testing.T) {
 		{name: "leading double quote", val: `"leading`, wantErr: true},
 		{name: "trailing double quote", val: `ab"`, wantErr: true},
 		{name: "trailing double quote with inner quotes", val: `say"hi"`, wantErr: true},
+		{name: "leading single quote", val: `'ab`, wantErr: true},
+		{name: "trailing single quote", val: `ab'`, wantErr: true},
+		{name: "leading single quote before spaces", val: `'a b`, wantErr: true},
+		{name: "trailing single quote after spaces", val: `a b'`, wantErr: true},
 		{name: "line feed in value", val: "a\nb", wantErr: true},
 		{name: "carriage return in value", val: "a\rb", wantErr: true},
 		{name: "windows path", val: `C:\path to\dir`},
@@ -117,6 +121,7 @@ func TestValidateConfigValue(t *testing.T) {
 		{name: "value with spaces", val: "primary webhook"},
 		{name: "empty value", val: ""},
 		{name: "double quote inside a word", val: `a"b`},
+		{name: "apostrophe inside a word", val: `it's`},
 	}
 
 	for _, tc := range cases {

@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"strconv"
 	"strings"
+	"time"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func resourceMinioServerConfigApi() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Manages MinIO API server configuration including request throttling, CORS, transition workers, and stale upload cleanup.",
+		Description:   "Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.",
 		CreateContext: minioServerConfigApiSet,
 		ReadContext:   minioServerConfigApiRead,
 		UpdateContext: minioServerConfigApiSet,
@@ -75,6 +79,51 @@ func resourceMinioServerConfigApi() *schema.Resource {
 				Computed:    true,
 				Description: "Enable synchronous bucket notification events.",
 			},
+			"delete_cleanup_interval": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				ValidateDiagFunc: validateServerConfigAPIDuration,
+				Description:      "Interval between delete cleanup runs (e.g., \"5m\"). Omit to leave the server value unchanged.",
+			},
+			"list_quorum": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"strict", "reduced", "disk", "optimal",
+				}, false),
+				Description: "Quorum behavior for list operations: strict, reduced, disk or optimal.",
+			},
+			"object_max_versions": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				ValidateDiagFunc: validateServerConfigAPIObjectMaxVersions,
+				Description:      "Maximum object versions per object. Omit to leave the server value unchanged.",
+			},
+			"odirect": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
+				Description: "Whether reads and writes use direct I/O (O_DIRECT).",
+			},
+			"replication_max_workers": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				ValidateDiagFunc: validateServerConfigAPIReplicationMaxWorkers,
+				Description:      "Maximum number of concurrent replication workers. Must be between 1 and 500.",
+			},
+			"replication_priority": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: validation.StringInSlice([]string{
+					"slow", "fast", "auto",
+				}, false),
+				Description: "Replication priority: slow, fast or auto.",
+			},
 			"restart_required": {
 				Type:        schema.TypeBool,
 				Computed:    true,
@@ -105,6 +154,47 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
+	raw := d.GetRawConfig()
+	// rawConfigString reports the configuration's own value for attr, so the
+	// write is driven by what the user wrote, not by HasChange (false on
+	// create) or by a value the read computed. GetRawConfig is null while
+	// reading from state (import, refresh), where nothing is written. An
+	// unset attribute (null) or an empty one returns set=false, so the server
+	// keeps its own value and the Optional+Computed attribute plans no change.
+	rawConfigString := func(attr string) (val string, set bool) {
+		if raw.IsNull() || !raw.IsKnown() {
+			return "", false
+		}
+		v := raw.GetAttr(attr)
+		if v.IsNull() || !v.IsKnown() || v.Type() != cty.String {
+			return "", false
+		}
+		s := v.AsString()
+		if s == "" {
+			return "", false
+		}
+		return s, true
+	}
+	setConfiguredStr := func(key, attr string) {
+		if val, set := rawConfigString(attr); set {
+			parts = append(parts, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
+	var odirect string
+	if !raw.IsNull() && raw.IsKnown() {
+		rawBool := raw.GetAttr("odirect")
+		if !rawBool.IsNull() && rawBool.IsKnown() && rawBool.Type() == cty.Bool {
+			if rawBool.True() {
+				odirect = "on"
+			} else {
+				odirect = "off"
+			}
+		}
+	}
+	if odirect != "" {
+		parts = append(parts, "odirect="+odirect)
+	}
+
 	setStr("requests_max", "requests_max")
 	setStr("cors_allow_origin", "cors_allow_origin")
 	setStr("transition_workers", "transition_workers")
@@ -114,6 +204,11 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 	setStr("remote_transport_deadline", "remote_transport_deadline")
 	setBool("root_access", "root_access")
 	setBool("sync_events", "sync_events")
+	setConfiguredStr("delete_cleanup_interval", "delete_cleanup_interval")
+	setConfiguredStr("list_quorum", "list_quorum")
+	setConfiguredStr("object_max_versions", "object_max_versions")
+	setConfiguredStr("replication_max_workers", "replication_max_workers")
+	setConfiguredStr("replication_priority", "replication_priority")
 
 	if len(parts) == 0 {
 		d.SetId("api")
@@ -158,6 +253,8 @@ func minioServerConfigApiRead(ctx context.Context, d *schema.ResourceData, meta 
 		"requests_max", "cors_allow_origin", "transition_workers",
 		"stale_uploads_expiry", "stale_uploads_cleanup_interval",
 		"cluster_deadline", "remote_transport_deadline",
+		"delete_cleanup_interval", "list_quorum", "object_max_versions",
+		"replication_max_workers", "replication_priority",
 	}
 	for _, f := range strFields {
 		if v, ok := cfgMap[f]; ok {
@@ -165,13 +262,51 @@ func minioServerConfigApiRead(ctx context.Context, d *schema.ResourceData, meta 
 		}
 	}
 
-	boolFields := []string{"root_access", "sync_events"}
+	boolFields := []string{"root_access", "sync_events", "odirect"}
 	for _, f := range boolFields {
 		if v, ok := cfgMap[f]; ok {
 			_ = d.Set(f, v == "on")
 		}
 	}
 
+	return nil
+}
+
+func validateServerConfigAPIDuration(v interface{}, p cty.Path) diag.Diagnostics {
+	value := v.(string)
+	if value == "" {
+		return diag.Errorf("delete_cleanup_interval must be a non-empty duration (e.g., \"5m\")")
+	}
+	if _, err := time.ParseDuration(value); err != nil {
+		return diag.Errorf("delete_cleanup_interval must be a valid duration (e.g., \"5m\"), got: %s", value)
+	}
+	return nil
+}
+
+func validateServerConfigAPIObjectMaxVersions(v interface{}, p cty.Path) diag.Diagnostics {
+	value := v.(string)
+	if value == "" {
+		return diag.Errorf("object_max_versions must be a positive integer")
+	}
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return diag.Errorf("object_max_versions must be a positive integer, got: %s", value)
+	}
+	if n < 1 {
+		return diag.Errorf("object_max_versions must be a positive integer, got: %d", n)
+	}
+	return nil
+}
+
+func validateServerConfigAPIReplicationMaxWorkers(v interface{}, p cty.Path) diag.Diagnostics {
+	value := v.(string)
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return diag.Errorf("replication_max_workers must be an integer between 1 and 500, got: %s", value)
+	}
+	if n < 1 || n > 500 {
+		return diag.Errorf("replication_max_workers must be between 1 and 500, got: %d", n)
+	}
 	return nil
 }
 

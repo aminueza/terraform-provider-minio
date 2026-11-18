@@ -2,12 +2,12 @@
 page_title: "minio_server_config_api Resource - terraform-provider-minio"
 subcategory: "Server"
 description: |-
-  Manages MinIO API server configuration including request throttling, CORS, transition workers, and stale upload cleanup.
+  Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.
 ---
 
 # minio_server_config_api (Resource)
 
-Manages MinIO API server configuration including request throttling, CORS, transition workers, and stale upload cleanup.
+Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.
 
 ## Example Usage
 
@@ -28,7 +28,13 @@ resource "minio_server_config_api" "main" {
 
 - `cluster_deadline` (String) Deadline for cluster read operations (e.g., "10s").
 - `cors_allow_origin` (String) Comma-separated list of allowed CORS origins (e.g., "https://app.example.com").
+- `delete_cleanup_interval` (String) Interval between delete cleanup runs (e.g., "5m"). Omit to leave the server value unchanged.
+- `list_quorum` (String) Quorum behavior for list operations: strict, reduced, disk or optimal.
+- `object_max_versions` (String) Maximum object versions per object. Omit to leave the server value unchanged.
+- `odirect` (Boolean) Whether reads and writes use direct I/O (O_DIRECT).
 - `remote_transport_deadline` (String) Deadline for remote transport operations (e.g., "2h").
+- `replication_max_workers` (String) Maximum number of concurrent replication workers. Must be between 1 and 500.
+- `replication_priority` (String) Replication priority: slow, fast or auto.
 - `requests_max` (String) Maximum concurrent API requests. Use 0 or empty for auto.
 - `root_access` (Boolean) Whether root user (access/secret key) access is enabled for S3 API.
 - `stale_uploads_cleanup_interval` (String) Interval between stale upload cleanup runs (e.g., "6h").

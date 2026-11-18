@@ -87,6 +87,37 @@ func testAccOIDCRestartAndExists(resourceName string) resource.TestCheckFunc {
 	}
 }
 
+// testAccOIDCRestartAndEnableOff restarts MinIO and then asserts the named OIDC
+// configuration backing resourceName is reported disabled on the server (issue #1305).
+func testAccOIDCRestartAndEnableOff(resourceName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[resourceName]
+		if !ok {
+			return fmt.Errorf("not found: %s", resourceName)
+		}
+		if rs.Primary.ID == "" {
+			return fmt.Errorf("no OIDC IDP configuration ID is set")
+		}
+
+		ctx := context.Background()
+		admin := testAccClient().S3Admin
+		if err := testAccOIDCRestartMinio(ctx, admin); err != nil {
+			return err
+		}
+
+		cfg, err := admin.GetIDPConfig(ctx, madmin.OpenidIDPCfg, rs.Primary.ID)
+		if err != nil {
+			return fmt.Errorf("reading OIDC IDP configuration %s after restart: %w", rs.Primary.ID, err)
+		}
+		for _, info := range cfg.Info {
+			if info.Key == "enable" && info.Value == "off" {
+				return nil
+			}
+		}
+		return fmt.Errorf("OIDC IDP configuration %s is not disabled on the server: %v", rs.Primary.ID, cfg.Info)
+	}
+}
+
 func testAccCheckMinioIAMIdpOpenIdDestroy(s *terraform.State) error {
 	ctx := context.Background()
 	admin := testAccClient().S3Admin
@@ -138,6 +169,30 @@ func TestAccMinioIAMIdpOpenId_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "client_id", clientID),
 					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
 					testAccOIDCRestartAndExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMIdpOpenId_enableFalse(t *testing.T) {
+	resourceName := "minio_iam_idp_openid.test"
+	cfgName := "tfacc-oidc-disable-" + acctest.RandString(6)
+	configURL := os.Getenv("MINIO_OIDC_CONFIG_URL")
+	clientID := os.Getenv("MINIO_OIDC_CLIENT_ID")
+	clientSecret := os.Getenv("MINIO_OIDC_CLIENT_SECRET")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccOIDCPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpOpenIdDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpOpenIdDisable(cfgName, configURL, clientID, clientSecret),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", cfgName),
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccOIDCRestartAndEnableOff(resourceName),
 				),
 			},
 		},
@@ -244,6 +299,18 @@ resource "minio_iam_idp_openid" "test" {
   config_url    = %[2]q
   client_id     = %[3]q
   client_secret = %[4]q
+}
+`, name, configURL, clientID, clientSecret)
+}
+
+func testAccMinioIAMIdpOpenIdDisable(name, configURL, clientID, clientSecret string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_idp_openid" "test" {
+  name          = %[1]q
+  config_url    = %[2]q
+  client_id     = %[3]q
+  client_secret = %[4]q
+  enable        = false
 }
 `, name, configURL, clientID, clientSecret)
 }

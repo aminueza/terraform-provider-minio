@@ -346,7 +346,7 @@ func IdpLdapConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpLdap {
 		TLSSkipVerify:      getOptionalField(d, "tls_skip_verify", false).(bool),
 		ServerInsecure:     getOptionalField(d, "server_insecure", false).(bool),
 		StartTLS:           getOptionalField(d, "starttls", false).(bool),
-		Enable:             getOptionalField(d, "enable", true).(bool),
+		Enable:             d.Get("enable").(bool),
 	}
 }
 
@@ -366,7 +366,7 @@ func IdpOpenIdConfig(d *schema.ResourceData, meta interface{}) *S3MinioIdpOpenId
 		DisplayName:  getOptionalField(d, "display_name", "").(string),
 		Comment:      getOptionalField(d, "comment", "").(string),
 		RolePolicy:   getOptionalField(d, "role_policy", "").(string),
-		Enable:       getOptionalField(d, "enable", true).(bool),
+		Enable:       d.Get("enable").(bool),
 	}
 }
 
@@ -378,7 +378,7 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 		Name:       d.Get("name").(string),
 		Endpoint:   d.Get("endpoint").(string),
 		AuthToken:  getOptionalField(d, "auth_token", "").(string),
-		Enable:     getOptionalField(d, "enable", true).(bool),
+		Enable:     d.Get("enable").(bool),
 		QueueSize:  getOptionalField(d, "queue_size", 0).(int),
 		BatchSize:  getOptionalField(d, "batch_size", 0).(int),
 		ClientCert: getOptionalField(d, "client_cert", "").(string),

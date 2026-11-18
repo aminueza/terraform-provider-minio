@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -560,5 +561,63 @@ func TestNotifyReadKeepsStateOnEmptyResponse(t *testing.T) {
 	}
 	if got := d.Get("enable").(bool); got {
 		t.Errorf("enable after empty response = %v, want false (an empty response must not flip enable to on)", got)
+	}
+}
+
+func TestNotifyTargetConfigParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		response string
+		key      string
+		want     map[string]string
+		wantOK   bool
+	}{
+		{
+			name:     "bare single line",
+			response: "endpoint=http://example.com enable=off",
+			key:      "notify_webhook:x",
+			want:     map[string]string{"endpoint": "http://example.com", "enable": "off"},
+			wantOK:   true,
+		},
+		{
+			name:     "named line among other targets",
+			response: "notify_webhook:x endpoint=http://x enable=off\nnotify_webhook:y endpoint=http://y",
+			key:      "notify_webhook:x",
+			want:     map[string]string{"endpoint": "http://x", "enable": "off"},
+			wantOK:   true,
+		},
+		{
+			name:     "key with no value",
+			response: "notify_webhook:x",
+			key:      "notify_webhook:x",
+			want:     map[string]string{},
+			wantOK:   true,
+		},
+		{
+			name:     "several lines without the target",
+			response: "notify_webhook:y endpoint=http://y\nnotify_webhook:z endpoint=http://z",
+			key:      "notify_webhook:x",
+			want:     map[string]string{},
+			wantOK:   false,
+		},
+		{
+			name:     "quoted value with a space",
+			response: `comment="primary webhook" enable=off`,
+			key:      "notify_webhook:x",
+			want:     map[string]string{"comment": "primary webhook", "enable": "off"},
+			wantOK:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := notifyTargetConfigParams(tc.response, tc.key)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("params = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

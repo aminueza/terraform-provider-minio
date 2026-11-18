@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -149,6 +150,31 @@ resource "minio_iam_idp_ldap" "test" {
   enable                 = %[5]t
 }
 `, serverAddr, starttls, tlsSkipVerify, serverInsecure, enable)
+}
+
+// TestIdpLdapConfigEnable covers issue #1305: GetOk treats enable = false as
+// unset and substituted the default true, so the flag was always sent enabled.
+func TestIdpLdapConfigEnable(t *testing.T) {
+	res := resourceMinioIAMIdpLdap()
+
+	t.Run("enable false is not treated as unset", func(t *testing.T) {
+		d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+			"server_addr": "ldap.example.com:389",
+			"enable":      false,
+		})
+		if IdpLdapConfig(d, &S3MinioClient{}).Enable {
+			t.Errorf("expected Enable false when enable = false, got true")
+		}
+	})
+
+	t.Run("enable unset defaults to true", func(t *testing.T) {
+		d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+			"server_addr": "ldap.example.com:389",
+		})
+		if !IdpLdapConfig(d, &S3MinioClient{}).Enable {
+			t.Errorf("expected Enable true when enable is unset, got false")
+		}
+	})
 }
 
 func TestBuildIdpLdapCfgData(t *testing.T) {

@@ -324,6 +324,11 @@ func TestAccMinioServerConfigPolicyPlugin_existingCommentCleared(t *testing.T) {
 			testAccCleanupPolicyPlugin(t)
 		},
 		ProviderFactories: testAccProviders,
+		CheckDestroy: testAccCheckServerStoredTarget("policy_plugin", "", map[string]string{
+			"url":          "",
+			"auth_token":   "",
+			"enable_http2": "off",
+		}),
 		Steps: []resource.TestStep{
 			{
 				PreConfig: func() { testAccSeedPolicyPluginComment(t, stubURL) },
@@ -409,7 +414,7 @@ func testAccPolicyPluginStubAddress(t *testing.T) string {
 		}
 	}
 	if addr == "" {
-		t.Fatalf("no IP for %q in /etc/hosts: the policy plugin tests need the compose test container", hostname)
+		t.Skipf("no IP for %q in /etc/hosts: the policy plugin tests need the compose test container", hostname)
 	}
 	return addr
 }

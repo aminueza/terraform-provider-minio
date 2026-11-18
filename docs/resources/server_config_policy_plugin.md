@@ -2,12 +2,12 @@
 page_title: "minio_server_config_policy_plugin Resource - terraform-provider-minio"
 subcategory: "Server"
 description: |-
-  Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no.
+  Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no. Destroying the resource resets the stored configuration, but the running server keeps the plugin active until the next restart.
 ---
 
 # minio_server_config_policy_plugin (Resource)
 
-Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no.
+Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no. Destroying the resource resets the stored configuration, but the running server keeps the plugin active until the next restart.
 
 ## Example Usage
 
@@ -15,7 +15,7 @@ Manages the MinIO policy plugin configuration. While a URL is configured, MinIO 
 # Route authorization decisions to Open Policy Agent
 resource "minio_server_config_policy_plugin" "opa" {
   url          = "http://opa:8181/v1/data/httpapi/authz"
-  auth_token   = "[REDACTED:generic-assignment]"
+  auth_token   = var.webhook_token
   enable_http2 = true
   comment      = "Policy decisions are made by OPA"
 }

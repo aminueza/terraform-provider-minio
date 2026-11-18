@@ -14,7 +14,7 @@ const serverConfigPolicyPluginKey = "policy_plugin"
 
 func resourceMinioServerConfigPolicyPlugin() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no.",
+		Description:   "Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no. Destroying the resource resets the stored configuration, but the running server keeps the plugin active until the next restart.",
 		CreateContext: minioServerConfigPolicyPluginSet,
 		ReadContext:   minioServerConfigPolicyPluginRead,
 		UpdateContext: minioServerConfigPolicyPluginSet,

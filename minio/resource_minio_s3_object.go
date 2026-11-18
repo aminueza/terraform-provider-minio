@@ -140,8 +140,7 @@ func minioCreateObject(ctx context.Context, d *schema.ResourceData, meta interfa
 // plan stays empty and the drift is never reverted. Compare the MD5 of the
 // configured content with the ETag stored in state, and force an update on a
 // mismatch. An overwrite whose ETag is not a bare MD5 (a multipart or
-// streamed upload, or an SSE-KMS/SSE-C object) is not detected. See issue
-// #1330.
+// streamed upload) is not detected. See issue #1330.
 func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 	// GetChange returns the stored ETag, not one set explicitly in the
 	// configuration, so the comparison always looks at what the server holds.
@@ -149,10 +148,8 @@ func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta 
 	storedETag := strings.Trim(storedETagValue.(string), `"`)
 
 	// The comparison only applies to ETags that are a bare MD5: on create
-	// there is no stored ETag yet, multipart uploads carry a -N suffix, and
-	// SSE-KMS/SSE-C objects are not returned as the MD5 of the content. The
-	// schema has no encryption field, so the shape of the ETag is the only
-	// thing that is observable here.
+	// there is no stored ETag yet, and multipart or streamed uploads carry
+	// a -N suffix.
 	if len(storedETag) != 32 {
 		return nil
 	}
@@ -172,6 +169,12 @@ func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta 
 		path = filepath.Clean(path)
 		file, err := os.Open(path)
 		if err != nil {
+			if os.IsNotExist(err) {
+				// The file may not exist until the apply itself, for
+				// example when it is produced by another resource: skip
+				// the comparison instead of failing the plan.
+				return nil
+			}
 			return fmt.Errorf("opening S3 object source (%s): %w", path, err)
 		}
 		defer file.Close()

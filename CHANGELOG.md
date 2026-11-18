@@ -24,6 +24,12 @@ History older than 3.39.0 lives in the
   it, which corrupted the `subject`, the password or the token. The
   attribute is deprecated and ignored; use `username` and `password`, or
   `token`.
+- `minio_audit_webhook` reads `enable` from the server, so turning the webhook
+  on or off outside Terraform shows up in the plan and the next apply puts the
+  configured value back. Import now sets `enable` too. A webhook that an older
+  provider wrote as enabled while the configuration says `enable = false`
+  shows one `enable` diff, and the next apply disables it
+  ([#1317](https://github.com/aminueza/terraform-provider-minio/issues/1317)).
 - `minio_ilm_tier` no longer drops a tier from state right after it was
   created. The tier list appears to lag behind `AddTier`, so the read after
   create missed the new tier and the apply failed with "Provider produced

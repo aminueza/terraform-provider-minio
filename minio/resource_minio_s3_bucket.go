@@ -319,6 +319,25 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	// Read the bucket policy back and derive acl from it, so a policy removed
+	// or changed outside Terraform shows up as an acl diff instead of an empty plan.
+	policy, unsupported, err := readBucketPolicyText(ctx, bucketConfig.MinioClient, d.Id())
+	if err != nil {
+		return NewResourceError("error reading bucket policy", d.Id(), err)
+	}
+	if !unsupported {
+		currentACL := d.Get("acl").(string)
+		derivedACL, err := bucketACLFromPolicy(policy, d.Id(), currentACL)
+		if err != nil {
+			return NewResourceError("error deriving acl from bucket policy", d.Id(), err)
+		}
+		if derivedACL != currentACL {
+			if err := d.Set("acl", derivedACL); err != nil {
+				return NewResourceError("setting acl", d.Id(), err)
+			}
+		}
+	}
+
 	if shouldSkipBucketTagging(bucketConfig) {
 		preserveBucketTagsState(d)
 		return nil
@@ -620,6 +639,56 @@ func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bu
 	}
 
 	return nil
+}
+
+// readBucketPolicyText returns the bucket policy held on the server. A missing
+// policy (NoSuchBucketPolicy or 404) reports an empty string. Backends that
+// reject policy reads report unsupported so the caller keeps the state value
+// (see issue #608).
+func readBucketPolicyText(ctx context.Context, client *minio.Client, bucket string) (policy string, unsupported bool, err error) {
+	rawPolicy, err := client.GetBucketPolicy(ctx, bucket)
+	if err != nil {
+		errResp := minio.ToErrorResponse(err)
+		if errResp.Code == "NoSuchBucketPolicy" || errResp.StatusCode == http.StatusNotFound {
+			return "", false, nil
+		}
+		if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented ||
+			errResp.Code == "MethodNotAllowed" || errResp.StatusCode == http.StatusMethodNotAllowed {
+			return "", true, nil
+		}
+		return "", false, err
+	}
+	return rawPolicy, false, nil
+}
+
+// bucketACLFromPolicy derives the acl attribute from the policy on the server,
+// classifying it the same way minio_s3_bucket_anonymous_access does. public and
+// public-read-write write the same policy shape, so the value already held is
+// kept when it is one of them; a policy that matches no canned shape (for
+// example one written by minio_s3_bucket_policy) leaves acl untouched.
+func bucketACLFromPolicy(policy, bucket, currentACL string) (string, error) {
+	if policy == "" {
+		return "private", nil
+	}
+
+	accessType, err := getAccessTypeFromPolicy(policy, bucket)
+	if err != nil {
+		return "", err
+	}
+
+	switch accessType {
+	case "public-read":
+		return "public-read", nil
+	case "public-write":
+		return "public-write", nil
+	case "public":
+		if currentACL == "public" || currentACL == "public-read-write" {
+			return currentACL, nil
+		}
+		return "public", nil
+	default:
+		return currentACL, nil
+	}
 }
 
 func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {

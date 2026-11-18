@@ -468,6 +468,45 @@ func TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent(t *testing.T) {
 	})
 }
 
+// A policy removed outside Terraform must show up as an acl drift and be
+// restored by the next apply. See issue #1333.
+func TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccMinioS3BucketConfigWithACL(name, "public")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+			{
+				PreConfig: func() {
+					minioC := testAccClient().S3Client
+					_ = minioC.SetBucketPolicy(context.Background(), name, "")
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"

@@ -12,6 +12,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket` reads the bucket policy back and derives `acl` from it,
+  so removing or changing the policy outside Terraform shows up in the plan
+  and the next apply puts the configured ACL back
+  ([#1333](https://github.com/aminueza/terraform-provider-minio/issues/1333)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

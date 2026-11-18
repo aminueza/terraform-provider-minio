@@ -12,6 +12,16 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target keeps
+  its planned values in state while MinIO needs a restart to apply a change.
+  The read right after a write loaded the pre-restart config back, so the plan
+  that followed a successful apply showed the same change again.
+  `restart_required` now clears on its own once the server reports the new
+  values. A target with `enable = false` is also written as `enable=off`; it
+  used to be written enabled, so state and server never agreed after a
+  restart. Such existing targets show one `enable` diff and get corrected on
+  the next apply. The `minio_notify_*` data sources now report `enable` too,
+  instead of leaving it empty.
 - Config values containing backslashes, for example a Windows path like
   `C:\path to\dir`, are stored as written instead of with doubled
   backslashes, so the plan stops showing the same change over and over.

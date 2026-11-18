@@ -73,6 +73,26 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		_ = d.Set("name", name)
 
+		if len(cfgMap) == 0 {
+			// The response carried no keys for this target: env-override
+			// comment lines only, or a line the matcher did not find. Nothing
+			// can be compared, so keep the state values instead of letting the
+			// read store defaults for keys the response never had.
+			tflog.Warn(ctx, "Notification target response carried no keys, keeping state values", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+			return nil
+		}
+
+		if d.Get("restart_required").(bool) && nrc.buildCfg != nil {
+			if !notifyRunningConfigMatchesState(nrc, cfgMap, d, meta) {
+				tflog.Warn(ctx, "Notification target still shows the pre-restart config, keeping configured values in state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+				return nil
+			}
+			if err := d.Set("restart_required", false); err != nil {
+				return NewResourceError("clearing restart_required", name, err)
+			}
+			tflog.Debug(ctx, "Notification target config took effect after restart", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+		}
+
 		if nrc.readFields != nil {
 			if diags := nrc.readFields(cfgMap, d); diags != nil {
 				return diags
@@ -81,6 +101,44 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		return nil
 	}
+}
+
+// notifyRunningConfigMatchesState reports whether the values the server
+// reports for the target agree with what the provider would write for the
+// current state.
+//
+// While a restart is pending, get-config-kv serves the pre-restart config:
+// changed values are stale and a removed value is still shown with its old
+// value. Only keys the provider itself sends are compared: MinIO seeds the
+// subsystem defaults into every target (Config.SetKVS), and a default the
+// provider never sent, such as sasl_mechanism=plain, is not the provider's to
+// converge on. Keys missing from the response are treated as stale only where
+// the stored value is always printed: a cleared comment or queue_dir must come
+// back empty, and enable=off must come back as off, because the server prints
+// enable only when it is off. Secret keys are absent from the response and are
+// never compared. See issue #1299.
+func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string]string, d *schema.ResourceData, meta interface{}) bool {
+	intended := parseConfigParams(nrc.buildCfg(d, meta))
+	for key, serverValue := range cfgMap {
+		want, sent := intended[key]
+		if !sent {
+			if key == "comment" || key == "queue_dir" {
+				if serverValue != "" {
+					return false
+				}
+			}
+			continue
+		}
+		if serverValue != want {
+			return false
+		}
+	}
+	if intended["enable"] == "off" {
+		if got, ok := cfgMap["enable"]; !ok || got != "off" {
+			return false
+		}
+	}
+	return true
 }
 
 func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
@@ -234,6 +292,13 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 }
 
 func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
+	if v, ok := cfgMap["enable"]; ok {
+		_ = d.Set("enable", v == "on")
+	} else {
+		// The server prints enable only when it is off (SubsysInfo.WriteTo),
+		// so a response without it means the target is on.
+		_ = d.Set("enable", true)
+	}
 	if v, ok := cfgMap["queue_limit"]; ok {
 		if n, err := parseInt(v); err == nil {
 			_ = d.Set("queue_limit", n)
@@ -264,7 +329,9 @@ func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interfac
 	notifyBuildCfgClearableParam(parts, d, "queue_dir")
 	notifyBuildCfgClearableParam(parts, d, "comment")
 	notifyBuildCfgAddInt(parts, "queue_limit", getOptionalField(d, "queue_limit", 0).(int))
-	notifyBuildCfgAddBool(parts, "enable", getOptionalField(d, "enable", true).(bool))
+	// d.Get, not getOptionalField: GetOk reads false as unset and would send
+	// enable=on for a target the configuration disables.
+	notifyBuildCfgAddBool(parts, "enable", d.Get("enable").(bool))
 }
 
 func parseInt(s string) (int, error) {

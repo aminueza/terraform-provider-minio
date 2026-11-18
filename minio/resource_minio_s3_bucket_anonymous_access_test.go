@@ -176,6 +176,51 @@ func TestAccS3BucketAnonymousAccess_readWriteStaysStable(t *testing.T) {
 	})
 }
 
+// A policy removed outside Terraform must surface as a diff on access_type, and the next
+// apply must restore the anonymous access. On the old code the read kept the state's
+// access_type when the server's policy matched no canned type, so the plan stayed empty.
+func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+				),
+			},
+			{
+				// Remove the policy outside Terraform before this step plans, as
+				// `mc anonymous set none` would.
+				PreConfig: func() {
+					testAccRemoveBucketPolicy(t, name)
+				},
+				ExpectNonEmptyPlan: true,
+				Config:             testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+				),
+			},
+		},
+	})
+}
+
+// testAccRemoveBucketPolicy deletes the bucket policy with a raw MinIO client, the same call
+// `mc anonymous set none` makes, so the test does not depend on the code under test.
+func testAccRemoveBucketPolicy(t *testing.T, bucket string) {
+	t.Helper()
+	if err := testAccClient().S3Client.SetBucketPolicy(context.Background(), bucket, ""); err != nil {
+		t.Fatalf("error removing bucket policy for %s: %v", bucket, err)
+	}
+}
+
 // Reads the policy back off the server and asserts what a MinIO client makes of it, rather than
 // comparing it to the builder that wrote it.
 func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestCheckFunc {

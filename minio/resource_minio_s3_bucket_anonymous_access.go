@@ -268,10 +268,11 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("setting policy", bucketName, err)
 	}
 
-	if accessType != "" {
-		if err := d.Set("access_type", accessType); err != nil {
-			return NewResourceError("setting access_type", bucketName, err)
-		}
+	// Set the value even when empty: if the server's policy no longer matches
+	// the configured access type, keeping the stale state value would leave the
+	// plan empty and the drift would never be repaired. See issue #1332.
+	if err := d.Set("access_type", accessType); err != nil {
+		return NewResourceError("setting access_type", bucketName, err)
 	}
 
 	return nil

@@ -4,12 +4,10 @@ import (
 	"context"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
-	"github.com/minio/madmin-go/v4"
 )
 
 func TestAccMinioNotifyWebhook_basic(t *testing.T) {
@@ -35,15 +33,10 @@ func TestAccMinioNotifyWebhook_basic(t *testing.T) {
 	})
 }
 
-// TestAccMinioNotifyWebhook_deletedOutsideTerraform covers issue #1306: a
-// target removed outside Terraform must leave the state so the next plan
-// recreates it. The test is sequential (resource.Test, not
-// resource.ParallelTest) because it restarts the shared primary MinIO: go test
-// only starts the parallel tests (the ones that call t.Parallel(), i.e. every
-// resource.ParallelTest in the package) after all sequential top-level tests
-// in the package have finished, so this test cannot overlap a test that talks
-// to the same server. The suite runs a single package (go test ./minio in the
-// compose test service) with no -parallel flag, which limits concurrency only.
+// TestAccMinioNotifyWebhook_deletedOutsideTerraform covers issue #1306. It
+// restarts the shared primary MinIO, so it must stay a sequential
+// resource.Test: go test starts the parallel tests only after the sequential
+// ones finish.
 func TestAccMinioNotifyWebhook_deletedOutsideTerraform(t *testing.T) {
 	resourceName := "minio_notify_webhook.test"
 	name := "tfacc-" + acctest.RandString(6)
@@ -66,7 +59,7 @@ func TestAccMinioNotifyWebhook_deletedOutsideTerraform(t *testing.T) {
 				// its restart" apart from "the target is gone". The step also
 				// asserts the plan is clean once the target is up.
 				Config:    testAccMinioNotifyWebhookBasic(name),
-				PreConfig: testAccNotifyRestartPreConfig,
+				PreConfig: func() { testAccNotifyRestartPreConfig(t) },
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "restart_required", "false"),
 				),
@@ -75,7 +68,7 @@ func TestAccMinioNotifyWebhook_deletedOutsideTerraform(t *testing.T) {
 				// Delete the target outside Terraform, restart so the removal is
 				// applied, and require the plan to notice it is gone.
 				Config:             testAccMinioNotifyWebhookBasic(name),
-				PreConfig:          func() { testAccNotifyWebhookRemoveOutsideTerraform(name) },
+				PreConfig:          func() { testAccNotifyWebhookRemoveOutsideTerraform(t, name) },
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
 			},
@@ -83,49 +76,29 @@ func TestAccMinioNotifyWebhook_deletedOutsideTerraform(t *testing.T) {
 	})
 }
 
-// testAccNotifyRestartMinio restarts the MinIO server and waits until it is
-// back, so that a notify target written (or deleted) through the admin API is
-// applied to the running config. Mirrors testAccOIDCRestartMinio in
-// resource_minio_iam_idp_openid_test.go; the restart plus GetConfigKV helper
-// landing for issue #1310 should replace it.
-func testAccNotifyRestartMinio(ctx context.Context, admin *madmin.AdminClient) error {
-	if err := admin.ServiceRestart(ctx); err != nil {
-		return fmt.Errorf("triggering MinIO restart: %w", err)
-	}
-
-	// Give the server a moment to begin restarting before polling for readiness.
-	time.Sleep(3 * time.Second)
-
-	deadline := time.Now().Add(120 * time.Second)
-	var lastErr error
-	for time.Now().Before(deadline) {
-		if _, err := admin.ServerInfo(ctx); err == nil {
-			return nil
-		} else {
-			lastErr = err
-		}
-		time.Sleep(3 * time.Second)
-	}
-	return fmt.Errorf("MinIO did not come back after restart: %w", lastErr)
-}
-
-func testAccNotifyRestartPreConfig() {
-	if err := testAccNotifyRestartMinio(context.Background(), testAccClient().S3Admin); err != nil {
-		panic(fmt.Sprintf("restarting MinIO: %v", err))
+// testAccNotifyRestartPreConfig restarts MinIO so that a notify target written
+// through the admin API is applied to the running config. Reuses
+// testAccOIDCRestartMinio; the restart plus GetConfigKV helper landing for
+// issue #1310 should replace it.
+func testAccNotifyRestartPreConfig(t *testing.T) {
+	t.Helper()
+	if err := testAccOIDCRestartMinio(context.Background(), testAccClient().S3Admin); err != nil {
+		t.Fatalf("restarting MinIO: %v", err)
 	}
 }
 
 // testAccNotifyWebhookRemoveOutsideTerraform deletes the target directly through
 // the admin API and restarts MinIO, so the removal is applied to the running
 // config, like `mc admin config reset` would be.
-func testAccNotifyWebhookRemoveOutsideTerraform(name string) {
+func testAccNotifyWebhookRemoveOutsideTerraform(t *testing.T, name string) {
+	t.Helper()
 	admin := testAccClient().S3Admin
 	ctx := context.Background()
 	if _, err := admin.DelConfigKV(ctx, notifyConfigKey("notify_webhook", name)); err != nil {
-		panic(fmt.Sprintf("deleting notification target %s outside Terraform: %v", name, err))
+		t.Fatalf("deleting notification target %s outside Terraform: %v", name, err)
 	}
-	if err := testAccNotifyRestartMinio(ctx, admin); err != nil {
-		panic(fmt.Sprintf("restarting MinIO after deleting %s outside Terraform: %v", name, err))
+	if err := testAccOIDCRestartMinio(ctx, admin); err != nil {
+		t.Fatalf("restarting MinIO after deleting %s outside Terraform: %v", name, err)
 	}
 }
 

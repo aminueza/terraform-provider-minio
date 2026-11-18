@@ -1,0 +1,225 @@
+package minio
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+)
+
+const serverConfigCompressionKey = "compression"
+
+func resourceMinioServerConfigCompression() *schema.Resource {
+	return &schema.Resource{
+		Description:   "Manages the MinIO object compression configuration. MinIO transparently compresses objects whose extension or mime type matches the configured lists.",
+		CreateContext: minioServerConfigCompressionSet,
+		ReadContext:   minioServerConfigCompressionRead,
+		UpdateContext: minioServerConfigCompressionSet,
+		DeleteContext: minioServerConfigCompressionDelete,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
+		Schema: map[string]*schema.Schema{
+			"enable": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Whether object compression is enabled.",
+			},
+			"extensions": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString, ValidateFunc: validateCompressionListItem},
+				Description: "File extensions to compress, for example \".txt\", \".log\" or \".csv\".",
+			},
+			"mime_types": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Computed:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString, ValidateFunc: validateCompressionListItem},
+				Description: "Wildcard mime types to compress, for example \"text/*\" or \"application/json\".",
+			},
+			"allow_encryption": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Description: "Whether compression is allowed for encrypted objects.",
+			},
+			"comment": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Comment or description for the compression configuration.",
+			},
+			"restart_required": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Whether a MinIO server restart is required.",
+			},
+		},
+	}
+}
+
+func minioServerConfigCompressionSet(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	config := ServerConfigCompressionConfig(d, meta)
+
+	tflog.Debug(ctx, "Setting compression configuration")
+
+	cfgData := buildServerConfigCompressionCfgData(d, config)
+	restart, err := config.MinioAdmin.SetConfigKV(ctx, serverConfigCompressionKey+" "+cfgData)
+	if err != nil {
+		return NewResourceError("setting compression configuration", serverConfigCompressionKey, err)
+	}
+
+	d.SetId(serverConfigCompressionKey)
+	if setErr := d.Set("restart_required", restart); setErr != nil {
+		return NewResourceError("setting restart_required", serverConfigCompressionKey, setErr)
+	}
+
+	tflog.Debug(ctx, fmt.Sprintf("Set compression config (restart_required=%v)", restart))
+
+	return minioServerConfigCompressionRead(ctx, d, meta)
+}
+
+func minioServerConfigCompressionRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	config := ServerConfigCompressionConfig(d, meta)
+
+	tflog.Debug(ctx, "Reading compression configuration")
+
+	configData, err := config.MinioAdmin.GetConfigKV(ctx, serverConfigCompressionKey)
+	if err != nil {
+		return NewResourceError("reading compression configuration", serverConfigCompressionKey, err)
+	}
+
+	configStr := strings.TrimSpace(string(configData))
+	var valueStr string
+	if strings.HasPrefix(configStr, serverConfigCompressionKey+" ") {
+		parts := strings.SplitN(configStr, " ", 2)
+		if len(parts) == 2 {
+			valueStr = strings.TrimSpace(parts[1])
+		}
+	}
+
+	cfgMap := parseConfigParams(valueStr)
+	d.SetId(serverConfigCompressionKey)
+
+	if len(cfgMap) > 0 {
+		// The server prints enable only when it is off (SubsysInfo.WriteTo),
+		// so a response without it means compression is on. See issue #1317.
+		enabled := true
+		if v, ok := cfgMap["enable"]; ok {
+			enabled = v != "off"
+		}
+		if setErr := d.Set("enable", enabled); setErr != nil {
+			return NewResourceError("setting enable", serverConfigCompressionKey, setErr)
+		}
+	}
+
+	if v, ok := cfgMap["allow_encryption"]; ok {
+		if setErr := d.Set("allow_encryption", v == "on"); setErr != nil {
+			return NewResourceError("setting allow_encryption", serverConfigCompressionKey, setErr)
+		}
+	}
+	if v, ok := cfgMap["extensions"]; ok {
+		if setErr := d.Set("extensions", compressionConfigList(v)); setErr != nil {
+			return NewResourceError("setting extensions", serverConfigCompressionKey, setErr)
+		}
+	}
+	if v, ok := cfgMap["mime_types"]; ok {
+		if setErr := d.Set("mime_types", compressionConfigList(v)); setErr != nil {
+			return NewResourceError("setting mime_types", serverConfigCompressionKey, setErr)
+		}
+	}
+	if v, ok := cfgMap["comment"]; ok {
+		if setErr := d.Set("comment", v); setErr != nil {
+			return NewResourceError("setting comment", serverConfigCompressionKey, setErr)
+		}
+	}
+
+	return nil
+}
+
+func minioServerConfigCompressionDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	config := ServerConfigCompressionConfig(d, meta)
+
+	tflog.Debug(ctx, "Deleting compression configuration")
+
+	_, err := config.MinioAdmin.DelConfigKV(ctx, serverConfigCompressionKey)
+	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if !strings.Contains(errMsg, "not found") {
+			return NewResourceError("resetting compression configuration", serverConfigCompressionKey, err)
+		}
+	}
+
+	d.SetId("")
+	tflog.Debug(ctx, "Deleted compression configuration")
+
+	return nil
+}
+
+// buildServerConfigCompressionCfgData builds the key=value string sent to
+// set-config-kv. MinIO merges the sent keys into the stored config, so a key
+// that is left out keeps its old value; a key the configuration cleared is
+// sent as key= so the server drops it.
+func buildServerConfigCompressionCfgData(d *schema.ResourceData, config *S3MinioServerConfigCompression) string {
+	parts := make([]string, 0, 5)
+
+	if config.Enable {
+		parts = append(parts, "enable=on")
+	} else {
+		parts = append(parts, "enable=off")
+	}
+
+	if config.AllowEncryption {
+		parts = append(parts, "allow_encryption=on")
+	} else {
+		parts = append(parts, "allow_encryption=off")
+	}
+
+	appendList := func(key string, values []string) {
+		if len(values) > 0 {
+			parts = append(parts, buildConfigParam(key, strings.Join(values, ",")))
+			return
+		}
+		if d.HasChange(key) {
+			parts = append(parts, key+"=")
+		}
+	}
+	appendList("extensions", config.Extensions)
+	appendList("mime_types", config.MimeTypes)
+
+	if config.Comment != "" {
+		parts = append(parts, buildConfigParam("comment", config.Comment))
+	} else if d.HasChange("comment") {
+		parts = append(parts, "comment=")
+	}
+
+	return strings.Join(parts, " ")
+}
+
+// compressionConfigList splits the comma-separated value the server stores
+// for extensions and mime_types. An empty value means the list was cleared.
+func compressionConfigList(value string) []string {
+	if value == "" {
+		return []string{}
+	}
+	return strings.Split(value, ",")
+}
+
+// validateCompressionListItem applies the config-value rules to one entry of
+// extensions or mime_types, where an empty entry is an error too: the joined
+// value is what the server stores, and MinIO rejects an empty extension or
+// mime type.
+func validateCompressionListItem(val interface{}, key string) (warns []string, errs []error) {
+	v := val.(string)
+	if v == "" {
+		errs = append(errs, fmt.Errorf("%q cannot be empty: MinIO rejects an empty extension or mime type", key))
+		return
+	}
+	return validateConfigValue(v, key)
+}

@@ -2,9 +2,11 @@ package minio
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -203,4 +205,193 @@ resource "minio_server_config_etcd" "test" {
 			},
 		},
 	})
+}
+
+// The compression subsystem is a singleton: every test writes the same
+// server config, so these tests must stay sequential resource.Test calls and
+// must not run in parallel with each other.
+func TestAccMinioServerConfigCompression_basic(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the compression defaults seeded by MinIO.
+		CheckDestroy: testAccCheckServerStoredTarget("compression", "", map[string]string{
+			"enable":           "off",
+			"allow_encryption": "off",
+			"extensions":       ".txt,.log,.csv,.json,.tar,.xml,.bin",
+			"mime_types":       "text/*,application/json,application/xml,binary/octet-stream",
+		}),
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = true
+  allow_encryption   = true
+  extensions         = [".txt", ".log"]
+  mime_types         = ["application/json", "text/plain"]
+  comment            = "terraform acceptance test"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "allow_encryption", "true"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.0", ".txt"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.1", ".log"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.0", "application/json"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.1", "text/plain"),
+					resource.TestCheckResourceAttr(resourceName, "comment", "terraform acceptance test"),
+					// The server prints enable only when it is off, so with
+					// enable = true the stored config carries no enable key.
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"allow_encryption": "on",
+						"extensions":       ".txt,.log",
+						"mime_types":       "application/json,text/plain",
+						"comment":          "terraform acceptance test",
+					}),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioServerConfigCompression_update(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton
+	// and the server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = false
+  allow_encryption   = true
+  extensions         = [".txt", ".log"]
+  mime_types         = ["text/*"]
+  comment            = "update step one"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"enable":           "off",
+						"allow_encryption": "on",
+						"extensions":       ".txt,.log",
+						"mime_types":       "text/*",
+						"comment":          "update step one",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = true
+  allow_encryption   = false
+  extensions         = [".json"]
+  mime_types         = ["application/xml"]
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "allow_encryption", "false"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.0", ".json"),
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"allow_encryption": "off",
+						"extensions":       ".json",
+						"mime_types":       "application/xml",
+						"comment":          "",
+					}),
+				),
+			},
+		},
+	})
+}
+
+func TestBuildServerConfigCompressionCfgData(t *testing.T) {
+	d := schema.TestResourceDataRaw(t, resourceMinioServerConfigCompression().Schema, map[string]interface{}{})
+
+	tests := []struct {
+		name     string
+		config   S3MinioServerConfigCompression
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "all fields",
+			config: S3MinioServerConfigCompression{
+				Enable:          true,
+				Extensions:      []string{".txt", ".log"},
+				MimeTypes:       []string{"application/json", "text/plain"},
+				AllowEncryption: true,
+				Comment:         "probe value",
+			},
+			contains: []string{
+				"enable=on",
+				"allow_encryption=on",
+				"extensions=.txt,.log",
+				"mime_types=application/json,text/plain",
+				`comment="probe value"`,
+			},
+		},
+		{
+			name: "disabled with no optional fields",
+			config: S3MinioServerConfigCompression{
+				Enable: false,
+			},
+			contains: []string{
+				"enable=off",
+				"allow_encryption=off",
+			},
+			absent: []string{
+				"extensions=",
+				"mime_types=",
+				"comment=",
+			},
+		},
+		{
+			name: "disabled with values",
+			config: S3MinioServerConfigCompression{
+				Enable:          false,
+				Extensions:      []string{".csv"},
+				MimeTypes:       []string{"text/*"},
+				AllowEncryption: false,
+			},
+			contains: []string{
+				"enable=off",
+				"allow_encryption=off",
+				"extensions=.csv",
+				"mime_types=text/*",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildServerConfigCompressionCfgData(d, &tc.config)
+			for _, want := range tc.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected %q in config data, got: %s", want, got)
+				}
+			}
+			for _, unwanted := range tc.absent {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("unexpected %q in config data, got: %s", unwanted, got)
+				}
+			}
+		})
+	}
 }

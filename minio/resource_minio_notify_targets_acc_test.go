@@ -58,10 +58,12 @@ func TestAccMinioNotifyKafka_basic(t *testing.T) {
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_notify_kafka.test"
 
-	resource.ParallelTest(t, resource.TestCase{
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckNotifyTargetDestroy,
+		CheckDestroy:      testAccCheckServerRemovedTarget("notify_kafka", name),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioNotifyKafkaConfig(name, brokers),
@@ -71,6 +73,11 @@ func TestAccMinioNotifyKafka_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "brokers", brokers),
 					resource.TestCheckResourceAttr(resourceName, "topic", "minio-events"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("notify_kafka", name, map[string]string{
+						"brokers": brokers,
+						"topic":   "minio-events",
+						"enable":  "off",
+					}),
 				),
 			},
 		},
@@ -279,10 +286,12 @@ func TestAccMinioLoggerWebhook_basic(t *testing.T) {
 	name := "tfacc-" + acctest.RandString(6)
 	resourceName := "minio_logger_webhook.test"
 
-	resource.ParallelTest(t, resource.TestCase{
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckNotifyTargetDestroy,
+		CheckDestroy:      testAccCheckServerRemovedTarget("logger_webhook", name),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioLoggerWebhookConfig(name),
@@ -291,6 +300,10 @@ func TestAccMinioLoggerWebhook_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://log-collector.example.com/logs"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("logger_webhook", name, map[string]string{
+						"endpoint": "http://log-collector.example.com/logs",
+						"enable":   "off",
+					}),
 				),
 			},
 			{

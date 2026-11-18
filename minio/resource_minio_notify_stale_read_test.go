@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"sort"
 	"strings"
 	"sync"
@@ -482,6 +483,55 @@ func TestNotifyEnableFlipKeepsPlannedValuesUntilRestart(t *testing.T) {
 	}
 }
 
+// TestNotifyReadRemovesStateWhenTargetGone covers issue #1306: with
+// restart_required already cleared, a "there is no target" answer means the
+// target was removed outside Terraform, and the read must drop it from state.
+func TestNotifyReadRemovesStateWhenTargetGone(t *testing.T) {
+	_, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	d := res.TestResourceData()
+	d.SetId("primary")
+	_ = d.Set("name", "primary")
+	_ = d.Set("endpoint", "http://hook:8080")
+	_ = d.Set("enable", false)
+	_ = d.Set("restart_required", false)
+
+	// The stub starts invisible, so get-config-kv answers "there is no target".
+	if diags := res.ReadContext(ctx, d, meta); diags.HasError() {
+		t.Fatalf("read: %v", diags)
+	}
+	if d.Id() != "" {
+		t.Fatalf("target id after read = %q, want empty (a removed target must leave the state once restart_required is false)", d.Id())
+	}
+}
+
+// TestNotifyDataSourceReadKeepsNameWhileTargetInvisible covers the data source
+// path of issue #1306: it carries no restart_required state, so a "there is no
+// target" answer is always "restart pending" and the read must keep the name.
+func TestNotifyDataSourceReadKeepsNameWhileTargetInvisible(t *testing.T) {
+	_, client := newNotifyStaleConfigStub(t, "notify_webhook:primary", webhookStubDefaults)
+	meta := &S3MinioClient{S3Admin: client}
+	ds := dataSourceMinioNotifyWebhook()
+	ctx := context.Background()
+
+	d := ds.TestResourceData()
+	_ = d.Set("name", "primary")
+
+	// The stub starts invisible, so get-config-kv answers "there is no target".
+	if diags := ds.ReadContext(ctx, d, meta); diags.HasError() {
+		t.Fatalf("data source read: %v", diags)
+	}
+	if got := d.Id(); got != "primary" {
+		t.Fatalf("data source id after read = %q, want %q (a data source must not drop an invisible target)", got, "primary")
+	}
+	if got := d.Get("name").(string); got != "primary" {
+		t.Errorf("name after data source read = %q, want %q", got, "primary")
+	}
+}
+
 // TestNotifyReadKeepsStateOnEmptyResponse covers a response that carries no
 // keys for the target: the read must keep the state values, not store schema
 // defaults for keys the response never had.
@@ -511,5 +561,63 @@ func TestNotifyReadKeepsStateOnEmptyResponse(t *testing.T) {
 	}
 	if got := d.Get("enable").(bool); got {
 		t.Errorf("enable after empty response = %v, want false (an empty response must not flip enable to on)", got)
+	}
+}
+
+func TestNotifyTargetConfigParams(t *testing.T) {
+	tests := []struct {
+		name     string
+		response string
+		key      string
+		want     map[string]string
+		wantOK   bool
+	}{
+		{
+			name:     "bare single line",
+			response: "endpoint=http://example.com enable=off",
+			key:      "notify_webhook:x",
+			want:     map[string]string{"endpoint": "http://example.com", "enable": "off"},
+			wantOK:   true,
+		},
+		{
+			name:     "named line among other targets",
+			response: "notify_webhook:x endpoint=http://x enable=off\nnotify_webhook:y endpoint=http://y",
+			key:      "notify_webhook:x",
+			want:     map[string]string{"endpoint": "http://x", "enable": "off"},
+			wantOK:   true,
+		},
+		{
+			name:     "key with no value",
+			response: "notify_webhook:x",
+			key:      "notify_webhook:x",
+			want:     map[string]string{},
+			wantOK:   true,
+		},
+		{
+			name:     "several lines without the target",
+			response: "notify_webhook:y endpoint=http://y\nnotify_webhook:z endpoint=http://z",
+			key:      "notify_webhook:x",
+			want:     map[string]string{},
+			wantOK:   false,
+		},
+		{
+			name:     "quoted value with a space",
+			response: `comment="primary webhook" enable=off`,
+			key:      "notify_webhook:x",
+			want:     map[string]string{"comment": "primary webhook", "enable": "off"},
+			wantOK:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := notifyTargetConfigParams(tc.response, tc.key)
+			if ok != tc.wantOK {
+				t.Fatalf("ok = %v, want %v", ok, tc.wantOK)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("params = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }

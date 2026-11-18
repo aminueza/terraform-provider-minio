@@ -18,6 +18,19 @@ History older than 3.39.0 lives in the
   inconsistent result after apply". The read right after create now polls for
   the tier instead of treating it as removed
   ([#1309](https://github.com/aminueza/terraform-provider-minio/issues/1309)).
+- `minio_iam_idp_ldap`, `minio_iam_idp_openid` and `minio_audit_webhook` with
+  `enable = false` are written as `enable=off` on the server. The field was
+  read from the configuration through a helper that treated `false` as unset
+  and substituted the default `true`, so the server kept them enabled
+  ([#1305](https://github.com/aminueza/terraform-provider-minio/issues/1305)).
+- A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target that
+  was deleted outside Terraform (for example with `mc admin config reset`) is
+  removed from the state and recreated by the next apply. The read treated the
+  `there is no target` answer as a restart still pending, so the plan never
+  noticed the target was gone. Now that answer is only kept while
+  `restart_required` says the server has not applied this target's config yet
+  ([#1306](https://github.com/aminueza/terraform-provider-minio/issues/1306)).
+
 - A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target keeps
   its planned values in state while MinIO needs a restart to apply a change.
   The read right after a write loaded the pre-restart config back, so the plan
@@ -28,6 +41,21 @@ History older than 3.39.0 lives in the
   restart. Such existing targets show one `enable` diff and get corrected on
   the next apply. The `minio_notify_*` data sources now report `enable` too,
   instead of leaving it empty.
+- Config values containing backslashes, for example a Windows path like
+  `C:\path to\dir`, are stored as written instead of with doubled
+  backslashes, so the plan stops showing the same change over and over.
+  Values MinIO cannot represent, one starting or ending with a double
+  or single quote, containing a double quote together with whitespace,
+  or containing a line break, are rejected at plan time with a clear error
+  instead of never converging. That rejection also applies when the
+  field is a secret that MinIO never returns (auth_token,
+  client_secret, lookup_bind_password, client_key), where the old
+  config applied cleanly but kept a mangled value on the server.
+  Affected resources are `minio_notify_*`, `minio_logger_webhook`,
+  `minio_audit_kafka`, `minio_audit_webhook`, `minio_iam_idp_ldap`,
+  `minio_iam_idp_openid`, `minio_server_config_region` and
+  `minio_server_config_etcd`
+  ([#1300](https://github.com/aminueza/terraform-provider-minio/issues/1300)).
 
 ## [3.46.4] - 2026-11-17
 

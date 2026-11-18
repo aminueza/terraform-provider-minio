@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func notifyConfigKey(subsystem, name string) string {
@@ -47,28 +48,13 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 		configKey := notifyConfigKey(nrc.subsystem, name)
 		configData, err := admin.GetConfigKV(ctx, configKey)
 		if err != nil {
-			return handleNotifyReadError(ctx, err, nrc.subsystem, name, d)
+			return handleNotifyReadError(ctx, nrc, err, name, d)
 		}
 
 		configStr := strings.TrimSpace(string(configData))
 		tflog.Debug(ctx, "Raw notification target config", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "raw": configStr})
 
-		var valueStr string
-		for _, line := range strings.Split(configStr, "\n") {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, configKey+" ") {
-				parts := strings.SplitN(line, " ", 2)
-				if len(parts) == 2 {
-					valueStr = strings.TrimSpace(parts[1])
-				}
-				break
-			}
-		}
-		if valueStr == "" && !strings.Contains(configStr, "\n") {
-			valueStr = configStr
-		}
-
-		cfgMap := parseConfigParams(valueStr)
+		cfgMap, _ := notifyTargetConfigParams(configStr, configKey)
 
 		_ = d.Set("name", name)
 
@@ -100,6 +86,24 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		return nil
 	}
+}
+
+// notifyTargetConfigParams extracts the target's own key=value pairs from a
+// get-config-kv response. Any single-line response counts as the target's
+// own value, as the read always did; among several lines the target's line
+// is matched by its "key " prefix.
+func notifyTargetConfigParams(response, configKey string) (cfgMap map[string]string, ok bool) {
+	configStr := strings.TrimSpace(response)
+	for _, line := range strings.Split(configStr, "\n") {
+		line = strings.TrimSpace(line)
+		if value, found := strings.CutPrefix(line, configKey+" "); found {
+			return parseConfigParams(strings.TrimSpace(value)), true
+		}
+	}
+	if !strings.Contains(configStr, "\n") {
+		return parseConfigParams(configStr), true
+	}
+	return map[string]string{}, false
 }
 
 // notifyRunningConfigMatchesState reports whether the values the server
@@ -189,29 +193,37 @@ func notifyDelete(nrc notifyResourceConfig) schema.DeleteContextFunc {
 	}
 }
 
-func handleNotifyReadError(ctx context.Context, err error, subsystem, name string, d *schema.ResourceData) diag.Diagnostics {
+func handleNotifyReadError(ctx context.Context, nrc notifyResourceConfig, err error, name string, d *schema.ResourceData) diag.Diagnostics {
 	errMsg := strings.ToLower(err.Error())
 	if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
-		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": subsystem, "name": name})
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 		d.SetId("")
 		return nil
 	}
 	if strings.Contains(errMsg, "there is no target") {
-		tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": subsystem, "name": name})
-		_ = d.Set("name", name)
+		// The same error is returned for a new target waiting on its restart and
+		// for a target that no longer exists. restart_required tells the two
+		// apart: once it is false the server has applied this target's config
+		// at least once, so the absence means it was removed outside Terraform.
+		// Data sources carry no such state (keepStateOnMissingTarget), so for
+		// them the absence only ever means the restart is still pending.
+		if nrc.keepStateOnMissingTarget || d.Get("restart_required").(bool) {
+			tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+			_ = d.Set("name", name)
+			return nil
+		}
+		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+		d.SetId("")
 		return nil
 	}
-	return NewResourceError(fmt.Sprintf("reading %s target", subsystem), name, err)
+	return NewResourceError(fmt.Sprintf("reading %s target", nrc.subsystem), name, err)
 }
 
-// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with spaces.
+// notifyBuildCfgAddParam adds a key=value pair to parts, quoting values with
+// whitespace the way buildConfigParam does (no escaping, issue #1300).
 func notifyBuildCfgAddParam(parts *[]string, key, val string) {
 	if val != "" {
-		if strings.ContainsAny(val, " \t") {
-			*parts = append(*parts, fmt.Sprintf("%s=%q", key, val))
-		} else {
-			*parts = append(*parts, fmt.Sprintf("%s=%s", key, val))
-		}
+		*parts = append(*parts, buildConfigParam(key, val))
 	}
 }
 
@@ -276,6 +288,19 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	}
 	for k, v := range specific {
 		result[k] = v
+	}
+	// Every string field of a notification target is written as a MinIO
+	// config KV value, so each must be representable; this covers all
+	// notify-family resources, including the common comment and queue_dir.
+	for k, v := range result {
+		if v.Type != schema.TypeString || k == "name" || v.ValidateDiagFunc != nil {
+			continue
+		}
+		if v.ValidateFunc != nil {
+			v.ValidateFunc = validation.All(v.ValidateFunc, validateConfigValue)
+		} else {
+			v.ValidateFunc = validateConfigValue
+		}
 	}
 	return result
 }

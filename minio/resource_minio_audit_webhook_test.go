@@ -110,10 +110,12 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 	resourceName := "minio_audit_webhook.test"
 	name := "tfacc-" + acctest.RandString(6)
 
-	resource.ParallelTest(t, resource.TestCase{
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
+		CheckDestroy:      testAccCheckServerRemovedTarget("audit_webhook", name),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAuditWebhookBasic(name),
@@ -122,6 +124,10 @@ func TestAccMinioAuditWebhook_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "name", name),
 					resource.TestCheckResourceAttr(resourceName, "endpoint", "http://audit.example.com/ingest"),
 					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("audit_webhook", name, map[string]string{
+						"endpoint": "http://audit.example.com/ingest",
+						"enable":   "off",
+					}),
 				),
 			},
 			{
@@ -192,8 +198,9 @@ func testAccCheckMinioAuditWebhookExists(resourceName string) resource.TestCheck
 }
 
 func testAccCheckMinioAuditWebhookDestroy(s *terraform.State) error {
-	// Config subsystems persist with defaults after deletion, so we
-	// only verify the resource is removed from state (same pattern as minio_config).
+	// A removal is only visible after a server restart, and the tests that
+	// call this check run in parallel against the shared server, so they
+	// only verify the resource left the state.
 	return nil
 }
 

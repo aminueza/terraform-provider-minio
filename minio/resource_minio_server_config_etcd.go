@@ -20,38 +20,44 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
 		Schema: map[string]*schema.Schema{
 			"endpoints": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Comma-separated list of etcd endpoint URLs (e.g., \"http://etcd1:2379,http://etcd2:2379\").",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Comma-separated list of etcd endpoint URLs (e.g., \"http://etcd1:2379,http://etcd2:2379\").",
 			},
 			"path_prefix": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				Description: "Key prefix for MinIO data in etcd. Enables tenant isolation when set.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Key prefix for MinIO data in etcd. Enables tenant isolation when set.",
 			},
 			"coredns_path": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				Description: "CoreDNS path for bucket DNS registration (default: \"/skydns\").",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "CoreDNS path for bucket DNS registration (default: \"/skydns\").",
 			},
 			"client_cert": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Path to client TLS certificate for etcd mTLS.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Path to client TLS certificate for etcd mTLS.",
 			},
 			"client_cert_key": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Sensitive:   true,
-				Description: "Path to client TLS private key for etcd mTLS.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Path to client TLS private key for etcd mTLS.",
 			},
 			"comment": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				Description: "Optional comment for the etcd configuration.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Optional comment for the etcd configuration.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
@@ -68,11 +74,7 @@ func minioServerConfigEtcdSet(ctx context.Context, d *schema.ResourceData, meta 
 	var parts []string
 	addParam := func(key, val string) {
 		if val != "" {
-			if strings.ContainsAny(val, " \t") {
-				parts = append(parts, key+"="+`"`+val+`"`)
-			} else {
-				parts = append(parts, key+"="+val)
-			}
+			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
 

@@ -6,8 +6,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 	"github.com/minio/madmin-go/v4"
@@ -333,6 +335,25 @@ func minioReadILMTier(ctx context.Context, d *schema.ResourceData, meta interfac
 			return nil
 		}
 		return NewResourceError("reading remote tier failed", name, err)
+	}
+	if tier == nil && d.IsNewResource() {
+		// ListTiers appears to lag behind AddTier, so a tier missing right
+		// after create is polled for before it counts as gone; dropping the
+		// ID instead fails the apply with an inconsistent result. See #1309.
+		retryErr := retry.RetryContext(ctx, 30*time.Second, func() *retry.RetryError {
+			listed, listErr := getTier(c, ctx, name)
+			if listErr != nil {
+				return retry.NonRetryableError(listErr)
+			}
+			if listed == nil {
+				return retry.RetryableError(fmt.Errorf("tier %s not yet listed after create", name))
+			}
+			tier = listed
+			return nil
+		})
+		if retryErr != nil {
+			return NewResourceError("reading remote tier failed", name, retryErr)
+		}
 	}
 	if tier == nil {
 		tflog.Error(ctx, NewResourceErrorStr("unable to find tier", name, err))

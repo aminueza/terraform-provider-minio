@@ -12,6 +12,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_ilm_tier` no longer drops a tier from state right after it was
+  created. The tier list appears to lag behind `AddTier`, so the read after
+  create missed the new tier and the apply failed with "Provider produced
+  inconsistent result after apply". The read right after create now polls for
+  the tier instead of treating it as removed
+  ([#1309](https://github.com/aminueza/terraform-provider-minio/issues/1309)).
 - `minio_iam_idp_ldap`, `minio_iam_idp_openid` and `minio_audit_webhook` with
   `enable = false` are written as `enable=off` on the server. The field was
   read from the configuration through a helper that treated `false` as unset

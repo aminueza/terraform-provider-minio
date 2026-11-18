@@ -21,6 +21,7 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		CustomizeDiff: scannerCorruptedCycleCustomizeDiff,
 		Schema: map[string]*schema.Schema{
 			"speed": {
 				Type:         schema.TypeString,
@@ -66,6 +67,31 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 			},
 		},
 	}
+}
+
+// scannerCorruptedCycleCustomizeDiff forces a cycle diff when an older
+// provider left the excess thresholds glued onto cycle (issue #1322) and the
+// configuration does not set cycle: cycle is Optional and Computed, so the
+// glued state value would otherwise never show in a plan, and the apply that
+// rewrites a clean cycle would never run.
+func scannerCorruptedCycleCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	cycle := d.Get("cycle").(string)
+	clean := cycle
+	for _, glued := range []string{" excess_versions=", " excess_folders="} {
+		if i := strings.Index(clean, glued); i >= 0 {
+			clean = clean[:i]
+		}
+	}
+	if clean == cycle {
+		return nil
+	}
+	// The raw config is a null object when no configuration is available, for
+	// example on the plan right after an import, and GetAttr panics on it.
+	rawConfig := d.GetRawConfig()
+	if rawConfig.IsNull() || !rawConfig.GetAttr("cycle").IsNull() {
+		return nil
+	}
+	return d.SetNew("cycle", clean)
 }
 
 // scannerConfigFields maps the Terraform attributes to the scanner
@@ -136,8 +162,12 @@ func minioServerConfigScannerRead(ctx context.Context, d *schema.ResourceData, m
 	d.SetId("scanner")
 
 	for _, f := range scannerConfigFields {
-		if v, ok := cfgMap[f.key]; ok {
-			_ = d.Set(f.attr, v)
+		v, ok := cfgMap[f.key]
+		if !ok {
+			continue
+		}
+		if err := d.Set(f.attr, v); err != nil {
+			return NewResourceError("setting "+f.attr, d.Id(), err)
 		}
 	}
 

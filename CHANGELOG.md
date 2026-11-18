@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_server_config_browser`: manages the `browser` subsystem, which sets
+  the security headers of the embedded console. The fields map the
+  subsystem's keys: `csp_policy`, `hsts_seconds`, `hsts_include_subdomains`,
+  `hsts_preload` and `referrer_policy`
+  ([#1325](https://github.com/aminueza/terraform-provider-minio/issues/1325)).
+
 ### Fixed
 
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook

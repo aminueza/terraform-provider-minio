@@ -406,6 +406,15 @@ type S3MinioAuditWebhook struct {
 	ClientKey  string
 }
 
+type S3MinioServerConfigBrowser struct {
+	MinioAdmin            *madmin.AdminClient
+	CspPolicy             string
+	HstsSeconds           int
+	HstsIncludeSubdomains bool
+	HstsPreload           bool
+	ReferrerPolicy        string
+}
+
 type S3MinioIAMImport struct {
 	MinioAdmin *madmin.AdminClient
 	IAMData    string

@@ -365,6 +365,7 @@ func newProvider(envVarPrefix ...string) *schema.Provider {
 			"minio_config_restore":              resourceMinioConfigRestore(),
 			"minio_audit_webhook":               resourceMinioAuditWebhook(),
 			"minio_server_config_api":           resourceMinioServerConfigApi(),
+			"minio_server_config_browser":       resourceMinioServerConfigBrowser(),
 			"minio_server_config_region":        resourceMinioServerConfigRegion(),
 			"minio_server_config_scanner":       resourceMinioServerConfigScanner(),
 			"minio_server_config_heal":          resourceMinioServerConfigHeal(),

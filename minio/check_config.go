@@ -426,3 +426,16 @@ func BatchJobConfig(d *schema.ResourceData, meta interface{}) *S3MinioBatchJob {
 		JobYAML:    getOptionalField(d, "job_yaml", "").(string),
 	}
 }
+
+func ServerConfigBrowserConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigBrowser {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServerConfigBrowser{
+		MinioAdmin:            m.S3Admin,
+		CspPolicy:             d.Get("csp_policy").(string),
+		HstsSeconds:           d.Get("hsts_seconds").(int),
+		HstsIncludeSubdomains: d.Get("hsts_include_subdomains").(bool),
+		HstsPreload:           d.Get("hsts_preload").(bool),
+		ReferrerPolicy:        d.Get("referrer_policy").(string),
+	}
+}

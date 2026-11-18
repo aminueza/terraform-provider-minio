@@ -83,7 +83,12 @@ func TestAccMinioS3Object_contentChangedOutsideTerraform(t *testing.T) {
 
 func testAccOverwriteObjectOutsideTerraform(t *testing.T, bucket, object, content string) {
 	t.Helper()
-	_, err := testAccClient().S3Client.PutObject(context.Background(), bucket, object, bytes.NewBufferString(content), -1, minio.PutObjectOptions{})
+	data := []byte(content)
+	// Pass the exact size: an unknown-size upload is stored as a streamed
+	// multipart upload whose ETag carries a -1 suffix, which the drift
+	// detection skips. A known-size upload gets the bare content MD5, like
+	// mc cp of a file.
+	_, err := testAccClient().S3Client.PutObject(context.Background(), bucket, object, bytes.NewReader(data), int64(len(data)), minio.PutObjectOptions{})
 	if err != nil {
 		t.Fatalf("overwriting object %s/%s outside Terraform: %v", bucket, object, err)
 	}

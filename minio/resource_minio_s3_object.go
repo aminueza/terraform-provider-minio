@@ -139,7 +139,9 @@ func minioCreateObject(ctx context.Context, d *schema.ResourceData, meta interfa
 // Content written outside Terraform never changes the configuration, so the
 // plan stays empty and the drift is never reverted. Compare the MD5 of the
 // configured content with the ETag stored in state, and force an update on a
-// mismatch. See issue #1330.
+// mismatch. An overwrite whose ETag is not a bare MD5 (a multipart or
+// streamed upload, or an SSE-KMS/SSE-C object) is not detected. See issue
+// #1330.
 func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 	// GetChange returns the stored ETag, not one set explicitly in the
 	// configuration, so the comparison always looks at what the server holds.
@@ -193,9 +195,9 @@ func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta 
 		return nil
 	}
 
-	// The stored object differs from the configured content: mark the ETag as
-	// changed so the plan is not empty and the next apply re-uploads.
-	return d.SetNew("etag", fmt.Sprintf("%q", expected))
+	// The stored object differs from the configured content: mark the ETag for
+	// recomputation so the plan is not empty and the next apply re-uploads.
+	return d.SetNewComputed("etag")
 }
 
 func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

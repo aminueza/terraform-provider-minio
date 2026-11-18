@@ -15,9 +15,9 @@ History older than 3.39.0 lives in the
 - `minio_s3_object` detects the object being overwritten outside Terraform.
   The configured `content`, `content_base64` or `source` is MD5-hashed at plan
   time and compared against the stored `etag`, so overwriting the object shows
-  a diff and the next apply re-uploads the configured content. The comparison
-  is skipped when the ETag is not a bare MD5, which covers multipart uploads
-  and SSE-KMS/SSE-C encrypted objects
+  a diff and the next apply re-uploads the configured content. An overwrite
+  whose ETag is not a bare MD5 (a multipart or streamed upload, or an
+  SSE-KMS/SSE-C encrypted object) is not detected
   ([#1330](https://github.com/aminueza/terraform-provider-minio/issues/1330)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

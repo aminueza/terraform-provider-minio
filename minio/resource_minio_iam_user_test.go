@@ -78,7 +78,7 @@ func TestAccAWSUser_basic(t *testing.T) {
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"secret", "update_secret", "disable_user", "force_destroy"},
+				ImportStateVerifyIgnore: []string{"secret", "update_secret", "force_destroy"},
 			},
 		},
 	})

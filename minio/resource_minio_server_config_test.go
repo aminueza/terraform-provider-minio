@@ -326,7 +326,7 @@ func TestAccMinioServerConfigPolicyPlugin_existingCommentCleared(t *testing.T) {
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
 			{
-				PreConfig: func() { testAccSeedPolicyPluginComment(t) },
+				PreConfig: func() { testAccSeedPolicyPluginComment(t, stubURL) },
 				Config: fmt.Sprintf(`
 resource "minio_server_config_policy_plugin" "test" {
   url = %[1]q
@@ -436,9 +436,13 @@ func testAccCleanupPolicyPlugin(t *testing.T) {
 	})
 }
 
-func testAccSeedPolicyPluginComment(t *testing.T) {
+func testAccSeedPolicyPluginComment(t *testing.T, stubURL string) {
 	t.Helper()
-	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "policy_plugin comment=seeded outside terraform"); err != nil {
+	// The subsystem requires url in the same set-config-kv, so the seed
+	// points the plugin at the allow-everything stub: the restart below
+	// then runs with the plugin active, and every decision goes to the stub.
+	configString := fmt.Sprintf(`policy_plugin url=%s comment="seeded outside terraform"`, stubURL)
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), configString); err != nil {
 		t.Fatalf("seeding the policy plugin comment outside Terraform: %v", err)
 	}
 	// The seed only matters after a restart, like any other config change.

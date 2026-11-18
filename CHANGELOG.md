@@ -10,6 +10,14 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_server_config_policy_plugin`: manages the `policy_plugin` subsystem,
+  which routes every authorization decision to an external service such as
+  Open Policy Agent. The fields map the subsystem's keys: `url`,
+  `auth_token`, `enable_http2` and `comment`
+  ([#1326](https://github.com/aminueza/terraform-provider-minio/issues/1326)).
+
 ### Fixed
 
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook

@@ -406,6 +406,14 @@ type S3MinioAuditWebhook struct {
 	ClientKey  string
 }
 
+type S3MinioServerConfigPolicyPlugin struct {
+	MinioAdmin  *madmin.AdminClient
+	URL         string
+	AuthToken   string
+	EnableHTTP2 bool
+	Comment     string
+}
+
 type S3MinioIAMImport struct {
 	MinioAdmin *madmin.AdminClient
 	IAMData    string

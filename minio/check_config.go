@@ -386,6 +386,18 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 	}
 }
 
+func ServerConfigPolicyPluginConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigPolicyPlugin {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServerConfigPolicyPlugin{
+		MinioAdmin:  m.S3Admin,
+		URL:         d.Get("url").(string),
+		AuthToken:   d.Get("auth_token").(string),
+		EnableHTTP2: d.Get("enable_http2").(bool),
+		Comment:     getOptionalField(d, "comment", "").(string),
+	}
+}
+
 func IAMImportConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMImport {
 	m := meta.(*S3MinioClient)
 	return &S3MinioIAMImport{

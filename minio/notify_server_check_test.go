@@ -12,35 +12,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
-// testAccRestartPrimaryServer restarts the primary MinIO test server and
-// waits until it answers again.
-//
-// get-config-kv only serves a created or changed target after a restart, so
-// a check straight after apply reads the pre-restart config (issue #1299).
-// The restart takes the shared server down for a few seconds, so the helper
-// must only run inside sequential tests: a top-level test that calls
-// t.Parallel starts only after every sequential top-level test in the
-// package has finished, and CI runs the suite with the default -parallel
-// (no flag in docker-compose.yml), so the restart cannot overlap a test
-// that is still talking to the server.
+// testAccRestartPrimaryServer restarts the primary test server and waits
+// until it is back. get-config-kv only serves a created or changed target
+// after a restart, so the server checks below need it. It must only run in
+// sequential tests: the restart takes the shared server down for a few
+// seconds, and parallel tests must not run against it.
 func testAccRestartPrimaryServer() error {
 	client := testAccClient()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	if err := client.S3Admin.ServiceRestart(ctx); err != nil {
-		return fmt.Errorf("restarting the primary test server: %w", err)
-	}
-	for {
-		_, err := client.S3Client.ListBuckets(ctx)
-		if err == nil {
-			return nil
-		}
-		if ctx.Err() != nil {
-			return fmt.Errorf("the primary test server did not answer after the restart: %w", err)
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
+	return testAccOIDCRestartMinio(context.Background(), client.S3Admin)
 }
 
 // testAccCheckServerStoredTarget restarts the primary test server and checks

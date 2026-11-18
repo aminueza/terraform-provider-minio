@@ -20,7 +20,11 @@ History older than 3.39.0 lives in the
   policy added outside Terraform to such a bucket is not detected. A public
   `acl` whose policy was replaced by a custom `minio_s3_bucket_policy` keeps
   that policy, because the read cannot tell it apart from one another resource
-  manages
+  manages. A non-private `acl` paired with another resource that writes a
+  different canned shape (for example `acl = "public"` plus
+  `minio_s3_bucket_anonymous_access` with `access_type = "public-read"`) now
+  shows a permanent diff, where the previous read left it silently in place;
+  the fix is to drop `acl` from the bucket
   ([#1333](https://github.com/aminueza/terraform-provider-minio/issues/1333)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

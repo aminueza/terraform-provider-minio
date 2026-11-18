@@ -327,10 +327,14 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// added outside Terraform to such a bucket is not detected, because it cannot
 	// be told apart from one another resource manages. Likewise a public acl whose
 	// policy matches no canned shape keeps that policy, for the same reason.
+	// A non-private acl paired with a resource that writes a different canned
+	// shape (for example acl = "public" plus minio_s3_bucket_anonymous_access with
+	// access_type = "public-read") now shows a permanent diff, where the old read
+	// left it silently in place; the fix is to drop acl from the bucket.
 	if currentACL := d.Get("acl").(string); currentACL != "private" {
-		policy, unsupported, err := readBucketPolicyText(ctx, bucketConfig.MinioClient, d.Id())
-		if err != nil {
-			return NewResourceError("error reading bucket policy", d.Id(), err)
+		policy, unsupported, readDiags := readBucketPolicyText(ctx, meta.(*S3MinioClient), d, d.Id())
+		if readDiags.HasError() {
+			return readDiags
 		}
 		if !unsupported {
 			derivedACL, err := bucketACLFromPolicy(policy, d.Id(), currentACL)
@@ -649,21 +653,21 @@ func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bu
 }
 
 // readBucketPolicyText returns the bucket policy held on the server. A missing
-// policy (NoSuchBucketPolicy or 404) reports an empty string. Backends that
-// reject policy reads report unsupported so the caller keeps the state value
-// (see issue #608).
-func readBucketPolicyText(ctx context.Context, client *minio.Client, bucket string) (policy string, unsupported bool, err error) {
-	rawPolicy, err := client.GetBucketPolicy(ctx, bucket)
+// policy (NoSuchBucketPolicy or 404) reports an empty string. A backend that
+// answers the read with 501 or 405 is handled like every other resource through
+// s3CompatReadUnsupported: with s3_compat_mode on the caller keeps the state
+// value, without it the error surfaces (see issue #608).
+func readBucketPolicyText(ctx context.Context, compatClient *S3MinioClient, d *schema.ResourceData, bucket string) (policy string, unsupported bool, diags diag.Diagnostics) {
+	rawPolicy, err := compatClient.S3Client.GetBucketPolicy(ctx, bucket)
 	if err != nil {
 		errResp := minio.ToErrorResponse(err)
 		if errResp.Code == "NoSuchBucketPolicy" || errResp.StatusCode == http.StatusNotFound {
 			return "", false, nil
 		}
-		if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented ||
-			errResp.Code == "MethodNotAllowed" || errResp.StatusCode == http.StatusMethodNotAllowed {
+		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "bucket policy", err) {
 			return "", true, nil
 		}
-		return "", false, err
+		return "", false, NewResourceError("error reading bucket policy", bucket, err)
 	}
 	return rawPolicy, false, nil
 }

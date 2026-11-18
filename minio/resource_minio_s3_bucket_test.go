@@ -490,7 +490,9 @@ func TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform(t *testing.T) {
 			{
 				PreConfig: func() {
 					minioC := testAccClient().S3Client
-					_ = minioC.SetBucketPolicy(context.Background(), name, "")
+					if err := minioC.SetBucketPolicy(context.Background(), name, ""); err != nil {
+						t.Fatalf("removing the bucket policy outside Terraform: %v", err)
+					}
 				},
 				Config:             config,
 				PlanOnly:           true,

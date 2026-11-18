@@ -326,17 +326,20 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	if _, ok := d.GetOk("quota"); ok {
 		bucketQuota, err := bucketConfig.MinioAdmin.GetBucketQuota(ctx, d.Id())
 		if err != nil {
-			if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket quota", err) {
-				return nil
+			// An S3 backend that does not serve the admin API answers the read
+			// as unsupported: keep the quota as it is and read the rest of the
+			// bucket like the tags below.
+			if !s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket quota", err) {
+				return NewResourceError("reading bucket quota", d.Id(), err)
 			}
-			return NewResourceError("reading bucket quota", d.Id(), err)
-		}
-		quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
-		if !ok {
-			return NewResourceError("reading bucket quota", d.Id(), fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
-		}
-		if err := d.Set("quota", int(quotaVal)); err != nil {
-			return NewResourceError("setting bucket quota", d.Id(), err)
+		} else {
+			quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
+			if !ok {
+				return NewResourceError("reading bucket quota", d.Id(), fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
+			}
+			if err := d.Set("quota", int(quotaVal)); err != nil {
+				return NewResourceError("setting bucket quota", d.Id(), err)
+			}
 		}
 	}
 

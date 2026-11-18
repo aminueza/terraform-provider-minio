@@ -21,7 +21,7 @@ func resourceMinioLoggerWebhook() *schema.Resource {
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
-		Schema: mergeSchemas(notifyCommonSchema(), map[string]*schema.Schema{
+		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(map[string]*schema.Schema{
 			"endpoint": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -55,7 +55,7 @@ func resourceMinioLoggerWebhook() *schema.Resource {
 				Optional:    true,
 				Description: "Proxy URL for the webhook endpoint.",
 			},
-		}),
+		})),
 	}
 }
 
@@ -67,7 +67,7 @@ func buildLoggerWebhookCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddParam(&parts, "client_key", getOptionalField(d, "client_key", "").(string))
 	notifyBuildCfgAddParam(&parts, "proxy", getOptionalField(d, "proxy", "").(string))
 	notifyBuildCfgAddInt(&parts, "batch_size", getOptionalField(d, "batch_size", 0).(int))
-	notifyBuildCommonCfg(&parts, d, meta)
+	notifyBuildQueueSizeCommonCfg(&parts, d)
 	return strings.Join(parts, " ")
 }
 
@@ -84,6 +84,11 @@ func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	if v, ok := cfgMap["batch_size"]; ok {
 		if n, err := parseInt(v); err == nil {
 			_ = d.Set("batch_size", n)
+		}
+	}
+	if v, ok := cfgMap["queue_size"]; ok {
+		if n, err := parseInt(v); err == nil {
+			_ = d.Set("queue_size", n)
 		}
 	}
 	notifyReadCommonFields(cfgMap, d)

@@ -339,6 +339,53 @@ func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key s
 	notifyBuildCfgAddParam(parts, key, val)
 }
 
+// notifyWithQueueSize replaces queue_limit for logger_webhook and
+// audit_kafka. Those subsystems size their queue with queue_size and have no
+// queue_limit key, and MinIO glues an unknown key onto the value written
+// before it, so a queue_limit sent there corrupted the comment, queue_dir or
+// topic.
+func notifyWithQueueSize(specific map[string]*schema.Schema) map[string]*schema.Schema {
+	for k, v := range map[string]*schema.Schema{
+		"queue_size": {
+			Type:        schema.TypeInt,
+			Optional:    true,
+			Computed:    true,
+			Description: "Maximum number of undelivered events to queue.",
+		},
+		"queue_limit": {
+			Type:        schema.TypeInt,
+			Optional:    true,
+			Computed:    true,
+			Deprecated:  "Use 'queue_size' instead. This target has no queue_limit setting; the value is sent as queue_size. This attribute will be removed in a future major version.",
+			Description: "Deprecated: use 'queue_size' instead.",
+		},
+	} {
+		specific[k] = v
+	}
+	return specific
+}
+
+// notifyBuildQueueSizeCommonCfg is notifyBuildCommonCfg for the subsystems
+// that use queue_size. A queue_limit set without queue_size in the
+// configuration is sent as queue_size.
+func notifyBuildQueueSizeCommonCfg(parts *[]string, d *schema.ResourceData) {
+	notifyBuildCfgClearableParam(parts, d, "queue_dir")
+	notifyBuildCfgClearableParam(parts, d, "comment")
+	notifyBuildCfgAddInt(parts, "queue_size", notifyQueueSize(d))
+	// d.Get, not getOptionalField: GetOk reads false as unset and would send
+	// enable=on for a target the configuration disables.
+	notifyBuildCfgAddBool(parts, "enable", d.Get("enable").(bool))
+}
+
+func notifyQueueSize(d *schema.ResourceData) int {
+	if raw := d.GetRawConfig(); !raw.IsNull() && raw.GetAttr("queue_size").IsNull() {
+		if limit, ok := d.GetOk("queue_limit"); ok {
+			return limit.(int)
+		}
+	}
+	return d.Get("queue_size").(int)
+}
+
 func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interface{}) {
 	notifyBuildCfgClearableParam(parts, d, "queue_dir")
 	notifyBuildCfgClearableParam(parts, d, "comment")

@@ -53,7 +53,8 @@ func resourceMinioNotifyNats() *schema.Resource {
 			"user_credentials": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "Path to NATS user credentials file.",
+				Deprecated:  "MinIO's notify_nats has no user_credentials setting, so this value is not sent to the server. Use username and password, or token, instead. This attribute will be removed in a future major version.",
+				Description: "Deprecated: MinIO has no NATS user credentials setting, so this value is ignored.",
 			},
 			"tls": {
 				Type:        schema.TypeBool,
@@ -123,7 +124,9 @@ func buildNotifyNatsCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddParam(&parts, "username", getOptionalField(d, "username", "").(string))
 	notifyBuildCfgAddParam(&parts, "password", getOptionalField(d, "password", "").(string))
 	notifyBuildCfgAddParam(&parts, "token", getOptionalField(d, "token", "").(string))
-	notifyBuildCfgAddParam(&parts, "user_credentials", getOptionalField(d, "user_credentials", "").(string))
+	// user_credentials is not sent: notify_nats has no such key, and MinIO
+	// glues an unknown key onto the value written before it, which corrupted
+	// the subject, the password or the token.
 	notifyBuildCfgAddBool(&parts, "tls", getOptionalField(d, "tls", false).(bool))
 	notifyBuildCfgAddBool(&parts, "tls_skip_verify", getOptionalField(d, "tls_skip_verify", false).(bool))
 	notifyBuildCfgAddParam(&parts, "ping_interval", getOptionalField(d, "ping_interval", "").(string))
@@ -150,9 +153,6 @@ func readNotifyNatsFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	}
 	if v, ok := cfgMap["username"]; ok && v != "" {
 		_ = d.Set("username", v)
-	}
-	if v, ok := cfgMap["user_credentials"]; ok && v != "" {
-		_ = d.Set("user_credentials", v)
 	}
 	if v, ok := cfgMap["tls"]; ok {
 		_ = d.Set("tls", v == "on")

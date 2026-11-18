@@ -12,6 +12,18 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_logger_webhook` and `minio_audit_kafka` no longer corrupt their
+  configuration when `queue_limit` is set. Those MinIO subsystems size their
+  queue with `queue_size` and have no `queue_limit` key, and MinIO glued the
+  unknown key onto the value written before it, so the `comment`, `queue_dir`
+  or the Kafka `topic` was stored with ` queue_limit=N` appended. Both
+  resources now have a `queue_size` attribute; `queue_limit` is deprecated
+  and sent as `queue_size` when `queue_size` is not set.
+- `minio_notify_nats` no longer sends `user_credentials`. MinIO's
+  `notify_nats` has no such key and glued it onto the value written before
+  it, which corrupted the `subject`, the password or the token. The
+  attribute is deprecated and ignored; use `username` and `password`, or
+  `token`.
 - `minio_ilm_tier` no longer drops a tier from state right after it was
   created. The tier list appears to lag behind `AddTier`, so the read after
   create missed the new tier and the apply failed with "Provider produced

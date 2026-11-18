@@ -51,5 +51,5 @@ output "nats_subject" {
 - `tls` (Boolean) Whether to enable TLS for the NATS connection.
 - `tls_skip_verify` (Boolean) Whether to skip TLS certificate verification.
 - `token` (String) Token for NATS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
-- `user_credentials` (String) Path to NATS user credentials file.
+- `user_credentials` (String, Deprecated) Deprecated: MinIO has no NATS user credentials setting, so this value is ignored.
 - `username` (String) Username for NATS authentication.

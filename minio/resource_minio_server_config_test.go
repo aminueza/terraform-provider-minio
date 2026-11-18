@@ -378,7 +378,7 @@ func testAccPolicyPluginStub(t *testing.T) string {
 	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"result": true}`))
 	}))
-	ln, err := net.Listen("tcp", testAccPolicyPluginStubAddress(t))
+	ln, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", testAccPolicyPluginStubAddress(t))
 	if err != nil {
 		srv.Close()
 		t.Fatalf("listening for the policy plugin stub: %v", err)

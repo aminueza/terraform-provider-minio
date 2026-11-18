@@ -508,6 +508,11 @@ type notifyResourceConfig struct {
 	subsystem  string // e.g., "notify_amqp", "notify_kafka"
 	buildCfg   func(*schema.ResourceData, interface{}) string
 	readFields func(map[string]string, *schema.ResourceData) diag.Diagnostics
+	// keepStateOnMissingTarget keeps the resource in state when get-config-kv
+	// answers "there is no target". Data sources set it: they have no prior
+	// state, so a missing target means "restart not applied yet", never
+	// "removed outside Terraform".
+	keepStateOnMissingTarget bool
 }
 
 type jwtClaim struct {

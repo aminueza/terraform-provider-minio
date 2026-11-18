@@ -27,10 +27,11 @@ func resourceMinioServerConfigRegion() *schema.Resource {
 				Description: "Region or site name (e.g., \"us-east-1\", \"dc1-rack2\").",
 			},
 			"comment": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
-				Description: "Region description.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				Computed:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Region description.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
@@ -48,11 +49,7 @@ func minioServerConfigRegionSet(ctx context.Context, d *schema.ResourceData, met
 	parts = append(parts, fmt.Sprintf("name=%s", d.Get("name").(string)))
 	if v, ok := d.GetOk("comment"); ok && v.(string) != "" {
 		val := v.(string)
-		if strings.ContainsAny(val, " \t") {
-			parts = append(parts, fmt.Sprintf("comment=%q", val))
-		} else {
-			parts = append(parts, fmt.Sprintf("comment=%s", val))
-		}
+		parts = append(parts, buildConfigParam("comment", val))
 	}
 
 	configString := "region " + strings.Join(parts, " ")

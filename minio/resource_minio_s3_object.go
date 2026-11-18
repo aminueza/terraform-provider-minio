@@ -3,7 +3,7 @@ package minio
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" //#nosec G501 -- reproduces the S3 ETag of a single-part upload; nothing is protected by it
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -154,12 +154,13 @@ func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta 
 		return nil
 	}
 	for _, c := range storedETag {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
 			return nil
 		}
 	}
 
-	h := md5.New()
+	h := md5.New() //#nosec G401 -- reproduces the S3 ETag of a single-part upload; nothing is protected by it
 	if v, ok := d.GetOk("source"); ok {
 		source := v.(string)
 		path, err := homedir.Expand(source)
@@ -177,7 +178,11 @@ func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta 
 			}
 			return fmt.Errorf("opening S3 object source (%s): %w", path, err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Error closing S3 object source (%s): %s", path, err))
+			}
+		}()
 		if _, err := io.Copy(h, file); err != nil {
 			return fmt.Errorf("hashing S3 object source (%s): %w", path, err)
 		}

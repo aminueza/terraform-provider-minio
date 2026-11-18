@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket` reads the bucket quota back from the server, so a quota
+  changed or cleared outside Terraform shows up in the plan and the next
+  apply puts the configured value back. A bucket whose quota is managed by
+  `minio_s3_bucket_quota` shows no diff
+  ([#1334](https://github.com/aminueza/terraform-provider-minio/issues/1334)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

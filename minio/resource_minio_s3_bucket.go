@@ -319,6 +319,27 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	// Only read the quota back when the bucket itself manages one. A bucket
+	// whose quota is owned by minio_s3_bucket_quota has no quota in its state
+	// or configuration, and reading it here would start showing a diff the
+	// bucket cannot manage. See issue #1334.
+	if _, ok := d.GetOk("quota"); ok {
+		bucketQuota, err := bucketConfig.MinioAdmin.GetBucketQuota(ctx, d.Id())
+		if err != nil {
+			if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket quota", err) {
+				return nil
+			}
+			return NewResourceError("reading bucket quota", d.Id(), err)
+		}
+		quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
+		if !ok {
+			return NewResourceError("reading bucket quota", d.Id(), fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
+		}
+		if err := d.Set("quota", int(quotaVal)); err != nil {
+			return NewResourceError("setting bucket quota", d.Id(), err)
+		}
+	}
+
 	if shouldSkipBucketTagging(bucketConfig) {
 		preserveBucketTagsState(d)
 		return nil

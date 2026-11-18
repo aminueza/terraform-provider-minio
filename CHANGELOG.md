@@ -16,7 +16,7 @@ History older than 3.39.0 lives in the
   which controls transparent object compression. The fields map the
   subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`
   and `comment`.
-  ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324))
+  ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
 
 ### Fixed
 

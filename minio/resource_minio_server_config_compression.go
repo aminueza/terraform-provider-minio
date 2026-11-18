@@ -34,14 +34,14 @@ func resourceMinioServerConfigCompression() *schema.Resource {
 				Optional:    true,
 				Computed:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString, ValidateFunc: validateCompressionListItem},
-				Description: "File extensions to compress, for example \".txt\", \".log\" or \".csv\".",
+				Description: "File extensions to compress, for example \".txt\", \".log\" or \".csv\". Removing the attribute leaves the server's last value; set the list to [] to clear it.",
 			},
 			"mime_types": {
 				Type:        schema.TypeList,
 				Optional:    true,
 				Computed:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString, ValidateFunc: validateCompressionListItem},
-				Description: "Wildcard mime types to compress, for example \"text/*\" or \"application/json\".",
+				Description: "Wildcard mime types to compress, for example \"text/*\" or \"application/json\". Removing the attribute leaves the server's last value; set the list to [] to clear it.",
 			},
 			"allow_encryption": {
 				Type:        schema.TypeBool,
@@ -193,9 +193,12 @@ func buildServerConfigCompressionCfgData(d *schema.ResourceData, config *S3Minio
 	appendList("extensions", config.Extensions)
 	appendList("mime_types", config.MimeTypes)
 
+	// The resource owns the singleton's comment: an empty configuration
+	// clears whatever comment the server holds, including one set outside
+	// Terraform.
 	if config.Comment != "" {
 		parts = append(parts, buildConfigParam("comment", config.Comment))
-	} else if d.HasChange("comment") {
+	} else {
 		parts = append(parts, "comment=")
 	}
 
@@ -212,14 +215,18 @@ func compressionConfigList(value string) []string {
 }
 
 // validateCompressionListItem applies the config-value rules to one entry of
-// extensions or mime_types, where an empty entry is an error too: the joined
-// value is what the server stores, and MinIO rejects an empty extension or
-// mime type.
+// extensions or mime_types, where an empty entry and a comma are errors too:
+// the joined value is what the server stores, and the server rejects an
+// empty extension or mime type and splits on commas.
 func validateCompressionListItem(val interface{}, key string) (warns []string, errs []error) {
 	v := val.(string)
-	if v == "" {
+	switch {
+	case v == "":
 		errs = append(errs, fmt.Errorf("%q cannot be empty: MinIO rejects an empty extension or mime type", key))
-		return
+	case strings.Contains(v, ","):
+		errs = append(errs, fmt.Errorf("%q cannot contain a comma: MinIO uses the comma as the separator between extensions and mime types", key))
+	default:
+		warns, errs = validateConfigValue(v, key)
 	}
-	return validateConfigValue(v, key)
+	return
 }

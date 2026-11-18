@@ -29,8 +29,8 @@ resource "minio_server_config_compression" "main" {
 - `allow_encryption` (Boolean) Whether compression is allowed for encrypted objects.
 - `comment` (String) Comment or description for the compression configuration.
 - `enable` (Boolean) Whether object compression is enabled.
-- `extensions` (List of String) File extensions to compress, for example ".txt", ".log" or ".csv".
-- `mime_types` (List of String) Wildcard mime types to compress, for example "text/*" or "application/json".
+- `extensions` (List of String) File extensions to compress, for example ".txt", ".log" or ".csv". Removing the attribute leaves the server's last value; set the list to [] to clear it.
+- `mime_types` (List of String) Wildcard mime types to compress, for example "text/*" or "application/json". Removing the attribute leaves the server's last value; set the list to [] to clear it.
 
 ### Read-Only
 

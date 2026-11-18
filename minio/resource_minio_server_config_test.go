@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"os"
 	"strings"
 	"testing"
@@ -317,8 +318,68 @@ resource "minio_server_config_compression" "test" {
 					}),
 				),
 			},
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "0"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"extensions": "",
+					}),
+				),
+			},
 		},
 	})
+}
+
+// A comment set outside Terraform must not survive a create that leaves the
+// field empty: the resource owns the singleton, so the create clears it.
+func TestAccMinioServerConfigCompression_existingCommentCleared(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton
+	// and the checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() { testAccSeedCompressionComment(t) },
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable = true
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"comment": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the seeded comment, so the next plan is
+				// empty.
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable = true
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccSeedCompressionComment(t *testing.T) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "compression comment=x"); err != nil {
+		t.Fatalf("seeding the compression comment outside Terraform: %v", err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
 }
 
 func TestBuildServerConfigCompressionCfgData(t *testing.T) {
@@ -355,11 +416,11 @@ func TestBuildServerConfigCompressionCfgData(t *testing.T) {
 			contains: []string{
 				"enable=off",
 				"allow_encryption=off",
+				"comment=",
 			},
 			absent: []string{
 				"extensions=",
 				"mime_types=",
-				"comment=",
 			},
 		},
 		{
@@ -393,5 +454,21 @@ func TestBuildServerConfigCompressionCfgData(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateCompressionListItem(t *testing.T) {
+	valid := []string{".txt", "application/json", "text/*"}
+	for _, v := range valid {
+		if _, errs := validateCompressionListItem(v, "extensions"); len(errs) != 0 {
+			t.Errorf("validateCompressionListItem(%q): unexpected error: %v", v, errs)
+		}
+	}
+
+	invalid := []string{"", ".txt,.log", "bad\nname", `"leading`}
+	for _, v := range invalid {
+		if _, errs := validateCompressionListItem(v, "extensions"); len(errs) == 0 {
+			t.Errorf("validateCompressionListItem(%q): expected an error", v)
+		}
 	}
 }

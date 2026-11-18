@@ -360,3 +360,49 @@ func TestBuildServerConfigSiteCfgData(t *testing.T) {
 		})
 	}
 }
+
+func TestServerConfigSiteRunningConfigMatchesState(t *testing.T) {
+	config := &S3MinioServerConfigSite{Name: "tf-site", Region: "us-east-1", Comment: "managed by terraform"}
+
+	// The maps below are the responses measured from the test server, not the
+	// output of buildServerConfigSiteCfgData.
+	t.Run("pre-restart response with default values does not match", func(t *testing.T) {
+		if serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":   "",
+			"region": "",
+		}) {
+			t.Errorf("expected no match for the pre-restart response")
+		}
+	})
+
+	t.Run("post-restart response matches", func(t *testing.T) {
+		if !serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":    "tf-site",
+			"region":  "us-east-1",
+			"comment": "managed by terraform",
+		}) {
+			t.Errorf("expected the post-restart response to match")
+		}
+	})
+
+	t.Run("stale region does not match", func(t *testing.T) {
+		if serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":    "tf-site",
+			"region":  "eu-west-9",
+			"comment": "managed by terraform",
+		}) {
+			t.Errorf("expected no match for a stale region value")
+		}
+	})
+
+	cleared := &S3MinioServerConfigSite{Name: "tf-site"}
+	t.Run("cleared region and comment match the cleared response", func(t *testing.T) {
+		if !serverConfigSiteRunningConfigMatchesState(cleared, map[string]string{
+			"name":    "tf-site",
+			"region":  "",
+			"comment": "",
+		}) {
+			t.Errorf("expected the cleared post-restart response to match")
+		}
+	})
+}

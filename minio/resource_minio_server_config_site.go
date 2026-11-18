@@ -95,6 +95,21 @@ func minioServerConfigSiteRead(ctx context.Context, d *schema.ResourceData, meta
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId(serverConfigSiteKey)
 
+	if d.Get("restart_required").(bool) {
+		if !serverConfigSiteRunningConfigMatchesState(config, cfgMap) {
+			// get-config-kv serves the pre-restart config while a restart is
+			// pending, so loading it would store the stale empty values; keep
+			// the configured values in state. The notify targets (issue #1304)
+			// and the LDAP IDP read use the same gate.
+			tflog.Warn(ctx, "site still shows the pre-restart config, keeping configured values in state")
+			return nil
+		}
+		if err := d.Set("restart_required", false); err != nil {
+			return NewResourceError("clearing restart_required", serverConfigSiteKey, err)
+		}
+		tflog.Debug(ctx, "site config took effect after restart")
+	}
+
 	if v, ok := cfgMap["name"]; ok {
 		if setErr := d.Set("name", v); setErr != nil {
 			return NewResourceError("setting name", serverConfigSiteKey, setErr)
@@ -155,4 +170,19 @@ func buildServerConfigSiteCfgData(config *S3MinioServerConfigSite) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// serverConfigSiteRunningConfigMatchesState reports whether the site values
+// the server reports agree with what the provider would write. The builder
+// always sends name, region and comment, and the server prints all three
+// (empty included), so every key is compared. See issue #1299 for the
+// pre-restart config the check guards against.
+func serverConfigSiteRunningConfigMatchesState(config *S3MinioServerConfigSite, cfgMap map[string]string) bool {
+	intended := parseConfigParams(buildServerConfigSiteCfgData(config))
+	for key, want := range intended {
+		if got, ok := cfgMap[key]; !ok || got != want {
+			return false
+		}
+	}
+	return true
 }

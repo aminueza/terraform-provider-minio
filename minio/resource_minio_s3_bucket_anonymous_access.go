@@ -241,6 +241,13 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	}
 
+	// Prior state, read before the Set calls below overwrite it. It decides
+	// which field drives the configuration, which decides what happens to
+	// access_type when the server's policy no longer matches its canonical
+	// policy.
+	stateAccessType := d.Get("access_type").(string)
+	statePolicy := d.Get("policy").(string)
+
 	// Several access types share a policy shape, so classifying by shape alone would rename the
 	// one already in state and leave a plan that never converges. Confirm that one first and
 	// only fall back to classification when it no longer describes what is on the server.
@@ -257,20 +264,33 @@ func minioReadAnonymousPolicy(ctx context.Context, d *schema.ResourceData, meta 
 		if canonical != "" {
 			policy = canonical
 		}
-	} else {
-		accessType, err = getAccessTypeFromPolicy(policy, bucketName)
-		if err != nil {
-			return NewResourceError("determining access_type", bucketName, err)
-		}
 	}
 
 	if err := d.Set("policy", policy); err != nil {
 		return NewResourceError("setting policy", bucketName, err)
 	}
 
-	// Set the value even when empty: if the server's policy no longer matches
-	// the configured access type, keeping the stale state value would leave the
-	// plan empty and the drift would never be repaired. See issue #1332.
+	if accessType == "" {
+		// The server drifted from the canonical policy of the type in state.
+		// When the configuration drives by access_type, the type must be
+		// rewritten, including cleared, so the drift shows up in the plan and
+		// the next apply restores the configured access. See issue #1332. When
+		// the configuration carries a custom policy instead, the policy field
+		// carries the drift, and clearing the type would leave a plan that
+		// never converges, so access_type stays untouched.
+		drivenByType, err := stateDrivenByAccessType(statePolicy, stateAccessType, bucketName)
+		if err != nil {
+			return NewResourceError("checking what drives the configuration", bucketName, err)
+		}
+		if !drivenByType {
+			return nil
+		}
+		accessType, err = getAccessTypeFromPolicy(policy, bucketName)
+		if err != nil {
+			return NewResourceError("determining access_type", bucketName, err)
+		}
+	}
+
 	if err := d.Set("access_type", accessType); err != nil {
 		return NewResourceError("setting access_type", bucketName, err)
 	}
@@ -351,6 +371,28 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 		return "", err
 	}
 	return string(policyJSON), nil
+}
+
+// stateDrivenByAccessType reports whether the state was written by an access_type: the policy
+// in state is the canonical policy of the type in state, or the state holds no policy at all,
+// which is what a drift left behind by an older provider's read. A configuration that carries
+// a custom policy stores one that matches no canonical shape, and there access_type is
+// redundant. See issue #1332.
+func stateDrivenByAccessType(statePolicy, stateAccessType, bucketName string) (bool, error) {
+	if stateAccessType == "" {
+		return false, nil
+	}
+	if strings.TrimSpace(statePolicy) == "" {
+		return true, nil
+	}
+	canonical, err := canonicalPolicyForAccessType(stateAccessType, bucketName)
+	if err != nil {
+		return false, err
+	}
+	if canonical == "" {
+		return false, nil
+	}
+	return awspolicy.PoliciesAreEquivalent(statePolicy, canonical)
 }
 
 // confirmConfiguredAccessType returns the access type already held in state or config when the

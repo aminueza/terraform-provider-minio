@@ -197,12 +197,20 @@ func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) 
 			},
 			{
 				// Remove the policy outside Terraform before this step plans, as
-				// `mc anonymous set none` would.
-				PreConfig: func() {
-					testAccRemoveBucketPolicy(t, name)
-				},
+				// `mc anonymous set none` would. The step plans only: the harness
+				// would apply the plan before it could be checked otherwise, and
+				// ExpectNonEmptyPlan asserts the plan after apply. With the fix
+				// the read drops access_type to "" and the plan shows the drift;
+				// without it, the plan stays empty and this step fails.
+				PreConfig:          func() { testAccRemoveBucketPolicy(t, name) },
+				PlanOnly:           true,
 				ExpectNonEmptyPlan: true,
 				Config:             testAccBucketAnonymousAccessConfig(name, "public"),
+			},
+			{
+				// Same configuration again: this step applies the drift plan and
+				// the checks verify the anonymous access was restored.
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
 					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
@@ -218,6 +226,42 @@ func testAccRemoveBucketPolicy(t *testing.T, bucket string) {
 	t.Helper()
 	if err := testAccClient().S3Client.SetBucketPolicy(context.Background(), bucket, ""); err != nil {
 		t.Fatalf("error removing bucket policy for %s: %v", bucket, err)
+	}
+}
+
+// Pins what the read uses to tell an access_type-driven configuration apart from one that
+// carries a custom policy: only the first may have its access_type cleared on drift.
+func TestStateDrivenByAccessType(t *testing.T) {
+	bucket := "test-bucket"
+	publicCanonical, err := canonicalPolicyForAccessType("public", bucket)
+	if err != nil {
+		t.Fatalf("building canonical public policy: %v", err)
+	}
+	custom := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"arn:aws:s3:::" + bucket + "/*\"],\"Action\":[\"s3:GetObject\"]}]}"
+
+	cases := []struct {
+		name        string
+		statePolicy string
+		stateType   string
+		want        bool
+	}{
+		{"access_type driven", publicCanonical, "public", true},
+		{"legacy drifted state with no policy", "", "public", true},
+		{"custom policy with redundant access_type", custom, "public", false},
+		{"no type in state", custom, "", false},
+		{"empty policy and no type", "", "", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := stateDrivenByAccessType(tc.statePolicy, tc.stateType, bucket)
+			if err != nil {
+				t.Fatalf("stateDrivenByAccessType(%q, %q) error: %v", tc.statePolicy, tc.stateType, err)
+			}
+			if got != tc.want {
+				t.Errorf("stateDrivenByAccessType(%q, %q) = %v, want %v", tc.statePolicy, tc.stateType, got, tc.want)
+			}
+		})
 	}
 }
 

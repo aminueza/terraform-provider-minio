@@ -347,8 +347,8 @@ func testAccSeedSiteOutsideTerraform(t *testing.T) {
 // testAccCleanupSite resets the site subsystem and restarts the primary
 // server so a test that ends before its own destroy leaves the shared
 // server with the site defaults: the SDK skips CheckDestroy when a step
-// fails, so this is the safety net. It is registered from PreCheck, like
-// the LDAP tests, so it runs only when the test will run.
+// fails, so this is the safety net. It is registered from PreCheck, so it
+// runs only when the test will run.
 func testAccCleanupSite(t *testing.T) {
 	t.Helper()
 	t.Cleanup(func() {

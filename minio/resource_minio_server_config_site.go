@@ -27,9 +27,10 @@ func resourceMinioServerConfigSite() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"name": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "Site name (e.g., \"dc1-rack2\").",
+				Type:         schema.TypeString,
+				Required:     true,
+				ValidateFunc: validateConfigValue,
+				Description:  "Site name (e.g., \"dc1-rack2\").",
 			},
 			"region": {
 				Type:         schema.TypeString,
@@ -99,8 +100,8 @@ func minioServerConfigSiteRead(ctx context.Context, d *schema.ResourceData, meta
 		if !serverConfigSiteRunningConfigMatchesState(config, cfgMap) {
 			// get-config-kv serves the pre-restart config while a restart is
 			// pending, so loading it would store the stale empty values; keep
-			// the configured values in state. The notify targets (issue #1304)
-			// and the LDAP IDP read use the same gate.
+			// the configured values in state. The notify targets use the same
+			// gate (issue #1304).
 			tflog.Warn(ctx, "site still shows the pre-restart config, keeping configured values in state")
 			return nil
 		}

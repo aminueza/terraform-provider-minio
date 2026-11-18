@@ -16,7 +16,7 @@ import (
 
 func resourceMinioServerConfigApi() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.",
+		Description:   "Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning. Removing an attribute from the configuration leaves the server's last value; only destroying the resource resets the subsystem to MinIO's defaults.",
 		CreateContext: minioServerConfigApiSet,
 		ReadContext:   minioServerConfigApiRead,
 		UpdateContext: minioServerConfigApiSet,
@@ -83,7 +83,7 @@ func resourceMinioServerConfigApi() *schema.Resource {
 				Type:             schema.TypeString,
 				Optional:         true,
 				Computed:         true,
-				ValidateDiagFunc: validateServerConfigAPIDuration,
+				ValidateDiagFunc: validateServerConfigAPIDeleteCleanupInterval,
 				Description:      "Interval between delete cleanup runs (e.g., \"5m\"). Omit to leave the server value unchanged.",
 			},
 			"list_quorum": {
@@ -91,9 +91,9 @@ func resourceMinioServerConfigApi() *schema.Resource {
 				Optional: true,
 				Computed: true,
 				ValidateFunc: validation.StringInSlice([]string{
-					"strict", "reduced", "disk", "optimal",
+					"strict", "reduced", "disk", "optimal", "auto",
 				}, false),
-				Description: "Quorum behavior for list operations: strict, reduced, disk or optimal.",
+				Description: "Quorum behavior for list operations: strict, reduced, disk, optimal or auto.",
 			},
 			"object_max_versions": {
 				Type:             schema.TypeString,
@@ -157,10 +157,9 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 	raw := d.GetRawConfig()
 	// rawConfigString reports the configuration's own value for attr, so the
 	// write is driven by what the user wrote, not by HasChange (false on
-	// create) or by a value the read computed. GetRawConfig is null while
-	// reading from state (import, refresh), where nothing is written. An
-	// unset attribute (null) or an empty one returns set=false, so the server
-	// keeps its own value and the Optional+Computed attribute plans no change.
+	// create) or by a value the read computed. An unset attribute (null) or an
+	// empty one returns set=false, so the server keeps its own value and the
+	// Optional+Computed attribute plans no change.
 	rawConfigString := func(attr string) (val string, set bool) {
 		if raw.IsNull() || !raw.IsKnown() {
 			return "", false
@@ -272,7 +271,7 @@ func minioServerConfigApiRead(ctx context.Context, d *schema.ResourceData, meta 
 	return nil
 }
 
-func validateServerConfigAPIDuration(v interface{}, p cty.Path) diag.Diagnostics {
+func validateServerConfigAPIDeleteCleanupInterval(v interface{}, p cty.Path) diag.Diagnostics {
 	value := v.(string)
 	if value == "" {
 		return diag.Errorf("delete_cleanup_interval must be a non-empty duration (e.g., \"5m\")")

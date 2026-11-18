@@ -2,12 +2,12 @@
 page_title: "minio_server_config_api Resource - terraform-provider-minio"
 subcategory: "Server"
 description: |-
-  Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.
+  Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning. Removing an attribute from the configuration leaves the server's last value; only destroying the resource resets the subsystem to MinIO's defaults.
 ---
 
 # minio_server_config_api (Resource)
 
-Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning.
+Manages MinIO API server configuration including request throttling, CORS, transition workers, stale upload cleanup, delete cleanup, list quorum, object version limits, and replication tuning. Removing an attribute from the configuration leaves the server's last value; only destroying the resource resets the subsystem to MinIO's defaults.
 
 ## Example Usage
 
@@ -29,7 +29,7 @@ resource "minio_server_config_api" "main" {
 - `cluster_deadline` (String) Deadline for cluster read operations (e.g., "10s").
 - `cors_allow_origin` (String) Comma-separated list of allowed CORS origins (e.g., "https://app.example.com").
 - `delete_cleanup_interval` (String) Interval between delete cleanup runs (e.g., "5m"). Omit to leave the server value unchanged.
-- `list_quorum` (String) Quorum behavior for list operations: strict, reduced, disk or optimal.
+- `list_quorum` (String) Quorum behavior for list operations: strict, reduced, disk, optimal or auto.
 - `object_max_versions` (String) Maximum object versions per object. Omit to leave the server value unchanged.
 - `odirect` (Boolean) Whether reads and writes use direct I/O (O_DIRECT).
 - `remote_transport_deadline` (String) Deadline for remote transport operations (e.g., "2h").

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -186,7 +187,11 @@ func buildServerConfigCompressionCfgData(d *schema.ResourceData, config *S3Minio
 			parts = append(parts, buildConfigParam(key, strings.Join(values, ",")))
 			return
 		}
-		if d.HasChange(key) {
+		// d.HasChange cannot see an explicit empty list at create time: the
+		// diff treats no old value and an empty new value as equal, so the
+		// raw configuration is checked instead. An attribute that is absent
+		// from the configuration (null) must keep the server's value.
+		if configuredEmptyList(d.GetRawConfig(), key) {
 			parts = append(parts, key+"=")
 		}
 	}
@@ -203,6 +208,22 @@ func buildServerConfigCompressionCfgData(d *schema.ResourceData, config *S3Minio
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// configuredEmptyList reports whether the raw configuration explicitly sets
+// a list attribute to an empty list. cty.NilVal is what GetRawConfig returns
+// when the ResourceData carries no raw config, such as in unit tests built
+// with TestResourceDataRaw.
+func configuredEmptyList(raw cty.Value, key string) bool {
+	if raw == cty.NilVal || raw.IsNull() || !raw.IsKnown() {
+		return false
+	}
+	ty := raw.Type()
+	if !ty.IsObjectType() || !ty.HasAttribute(key) {
+		return false
+	}
+	v := raw.GetAttr(key)
+	return v.IsKnown() && !v.IsNull() && v.LengthInt() == 0
 }
 
 // compressionConfigList splits the comma-separated value the server stores

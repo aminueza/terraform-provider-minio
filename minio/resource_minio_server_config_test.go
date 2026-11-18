@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
@@ -382,6 +383,44 @@ func testAccSeedCompressionComment(t *testing.T) {
 	}
 }
 
+// An explicit empty list at create must clear the server's list on the first
+// apply: the SDK sees no diff for it (no old value and an empty new value are
+// equal), so the clear cannot be driven by HasChange.
+func TestAccMinioServerConfigCompression_emptyListOnCreate(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "0"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"extensions": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the server's default extensions, so the
+				// next plan is empty.
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
 func TestBuildServerConfigCompressionCfgData(t *testing.T) {
 	d := schema.TestResourceDataRaw(t, resourceMinioServerConfigCompression().Schema, map[string]interface{}{})
 
@@ -470,5 +509,40 @@ func TestValidateCompressionListItem(t *testing.T) {
 		if _, errs := validateCompressionListItem(v, "extensions"); len(errs) == 0 {
 			t.Errorf("validateCompressionListItem(%q): expected an error", v)
 		}
+	}
+}
+
+func TestConfiguredEmptyList(t *testing.T) {
+	objectType := cty.Object(map[string]cty.Type{
+		"extensions": cty.List(cty.String),
+		"mime_types": cty.List(cty.String),
+	})
+
+	tests := []struct {
+		name string
+		raw  cty.Value
+		key  string
+		want bool
+	}{
+		{"nil raw config carries none", cty.NilVal, "extensions", false},
+		{"null raw config", cty.NullVal(objectType), "extensions", false},
+		{"explicit empty list", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListValEmpty(cty.String),
+			"mime_types": cty.ListValEmpty(cty.String),
+		}), "extensions", true},
+		{"attribute absent from the configuration", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListValEmpty(cty.String),
+		}), "mime_types", false},
+		{"non-empty list", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListVal([]cty.Value{cty.StringVal(".txt")}),
+		}), "extensions", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := configuredEmptyList(tc.raw, tc.key); got != tc.want {
+				t.Errorf("configuredEmptyList(%v, %q) = %v, want %v", tc.raw, tc.key, got, tc.want)
+			}
+		})
 	}
 }

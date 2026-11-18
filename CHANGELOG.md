@@ -15,8 +15,7 @@ History older than 3.39.0 lives in the
 - `minio_server_config_compression`: manages the `compression` subsystem,
   which controls transparent object compression. The fields map the
   subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`
-  and `comment`.
-  ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
+  and `comment` ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
 
 ### Fixed
 

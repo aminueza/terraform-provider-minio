@@ -382,9 +382,9 @@ func marshalPolicy(policyStruct BucketPolicy) (string, error) {
 
 // stateDrivenByAccessType reports whether the state was written by an access_type: the policy
 // in state is the canonical policy of the type in state, or the state holds no policy at all,
-// which is what a drift left behind by an older provider's read. A configuration that carries
-// a custom policy stores one that matches no canonical shape, and there access_type is
-// redundant. See issue #1332.
+// because the read before this fix cleared the policy when the server drifted. A configuration
+// that carries a custom policy stores one that matches no canonical shape, and there
+// access_type is redundant. See issue #1332.
 func stateDrivenByAccessType(statePolicy, stateAccessType, bucketName string) (bool, error) {
 	if stateAccessType == "" {
 		return false, nil

@@ -12,12 +12,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
-- `minio_s3_bucket_anonymous_access` with `access_type` picks up a bucket
-  policy that was removed or changed outside Terraform. The read kept the
-  state's `access_type` when the server's policy no longer matched it, so the
-  plan stayed empty and the next apply never restored the anonymous access. The
-  read now drops `access_type` in that case, so the drift shows up in the plan
-  and the next apply puts the configured access back
+- `minio_s3_bucket_anonymous_access` with `access_type` now shows a diff when
+  the bucket policy is removed outside Terraform, or replaced with another
+  canned shape. The read kept the state's `access_type` when the server's
+  policy no longer matched it, so the plan stayed empty and the next apply
+  never restored the anonymous access. The read now drops `access_type` in
+  that case, so the drift shows up in the plan and the next apply puts the
+  configured access back
   ([#1332](https://github.com/aminueza/terraform-provider-minio/issues/1332)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

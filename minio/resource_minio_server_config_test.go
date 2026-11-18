@@ -333,7 +333,9 @@ resource "minio_server_config_policy_plugin" "test" {
 }
 `, stubURL),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					// An empty Optional string is absent from the flat state, so
+					// the check is on absence, not on an empty value.
+					resource.TestCheckNoResourceAttr(resourceName, "comment"),
 					testAccCheckServerStoredTarget("policy_plugin", "", map[string]string{
 						"comment": "",
 					}),

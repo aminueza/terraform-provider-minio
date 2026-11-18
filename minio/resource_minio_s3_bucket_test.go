@@ -543,6 +543,17 @@ func TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources(t *testing.T) {
 // plan never settles. See issue #1333.
 func TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
+	customPolicy := fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["arn:aws:iam::123456789012:user/bob"]},
+      "Resource": ["arn:aws:s3:::%s/*"],
+      "Action": ["s3:GetObject"]
+    }
+  ]
+}`, name)
 	config := fmt.Sprintf(`
 resource "minio_s3_bucket" "bucket" {
   bucket = "%s"
@@ -552,20 +563,10 @@ resource "minio_s3_bucket" "bucket" {
 resource "minio_s3_bucket_policy" "bucket" {
   bucket = minio_s3_bucket.bucket.bucket
   policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": {"AWS": ["*"]},
-      "Resource": ["${minio_s3_bucket.bucket.arn}"],
-      "Action": ["s3:ListBucketVersions"]
-    }
-  ]
-}
+%s
 EOF
 }
-`, name)
+`, name, customPolicy)
 	resourceName := "minio_s3_bucket.bucket"
 
 	resource.ParallelTest(t, resource.TestCase{
@@ -578,6 +579,7 @@ EOF
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
 				),
 			},
 			{
@@ -585,6 +587,7 @@ EOF
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3BucketExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
 				),
 			},
 		},

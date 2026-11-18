@@ -14,9 +14,8 @@ History older than 3.39.0 lives in the
 
 - `minio_iam_idp_ldap`, `minio_iam_idp_openid` and `minio_audit_webhook` with
   `enable = false` are written as `enable=off` on the server. The field was
-  read back through a helper that treated `false` as unset and substituted the
-  default `true`, so the target stayed enabled no matter what the
-  configuration asked for
+  read from the configuration through a helper that treated `false` as unset
+  and substituted the default `true`, so the server kept them enabled
   ([#1305](https://github.com/aminueza/terraform-provider-minio/issues/1305)).
 
 - A `minio_notify_*`, `minio_logger_webhook` or `minio_audit_kafka` target keeps

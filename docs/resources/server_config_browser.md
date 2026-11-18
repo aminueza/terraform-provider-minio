@@ -26,11 +26,11 @@ resource "minio_server_config_browser" "main" {
 
 ### Optional
 
-- `csp_policy` (String) Value of the Content-Security-Policy response header, for example "default-src 'self' https://console.example.com". An empty value clears the policy and the server uses its built-in default.
+- `csp_policy` (String) Value of the Content-Security-Policy response header, for example "default-src 'self' https://console.example.com". An empty value clears the policy and the server serves its built-in default. A value cannot end with a single quote because MinIO trims it; append a trailing ";" if a policy would otherwise end with one (for example "default-src 'self';").
 - `hsts_include_subdomains` (Boolean) Whether the Strict-Transport-Security response header carries the includeSubDomains directive.
 - `hsts_preload` (Boolean) Whether the Strict-Transport-Security response header carries the preload directive.
-- `hsts_seconds` (Number) max-age in seconds of the Strict-Transport-Security response header. The server only sends the header while this value is greater than 0; 0 keeps the server default.
-- `referrer_policy` (String) Value of the Referrer-Policy response header. One of: no-referrer, no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url. An empty value clears the policy and the server uses its built-in default.
+- `hsts_seconds` (Number) max-age in seconds of the Strict-Transport-Security response header. While this value is 0, the server sends no HSTS header.
+- `referrer_policy` (String) Value of the Referrer-Policy response header. One of: no-referrer, no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url. An empty value clears the policy and the server serves its built-in default.
 
 ### Read-Only
 

@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 const serverConfigBrowserKey = "browser"
@@ -22,8 +23,8 @@ const (
 )
 
 // browserReferrerPolicies is the fixed list of referrer policy values
-// browser.LookupConfig accepts; any other value makes the server fail to
-// apply the browser configuration on the next restart.
+// browser.LookupConfig accepts; the server rejects any other value when it
+// applies the browser configuration on restart.
 var browserReferrerPolicies = []string{
 	"no-referrer",
 	"no-referrer-when-downgrade",
@@ -50,12 +51,13 @@ func resourceMinioServerConfigBrowser() *schema.Resource {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validateConfigValue,
-				Description:  "Value of the Content-Security-Policy response header, for example \"default-src 'self' https://console.example.com\". An empty value clears the policy and the server uses its built-in default.",
+				Description:  "Value of the Content-Security-Policy response header, for example \"default-src 'self' https://console.example.com\". An empty value clears the policy and the server serves its built-in default. A value cannot end with a single quote because MinIO trims it; append a trailing \";\" if a policy would otherwise end with one (for example \"default-src 'self';\").",
 			},
 			"hsts_seconds": {
-				Type:        schema.TypeInt,
-				Optional:    true,
-				Description: "max-age in seconds of the Strict-Transport-Security response header. The server only sends the header while this value is greater than 0; 0 keeps the server default.",
+				Type:         schema.TypeInt,
+				Optional:     true,
+				ValidateFunc: validation.IntAtLeast(0),
+				Description:  "max-age in seconds of the Strict-Transport-Security response header. While this value is 0, the server sends no HSTS header.",
 			},
 			"hsts_include_subdomains": {
 				Type:        schema.TypeBool,
@@ -72,8 +74,8 @@ func resourceMinioServerConfigBrowser() *schema.Resource {
 			"referrer_policy": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: validateBrowserReferrerPolicy,
-				Description:  "Value of the Referrer-Policy response header. One of: no-referrer, no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url. An empty value clears the policy and the server uses its built-in default.",
+				ValidateFunc: validation.StringInSlice(append([]string{""}, browserReferrerPolicies...), false),
+				Description:  "Value of the Referrer-Policy response header. One of: no-referrer, no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url. An empty value clears the policy and the server serves its built-in default.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
@@ -184,11 +186,12 @@ func minioServerConfigBrowserDelete(ctx context.Context, d *schema.ResourceData,
 }
 
 // buildServerConfigBrowserCfgData builds the key=value string sent to
-// set-config-kv. The resource owns the singleton: a key the configuration
-// leaves empty is sent as key= so the server drops whatever it holds for
-// that key and falls back to its built-in default, including a value set
-// outside Terraform. The bool keys carry a schema default, so they are
-// always sent as on or off.
+// set-config-kv. The resource owns the singleton: a csp_policy or
+// referrer_policy the configuration leaves empty is sent as key= so the
+// server drops whatever it holds for that key and serves its built-in
+// default, including a value set outside Terraform. hsts_seconds is always
+// sent as a number, 0 included, and the bool keys carry a schema default,
+// so they are always sent as on or off.
 func buildServerConfigBrowserCfgData(config *S3MinioServerConfigBrowser) string {
 	parts := make([]string, 0, 5)
 
@@ -198,11 +201,7 @@ func buildServerConfigBrowserCfgData(config *S3MinioServerConfigBrowser) string 
 		parts = append(parts, serverConfigBrowserCspPolicy+"=")
 	}
 
-	if config.HstsSeconds > 0 {
-		parts = append(parts, fmt.Sprintf("%s=%d", serverConfigBrowserHstsSeconds, config.HstsSeconds))
-	} else {
-		parts = append(parts, serverConfigBrowserHstsSeconds+"=")
-	}
+	parts = append(parts, fmt.Sprintf("%s=%d", serverConfigBrowserHstsSeconds, config.HstsSeconds))
 
 	if config.HstsIncludeSubdomains {
 		parts = append(parts, serverConfigBrowserHstsIncludeSubdomains+"=on")
@@ -223,22 +222,4 @@ func buildServerConfigBrowserCfgData(config *S3MinioServerConfigBrowser) string 
 	}
 
 	return strings.Join(parts, " ")
-}
-
-// validateBrowserReferrerPolicy accepts an empty value and the exact list of
-// policies MinIO's browser.LookupConfig accepts. Any other value is rejected
-// client-side because the server stores it and only fails to start when it
-// applies the configuration on the next restart.
-func validateBrowserReferrerPolicy(val interface{}, key string) (warns []string, errs []error) {
-	v, _ := val.(string)
-	if v == "" {
-		return
-	}
-	for _, allowed := range browserReferrerPolicies {
-		if v == allowed {
-			return
-		}
-	}
-	errs = append(errs, fmt.Errorf("%q must be one of: %s (MinIO's browser subsystem rejects any other value on restart)", key, strings.Join(browserReferrerPolicies, ", ")))
-	return
 }

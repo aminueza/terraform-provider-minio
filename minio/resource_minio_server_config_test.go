@@ -220,6 +220,15 @@ func TestAccMinioServerConfigBrowser_basic(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the browser defaults seeded by MinIO.
+		CheckDestroy: testAccCheckServerStoredTarget("browser", "", map[string]string{
+			"csp_policy":              browserDefaultCspPolicy,
+			"hsts_seconds":            "0",
+			"hsts_include_subdomains": "off",
+			"hsts_preload":            "off",
+			"referrer_policy":         "strict-origin-when-cross-origin",
+		}),
 		Steps: []resource.TestStep{
 			{
 				Config: fmt.Sprintf(`
@@ -287,6 +296,13 @@ func TestAccMinioServerConfigBrowser_existingCspPolicyCleared(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
+		CheckDestroy: testAccCheckServerStoredTarget("browser", "", map[string]string{
+			"csp_policy":              browserDefaultCspPolicy,
+			"hsts_seconds":            "0",
+			"hsts_include_subdomains": "off",
+			"hsts_preload":            "off",
+			"referrer_policy":         "strict-origin-when-cross-origin",
+		}),
 		Steps: []resource.TestStep{
 			{
 				PreConfig: func() { testAccSeedBrowserCspPolicy(t) },
@@ -325,6 +341,11 @@ func testAccSeedBrowserCspPolicy(t *testing.T) {
 	}
 }
 
+// browserDefaultCspPolicy is the Content-Security-Policy the server prints
+// for the browser subsystem after a reset: the default from browser.DefaultKVS
+// in MinIO, verbatim (the two spaces before connect-src are in the default).
+const browserDefaultCspPolicy = "default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;"
+
 func TestBuildServerConfigBrowserCfgData(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -348,13 +369,17 @@ func TestBuildServerConfigBrowserCfgData(t *testing.T) {
 				"hsts_preload=on",
 				"referrer_policy=strict-origin",
 			},
+			absent: []string{
+				"hsts_include_subdomains=off",
+				"hsts_preload=off",
+			},
 		},
 		{
 			name:   "all fields empty",
 			config: S3MinioServerConfigBrowser{},
 			contains: []string{
 				"csp_policy=",
-				"hsts_seconds=",
+				"hsts_seconds=0",
 				"hsts_include_subdomains=off",
 				"hsts_preload=off",
 				"referrer_policy=",
@@ -376,21 +401,5 @@ func TestBuildServerConfigBrowserCfgData(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestValidateBrowserReferrerPolicy(t *testing.T) {
-	valid := append([]string{""}, browserReferrerPolicies...)
-	for _, v := range valid {
-		if _, errs := validateBrowserReferrerPolicy(v, "referrer_policy"); len(errs) != 0 {
-			t.Errorf("validateBrowserReferrerPolicy(%q): unexpected error: %v", v, errs)
-		}
-	}
-
-	invalid := []string{"anything-else", "Strict-Origin", "strict-origin extra"}
-	for _, v := range invalid {
-		if _, errs := validateBrowserReferrerPolicy(v, "referrer_policy"); len(errs) == 0 {
-			t.Errorf("validateBrowserReferrerPolicy(%q): expected an error", v)
-		}
 	}
 }

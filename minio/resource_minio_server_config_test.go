@@ -255,6 +255,45 @@ resource "minio_server_config_browser" "test" {
 				),
 			},
 			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioServerConfigBrowser_update(t *testing.T) {
+	resourceName := "minio_server_config_browser.test"
+
+	csp := "default-src 'self'; img-src 'self' https://cdn.example.com"
+
+	// Sequential on purpose: the browser subsystem is a shared singleton
+	// and the server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_browser" "test" {
+  hsts_seconds            = 31536000
+  hsts_include_subdomains = true
+  hsts_preload            = true
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "hsts_include_subdomains", "true"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_preload", "true"),
+					testAccCheckServerStoredTarget("browser", "", map[string]string{
+						"csp_policy":              "",
+						"hsts_seconds":            "31536000",
+						"hsts_include_subdomains": "on",
+						"hsts_preload":            "on",
+					}),
+				),
+			},
+			{
 				Config: fmt.Sprintf(`
 resource "minio_server_config_browser" "test" {
   csp_policy      = %q
@@ -275,12 +314,6 @@ resource "minio_server_config_browser" "test" {
 						"referrer_policy":         "no-referrer",
 					}),
 				),
-			},
-			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"restart_required"},
 			},
 		},
 	})

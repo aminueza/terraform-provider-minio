@@ -35,6 +35,22 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket` reads the bucket policy back and derives `acl` from it,
+  so removing or changing the policy outside Terraform shows up in the plan
+  and the next apply puts the configured ACL back. A bucket whose `acl` is
+  `private` leaves the bucket policy to the resources that manage it
+  (`minio_s3_bucket_policy`, `minio_s3_bucket_anonymous_access`), so a public
+  policy added outside Terraform to such a bucket is not detected. A public
+  `acl` whose policy was replaced by a custom `minio_s3_bucket_policy` keeps
+  that policy, because the read cannot tell it apart from one another resource
+  manages. Credentials without `s3:GetBucketPolicy` keep refreshing: the read
+  keeps `acl` as it is and logs a warning. When upgrading, check for a
+  non-private `acl` paired with another resource that writes a different canned
+  shape (for example `acl = "public"` plus `minio_s3_bucket_anonymous_access`
+  with `access_type = "public-read"`): the two now rewrite each other's policy
+  on every apply, where the previous read left it silently in place. The fix is
+  to drop `acl` from the bucket
+  ([#1333](https://github.com/aminueza/terraform-provider-minio/issues/1333)).
 - `minio_s3_bucket_anonymous_access` with `access_type` now shows a diff when
   the bucket policy is removed outside Terraform, or replaced with one that
   matches no canned shape. The read kept the state's `access_type` when the

@@ -331,7 +331,10 @@
     ],
     "bucket_acl_write": [
       "^TestAccMinioS3Bucket_UpdateAclToPrivate$",
-      "^TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent$"
+      "^TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent$",
+      "^TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform$",
+      "^TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources$",
+      "^TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy$"
     ],
     "bucket_import_private": [
       "^TestAccMinioS3Bucket_(Bucket_EmptyString|SkipBucketTagging|generatedName|migrateBucketToBucketPrefix|namePrefix)$"

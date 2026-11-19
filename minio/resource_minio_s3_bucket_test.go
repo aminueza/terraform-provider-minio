@@ -468,6 +468,134 @@ func TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent(t *testing.T) {
 	})
 }
 
+// A policy removed outside Terraform must show up as an acl drift and be
+// restored by the next apply. See issue #1333.
+func TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccMinioS3BucketConfigWithACL(name, "public")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+			{
+				PreConfig: func() {
+					minioC := testAccClient().S3Client
+					if err := minioC.SetBucketPolicy(context.Background(), name, ""); err != nil {
+						t.Fatalf("removing the bucket policy outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+		},
+	})
+}
+
+// A bucket whose acl is unset (default private) shares its bucket policy with
+// minio_s3_bucket_anonymous_access; the bucket read must not claim that policy
+// or the two resources fight and the plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccBucketAnonymousAccessConfig(name, "public-read")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+		},
+	})
+}
+
+// A public acl paired with minio_s3_bucket_policy: the bucket read must keep
+// the acl and the custom policy, or each apply overwrites the other and the
+// plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	customPolicy := fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["arn:aws:iam::123456789012:user/bob"]},
+      "Resource": ["arn:aws:s3:::%s/*"],
+      "Action": ["s3:GetObject"]
+    }
+  ]
+}`, name)
+	config := fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+%s
+EOF
+}
+`, name, customPolicy)
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioS3Bucket_shouldFailNotFound(t *testing.T) {
 	rInt := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
 	resourceName := "minio_s3_bucket.bucket"
@@ -1870,6 +1998,157 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 
 			if plainCalls != tc.wantPlainCalls {
 				t.Fatalf("non-versioned listing called %d times, expected %d", plainCalls, tc.wantPlainCalls)
+			}
+		})
+	}
+}
+
+// Importing a bucket from a backend without bucket policy support
+// (GetBucketPolicy answers 501) must succeed: the import-state ResourceData
+// reads acl as "" (schema defaults are not applied), so the read must skip the
+// acl derivation and leave the policy to the importer, which tolerates the 501.
+// See issue #1206.
+func TestImportMinioS3Bucket_withoutPolicySupport(t *testing.T) {
+	const bucket = "import-bucket"
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`
+	const noObjectLock = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		switch {
+		case r.URL.Query().Has("policy"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		case r.URL.Query().Has("object-lock"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noObjectLock)
+			return
+		case r.URL.Query().Has("tagging"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noTagSet)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	// The same construction the SDK uses for import (helper/schema/provider.go):
+	// an empty state, the id, and no diff, so schema defaults are not applied.
+	d := resourceMinioBucket().Data(nil)
+	d.SetId(bucket)
+	d.SetType("minio_s3_bucket")
+	if got := d.Get("acl").(string); got != "" {
+		t.Fatalf("an import-state ResourceData must read acl as the zero value, got %q", got)
+	}
+
+	results, err := resourceMinioS3BucketImportState(context.Background(), d, &S3MinioClient{S3Client: s3Client})
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+	if len(results) != 1 || results[0].Id() != bucket {
+		t.Fatalf("import returned %v, want one resource with id %q", results, bucket)
+	}
+	if got := results[0].Get("acl").(string); got != "private" {
+		t.Errorf("acl = %q, want private", got)
+	}
+}
+
+// Refreshing a bucket whose acl is public must keep the acl in state, instead
+// of erroring, when the policy read is refused: a backend that answers 501 with
+// s3_compat_mode on (issue #608), or credentials without s3:GetBucketPolicy,
+// whose refresh worked before acl was read back from the policy.
+func TestMinioReadBucket_unreadablePolicyKeepsAcl(t *testing.T) {
+	const bucket = "read-bucket"
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	cases := []struct {
+		name       string
+		status     int
+		body       string
+		compatMode bool
+	}{
+		{
+			name:       "not implemented with s3_compat_mode",
+			status:     http.StatusNotImplemented,
+			body:       `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`,
+			compatMode: true,
+		},
+		{
+			name:   "access denied",
+			status: http.StatusForbidden,
+			body:   `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policyRequested := false
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				switch {
+				case r.URL.Query().Has("policy"):
+					policyRequested = true
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(tc.status)
+					_, _ = fmt.Fprint(w, tc.body)
+					return
+				case r.URL.Query().Has("tagging"):
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, noTagSet)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+				"bucket": bucket,
+				"acl":    "public-read",
+			})
+			d.SetId(bucket)
+
+			diags := minioReadBucket(context.Background(), d, &S3MinioClient{S3Client: s3Client, S3CompatMode: tc.compatMode})
+			if !policyRequested {
+				t.Fatal("the read never requested the bucket policy")
+			}
+			if diags.HasError() {
+				t.Fatalf("read failed: %v", diags)
+			}
+			if len(diags) != 0 {
+				t.Fatalf("read returned %d diagnostics, want none: %v", len(diags), diags)
+			}
+			if got := d.Get("acl").(string); got != "public-read" {
+				t.Errorf("acl = %q, want public-read to stay in state", got)
 			}
 		})
 	}

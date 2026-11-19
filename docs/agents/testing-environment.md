@@ -178,7 +178,7 @@ for the right reason.
 
 **Config KV resources (notify_\*, audit_\*, logger_\*, server_config_\*):** These use `SetConfigKV`/`GetConfigKV`/`DelConfigKV` instead of the payload struct pattern. Named targets (e.g., `notify_kafka:primary`) use the shared helpers in `resource_minio_notify_common.go`. Singleton subsystems (e.g., `api`, `scanner`, `heal`) use the subsystem name as resource ID. Some subsystems (notably `notify_*` and `region`) require a server restart before `GetConfigKV` returns new values — handle the "there is no target" error by keeping the state while `restart_required` is true and in the data sources (which have no prior state); otherwise the target was removed outside Terraform and the resource must leave the state.
 
-**Server-restarting checks:** `testAccCheckServerStoredTarget` and `testAccCheckServerRemovedTarget` (in `notify_server_check_test.go`) restart the shared primary server, so they must only run in a `resource.Test`, never a `resource.ParallelTest`.
+**Server-restarting checks:** `testAccCheckServerStoredTarget` and `testAccCheckServerRemovedTarget` (in `notify_server_check_test.go`) restart the shared primary server, so they must only run in a `resource.Test`, never a `resource.ParallelTest`; the LDAP checks in `resource_minio_iam_idp_ldap_test.go` restart it the same way, through `testAccRestartPrimaryServer`.
 
 **Policy plugin (`minio_server_config_policy_plugin`):** while a policy plugin test runs, the plugin `url` points at a stub served by the test process. If the test process is killed after a restart has activated the plugin, the stub is gone and the primary MinIO denies every request until the `minio` container is recreated, which drops the persisted plugin config.
 
@@ -192,7 +192,7 @@ tierName := strings.ToUpper("TFACC-TIER-" + acctest.RandString(8))
 
 **Object lock:** Requires versioning enabled. Needs MinIO RELEASE.2025-05-20+ to add after bucket creation.
 
-**LDAP/KMS tests:** Skip automatically if not configured. Set `MINIO_LDAP_ENABLED=1` or `MINIO_KMS_CONFIGURED=1` to run.
+**LDAP/KMS tests:** Skip automatically if not configured. Set `MINIO_LDAP_ENABLED=1` or `MINIO_KMS_CONFIGURED=1` to run. The LDAP resource tests also need `MINIO_LDAP_SERVER_ADDR` set to an address the primary MinIO container can reach (`openldap:389` in `docker-compose.yml`), and `docker-compose.yml` sets both.
 
 **Skipping tests in Docker:** Use `TEST_SKIP` (not `TEST_PATTERN`) for the `-skip` flag: `docker compose run --rm -e TEST_SKIP=TestName test`. `TEST_PATTERN` only supports `-run` patterns.
 

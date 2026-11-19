@@ -1766,6 +1766,28 @@ func TestServerConfigAPIODirectEnabled(t *testing.T) {
 	}
 }
 
+func TestValidateServerConfigAPIDeleteCleanupInterval(t *testing.T) {
+	cases := []struct {
+		value     string
+		wantError bool
+	}{
+		{"5m", false},
+		{"90s", false},
+		{"1h30m", false},
+		{"", true},
+		{"five", true},
+		{"0s", true},
+		{"0", true},
+		{"-5m", true},
+	}
+	for _, c := range cases {
+		diags := validateServerConfigAPIDeleteCleanupInterval(c.value, cty.Path{})
+		if got := diags.HasError(); got != c.wantError {
+			t.Errorf("validateServerConfigAPIDeleteCleanupInterval(%q) error = %v, want %v", c.value, got, c.wantError)
+		}
+	}
+}
+
 func TestAccMinioServerConfigApi_unmanagedValuesKept(t *testing.T) {
 	resourceName := "minio_server_config_api.test"
 

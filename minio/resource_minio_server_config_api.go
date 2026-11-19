@@ -323,8 +323,13 @@ func validateServerConfigAPIDeleteCleanupInterval(v interface{}, p cty.Path) dia
 	if value == "" {
 		return diag.Errorf("delete_cleanup_interval must be a non-empty duration (e.g., \"5m\")")
 	}
-	if _, err := time.ParseDuration(value); err != nil {
+	d, err := time.ParseDuration(value)
+	if err != nil {
 		return diag.Errorf("delete_cleanup_interval must be a valid duration (e.g., \"5m\"), got: %s", value)
+	}
+	// MinIO stores 0s and negative intervals without complaint.
+	if d <= 0 {
+		return diag.Errorf("delete_cleanup_interval must be a positive duration (e.g., \"5m\"), got: %s", value)
 	}
 	return nil
 }

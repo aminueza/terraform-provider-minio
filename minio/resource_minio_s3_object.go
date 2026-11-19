@@ -3,6 +3,7 @@ package minio
 import (
 	"bytes"
 	"context"
+	"crypto/md5" //#nosec G501 -- reproduces the S3 ETag of a single-part upload; nothing is protected by it
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ func resourceMinioObject() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: minioCreateObject,
 		ReadContext:   minioReadObject,
+		CustomizeDiff: minioObjectCustomizeDiff,
 		UpdateContext: minioUpdateObject,
 		DeleteContext: minioDeleteObject,
 		Importer: &schema.ResourceImporter{
@@ -132,6 +134,78 @@ func resourceMinioObject() *schema.Resource {
 
 func minioCreateObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	return minioPutObject(ctx, d, meta)
+}
+
+// Content written outside Terraform never changes the configuration, so the
+// plan stays empty and the drift is never reverted. Compare the MD5 of the
+// configured content with the ETag stored in state, and force an update on a
+// mismatch. An overwrite whose ETag is not a bare MD5 (a multipart or
+// streamed upload) is not detected. See issue #1330.
+func minioObjectCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	// GetChange returns the stored ETag, not one set explicitly in the
+	// configuration, so the comparison always looks at what the server holds.
+	storedETagValue, _ := d.GetChange("etag")
+	storedETag := strings.Trim(storedETagValue.(string), `"`)
+
+	// The comparison only applies to ETags that are a bare MD5: on create
+	// there is no stored ETag yet, and multipart or streamed uploads carry
+	// a -N suffix.
+	if len(storedETag) != 32 {
+		return nil
+	}
+	for _, c := range storedETag {
+		isHex := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+		if !isHex {
+			return nil
+		}
+	}
+
+	h := md5.New() //#nosec G401 -- reproduces the S3 ETag of a single-part upload; nothing is protected by it
+	if v, ok := d.GetOk("source"); ok {
+		source := v.(string)
+		path, err := homedir.Expand(source)
+		if err != nil {
+			return fmt.Errorf("expanding homedir in source (%s): %w", source, err)
+		}
+		path = filepath.Clean(path)
+		file, err := os.Open(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// The file may not exist until the apply itself, for
+				// example when it is produced by another resource: skip
+				// the comparison instead of failing the plan.
+				return nil
+			}
+			return fmt.Errorf("opening S3 object source (%s): %w", path, err)
+		}
+		defer func() {
+			if err := file.Close(); err != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Error closing S3 object source (%s): %s", path, err))
+			}
+		}()
+		if _, err := io.Copy(h, file); err != nil {
+			return fmt.Errorf("hashing S3 object source (%s): %w", path, err)
+		}
+	} else if v, ok := d.GetOk("content"); ok {
+		h.Write([]byte(v.(string)))
+	} else if v, ok := d.GetOk("content_base64"); ok {
+		raw, err := base64.StdEncoding.DecodeString(v.(string))
+		if err != nil {
+			return fmt.Errorf("decoding content_base64: %w", err)
+		}
+		h.Write(raw)
+	} else {
+		return nil
+	}
+
+	expected := fmt.Sprintf("%x", h.Sum(nil))
+	if strings.EqualFold(expected, storedETag) {
+		return nil
+	}
+
+	// The stored object differs from the configured content: mark the ETag for
+	// recomputation so the plan is not empty and the next apply re-uploads.
+	return d.SetNewComputed("etag")
 }
 
 func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

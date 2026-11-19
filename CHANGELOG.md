@@ -24,6 +24,29 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_anonymous_access` with `access_type` now shows a diff when
+  the bucket policy is removed outside Terraform, or replaced with one that
+  matches no canned shape. The read kept the state's `access_type` when the
+  server's policy no longer matched it, so the plan stayed empty and the next
+  apply never restored the anonymous access. The read now drops `access_type` in
+  that case, so the drift shows up in the plan and the next apply puts the
+  configured access back
+  ([#1332](https://github.com/aminueza/terraform-provider-minio/issues/1332)).
+- `minio_s3_object` detects the object being overwritten outside Terraform.
+  The configured `content`, `content_base64` or `source` is MD5-hashed at plan
+  time and compared against the stored `etag`, so overwriting the object shows
+  a diff and the next apply re-uploads the configured content. An overwrite
+  whose ETag is not a bare MD5 (a multipart or streamed upload) is not detected
+  ([#1330](https://github.com/aminueza/terraform-provider-minio/issues/1330)).
+- `minio_iam_user` reads `disable_user` from the server, so enabling or
+  disabling a user outside Terraform (for example with
+  `mc admin user enable`/`disable`) shows up in the plan and the next apply
+  restores the configured value. The read only wrote the server status to the
+  computed `status` and never touched `disable_user`, so the change was
+  silently carried in state with no diff. A user whose status already drifted
+  shows one `disable_user` diff on the first plan after upgrading, and the
+  next apply restores the configured status
+  ([#1329](https://github.com/aminueza/terraform-provider-minio/issues/1329)).
 - `minio_audit_kafka` with `tls = false` or `tls_skip_verify = false`
   writes `tls=off` / `tls_skip_verify=off` on the server. The provider only
   wrote the two fields when they were true, so turning them off sent nothing

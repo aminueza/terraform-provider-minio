@@ -176,6 +176,132 @@ func TestAccS3BucketAnonymousAccess_readWriteStaysStable(t *testing.T) {
 	})
 }
 
+// A policy removed outside Terraform, or replaced with one that matches no canned shape, must
+// surface as a diff on access_type, and the next apply must restore the anonymous access. On the old code the read kept the state's
+// access_type when the server's policy matched no canned type, so the plan stayed empty.
+func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists("minio_s3_bucket.bucket"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+				),
+			},
+			{
+				// Remove the policy outside Terraform before this step plans, as
+				// `mc anonymous set none` would. The step plans only: the harness
+				// would apply the plan before it could be checked otherwise, and
+				// ExpectNonEmptyPlan asserts the plan after apply. With the fix
+				// the read drops access_type to "" and the plan shows the drift;
+				// without it, the plan stays empty and this step fails.
+				PreConfig:          func() { testAccRemoveBucketPolicy(t, name) },
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+				Config:             testAccBucketAnonymousAccessConfig(name, "public"),
+			},
+			{
+				// Same configuration again: this step applies the drift plan and
+				// the checks verify the anonymous access was restored.
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+				),
+			},
+			{
+				// Replace the policy outside Terraform with one that matches no
+				// canned shape: anonymous read on a single prefix.
+				PreConfig: func() {
+					testAccSetBucketPolicy(t, name, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::`+name+`/shared/*"]}]}`)
+				},
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+				Config:             testAccBucketAnonymousAccessConfig(name, "public"),
+			},
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+				),
+			},
+		},
+	})
+}
+
+// testAccRemoveBucketPolicy deletes the bucket policy with a raw MinIO client, the same call
+// `mc anonymous set none` makes, so the test does not depend on the code under test.
+func testAccRemoveBucketPolicy(t *testing.T, bucket string) {
+	t.Helper()
+	testAccSetBucketPolicy(t, bucket, "")
+}
+
+func testAccSetBucketPolicy(t *testing.T, bucket, policy string) {
+	t.Helper()
+	if err := testAccClient().S3Client.SetBucketPolicy(context.Background(), bucket, policy); err != nil {
+		t.Fatalf("error setting bucket policy for %s: %v", bucket, err)
+	}
+}
+
+// Pins what the read uses to tell an access_type-driven configuration apart from one that
+// carries a custom policy: only the first may have its access_type cleared on drift.
+func TestStateDrivenByAccessType(t *testing.T) {
+	bucket := "test-bucket"
+	publicCanonical := `{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "ListBucketActions",
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"],
+				"Resource": ["arn:aws:s3:::test-bucket"]
+			},
+			{
+				"Sid": "AllObjectActions",
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:AbortMultipartUpload", "s3:DeleteObject", "s3:GetObject", "s3:ListMultipartUploadParts", "s3:PutObject"],
+				"Resource": ["arn:aws:s3:::test-bucket/*"]
+			}
+		]
+	}`
+	custom := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"arn:aws:s3:::" + bucket + "/*\"],\"Action\":[\"s3:GetObject\"]}]}"
+
+	cases := []struct {
+		name        string
+		statePolicy string
+		stateType   string
+		want        bool
+	}{
+		{"access_type driven", publicCanonical, "public", true},
+		{"legacy drifted state with no policy", "", "public", true},
+		{"custom policy with redundant access_type", custom, "public", false},
+		{"no type in state", custom, "", false},
+		{"empty policy and no type", "", "", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := stateDrivenByAccessType(tc.statePolicy, tc.stateType, bucket)
+			if err != nil {
+				t.Fatalf("stateDrivenByAccessType(%q, %q) error: %v", tc.statePolicy, tc.stateType, err)
+			}
+			if got != tc.want {
+				t.Errorf("stateDrivenByAccessType(%q, %q) = %v, want %v", tc.statePolicy, tc.stateType, got, tc.want)
+			}
+		})
+	}
+}
+
 // Reads the policy back off the server and asserts what a MinIO client makes of it, rather than
 // comparing it to the builder that wrote it.
 func testAccCheckAnonymousAccessGrantsDataAccessOnly(n string) resource.TestCheckFunc {

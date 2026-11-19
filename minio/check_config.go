@@ -454,3 +454,13 @@ func ServerConfigBrowserConfig(d *schema.ResourceData, meta interface{}) *S3Mini
 		ReferrerPolicy:        d.Get("referrer_policy").(string),
 	}
 }
+
+func ServerConfigSiteConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigSite {
+	m := meta.(*S3MinioClient)
+	return &S3MinioServerConfigSite{
+		MinioAdmin: m.S3Admin,
+		Name:       d.Get("name").(string),
+		Region:     d.Get("region").(string),
+		Comment:    getOptionalField(d, "comment", "").(string),
+	}
+}

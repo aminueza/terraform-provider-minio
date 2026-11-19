@@ -557,3 +557,10 @@ type S3MinioServerConfigBrowser struct {
 	HstsPreload           bool
 	ReferrerPolicy        string
 }
+
+type S3MinioServerConfigSite struct {
+	MinioAdmin *madmin.AdminClient
+	Name       string
+	Region     string
+	Comment    string
+}

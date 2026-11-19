@@ -12,7 +12,7 @@ import (
 
 func resourceMinioServerConfigRegion() *schema.Resource {
 	return &schema.Resource{
-		Description:   "Manages MinIO server region/site name configuration.",
+		Description:   "Manages the legacy MinIO region configuration. The site subsystem (minio_server_config_site) is the current replacement: it stores the site name and region, and when both are set its region takes precedence for the region MinIO reports. The two subsystems are stored independently, so setting one does not clear the other. The MINIO_REGION and MINIO_SITE_REGION environment variables override the stored values of both subsystems.",
 		CreateContext: minioServerConfigRegionSet,
 		ReadContext:   minioServerConfigRegionRead,
 		UpdateContext: minioServerConfigRegionSet,

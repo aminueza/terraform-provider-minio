@@ -12,6 +12,12 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_server_config_site`: manages the `site` subsystem, MinIO's
+  replacement for the legacy `region` subsystem. The fields map the
+  subsystem's keys: `name`, `region` and `comment`; when both the site
+  region and the legacy `region` subsystem are set, the site region takes
+  precedence for the region MinIO reports
+  ([#1323](https://github.com/aminueza/terraform-provider-minio/issues/1323)).
 - `minio_server_config_browser`: manages the `browser` subsystem, which sets
   the security headers of the embedded console. The fields map the
   subsystem's keys: `csp_policy`, `hsts_seconds`, `hsts_include_subdomains`,

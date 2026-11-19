@@ -19,6 +19,15 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_user` reads `disable_user` from the server, so enabling or
+  disabling a user outside Terraform (for example with
+  `mc admin user enable`/`disable`) shows up in the plan and the next apply
+  restores the configured value. The read only wrote the server status to the
+  computed `status` and never touched `disable_user`, so the change was
+  silently carried in state with no diff. A user whose status already drifted
+  shows one `disable_user` diff on the first plan after upgrading, and the
+  next apply restores the configured status
+  ([#1329](https://github.com/aminueza/terraform-provider-minio/issues/1329)).
 - `minio_audit_kafka` with `tls = false` or `tls_skip_verify = false`
   writes `tls=off` / `tls_skip_verify=off` on the server. The provider only
   wrote the two fields when they were true, so turning them off sent nothing

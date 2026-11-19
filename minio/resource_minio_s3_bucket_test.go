@@ -491,9 +491,27 @@ func TestAccMinioS3Bucket_quotaChangedOutsideTerraform(t *testing.T) {
 			},
 			{
 				PreConfig: func() {
-					client := testAccClient()
 					quota := madmin.BucketQuota{Size: 5368709120, Type: madmin.HardQuota}
-					_ = client.S3Admin.SetBucketQuota(context.Background(), name, &quota)
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &quota); err != nil {
+						t.Fatalf("changing the bucket quota outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &madmin.BucketQuota{}); err != nil {
+						t.Fatalf("clearing the bucket quota outside Terraform: %v", err)
+					}
 				},
 				Config:             config,
 				PlanOnly:           true,

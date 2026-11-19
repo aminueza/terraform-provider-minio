@@ -609,6 +609,8 @@ func TestIdpLdapRunningConfigMatchesState(t *testing.T) {
 		}
 	})
 
+	// Not a measured response: the tested release prints empty keys. This
+	// guards a server that leaves them out.
 	t.Run("cleared group search missing from the response matches", func(t *testing.T) {
 		if !idpLdapRunningConfigMatchesState(&cleared, map[string]string{
 			"server_addr":            "openldap:389",

@@ -48,6 +48,7 @@ func resourceMinioNotifyKafka() *schema.Resource {
 			"sasl_mechanism": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'.",
 			},
 			"tls": {

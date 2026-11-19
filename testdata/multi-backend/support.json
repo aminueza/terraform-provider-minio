@@ -98,6 +98,10 @@
           "status": "unsupported",
           "reason": "a non-private acl is applied with PutBucketPolicy, which is not implemented (a private acl needs no policy and still runs)"
         },
+        "bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the admin API, which this backend does not serve"
+        },
         "bucket_import_private": {
           "status": "supported"
         },
@@ -165,6 +169,10 @@
           "status": "unsupported",
           "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
         },
+        "bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
         "minio_s3_bucket_replication": {
           "status": "unsupported",
           "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
@@ -185,6 +193,10 @@
       "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
       "support": {
         "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "bucket_quota": {
           "status": "unsupported",
           "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
         },
@@ -211,6 +223,10 @@
           "status": "unsupported",
           "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
         },
+        "bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
         "minio_s3_bucket_replication": {
           "status": "unsupported",
           "reason": "bucket replication registers its remote target through the MinIO admin API (/minio/admin), which no hosted S3 service serves"
@@ -231,6 +247,10 @@
       "run": "^TestAcc(MinioS3|S3Bucket|DataSourceMinioS3|MinioBucket|DataSourceMinioBucket)",
       "support": {
         "minio_s3_bucket_quota": {
+          "status": "unsupported",
+          "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
+        },
+        "bucket_quota": {
           "status": "unsupported",
           "reason": "quota uses the MinIO admin API (/minio/admin), which no hosted S3 service serves"
         },
@@ -335,6 +355,9 @@
       "^TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform$",
       "^TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources$",
       "^TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy$"
+    ],
+    "bucket_quota": [
+      "^TestAccMinioS3Bucket_quotaChangedOutsideTerraform$"
     ],
     "bucket_import_private": [
       "^TestAccMinioS3Bucket_(Bucket_EmptyString|SkipBucketTagging|generatedName|migrateBucketToBucketPrefix|namePrefix)$"

@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -2151,5 +2153,236 @@ func TestMinioReadBucket_unreadablePolicyKeepsAcl(t *testing.T) {
 				t.Errorf("acl = %q, want public-read to stay in state", got)
 			}
 		})
+	}
+}
+
+// A quota changed outside Terraform must show up in the plan and be restored
+// by the next apply. See issue #1334.
+func TestAccMinioS3Bucket_quotaChangedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccMinioS3BucketConfigWithQuota(name, 1073741824)
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+			{
+				PreConfig: func() {
+					quota := madmin.BucketQuota{Size: 5368709120, Type: madmin.HardQuota}
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &quota); err != nil {
+						t.Fatalf("changing the bucket quota outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &madmin.BucketQuota{}); err != nil {
+						t.Fatalf("clearing the bucket quota outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigWithQuota(name string, quota int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  quota  = %d
+}
+`, name, quota)
+}
+
+// TestMinioReadBucket_quota pins the drift fix for issue #1334: the bucket
+// read picks up a quota changed outside Terraform, and leaves quota alone
+// when the bucket does not manage one.
+func TestMinioReadBucket_quota(t *testing.T) {
+	cases := []struct {
+		name      string
+		rawConfig map[string]interface{}
+		quotaJSON string
+		wantSet   bool
+		wantQuota string
+	}{
+		{
+			name:      "quota set in state is refreshed from the server",
+			rawConfig: map[string]interface{}{"bucket": "test-bucket", "quota": 1073741824},
+			quotaJSON: `{"size":5368709120,"quotatype":"hard"}`,
+			wantSet:   true,
+			wantQuota: "5368709120",
+		},
+		{
+			name:      "bucket without a managed quota keeps no quota in state",
+			rawConfig: map[string]interface{}{"bucket": "test-bucket"},
+			quotaJSON: `{"size":1048576,"quotatype":"hard"}`,
+			wantSet:   false,
+			wantQuota: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "get-bucket-quota") {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = fmt.Fprint(w, tc.quotaJSON)
+					return
+				}
+				if r.URL.Query().Has("tagging") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotImplemented)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			host := strings.TrimPrefix(srv.URL, "http://")
+
+			s3Client, err := minio.New(host, &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+			})
+			if err != nil {
+				t.Fatalf("creating admin client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, tc.rawConfig)
+			d.SetId("test-bucket")
+
+			meta := &S3MinioClient{S3Client: s3Client, S3Admin: adminClient}
+			if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+				t.Fatalf("read returned diagnostics: %v", diags)
+			}
+
+			state := d.State()
+			if state == nil {
+				t.Fatal("expected non-nil state after read")
+			}
+			got, has := state.Attributes["quota"]
+			if has != tc.wantSet {
+				t.Fatalf("quota attribute present = %v, want %v", has, tc.wantSet)
+			}
+			if got != tc.wantQuota {
+				t.Errorf("state attribute quota = %q, want %q", got, tc.wantQuota)
+			}
+		})
+	}
+}
+
+// TestMinioReadBucket_quotaUnsupportedFallsThrough pins the s3_compat_mode
+// branch of the #1334 fix: a backend without the admin API answers the quota
+// read as not implemented, and the read must keep the quota as it is instead
+// of erroring. The tagging API call is recorded so the check that it is not
+// made is explicit: with s3_compat_mode the read skips tagging by design
+// (shouldSkipBucketTagging), so the fall-through reaches preserveBucketTagsState
+// and returns without touching the tagging API.
+func TestMinioReadBucket_quotaUnsupportedFallsThrough(t *testing.T) {
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`
+
+	var mu sync.Mutex
+	var sawTagging bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "get-bucket-quota") {
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		if r.URL.Query().Has("tagging") {
+			mu.Lock()
+			sawTagging = true
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	s3Client, err := minio.New(host, &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+	})
+	if err != nil {
+		t.Fatalf("creating admin client: %v", err)
+	}
+
+	d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+		"bucket": "test-bucket",
+		"quota":  1073741824,
+	})
+	d.SetId("test-bucket")
+
+	meta := &S3MinioClient{S3Client: s3Client, S3Admin: adminClient, S3CompatMode: true}
+	if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+		t.Fatalf("read returned diagnostics: %v", diags)
+	}
+
+	state := d.State()
+	if state == nil {
+		t.Fatal("expected non-nil state after read")
+	}
+	if got := state.Attributes["quota"]; got != "1073741824" {
+		t.Errorf("state attribute quota = %q, want the state value %q", got, "1073741824")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if sawTagging {
+		t.Error("read called the tagging API; with s3_compat_mode the read must skip it (shouldSkipBucketTagging)")
 	}
 }

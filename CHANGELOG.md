@@ -24,6 +24,16 @@ History older than 3.39.0 lives in the
   wrote the two fields when they were true, so turning them off sent nothing
   and the server kept its old `on` value
   ([#1331](https://github.com/aminueza/terraform-provider-minio/issues/1331)).
+- `minio_server_config_scanner` stores `excess_versions` and `excess_folders`
+  as `alert_excess_versions` and `alert_excess_folders`. MinIO's `scanner`
+  subsystem has no `excess_*` keys and glued the unknown key onto the value
+  written before it, which corrupted `cycle` and left the configured
+  thresholds at the server defaults. The Terraform attributes keep their
+  names. The old provider's unknown excess keys were glued onto the value
+  written before them, usually `cycle`, so a scanner configuration an older
+  provider wrote shows one diff on that attribute, and the next apply
+  rewrites it
+  ([#1322](https://github.com/aminueza/terraform-provider-minio/issues/1322)).
 - `minio_logger_webhook` and `minio_audit_kafka` no longer corrupt their
   configuration when `queue_limit` is set. Those MinIO subsystems size their
   queue with `queue_size` and have no `queue_limit` key, and MinIO glued the

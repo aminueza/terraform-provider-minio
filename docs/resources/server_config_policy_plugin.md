@@ -9,6 +9,10 @@ description: |-
 
 Manages the MinIO policy plugin configuration. While a URL is configured, MinIO sends every authorization decision to the external service at that URL (for example Open Policy Agent) instead of evaluating its own policies. The plugin only takes effect after a server restart, and while it is active every request is denied if the service is unavailable or answers no. Destroying the resource resets the stored configuration, but the running server keeps the plugin active until the next restart.
 
+**WARNING:** Once the plugin is active, MinIO asks it about every request, including the ones signed with the root credentials, so the provider's own admin calls go through it too. If the policy service is destroyed or unreachable, or doesn't allow the admin actions for the provider's credentials, Terraform can no longer refresh this resource or delete it. Keep the service running while the plugin is configured: when Terraform manages the service too, add a `depends_on` on it to this resource, so the service is destroyed after the plugin configuration.
+
+To recover a server in that state, start it with `MINIO_POLICY_PLUGIN_URL` pointing at a policy service that allows the root credentials (an empty value doesn't override the stored URL), remove the stored configuration (destroy this resource, or run `mc admin config reset <alias> policy_plugin`), and restart the server without the variable.
+
 ## Example Usage
 
 ```terraform

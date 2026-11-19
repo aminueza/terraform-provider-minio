@@ -336,11 +336,11 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	// GetBucketPolicy call — which tolerates backends without bucket policies,
 	// issue #1206 — must run before any policy read here.
 	if currentACL := d.Get("acl").(string); currentACL != "private" && currentACL != "" {
-		policy, unsupported, readDiags := readBucketPolicyText(ctx, meta.(*S3MinioClient), d, d.Id())
+		policy, unreadable, readDiags := readBucketPolicyText(ctx, meta.(*S3MinioClient), d, d.Id())
 		if readDiags.HasError() {
 			return readDiags
 		}
-		if !unsupported {
+		if !unreadable {
 			derivedACL, err := bucketACLFromPolicy(policy, d.Id(), currentACL)
 			if err != nil {
 				return NewResourceError("error deriving acl from bucket policy", d.Id(), err)
@@ -660,8 +660,10 @@ func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bu
 // policy (NoSuchBucketPolicy or 404) reports an empty string. A backend that
 // answers the read with 501 or 405 is handled like every other resource through
 // s3CompatReadUnsupported: with s3_compat_mode on the caller keeps the state
-// value, without it the error surfaces (see issue #608).
-func readBucketPolicyText(ctx context.Context, compatClient *S3MinioClient, d *schema.ResourceData, bucket string) (policy string, unsupported bool, diags diag.Diagnostics) {
+// value, without it the error surfaces (see issue #608). Credentials without
+// s3:GetBucketPolicy get AccessDenied; refresh worked for them before acl was
+// read back, so the caller keeps the state value there too.
+func readBucketPolicyText(ctx context.Context, compatClient *S3MinioClient, d *schema.ResourceData, bucket string) (policy string, unreadable bool, diags diag.Diagnostics) {
 	rawPolicy, err := compatClient.S3Client.GetBucketPolicy(ctx, bucket)
 	if err != nil {
 		errResp := minio.ToErrorResponse(err)
@@ -669,6 +671,13 @@ func readBucketPolicyText(ctx context.Context, compatClient *S3MinioClient, d *s
 			return "", false, nil
 		}
 		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "bucket policy", err) {
+			return "", true, nil
+		}
+		if errResp.Code == "AccessDenied" || errResp.StatusCode == http.StatusForbidden {
+			tflog.Warn(ctx, fmt.Sprintf(
+				"access denied reading the policy of bucket %s; keeping acl in state with its last known value, so a policy changed outside Terraform is not detected. Grant s3:GetBucketPolicy to detect it.",
+				bucket,
+			))
 			return "", true, nil
 		}
 		return "", false, NewResourceError("error reading bucket policy", bucket, err)

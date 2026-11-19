@@ -2070,59 +2070,86 @@ func TestImportMinioS3Bucket_withoutPolicySupport(t *testing.T) {
 	}
 }
 
-// Refreshing a bucket whose acl is public on a backend that answers the policy
-// read with 501 must keep the acl in state when s3_compat_mode is on, instead
-// of erroring: s3CompatReadUnsupported reports the backend as unsupported and
-// the read leaves acl as it is. See issue #608.
-func TestMinioReadBucket_withoutPolicySupportKeepsAcl(t *testing.T) {
+// Refreshing a bucket whose acl is public must keep the acl in state, instead
+// of erroring, when the policy read is refused: a backend that answers 501 with
+// s3_compat_mode on (issue #608), or credentials without s3:GetBucketPolicy,
+// whose refresh worked before acl was read back from the policy.
+func TestMinioReadBucket_unreadablePolicyKeepsAcl(t *testing.T) {
 	const bucket = "read-bucket"
-	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`
 	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		switch {
-		case r.URL.Query().Has("policy"):
-			w.Header().Set("Content-Type", "application/xml")
-			w.WriteHeader(http.StatusNotImplemented)
-			_, _ = fmt.Fprint(w, notImplemented)
-			return
-		case r.URL.Query().Has("tagging"):
-			w.Header().Set("Content-Type", "application/xml")
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = fmt.Fprint(w, noTagSet)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer srv.Close()
-
-	s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
-		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
-		Secure: false,
-		Region: "us-east-1",
-	})
-	if err != nil {
-		t.Fatalf("creating S3 client: %v", err)
+	cases := []struct {
+		name       string
+		status     int
+		body       string
+		compatMode bool
+	}{
+		{
+			name:       "not implemented with s3_compat_mode",
+			status:     http.StatusNotImplemented,
+			body:       `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`,
+			compatMode: true,
+		},
+		{
+			name:   "access denied",
+			status: http.StatusForbidden,
+			body:   `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`,
+		},
 	}
 
-	d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
-		"bucket": bucket,
-		"acl":    "public-read",
-	})
-	d.SetId(bucket)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policyRequested := false
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				switch {
+				case r.URL.Query().Has("policy"):
+					policyRequested = true
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(tc.status)
+					_, _ = fmt.Fprint(w, tc.body)
+					return
+				case r.URL.Query().Has("tagging"):
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, noTagSet)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
 
-	diags := minioReadBucket(context.Background(), d, &S3MinioClient{S3Client: s3Client, S3CompatMode: true})
-	if diags.HasError() {
-		t.Fatalf("read failed on a backend without policy support: %v", diags)
-	}
-	if len(diags) != 0 {
-		t.Fatalf("read returned %d diagnostics, want none: %v", len(diags), diags)
-	}
-	if got := d.Get("acl").(string); got != "public-read" {
-		t.Errorf("acl = %q, want public-read to stay in state", got)
+			s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+				"bucket": bucket,
+				"acl":    "public-read",
+			})
+			d.SetId(bucket)
+
+			diags := minioReadBucket(context.Background(), d, &S3MinioClient{S3Client: s3Client, S3CompatMode: tc.compatMode})
+			if !policyRequested {
+				t.Fatal("the read never requested the bucket policy")
+			}
+			if diags.HasError() {
+				t.Fatalf("read failed: %v", diags)
+			}
+			if len(diags) != 0 {
+				t.Fatalf("read returned %d diagnostics, want none: %v", len(diags), diags)
+			}
+			if got := d.Get("acl").(string); got != "public-read" {
+				t.Errorf("acl = %q, want public-read to stay in state", got)
+			}
+		})
 	}
 }

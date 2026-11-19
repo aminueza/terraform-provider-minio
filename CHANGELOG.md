@@ -42,6 +42,15 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_notify_amqp` and `minio_notify_elasticsearch` read `url` back from
+  the server, and `minio_notify_postgres` reads `connection_string`, so a
+  change made outside Terraform shows up in the plan and the next apply puts
+  the configured value back. The matching data sources now return these
+  values too, so they are stored in the state in clear text (they stay
+  marked sensitive, which only hides them in the CLI output). A target
+  whose stored value already differs from the configuration shows one diff
+  on the first plan after upgrading
+  ([#1328](https://github.com/aminueza/terraform-provider-minio/issues/1328)).
 - `minio_iam_idp_ldap` keeps its planned values in state while MinIO needs a
   restart to apply a change. The read right after a write loaded the
   pre-restart config back, so `server_addr` ended up empty in the state and

@@ -27,7 +27,7 @@ func resourceMinioNotifyPostgres() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				Description: "PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). Read back from the server.",
 			},
 			"table": {
 				Type:        schema.TypeString,
@@ -63,6 +63,11 @@ func buildNotifyPostgresCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyPostgresFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
+	if v, ok := cfgMap["connection_string"]; ok {
+		if err := d.Set("connection_string", v); err != nil {
+			return NewResourceError("setting connection_string", d.Id(), err)
+		}
+	}
 
 	if v, ok := cfgMap["table"]; ok && v != "" {
 		_ = d.Set("table", v)

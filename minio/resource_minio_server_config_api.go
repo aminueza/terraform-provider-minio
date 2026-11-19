@@ -106,7 +106,13 @@ func resourceMinioServerConfigApi() *schema.Resource {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Computed:    true,
-				Description: "Whether reads and writes use direct I/O (O_DIRECT).",
+				Description: "Whether reads and writes use direct I/O (O_DIRECT). The provider writes both `odirect` and `disable_odirect`, since MinIO keeps O_DIRECT on unless `disable_odirect` is `on`.",
+			},
+			"gzip_objects": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Computed:    true,
+				Description: "Whether GetObject responses may be gzip-compressed for clients that accept it.",
 			},
 			"replication_max_workers": {
 				Type:             schema.TypeString,
@@ -114,6 +120,13 @@ func resourceMinioServerConfigApi() *schema.Resource {
 				Computed:         true,
 				ValidateDiagFunc: validateServerConfigAPIReplicationMaxWorkers,
 				Description:      "Maximum number of concurrent replication workers. Must be between 1 and 500.",
+			},
+			"replication_max_lrg_workers": {
+				Type:             schema.TypeString,
+				Optional:         true,
+				Computed:         true,
+				ValidateDiagFunc: validateServerConfigAPIReplicationMaxLrgWorkers,
+				Description:      "Maximum number of replication workers per node for objects of 128 MiB or more. Must be between 1 and 10.",
 			},
 			"replication_priority": {
 				Type:     schema.TypeString,
@@ -179,19 +192,34 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 			parts = append(parts, fmt.Sprintf("%s=%s", key, val))
 		}
 	}
-	var odirect string
-	if !raw.IsNull() && raw.IsKnown() {
-		rawBool := raw.GetAttr("odirect")
-		if !rawBool.IsNull() && rawBool.IsKnown() && rawBool.Type() == cty.Bool {
-			if rawBool.True() {
-				odirect = "on"
-			} else {
-				odirect = "off"
-			}
+	rawConfigBool := func(attr string) (val bool, set bool) {
+		if raw.IsNull() || !raw.IsKnown() {
+			return false, false
+		}
+		v := raw.GetAttr(attr)
+		if v.IsNull() || !v.IsKnown() || v.Type() != cty.Bool {
+			return false, false
+		}
+		return v.True(), true
+	}
+	// MinIO computes O_DIRECT as `odirect=on || disable_odirect!=on`, and
+	// disable_odirect defaults to empty, so odirect=off alone leaves O_DIRECT
+	// on. Write both keys so the server honors the configured value. odirect
+	// must come first: MinIO's kvFields finds each key with the first match of
+	// "key=", so a leading disable_odirect= would be split at its "odirect=".
+	if on, set := rawConfigBool("odirect"); set {
+		if on {
+			parts = append(parts, "odirect=on", "disable_odirect=off")
+		} else {
+			parts = append(parts, "odirect=off", "disable_odirect=on")
 		}
 	}
-	if odirect != "" {
-		parts = append(parts, "odirect="+odirect)
+	if on, set := rawConfigBool("gzip_objects"); set {
+		if on {
+			parts = append(parts, "gzip_objects=on")
+		} else {
+			parts = append(parts, "gzip_objects=off")
+		}
 	}
 
 	setStr("requests_max", "requests_max")
@@ -207,6 +235,7 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 	setConfiguredStr("list_quorum", "list_quorum")
 	setConfiguredStr("object_max_versions", "object_max_versions")
 	setConfiguredStr("replication_max_workers", "replication_max_workers")
+	setConfiguredStr("replication_max_lrg_workers", "replication_max_lrg_workers")
 	setConfiguredStr("replication_priority", "replication_priority")
 
 	if len(parts) == 0 {
@@ -253,22 +282,40 @@ func minioServerConfigApiRead(ctx context.Context, d *schema.ResourceData, meta 
 		"stale_uploads_expiry", "stale_uploads_cleanup_interval",
 		"cluster_deadline", "remote_transport_deadline",
 		"delete_cleanup_interval", "list_quorum", "object_max_versions",
-		"replication_max_workers", "replication_priority",
+		"replication_max_workers", "replication_max_lrg_workers",
+		"replication_priority",
 	}
 	for _, f := range strFields {
 		if v, ok := cfgMap[f]; ok {
-			_ = d.Set(f, v)
+			if err := d.Set(f, v); err != nil {
+				return NewResourceError("setting "+f, d.Id(), err)
+			}
 		}
 	}
 
-	boolFields := []string{"root_access", "sync_events", "odirect"}
+	boolFields := []string{"root_access", "sync_events", "gzip_objects"}
 	for _, f := range boolFields {
 		if v, ok := cfgMap[f]; ok {
-			_ = d.Set(f, v == "on")
+			if err := d.Set(f, v == "on"); err != nil {
+				return NewResourceError("setting "+f, d.Id(), err)
+			}
+		}
+	}
+
+	if _, ok := cfgMap["odirect"]; ok {
+		if err := d.Set("odirect", serverConfigAPIODirectEnabled(cfgMap)); err != nil {
+			return NewResourceError("setting odirect", d.Id(), err)
 		}
 	}
 
 	return nil
+}
+
+// serverConfigAPIODirectEnabled mirrors MinIO's own rule in
+// internal/config/api/api.go (`enableODirect || !disableODirect`), so the
+// state reports whether O_DIRECT is in effect rather than the raw odirect key.
+func serverConfigAPIODirectEnabled(cfgMap map[string]string) bool {
+	return cfgMap["odirect"] == "on" || cfgMap["disable_odirect"] != "on"
 }
 
 func validateServerConfigAPIDeleteCleanupInterval(v interface{}, p cty.Path) diag.Diagnostics {
@@ -305,6 +352,18 @@ func validateServerConfigAPIReplicationMaxWorkers(v interface{}, p cty.Path) dia
 	}
 	if n < 1 || n > 500 {
 		return diag.Errorf("replication_max_workers must be between 1 and 500, got: %d", n)
+	}
+	return nil
+}
+
+func validateServerConfigAPIReplicationMaxLrgWorkers(v interface{}, p cty.Path) diag.Diagnostics {
+	value := v.(string)
+	n, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return diag.Errorf("replication_max_lrg_workers must be an integer between 1 and 10, got: %s", value)
+	}
+	if n < 1 || n > 10 {
+		return diag.Errorf("replication_max_lrg_workers must be between 1 and 10, got: %d", n)
 	}
 	return nil
 }

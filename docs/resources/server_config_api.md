@@ -29,10 +29,12 @@ resource "minio_server_config_api" "main" {
 - `cluster_deadline` (String) Deadline for cluster read operations (e.g., "10s").
 - `cors_allow_origin` (String) Comma-separated list of allowed CORS origins (e.g., "https://app.example.com").
 - `delete_cleanup_interval` (String) Interval between delete cleanup runs (e.g., "5m"). Omit to leave the server value unchanged.
+- `gzip_objects` (Boolean) Whether GetObject responses may be gzip-compressed for clients that accept it.
 - `list_quorum` (String) Quorum behavior for list operations: strict, reduced, disk, optimal or auto.
 - `object_max_versions` (String) Maximum object versions per object. Omit to leave the server value unchanged.
-- `odirect` (Boolean) Whether reads and writes use direct I/O (O_DIRECT).
+- `odirect` (Boolean) Whether reads and writes use direct I/O (O_DIRECT). The provider writes both `odirect` and `disable_odirect`, since MinIO keeps O_DIRECT on unless `disable_odirect` is `on`.
 - `remote_transport_deadline` (String) Deadline for remote transport operations (e.g., "2h").
+- `replication_max_lrg_workers` (String) Maximum number of replication workers per node for objects of 128 MiB or more. Must be between 1 and 10.
 - `replication_max_workers` (String) Maximum number of concurrent replication workers. Must be between 1 and 500.
 - `replication_priority` (String) Replication priority: slow, fast or auto.
 - `requests_max` (String) Maximum concurrent API requests. Use 0 or empty for auto.

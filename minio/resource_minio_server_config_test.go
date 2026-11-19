@@ -123,54 +123,87 @@ func TestAccMinioServerConfigApi_newKeys(t *testing.T) {
 			{
 				Config: `
 resource "minio_server_config_api" "test" {
-  delete_cleanup_interval = "7m"
-  list_quorum             = "disk"
-  object_max_versions     = "500"
-  odirect                 = false
-  replication_max_workers = "10"
-  replication_priority    = "fast"
+  delete_cleanup_interval     = "7m"
+  list_quorum                 = "disk"
+  object_max_versions         = "500"
+  odirect                     = false
+  gzip_objects                = true
+  replication_max_workers     = "10"
+  replication_max_lrg_workers = "4"
+  replication_priority        = "fast"
 }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "7m"),
 					resource.TestCheckResourceAttr(resourceName, "list_quorum", "disk"),
 					resource.TestCheckResourceAttr(resourceName, "object_max_versions", "500"),
 					resource.TestCheckResourceAttr(resourceName, "odirect", "false"),
+					resource.TestCheckResourceAttr(resourceName, "gzip_objects", "true"),
 					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "10"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "4"),
 					resource.TestCheckResourceAttr(resourceName, "replication_priority", "fast"),
 					testAccCheckApiConfigStored(map[string]string{
-						"delete_cleanup_interval": "7m",
-						"list_quorum":             "disk",
-						"object_max_versions":     "500",
-						"odirect":                 "off",
-						"replication_max_workers": "10",
-						"replication_priority":    "fast",
+						"delete_cleanup_interval":     "7m",
+						"list_quorum":                 "disk",
+						"object_max_versions":         "500",
+						"odirect":                     "off",
+						"disable_odirect":             "on",
+						"gzip_objects":                "on",
+						"replication_max_workers":     "10",
+						"replication_max_lrg_workers": "4",
+						"replication_priority":        "fast",
 					}),
 				),
 			},
 			{
+				// With disable_odirect=off MinIO keeps O_DIRECT on although
+				// odirect=off, so the plan must show odirect drifting to true.
+				// odirect leads because MinIO rejects a leading disable_odirect.
+				PreConfig: func() { testAccSeedApiConfig(t, "api odirect=off disable_odirect=off") },
 				Config: `
 resource "minio_server_config_api" "test" {
-  delete_cleanup_interval = "10m"
-  list_quorum             = "optimal"
-  object_max_versions     = "250"
-  odirect                 = true
-  replication_max_workers = "20"
-  replication_priority    = "slow"
+  delete_cleanup_interval     = "7m"
+  list_quorum                 = "disk"
+  object_max_versions         = "500"
+  odirect                     = false
+  gzip_objects                = true
+  replication_max_workers     = "10"
+  replication_max_lrg_workers = "4"
+  replication_priority        = "fast"
+}`,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: `
+resource "minio_server_config_api" "test" {
+  delete_cleanup_interval     = "10m"
+  list_quorum                 = "optimal"
+  object_max_versions         = "250"
+  odirect                     = true
+  gzip_objects                = false
+  replication_max_workers     = "20"
+  replication_max_lrg_workers = "7"
+  replication_priority        = "slow"
 }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "10m"),
 					resource.TestCheckResourceAttr(resourceName, "list_quorum", "optimal"),
 					resource.TestCheckResourceAttr(resourceName, "object_max_versions", "250"),
 					resource.TestCheckResourceAttr(resourceName, "odirect", "true"),
+					resource.TestCheckResourceAttr(resourceName, "gzip_objects", "false"),
 					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "20"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "7"),
 					resource.TestCheckResourceAttr(resourceName, "replication_priority", "slow"),
 					testAccCheckApiConfigStored(map[string]string{
-						"delete_cleanup_interval": "10m",
-						"list_quorum":             "optimal",
-						"object_max_versions":     "250",
-						"odirect":                 "on",
-						"replication_max_workers": "20",
-						"replication_priority":    "slow",
+						"delete_cleanup_interval":     "10m",
+						"list_quorum":                 "optimal",
+						"object_max_versions":         "250",
+						"odirect":                     "on",
+						"disable_odirect":             "off",
+						"gzip_objects":                "off",
+						"replication_max_workers":     "20",
+						"replication_max_lrg_workers": "7",
+						"replication_priority":        "slow",
 					}),
 				),
 			},
@@ -178,16 +211,33 @@ resource "minio_server_config_api" "test" {
 	})
 }
 
-// testAccSeedApiDeleteCleanupInterval writes a delete_cleanup_interval the
-// test's configuration will not manage, and restarts the server so the value
-// is live before the first step applies.
-func testAccSeedApiDeleteCleanupInterval(t *testing.T) {
+// testAccSeedApiConfig writes api config outside Terraform, and restarts the
+// server so the value is live before the next step plans.
+func testAccSeedApiConfig(t *testing.T, kv string) {
 	t.Helper()
-	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "api delete_cleanup_interval=9m"); err != nil {
-		t.Fatalf("seeding api delete_cleanup_interval outside Terraform: %v", err)
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), kv); err != nil {
+		t.Fatalf("writing %q outside Terraform: %v", kv, err)
 	}
 	if err := testAccRestartPrimaryServer(); err != nil {
 		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+func TestServerConfigAPIODirectEnabled(t *testing.T) {
+	cases := []struct {
+		cfg  map[string]string
+		want bool
+	}{
+		{map[string]string{"odirect": "on"}, true},
+		{map[string]string{"odirect": "off"}, true},
+		{map[string]string{"odirect": "off", "disable_odirect": "off"}, true},
+		{map[string]string{"odirect": "off", "disable_odirect": "on"}, false},
+		{map[string]string{"odirect": "on", "disable_odirect": "on"}, true},
+	}
+	for _, c := range cases {
+		if got := serverConfigAPIODirectEnabled(c.cfg); got != c.want {
+			t.Errorf("serverConfigAPIODirectEnabled(%v) = %v, want %v", c.cfg, got, c.want)
+		}
 	}
 }
 
@@ -202,7 +252,7 @@ func TestAccMinioServerConfigApi_unmanagedValuesKept(t *testing.T) {
 				// Seed a value the configuration does not manage, before the
 				// first apply, so the create must not clear it. PreConfig runs
 				// after the TF_ACC guard.
-				PreConfig: func() { testAccSeedApiDeleteCleanupInterval(t) },
+				PreConfig: func() { testAccSeedApiConfig(t, "api delete_cleanup_interval=9m") },
 				Config: `
 resource "minio_server_config_api" "test" {
   stale_uploads_expiry = "12h"

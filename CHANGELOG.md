@@ -13,9 +13,11 @@ History older than 3.39.0 lives in the
 ### Added
 
 - `minio_server_config_api` exposes the remaining keys of the `api` subsystem as
-  optional attributes: `delete_cleanup_interval`, `list_quorum`,
-  `object_max_versions`, `odirect`, `replication_max_workers` and
-  `replication_priority`
+  optional attributes: `delete_cleanup_interval`, `gzip_objects`,
+  `list_quorum`, `object_max_versions`, `odirect`, `replication_max_lrg_workers`,
+  `replication_max_workers` and `replication_priority`. Setting
+  `odirect = false` also writes `disable_odirect=on`, because MinIO keeps
+  O_DIRECT on while that key is unset
   ([#1327](https://github.com/aminueza/terraform-provider-minio/issues/1327)).
 
 ### Fixed

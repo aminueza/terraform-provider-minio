@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -125,35 +124,6 @@ resource "minio_server_config_scanner" "test" {
 // server stores them as alert_excess_versions and alert_excess_folders and
 // keeps cycle intact. See issue #1322.
 
-// testAccScannerStoredConfig restarts the primary test server and checks
-// that get-config-kv reports the scanner configuration with the given
-// key=value pairs. The values in want are explicit literals from the test's
-// own configuration: they assert what the server persisted, not what the
-// provider would have written.
-func testAccScannerStoredConfig(want map[string]string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		if err := testAccRestartPrimaryServer(); err != nil {
-			return err
-		}
-
-		data, err := testAccClient().S3Admin.GetConfigKV(context.Background(), "scanner")
-		if err != nil {
-			return fmt.Errorf("reading scanner from the server after the restart: %w", err)
-		}
-		stored := parseConfigParams(string(data))
-		for key, value := range want {
-			got, ok := stored[key]
-			if !ok {
-				return fmt.Errorf("scanner stored on the server has no %q key; response: %s", key, data)
-			}
-			if got != value {
-				return fmt.Errorf("%q of scanner stored on the server is %q, want %q", key, got, value)
-			}
-		}
-		return nil
-	}
-}
-
 func TestAccMinioServerConfigScanner_excessThresholds(t *testing.T) {
 	resourceName := "minio_server_config_scanner.test"
 	// Values differ from the server defaults (100 and 50000), so the stored
@@ -180,7 +150,7 @@ resource "minio_server_config_scanner" "test" {
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
 					resource.TestCheckResourceAttr(resourceName, "excess_versions", "10"),
 					resource.TestCheckResourceAttr(resourceName, "excess_folders", "25"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"speed":                 "slow",
 						"delay":                 "10",
 						"max_wait":              "15s",
@@ -256,7 +226,7 @@ resource "minio_server_config_scanner" "test" {
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
 					resource.TestCheckResourceAttr(resourceName, "excess_versions", "100"),
 					resource.TestCheckResourceAttr(resourceName, "excess_folders", "50000"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"cycle":                 "1m",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -323,7 +293,7 @@ resource "minio_server_config_scanner" "test" {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"cycle":                 "1m",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -389,7 +359,7 @@ resource "minio_server_config_scanner" "test" {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "max_wait", "15s"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"max_wait":              "15s",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -1666,4 +1636,194 @@ func TestPolicyPluginRunningConfigMatchesState(t *testing.T) {
 	if !policyPluginRunningConfigMatchesState(emptyTokenCfgMap, emptyTokenConfig) {
 		t.Errorf("empty stored auth_token did not match an empty configuration")
 	}
+}
+
+func TestAccMinioServerConfigApi_newKeys(t *testing.T) {
+	resourceName := "minio_server_config_api.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_api" "test" {
+  delete_cleanup_interval     = "7m"
+  list_quorum                 = "disk"
+  object_max_versions         = "500"
+  odirect                     = false
+  gzip_objects                = true
+  replication_max_workers     = "10"
+  replication_max_lrg_workers = "4"
+  replication_priority        = "fast"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "7m"),
+					resource.TestCheckResourceAttr(resourceName, "list_quorum", "disk"),
+					resource.TestCheckResourceAttr(resourceName, "object_max_versions", "500"),
+					resource.TestCheckResourceAttr(resourceName, "odirect", "false"),
+					resource.TestCheckResourceAttr(resourceName, "gzip_objects", "true"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "10"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "4"),
+					resource.TestCheckResourceAttr(resourceName, "replication_priority", "fast"),
+					testAccCheckServerStoredTarget("api", "", map[string]string{
+						"delete_cleanup_interval":     "7m",
+						"list_quorum":                 "disk",
+						"object_max_versions":         "500",
+						"odirect":                     "off",
+						"disable_odirect":             "on",
+						"gzip_objects":                "on",
+						"replication_max_workers":     "10",
+						"replication_max_lrg_workers": "4",
+						"replication_priority":        "fast",
+					}),
+				),
+			},
+			{
+				// With disable_odirect=off MinIO keeps O_DIRECT on although
+				// odirect=off, so the plan must show odirect drifting to true.
+				// odirect leads because MinIO rejects a leading disable_odirect.
+				PreConfig: func() { testAccSeedApiConfig(t, "api odirect=off disable_odirect=off") },
+				Config: `
+resource "minio_server_config_api" "test" {
+  delete_cleanup_interval     = "7m"
+  list_quorum                 = "disk"
+  object_max_versions         = "500"
+  odirect                     = false
+  gzip_objects                = true
+  replication_max_workers     = "10"
+  replication_max_lrg_workers = "4"
+  replication_priority        = "fast"
+}`,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: `
+resource "minio_server_config_api" "test" {
+  delete_cleanup_interval     = "10m"
+  list_quorum                 = "optimal"
+  object_max_versions         = "250"
+  odirect                     = true
+  gzip_objects                = false
+  replication_max_workers     = "20"
+  replication_max_lrg_workers = "7"
+  replication_priority        = "slow"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "10m"),
+					resource.TestCheckResourceAttr(resourceName, "list_quorum", "optimal"),
+					resource.TestCheckResourceAttr(resourceName, "object_max_versions", "250"),
+					resource.TestCheckResourceAttr(resourceName, "odirect", "true"),
+					resource.TestCheckResourceAttr(resourceName, "gzip_objects", "false"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "20"),
+					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "7"),
+					resource.TestCheckResourceAttr(resourceName, "replication_priority", "slow"),
+					testAccCheckServerStoredTarget("api", "", map[string]string{
+						"delete_cleanup_interval":     "10m",
+						"list_quorum":                 "optimal",
+						"object_max_versions":         "250",
+						"odirect":                     "on",
+						"disable_odirect":             "off",
+						"gzip_objects":                "off",
+						"replication_max_workers":     "20",
+						"replication_max_lrg_workers": "7",
+						"replication_priority":        "slow",
+					}),
+				),
+			},
+		},
+	})
+}
+
+// testAccSeedApiConfig writes api config outside Terraform, and restarts the
+// server so the value is live before the next step plans.
+func testAccSeedApiConfig(t *testing.T, kv string) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), kv); err != nil {
+		t.Fatalf("writing %q outside Terraform: %v", kv, err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+func TestServerConfigAPIODirectEnabled(t *testing.T) {
+	cases := []struct {
+		cfg  map[string]string
+		want bool
+	}{
+		{map[string]string{"odirect": "on"}, true},
+		{map[string]string{"odirect": "off"}, true},
+		{map[string]string{"odirect": "off", "disable_odirect": "off"}, true},
+		{map[string]string{"odirect": "off", "disable_odirect": "on"}, false},
+		{map[string]string{"odirect": "on", "disable_odirect": "on"}, true},
+	}
+	for _, c := range cases {
+		if got := serverConfigAPIODirectEnabled(c.cfg); got != c.want {
+			t.Errorf("serverConfigAPIODirectEnabled(%v) = %v, want %v", c.cfg, got, c.want)
+		}
+	}
+}
+
+func TestValidateServerConfigAPIDeleteCleanupInterval(t *testing.T) {
+	cases := []struct {
+		value     string
+		wantError bool
+	}{
+		{"5m", false},
+		{"90s", false},
+		{"1h30m", false},
+		{"", true},
+		{"five", true},
+		{"0s", true},
+		{"0", true},
+		{"-5m", true},
+	}
+	for _, c := range cases {
+		diags := validateServerConfigAPIDeleteCleanupInterval(c.value, cty.Path{})
+		if got := diags.HasError(); got != c.wantError {
+			t.Errorf("validateServerConfigAPIDeleteCleanupInterval(%q) error = %v, want %v", c.value, got, c.wantError)
+		}
+	}
+}
+
+func TestAccMinioServerConfigApi_unmanagedValuesKept(t *testing.T) {
+	resourceName := "minio_server_config_api.test"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				// Seed a value the configuration does not manage, before the
+				// first apply, so the create must not clear it. PreConfig runs
+				// after the TF_ACC guard.
+				PreConfig: func() { testAccSeedApiConfig(t, "api delete_cleanup_interval=9m") },
+				Config: `
+resource "minio_server_config_api" "test" {
+  stale_uploads_expiry = "12h"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "stale_uploads_expiry", "12h"),
+					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "9m"),
+					testAccCheckServerStoredTarget("api", "", map[string]string{
+						"stale_uploads_expiry":    "12h",
+						"delete_cleanup_interval": "9m",
+					}),
+				),
+			},
+			{
+				// The old configuration shape must plan no change after the
+				// upgrade: the new attributes are unset, so the server keeps
+				// their values.
+				Config: `
+resource "minio_server_config_api" "test" {
+  stale_uploads_expiry = "12h"
+}`,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
 }

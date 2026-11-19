@@ -12,6 +12,13 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_server_config_api` exposes the remaining keys of the `api` subsystem as
+  optional attributes: `delete_cleanup_interval`, `gzip_objects`,
+  `list_quorum`, `object_max_versions`, `odirect`, `replication_max_lrg_workers`,
+  `replication_max_workers` and `replication_priority`. Setting
+  `odirect = false` also writes `disable_odirect=on`, because MinIO keeps
+  O_DIRECT on while that key is unset
+  ([#1327](https://github.com/aminueza/terraform-provider-minio/issues/1327)).
 - `minio_server_config_policy_plugin`: manages the `policy_plugin` subsystem,
   which routes every authorization decision to an external service such as
   Open Policy Agent. The fields map the subsystem's keys: `url`,
@@ -35,6 +42,15 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_notify_amqp` and `minio_notify_elasticsearch` read `url` back from
+  the server, and `minio_notify_postgres` reads `connection_string`, so a
+  change made outside Terraform shows up in the plan and the next apply puts
+  the configured value back. The matching data sources now return these
+  values too, so they are stored in the state in clear text (they stay
+  marked sensitive, which only hides them in the CLI output). A target
+  whose stored value already differs from the configuration shows one diff
+  on the first plan after upgrading
+  ([#1328](https://github.com/aminueza/terraform-provider-minio/issues/1328)).
 - `minio_iam_idp_ldap` sends `lookup_bind_dn`, `user_dn_search_base_dn`,
   `user_dn_search_filter`, `group_search_base_dn` and `group_search_filter`
   empty when they are removed from the configuration. The provider skipped

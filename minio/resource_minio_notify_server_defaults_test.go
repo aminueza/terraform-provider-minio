@@ -1,10 +1,12 @@
 package minio
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -140,6 +142,7 @@ func TestNotifyDataSourcesKeepSecretsSensitive(t *testing.T) {
 		{"minio_notify_mysql", dataSourceMinioNotifyMysql(), "connection_string"},
 		{"minio_notify_postgres", dataSourceMinioNotifyPostgres(), "connection_string"},
 		{"minio_notify_amqp", dataSourceMinioNotifyAmqp(), "url"},
+		{"minio_notify_elasticsearch", dataSourceMinioNotifyElasticsearch(), "url"},
 		{"minio_notify_kafka", dataSourceMinioNotifyKafka(), "sasl_password"},
 		{"minio_notify_nats", dataSourceMinioNotifyNats(), "token"},
 		{"minio_notify_webhook", dataSourceMinioNotifyWebhook(), "auth_token"},
@@ -156,6 +159,128 @@ func TestNotifyDataSourcesKeepSecretsSensitive(t *testing.T) {
 			}
 			if !s.Computed || s.Optional || s.Required {
 				t.Errorf("%s.%s must stay computed-only in a data source", tc.dataSource, tc.field)
+			}
+		})
+	}
+}
+
+// A credential-carrying value changed on the server outside Terraform must
+// show up in the plan, and the next apply must write the configured value
+// back. The server returns these keys in clear, so the read can compare
+// them. See issue #1328.
+func testAccMinioNotifyCredentialDriftCase(t *testing.T, kind, key, fields, configured, outside string) {
+	resourceName := "minio_notify_" + kind + ".test"
+	name := "tfacc-" + acctest.RandString(6)
+	config := testAccMinioNotifyDisabledTarget(kind, name, fmt.Sprintf(fields, configured))
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckServerRemovedTarget("notify_"+kind, name),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check:  testAccCheckServerStoredTarget("notify_"+kind, name, map[string]string{key: configured}),
+			},
+			{
+				PreConfig: func() {
+					// enable=off keeps the target disabled: a write without it
+					// enables the target, and MinIO then dials the endpoint.
+					changed := notifyConfigKey("notify_"+kind, name) + " " + buildConfigParam(key, outside) + " enable=off"
+					if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), changed); err != nil {
+						t.Fatalf("changing %s of %s outside Terraform: %v", key, name, err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, key, configured),
+					testAccCheckServerStoredTarget("notify_"+kind, name, map[string]string{key: configured}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+func TestAccMinioNotifyAmqp_urlChangedOutsideTerraform(t *testing.T) {
+	testAccMinioNotifyCredentialDriftCase(t, "amqp", "url", `  url = %q`,
+		"amqp://user:pw1@localhost:5672", "amqp://other:pw2@broker.internal:5672")
+}
+
+func TestAccMinioNotifyElasticsearch_urlChangedOutsideTerraform(t *testing.T) {
+	testAccMinioNotifyCredentialDriftCase(t, "elasticsearch", "url", `  url    = %q
+  index  = "minio-events"
+  format = "namespace"`,
+		"http://user:pw1@localhost:9200", "http://other:pw2@search.internal:9200")
+}
+
+func TestAccMinioNotifyPostgres_connectionStringChangedOutsideTerraform(t *testing.T) {
+	testAccMinioNotifyCredentialDriftCase(t, "postgres", "connection_string", `  connection_string = %q
+  table             = "events"
+  format            = "namespace"`,
+		"host=localhost port=5432 dbname=minio user=minio password=pw1 sslmode=disable",
+		"host=db.internal port=5432 dbname=minio user=other password=pw2 sslmode=disable")
+}
+
+func TestReadNotifyCredentialFields(t *testing.T) {
+	cases := []struct {
+		name     string
+		resource *schema.Resource
+		read     func(map[string]string, *schema.ResourceData) diag.Diagnostics
+		fields   map[string]interface{}
+		key      string
+		server   string
+	}{
+		{
+			name:     "amqp url",
+			resource: resourceMinioNotifyAmqp(),
+			read:     readNotifyAmqpFields,
+			fields:   map[string]interface{}{"url": "amqp://user:pw1@localhost:5672"},
+			key:      "url",
+			server:   "amqp://other:pw2@broker.internal:5672",
+		},
+		{
+			name:     "elasticsearch url",
+			resource: resourceMinioNotifyElasticsearch(),
+			read:     readNotifyElasticsearchFields,
+			fields:   map[string]interface{}{"url": "http://localhost:9200", "index": "minio-events", "format": "namespace"},
+			key:      "url",
+			server:   "http://other:pw2@search.internal:9200",
+		},
+		{
+			name:     "postgres connection_string",
+			resource: resourceMinioNotifyPostgres(),
+			read:     readNotifyPostgresFields,
+			fields:   map[string]interface{}{"connection_string": "host=localhost password=pw1", "table": "events", "format": "namespace"},
+			key:      "connection_string",
+			server:   "host=db.internal port=5432 user=other password=pw2",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := map[string]interface{}{"name": "events"}
+			for k, v := range tc.fields {
+				raw[k] = v
+			}
+			d := schema.TestResourceDataRaw(t, tc.resource.Schema, raw)
+
+			if diags := tc.read(map[string]string{tc.key: tc.server}, d); diags.HasError() {
+				t.Fatalf("read failed: %v", diags)
+			}
+
+			if got := d.Get(tc.key).(string); got != tc.server {
+				t.Errorf("%s = %q after the read, want the server's %q", tc.key, got, tc.server)
 			}
 		})
 	}

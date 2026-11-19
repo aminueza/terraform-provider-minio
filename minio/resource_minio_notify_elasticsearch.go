@@ -27,7 +27,7 @@ func resourceMinioNotifyElasticsearch() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				Description: "Elasticsearch server URL (e.g., 'http://localhost:9200'). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "Elasticsearch server URL (e.g., 'http://localhost:9200'). Read back from the server.",
 			},
 			"index": {
 				Type:        schema.TypeString,
@@ -69,6 +69,11 @@ func buildNotifyElasticsearchCfg(d *schema.ResourceData, meta interface{}) strin
 }
 
 func readNotifyElasticsearchFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
+	if v, ok := cfgMap["url"]; ok {
+		if err := d.Set("url", v); err != nil {
+			return NewResourceError("setting url", d.Id(), err)
+		}
+	}
 
 	if v, ok := cfgMap["index"]; ok && v != "" {
 		_ = d.Set("index", v)

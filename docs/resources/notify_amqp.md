@@ -30,7 +30,7 @@ resource "minio_notify_amqp" "events" {
 ### Required
 
 - `name` (String) Target name identifier.
-- `url` (String, Sensitive) AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `url` (String, Sensitive) AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). Read back from the server.
 
 ### Optional
 

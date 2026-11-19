@@ -27,7 +27,7 @@ resource "minio_notify_postgres" "events" {
 
 ### Required
 
-- `connection_string` (String, Sensitive) PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `connection_string` (String, Sensitive) PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). Read back from the server.
 - `format` (String) Output format for event records: 'namespace' or 'access'.
 - `name` (String) Target name identifier.
 - `table` (String) Name of the PostgreSQL table for event records.

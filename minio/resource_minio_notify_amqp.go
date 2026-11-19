@@ -28,7 +28,7 @@ func resourceMinioNotifyAmqp() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				Description: "AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). Read back from the server.",
 			},
 			"exchange": {
 				Type:        schema.TypeString,
@@ -98,7 +98,11 @@ func buildNotifyAmqpCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyAmqpFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-
+	if v, ok := cfgMap["url"]; ok {
+		if err := d.Set("url", v); err != nil {
+			return NewResourceError("setting url", d.Id(), err)
+		}
+	}
 	if v, ok := cfgMap["exchange"]; ok {
 		_ = d.Set("exchange", v)
 	}

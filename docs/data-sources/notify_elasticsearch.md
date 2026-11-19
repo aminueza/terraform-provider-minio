@@ -39,5 +39,5 @@ output "elasticsearch_index" {
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
-- `url` (String, Sensitive) Elasticsearch server URL (e.g., 'http://localhost:9200'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `url` (String, Sensitive) Elasticsearch server URL (e.g., 'http://localhost:9200'). Read back from the server.
 - `username` (String) Username for Elasticsearch authentication.

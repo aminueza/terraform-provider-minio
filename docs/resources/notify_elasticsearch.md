@@ -32,7 +32,7 @@ resource "minio_notify_elasticsearch" "events" {
 - `format` (String) Output format for event records: 'namespace' or 'access'.
 - `index` (String) Name of the Elasticsearch index for event records.
 - `name` (String) Target name identifier.
-- `url` (String, Sensitive) Elasticsearch server URL (e.g., 'http://localhost:9200'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `url` (String, Sensitive) Elasticsearch server URL (e.g., 'http://localhost:9200'). Read back from the server.
 
 ### Optional
 

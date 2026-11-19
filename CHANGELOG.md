@@ -35,6 +35,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_notify_amqp` and `minio_notify_elasticsearch` read `url` back from
+  the server, and `minio_notify_postgres` reads `connection_string`, so a
+  change made outside Terraform shows up in the plan and the next apply puts
+  the configured value back. The matching data sources now return these
+  values too (still marked sensitive). A target whose stored value already
+  differs from the configuration shows one diff on the first plan after
+  upgrading
+  ([#1328](https://github.com/aminueza/terraform-provider-minio/issues/1328)).
 - `minio_s3_bucket` reads the bucket quota back from the server, so a quota
   changed or cleared outside Terraform shows up in the plan and the next
   apply puts the configured value back. A bucket whose quota is managed by

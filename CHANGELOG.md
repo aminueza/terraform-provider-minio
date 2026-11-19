@@ -19,6 +19,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_object` detects the object being overwritten outside Terraform.
+  The configured `content`, `content_base64` or `source` is MD5-hashed at plan
+  time and compared against the stored `etag`, so overwriting the object shows
+  a diff and the next apply re-uploads the configured content. An overwrite
+  whose ETag is not a bare MD5 (a multipart or streamed upload) is not detected
+  ([#1330](https://github.com/aminueza/terraform-provider-minio/issues/1330)).
 - `minio_iam_user` reads `disable_user` from the server, so enabling or
   disabling a user outside Terraform (for example with
   `mc admin user enable`/`disable`) shows up in the plan and the next apply

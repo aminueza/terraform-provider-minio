@@ -17,7 +17,9 @@ History older than 3.39.0 lives in the
   `mc admin user enable`/`disable`) shows up in the plan and the next apply
   restores the configured value. The read only wrote the server status to the
   computed `status` and never touched `disable_user`, so the change was
-  silently carried in state with no diff
+  silently carried in state with no diff. A user whose status already drifted
+  shows one `disable_user` diff on the first plan after upgrading, and the
+  next apply restores the configured status
   ([#1329](https://github.com/aminueza/terraform-provider-minio/issues/1329)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the

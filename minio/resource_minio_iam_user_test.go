@@ -135,7 +135,7 @@ func TestAccAWSUser_DisableUser(t *testing.T) {
 	})
 }
 
-func TestAccAWSUser_StatusChangedExternally(t *testing.T) {
+func TestAccMinioIAMUser_statusChangedExternally(t *testing.T) {
 	name := fmt.Sprintf("test-user-%d", acctest.RandInt())
 	resourceName := "minio_iam_user.test"
 

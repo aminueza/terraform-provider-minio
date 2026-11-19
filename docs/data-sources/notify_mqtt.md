@@ -35,7 +35,7 @@ output "mqtt_broker" {
 - `enable` (Boolean) Whether this notification target is enabled.
 - `id` (String) The ID of this resource.
 - `keep_alive_interval` (String) MQTT keep-alive interval duration (e.g., '10s').
-- `password` (String) Password for MQTT broker authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `password` (String, Sensitive) Password for MQTT broker authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `qos` (Number) MQTT Quality of Service level: 0 (at most once), 1 (at least once), or 2 (exactly once).
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.

@@ -180,6 +180,8 @@ for the right reason.
 
 **Server-restarting checks:** `testAccCheckServerStoredTarget` and `testAccCheckServerRemovedTarget` (in `notify_server_check_test.go`) restart the shared primary server, so they must only run in a `resource.Test`, never a `resource.ParallelTest`.
 
+**Policy plugin (`minio_server_config_policy_plugin`):** while a policy plugin test runs, the plugin `url` points at a stub served by the test process. If the test process is killed after a restart has activated the plugin, the stub is gone and the primary MinIO denies every request until the `minio` container is recreated, which drops the persisted plugin config.
+
 **Credentials and import:** MinIO returns `REDACTED` for sensitive fields (secret keys, passwords, tokens). Always add credential fields to `ImportStateVerifyIgnore` in tests.
 
 **ILM tier names:** Must be UPPERCASE:

@@ -107,3 +107,86 @@ func TestConfirmConfiguredAccessType_rejectsAStaleAccessType(t *testing.T) {
 		t.Errorf("expected an access_type that no longer describes the bucket to be dropped, got %q", got)
 	}
 }
+
+// The read only derives acl for a bucket whose acl is a canned public value, so
+// an empty policy on the server means the bucket is private again for any of
+// them.
+func TestBucketACLFromPolicy_emptyPolicyIsPrivate(t *testing.T) {
+	for current := range map[string]bool{"public": true, "public-read-write": true} {
+		got, err := bucketACLFromPolicy("", "test", current)
+		if err != nil {
+			t.Fatalf("deriving acl: %v", err)
+		}
+		if got != "private" {
+			t.Errorf("expected %q, got %q", "private", got)
+		}
+	}
+}
+
+// public and public-read-write write the same policy shape, so the value already
+// held is kept when it is one of them, and any other held value reports the
+// shape as public.
+func TestBucketACLFromPolicy_keepsHeldValueForSharedShape(t *testing.T) {
+	built, err := canonicalPolicyForAccessType("public", "test")
+	if err != nil {
+		t.Fatalf("building policy: %v", err)
+	}
+
+	for current, want := range map[string]string{
+		"public":            "public",
+		"public-read-write": "public-read-write",
+		"public-read":       "public",
+	} {
+		t.Run(current, func(t *testing.T) {
+			got, err := bucketACLFromPolicy(built, "test", current)
+			if err != nil {
+				t.Fatalf("deriving acl: %v", err)
+			}
+			if got != want {
+				t.Errorf("expected %q, got %q", want, got)
+			}
+		})
+	}
+}
+
+// The read-only and write-only shapes map onto their acl values regardless of
+// the value held in state.
+func TestBucketACLFromPolicy_mapsReadAndWriteShapes(t *testing.T) {
+	for accessType, want := range map[string]string{
+		"public-read":  "public-read",
+		"public-write": "public-write",
+	} {
+		t.Run(accessType, func(t *testing.T) {
+			built, err := canonicalPolicyForAccessType(accessType, "test")
+			if err != nil {
+				t.Fatalf("building policy: %v", err)
+			}
+
+			for current := range map[string]bool{"public": true, "public-read-write": true} {
+				got, err := bucketACLFromPolicy(built, "test", current)
+				if err != nil {
+					t.Fatalf("deriving acl: %v", err)
+				}
+				if got != want {
+					t.Errorf("expected %q, got %q", want, got)
+				}
+			}
+		})
+	}
+}
+
+// A policy that matches no canned shape must keep the acl held in state, or
+// the bucket would overwrite a policy another resource manages and the two
+// would keep fighting.
+func TestBucketACLFromPolicy_customPolicyKeepsHeldACL(t *testing.T) {
+	custom := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["arn:aws:iam::123456789012:user/bob"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::test/*"]}]}`
+	for current := range map[string]bool{"public": true, "public-read": true, "public-read-write": true} {
+		got, err := bucketACLFromPolicy(custom, "test", current)
+		if err != nil {
+			t.Fatalf("deriving acl: %v", err)
+		}
+		if got != current {
+			t.Errorf("expected acl %q to be kept, got %q", current, got)
+		}
+	}
+}

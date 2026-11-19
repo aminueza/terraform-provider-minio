@@ -45,4 +45,4 @@ output "amqp_exchange" {
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 - `routing_key` (String) AMQP routing key for message delivery.
-- `url` (String) AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `url` (String, Sensitive) AMQP connection URL (e.g., 'amqp://user:pass@host:5672'). MinIO does not return this value on read; Terraform keeps the value from your configuration.

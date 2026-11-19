@@ -406,6 +406,15 @@ type S3MinioAuditWebhook struct {
 	ClientKey  string
 }
 
+type S3MinioServerConfigCompression struct {
+	MinioAdmin      *madmin.AdminClient
+	Enable          bool
+	Extensions      []string
+	MimeTypes       []string
+	AllowEncryption bool
+	Comment         string
+}
+
 type S3MinioIAMImport struct {
 	MinioAdmin *madmin.AdminClient
 	IAMData    string
@@ -538,4 +547,28 @@ type siteDiff struct {
 type MutexKV struct {
 	lock  sync.Mutex
 	store map[string]*sync.Mutex
+}
+
+type S3MinioServerConfigBrowser struct {
+	MinioAdmin            *madmin.AdminClient
+	CspPolicy             string
+	HstsSeconds           int
+	HstsIncludeSubdomains bool
+	HstsPreload           bool
+	ReferrerPolicy        string
+}
+
+type S3MinioServerConfigSite struct {
+	MinioAdmin *madmin.AdminClient
+	Name       string
+	Region     string
+	Comment    string
+}
+
+type S3MinioServerConfigPolicyPlugin struct {
+	MinioAdmin  *madmin.AdminClient
+	URL         string
+	AuthToken   string
+	EnableHTTP2 bool
+	Comment     string
 }

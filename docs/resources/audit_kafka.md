@@ -39,7 +39,8 @@ resource "minio_audit_kafka" "compliance" {
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
-- `queue_limit` (Number) Maximum number of undelivered messages to queue.
+- `queue_limit` (Number, Deprecated) Deprecated: use 'queue_size' instead.
+- `queue_size` (Number) Maximum number of undelivered events to queue.
 - `sasl_mechanism` (String) SASL mechanism (plain, scram-sha-256, scram-sha-512).
 - `sasl_password` (String, Sensitive) SASL password for Kafka authentication.
 - `sasl_username` (String) SASL username for Kafka authentication.

@@ -53,11 +53,13 @@ func resourceMinioNotifyMqtt() *schema.Resource {
 			"keep_alive_interval": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "MQTT keep-alive interval duration (e.g., '10s').",
 			},
 			"reconnect_interval": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "MQTT reconnect interval duration (e.g., '5s').",
 			},
 		}),

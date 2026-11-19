@@ -21,7 +21,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
-		Schema: mergeSchemas(notifyCommonSchema(), map[string]*schema.Schema{
+		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(map[string]*schema.Schema{
 			"brokers": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -75,7 +75,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 				Optional:    true,
 				Description: "Kafka protocol version.",
 			},
-		}),
+		})),
 	}
 }
 
@@ -89,13 +89,12 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddParam(&parts, "client_tls_cert", getOptionalField(d, "client_tls_cert", "").(string))
 	notifyBuildCfgAddParam(&parts, "client_tls_key", getOptionalField(d, "client_tls_key", "").(string))
 	notifyBuildCfgAddParam(&parts, "version", getOptionalField(d, "version", "").(string))
-	if v, ok := d.GetOk("tls"); ok {
-		notifyBuildCfgAddBool(&parts, "tls", v.(bool))
-	}
-	if v, ok := d.GetOk("tls_skip_verify"); ok {
-		notifyBuildCfgAddBool(&parts, "tls_skip_verify", v.(bool))
-	}
-	notifyBuildCommonCfg(&parts, d, meta)
+	// d.Get, not GetOk: GetOk reads false as unset, so a target written
+	// with tls=on kept tls=on on the server after the configuration
+	// turned it off. See issue #1331.
+	notifyBuildCfgAddBool(&parts, "tls", d.Get("tls").(bool))
+	notifyBuildCfgAddBool(&parts, "tls_skip_verify", d.Get("tls_skip_verify").(bool))
+	notifyBuildQueueSizeCommonCfg(&parts, d)
 	return strings.Join(parts, " ")
 }
 
@@ -124,6 +123,7 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["tls_skip_verify"]; ok {
 		_ = d.Set("tls_skip_verify", v == "on")
 	}
+	notifyReadQueueSize(cfgMap, d)
 	notifyReadCommonFields(cfgMap, d)
 	return nil
 }

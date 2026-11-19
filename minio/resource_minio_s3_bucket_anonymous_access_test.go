@@ -176,8 +176,8 @@ func TestAccS3BucketAnonymousAccess_readWriteStaysStable(t *testing.T) {
 	})
 }
 
-// A policy removed outside Terraform must surface as a diff on access_type, and the next
-// apply must restore the anonymous access. On the old code the read kept the state's
+// A policy removed outside Terraform, or replaced with one that matches no canned shape, must
+// surface as a diff on access_type, and the next apply must restore the anonymous access. On the old code the read kept the state's
 // access_type when the server's policy matched no canned type, so the plan stayed empty.
 func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) {
 	name := acctest.RandomWithPrefix("tf-acc-test")
@@ -216,6 +216,23 @@ func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) 
 					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
 				),
 			},
+			{
+				// Replace the policy outside Terraform with one that matches no
+				// canned shape: anonymous read on a single prefix.
+				PreConfig: func() {
+					testAccSetBucketPolicy(t, name, `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::`+name+`/shared/*"]}]}`)
+				},
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+				Config:             testAccBucketAnonymousAccessConfig(name, "public"),
+			},
+			{
+				Config: testAccBucketAnonymousAccessConfig(name, "public"),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_anonymous_access.access", "access_type", "public"),
+					testAccCheckBucketHasAnonymousAccess("minio_s3_bucket.bucket", "public"),
+				),
+			},
 		},
 	})
 }
@@ -224,8 +241,13 @@ func TestAccS3BucketAnonymousAccess_policyRemovedOutsideTerraform(t *testing.T) 
 // `mc anonymous set none` makes, so the test does not depend on the code under test.
 func testAccRemoveBucketPolicy(t *testing.T, bucket string) {
 	t.Helper()
-	if err := testAccClient().S3Client.SetBucketPolicy(context.Background(), bucket, ""); err != nil {
-		t.Fatalf("error removing bucket policy for %s: %v", bucket, err)
+	testAccSetBucketPolicy(t, bucket, "")
+}
+
+func testAccSetBucketPolicy(t *testing.T, bucket, policy string) {
+	t.Helper()
+	if err := testAccClient().S3Client.SetBucketPolicy(context.Background(), bucket, policy); err != nil {
+		t.Fatalf("error setting bucket policy for %s: %v", bucket, err)
 	}
 }
 
@@ -233,10 +255,25 @@ func testAccRemoveBucketPolicy(t *testing.T, bucket string) {
 // carries a custom policy: only the first may have its access_type cleared on drift.
 func TestStateDrivenByAccessType(t *testing.T) {
 	bucket := "test-bucket"
-	publicCanonical, err := canonicalPolicyForAccessType("public", bucket)
-	if err != nil {
-		t.Fatalf("building canonical public policy: %v", err)
-	}
+	publicCanonical := `{
+		"Version": "2012-10-17",
+		"Statement": [
+			{
+				"Sid": "ListBucketActions",
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:GetBucketLocation", "s3:ListBucket", "s3:ListBucketMultipartUploads"],
+				"Resource": ["arn:aws:s3:::test-bucket"]
+			},
+			{
+				"Sid": "AllObjectActions",
+				"Effect": "Allow",
+				"Principal": {"AWS": ["*"]},
+				"Action": ["s3:AbortMultipartUpload", "s3:DeleteObject", "s3:GetObject", "s3:ListMultipartUploadParts", "s3:PutObject"],
+				"Resource": ["arn:aws:s3:::test-bucket/*"]
+			}
+		]
+	}`
 	custom := "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":[\"*\"]},\"Resource\":[\"arn:aws:s3:::" + bucket + "/*\"],\"Action\":[\"s3:GetObject\"]}]}"
 
 	cases := []struct {

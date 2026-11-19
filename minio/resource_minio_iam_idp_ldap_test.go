@@ -191,6 +191,80 @@ func TestAccMinioIAMIdpLdap_enableFalseToTrue(t *testing.T) {
 	})
 }
 
+// Removing the group search from the configuration must clear it on the
+// server, and the plan after the restart must be empty. See issue #1348.
+func TestAccMinioIAMIdpLdap_groupSearchCleared(t *testing.T) {
+	resourceName := "minio_iam_idp_ldap.test"
+	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
+	withoutGroupSearch := fmt.Sprintf(`
+resource "minio_iam_idp_ldap" "test" {
+  server_addr            = %q
+  lookup_bind_dn         = "cn=admin,dc=example,dc=com"
+  lookup_bind_password   = "adminpassword"
+  user_dn_search_base_dn = "ou=users,dc=example,dc=com"
+  user_dn_search_filter  = "(cn=%%s)"
+  server_insecure        = true
+}
+`, serverAddr)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpLdapBasic(serverAddr),
+				Check: testAccCheckMinioIAMIdpLdapStored(map[string]string{
+					"group_search_base_dn": "ou=groups,dc=example,dc=com",
+					"group_search_filter":  "(&(objectclass=groupOfNames)(member=%d))",
+				}),
+			},
+			{
+				Config: withoutGroupSearch,
+				Check: testAccCheckMinioIAMIdpLdapStored(map[string]string{
+					"group_search_base_dn": "",
+					"group_search_filter":  "",
+				}),
+			},
+			{
+				Config: withoutGroupSearch,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "group_search_base_dn", ""),
+					resource.TestCheckResourceAttr(resourceName, "group_search_filter", ""),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "false"),
+				),
+			},
+			{Config: withoutGroupSearch, PlanOnly: true},
+		},
+	})
+}
+
+// testAccCheckMinioIAMIdpLdapStored restarts the primary server and fails
+// unless get-config-kv reports each key of want with that value.
+func testAccCheckMinioIAMIdpLdapStored(want map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if err := testAccRestartPrimaryServer(); err != nil {
+			return err
+		}
+
+		raw, err := testAccClient().S3Admin.GetConfigKV(context.Background(), "identity_ldap")
+		if err != nil {
+			return fmt.Errorf("reading identity_ldap config after the restart: %w", err)
+		}
+		cfgMap := parseConfigParams(strings.TrimPrefix(strings.TrimSpace(string(raw)), "identity_ldap "))
+		for key, value := range want {
+			got, ok := cfgMap[key]
+			if !ok {
+				return fmt.Errorf("identity_ldap has no %q key after the restart: %s", key, string(raw))
+			}
+			if got != value {
+				return fmt.Errorf("identity_ldap.%s is %q after the restart, want %q", key, got, value)
+			}
+		}
+		return nil
+	}
+}
+
 func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]
@@ -447,6 +521,43 @@ func TestIdpLdapRunningConfigMatchesState(t *testing.T) {
 			t.Errorf("expected no match: going from enable = false to true must wait for the server to drop enable=off")
 		}
 	})
+
+	cleared := *config
+	cleared.GroupSearchBaseDN = ""
+	cleared.GroupSearchFilter = ""
+
+	t.Run("cleared group search the server still shows does not match", func(t *testing.T) {
+		if idpLdapRunningConfigMatchesState(&cleared, map[string]string{
+			"server_addr":            "openldap:389",
+			"lookup_bind_dn":         "cn=admin,dc=example,dc=com",
+			"user_dn_search_base_dn": "ou=users,dc=example,dc=com",
+			"user_dn_search_filter":  "(cn=%s)",
+			"group_search_base_dn":   "ou=groups,dc=example,dc=com",
+			"group_search_filter":    "(&(objectclass=groupOfNames)(member=%d))",
+			"tls_skip_verify":        "off",
+			"server_insecure":        "on",
+			"server_starttls":        "off",
+		}) {
+			t.Errorf("expected no match: the removed group search is still on the server")
+		}
+	})
+
+	t.Run("cleared group search the server prints empty matches", func(t *testing.T) {
+		if !idpLdapRunningConfigMatchesState(&cleared, map[string]string{
+			"server_addr":            "openldap:389",
+			"lookup_bind_dn":         "cn=admin,dc=example,dc=com",
+			"user_dn_search_base_dn": "ou=users,dc=example,dc=com",
+			"user_dn_search_filter":  "(cn=%s)",
+			"group_search_base_dn":   "",
+			"group_search_filter":    "",
+			"tls_skip_verify":        "off",
+			"server_insecure":        "on",
+			"server_starttls":        "off",
+			"srv_record_name":        "",
+		}) {
+			t.Errorf("expected the post-restart response with the cleared keys to match")
+		}
+	})
 }
 
 func TestBuildIdpLdapCfgData(t *testing.T) {
@@ -483,12 +594,22 @@ func TestBuildIdpLdapCfgData(t *testing.T) {
 			contains: []string{`lookup_bind_dn="cn=Service Account,dc=example,dc=com"`},
 		},
 		{
-			name: "empty optional fields are omitted",
+			// MinIO merges a write into the stored config, so an optional
+			// string the configuration removed must be sent empty to clear it
+			// on the server. See issue #1348.
+			name: "empty optional strings are sent empty",
 			config: S3MinioIdpLdap{
 				ServerAddr: "ldap.example.com:389",
 				Enable:     true,
 			},
-			absent: []string{"lookup_bind_dn=", "lookup_bind_password="},
+			contains: []string{
+				"lookup_bind_dn= ",
+				"user_dn_search_base_dn= ",
+				"user_dn_search_filter= ",
+				"group_search_base_dn= ",
+				"group_search_filter= ",
+			},
+			absent: []string{"lookup_bind_password="},
 		},
 		{
 			name: "disabled config",
@@ -522,7 +643,7 @@ func TestBuildIdpLdapCfgData_minimalServerAddrOnly(t *testing.T) {
 		ServerAddr: "openldap:389",
 		Enable:     true,
 	})
-	want := "server_addr=openldap:389 tls_skip_verify=off server_insecure=off server_starttls=off enable=on"
+	want := "server_addr=openldap:389 lookup_bind_dn= user_dn_search_base_dn= user_dn_search_filter= group_search_base_dn= group_search_filter= tls_skip_verify=off server_insecure=off server_starttls=off enable=on"
 	if got != want {
 		t.Fatalf("minimal config mismatch\nwant: %s\n got: %s", want, got)
 	}

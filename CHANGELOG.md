@@ -35,6 +35,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_idp_ldap` clears `lookup_bind_dn`, `user_dn_search_base_dn`,
+  `user_dn_search_filter`, `group_search_base_dn` and `group_search_filter`
+  on the server when they are removed from the configuration. The provider
+  skipped empty values and MinIO keeps a key a write leaves out, so the old
+  value stayed on the server and the read loaded it back into state.
+  `lookup_bind_password` is still sent only when set, because the server
+  never returns it
+  ([#1348](https://github.com/aminueza/terraform-provider-minio/issues/1348)).
 - `minio_iam_idp_ldap` keeps its planned values in state while MinIO needs a
   restart to apply a change. The read right after a write loaded the
   pre-restart config back, so `server_addr` ended up empty in the state and

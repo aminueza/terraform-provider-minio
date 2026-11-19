@@ -266,6 +266,12 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
+	// set-config-kv merges into the stored config, so an optional string the
+	// configuration removed is sent empty, or the server keeps the old value.
+	// See issue #1348.
+	addStrOrClear := func(key, val string) {
+		parts = append(parts, buildConfigParam(key, val))
+	}
 	addBool := func(key string, val bool) {
 		if val {
 			parts = append(parts, key+"=on")
@@ -275,12 +281,14 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 	}
 
 	addStr("server_addr", config.ServerAddr)
-	addStr("lookup_bind_dn", config.LookupBindDN)
+	addStrOrClear("lookup_bind_dn", config.LookupBindDN)
+	// The server never returns the password, so it is only sent when set:
+	// an empty write would erase a password the provider cannot read back.
 	addStr("lookup_bind_password", config.LookupBindPassword)
-	addStr("user_dn_search_base_dn", config.UserDNSearchBaseDN)
-	addStr("user_dn_search_filter", config.UserDNSearchFilter)
-	addStr("group_search_base_dn", config.GroupSearchBaseDN)
-	addStr("group_search_filter", config.GroupSearchFilter)
+	addStrOrClear("user_dn_search_base_dn", config.UserDNSearchBaseDN)
+	addStrOrClear("user_dn_search_filter", config.UserDNSearchFilter)
+	addStrOrClear("group_search_base_dn", config.GroupSearchBaseDN)
+	addStrOrClear("group_search_filter", config.GroupSearchFilter)
 	addBool("tls_skip_verify", config.TLSSkipVerify)
 	addBool("server_insecure", config.ServerInsecure)
 	addBool("server_starttls", config.StartTLS)

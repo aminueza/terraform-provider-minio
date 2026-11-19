@@ -31,7 +31,7 @@ output "mysql_table" {
 ### Read-Only
 
 - `comment` (String) Comment or description for this notification target.
-- `connection_string` (String) MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `connection_string` (String, Sensitive) MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). Stored on the server as the `dsn_string` key.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `format` (String) Output format for event records: 'namespace' or 'access'.
 - `id` (String) The ID of this resource.

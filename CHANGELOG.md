@@ -18,9 +18,90 @@ History older than 3.39.0 lives in the
   region and the legacy `region` subsystem are set, the site region takes
   precedence for the region MinIO reports
   ([#1323](https://github.com/aminueza/terraform-provider-minio/issues/1323)).
+- `minio_server_config_browser`: manages the `browser` subsystem, which sets
+  the security headers of the embedded console. The fields map the
+  subsystem's keys: `csp_policy`, `hsts_seconds`, `hsts_include_subdomains`,
+  `hsts_preload` and `referrer_policy`
+  ([#1325](https://github.com/aminueza/terraform-provider-minio/issues/1325)).
+- `minio_server_config_compression`: manages the `compression` subsystem,
+  which controls transparent object compression. The fields map the
+  subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`
+  and `comment` ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
 
 ### Fixed
 
+- `minio_s3_bucket_anonymous_access` with `access_type` now shows a diff when
+  the bucket policy is removed outside Terraform, or replaced with one that
+  matches no canned shape. The read kept the state's `access_type` when the
+  server's policy no longer matched it, so the plan stayed empty and the next
+  apply never restored the anonymous access. The read now drops `access_type` in
+  that case, so the drift shows up in the plan and the next apply puts the
+  configured access back
+  ([#1332](https://github.com/aminueza/terraform-provider-minio/issues/1332)).
+- `minio_s3_object` detects the object being overwritten outside Terraform.
+  The configured `content`, `content_base64` or `source` is MD5-hashed at plan
+  time and compared against the stored `etag`, so overwriting the object shows
+  a diff and the next apply re-uploads the configured content. An overwrite
+  whose ETag is not a bare MD5 (a multipart or streamed upload) is not detected
+  ([#1330](https://github.com/aminueza/terraform-provider-minio/issues/1330)).
+- `minio_iam_user` reads `disable_user` from the server, so enabling or
+  disabling a user outside Terraform (for example with
+  `mc admin user enable`/`disable`) shows up in the plan and the next apply
+  restores the configured value. The read only wrote the server status to the
+  computed `status` and never touched `disable_user`, so the change was
+  silently carried in state with no diff. A user whose status already drifted
+  shows one `disable_user` diff on the first plan after upgrading, and the
+  next apply restores the configured status
+  ([#1329](https://github.com/aminueza/terraform-provider-minio/issues/1329)).
+- `minio_audit_kafka` with `tls = false` or `tls_skip_verify = false`
+  writes `tls=off` / `tls_skip_verify=off` on the server. The provider only
+  wrote the two fields when they were true, so turning them off sent nothing
+  and the server kept its old `on` value
+  ([#1331](https://github.com/aminueza/terraform-provider-minio/issues/1331)).
+- `minio_server_config_scanner` stores `excess_versions` and `excess_folders`
+  as `alert_excess_versions` and `alert_excess_folders`. MinIO's `scanner`
+  subsystem has no `excess_*` keys and glued the unknown key onto the value
+  written before it, which corrupted `cycle` and left the configured
+  thresholds at the server defaults. The Terraform attributes keep their
+  names. The old provider's unknown excess keys were glued onto the value
+  written before them, usually `cycle`, so a scanner configuration an older
+  provider wrote shows one diff on that attribute, and the next apply
+  rewrites it
+  ([#1322](https://github.com/aminueza/terraform-provider-minio/issues/1322)).
+- `minio_logger_webhook` and `minio_audit_kafka` no longer corrupt their
+  configuration when `queue_limit` is set. Those MinIO subsystems size their
+  queue with `queue_size` and have no `queue_limit` key, and MinIO glued the
+  unknown key onto the value written before it, so the `comment`, `queue_dir`
+  or the Kafka `topic` was stored with ` queue_limit=N` appended. Both
+  resources now have a `queue_size` attribute; `queue_limit` is deprecated
+  and sent as `queue_size` when `queue_size` is not set, and the two cannot
+  be set together. A target an older provider wrote with `queue_limit` shows
+  one `queue_limit` diff (the server still holds the default queue size), and
+  the next apply writes every key again, which also repairs the value
+  `queue_limit` was glued onto.
+- `minio_notify_nats` no longer sends `user_credentials`. MinIO's
+  `notify_nats` has no such key and glued it onto the value written before
+  it, which corrupted the `subject`, the password or the token. The
+  attribute is deprecated and ignored; use `username` and `password`, or
+  `token`.
+- `minio_notify_mysql` writes the connection string to the server. The
+  provider sent it as `connection_string`, a key `notify_mysql` does not have,
+  so MinIO dropped it and every MySQL target was stored without a DSN. It is
+  now written and read as `dsn_string`, the key MinIO uses. Existing MySQL
+  targets show one `connection_string` diff, and the next apply stores the DSN.
+- The `minio_notify_*` data sources keep the `Sensitive` flag of the
+  resource attributes they copy, so a secret the server returns in clear,
+  such as the MySQL DSN with its password, is hidden in plan output. An
+  `output` that references one of those attributes now needs
+  `sensitive = true`.
+- `minio_notify_kafka`, `minio_notify_mqtt` and `minio_notify_nats` no longer
+  show a permanent diff for a value MinIO fills in on its own:
+  `sasl_mechanism` (kafka), `keep_alive_interval` and `reconnect_interval`
+  (mqtt), and `ping_interval` (nats). After a restart the server returns its
+  default for these fields even when the configuration doesn't set them, and
+  every plan proposed to remove it. They now accept the server's value when
+  the configuration leaves them out
+  ([#1307](https://github.com/aminueza/terraform-provider-minio/issues/1307)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

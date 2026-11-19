@@ -229,6 +229,13 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 		return NewResourceError("reading IAM user", d.Id(), err)
 	}
 
+	// disable_user is the attribute the configuration controls; status is only
+	// computed. Surface the server status into disable_user so a status change
+	// made outside Terraform shows up as a diff instead of silently drifting.
+	if err := d.Set("disable_user", output.Status == madmin.AccountDisabled); err != nil {
+		return NewResourceError("reading IAM user", d.Id(), err)
+	}
+
 	return nil
 }
 

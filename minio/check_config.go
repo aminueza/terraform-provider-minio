@@ -386,13 +386,18 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 	}
 }
 
-func ServerConfigSiteConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigSite {
+func ServerConfigCompressionConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigCompression {
 	m := meta.(*S3MinioClient)
-	return &S3MinioServerConfigSite{
+
+	return &S3MinioServerConfigCompression{
 		MinioAdmin: m.S3Admin,
-		Name:       d.Get("name").(string),
-		Region:     d.Get("region").(string),
-		Comment:    getOptionalField(d, "comment", "").(string),
+		// d.Get, not getOptionalField: GetOk reads false as unset and would send
+		// enable=on for a configuration that disables the field.
+		Enable:          d.Get("enable").(bool),
+		Extensions:      getStringList(d.Get("extensions").([]interface{})),
+		MimeTypes:       getStringList(d.Get("mime_types").([]interface{})),
+		AllowEncryption: d.Get("allow_encryption").(bool),
+		Comment:         getOptionalField(d, "comment", "").(string),
 	}
 }
 
@@ -434,5 +439,28 @@ func BatchJobConfig(d *schema.ResourceData, meta interface{}) *S3MinioBatchJob {
 		MinioAdmin: m.S3Admin,
 		JobType:    getOptionalField(d, "job_type", "").(string),
 		JobYAML:    getOptionalField(d, "job_yaml", "").(string),
+	}
+}
+
+func ServerConfigBrowserConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigBrowser {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServerConfigBrowser{
+		MinioAdmin:            m.S3Admin,
+		CspPolicy:             d.Get("csp_policy").(string),
+		HstsSeconds:           d.Get("hsts_seconds").(int),
+		HstsIncludeSubdomains: d.Get("hsts_include_subdomains").(bool),
+		HstsPreload:           d.Get("hsts_preload").(bool),
+		ReferrerPolicy:        d.Get("referrer_policy").(string),
+	}
+}
+
+func ServerConfigSiteConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigSite {
+	m := meta.(*S3MinioClient)
+	return &S3MinioServerConfigSite{
+		MinioAdmin: m.S3Admin,
+		Name:       d.Get("name").(string),
+		Region:     d.Get("region").(string),
+		Comment:    getOptionalField(d, "comment", "").(string),
 	}
 }

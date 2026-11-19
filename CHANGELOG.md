@@ -19,6 +19,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_audit_kafka` with `tls = false` or `tls_skip_verify = false`
+  writes `tls=off` / `tls_skip_verify=off` on the server. The provider only
+  wrote the two fields when they were true, so turning them off sent nothing
+  and the server kept its old `on` value
+  ([#1331](https://github.com/aminueza/terraform-provider-minio/issues/1331)).
 - `minio_server_config_scanner` stores `excess_versions` and `excess_folders`
   as `alert_excess_versions` and `alert_excess_folders`. MinIO's `scanner`
   subsystem has no `excess_*` keys and glued the unknown key onto the value

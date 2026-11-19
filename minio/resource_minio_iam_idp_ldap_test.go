@@ -144,6 +144,53 @@ func TestAccMinioIAMIdpLdap_enableFalse(t *testing.T) {
 	})
 }
 
+// TestAccMinioIAMIdpLdap_enableFalseToTrue turns LDAP on after it was off.
+// Until the restart, the server still reports enable=off, so the read right
+// after the apply must keep enable = true from the plan instead of loading
+// the stale value back, and the refresh after the restart must clear
+// restart_required.
+func TestAccMinioIAMIdpLdap_enableFalseToTrue(t *testing.T) {
+	resourceName := "minio_iam_idp_ldap.test"
+	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, true, false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckMinioIAMIdpLdapEnableOff(),
+				),
+			},
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, true, false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "false"),
+				),
+			},
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, true, true),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "true"),
+					testAccCheckMinioIAMIdpLdapExists(resourceName),
+				),
+			},
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, true, true),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "false"),
+				),
+			},
+		},
+	})
+}
+
 func testAccCheckMinioIAMIdpLdapExists(resourceName string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[resourceName]
@@ -381,6 +428,23 @@ func TestIdpLdapRunningConfigMatchesState(t *testing.T) {
 			"server_starttls":        "off",
 		}) {
 			t.Errorf("expected no match: enable=off must come back as off")
+		}
+	})
+
+	t.Run("enabled config while the server still says enable=off does not match", func(t *testing.T) {
+		if idpLdapRunningConfigMatchesState(config, map[string]string{
+			"server_addr":            "openldap:389",
+			"lookup_bind_dn":         "cn=admin,dc=example,dc=com",
+			"user_dn_search_base_dn": "ou=users,dc=example,dc=com",
+			"user_dn_search_filter":  "(cn=%s)",
+			"group_search_base_dn":   "ou=groups,dc=example,dc=com",
+			"group_search_filter":    "(&(objectclass=groupOfNames)(member=%d))",
+			"tls_skip_verify":        "off",
+			"server_insecure":        "on",
+			"server_starttls":        "off",
+			"enable":                 "off",
+		}) {
+			t.Errorf("expected no match: going from enable = false to true must wait for the server to drop enable=off")
 		}
 	})
 }

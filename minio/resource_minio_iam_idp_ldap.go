@@ -201,9 +201,10 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 
 // idpLdapRunningConfigMatchesState compares the identity_ldap values the
 // server reports with what the provider would write, using only the keys the
-// provider sends. lookup_bind_password is never printed by the server, and
-// enable is printed only when it is off, so an intended enable=on is not
-// compared and enable=off must come back as off.
+// provider sends. lookup_bind_password is never printed by the server, so a
+// change to it alone cannot be seen here. enable is printed only when it is
+// off, so the check is whether the server reports enable=off exactly when the
+// config turns LDAP off.
 func idpLdapRunningConfigMatchesState(config *S3MinioIdpLdap, cfgMap map[string]string) bool {
 	intended := parseConfigParams(buildIdpLdapCfgData(config))
 	for key, want := range intended {
@@ -214,10 +215,7 @@ func idpLdapRunningConfigMatchesState(config *S3MinioIdpLdap, cfgMap map[string]
 			return false
 		}
 	}
-	if intended["enable"] == "off" && cfgMap["enable"] != "off" {
-		return false
-	}
-	return true
+	return (intended["enable"] == "off") == (cfgMap["enable"] == "off")
 }
 
 func minioUpdateIdpLdap(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

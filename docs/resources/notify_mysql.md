@@ -27,7 +27,7 @@ resource "minio_notify_mysql" "events" {
 
 ### Required
 
-- `connection_string` (String, Sensitive) MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `connection_string` (String, Sensitive) MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). Stored on the server as the `dsn_string` key.
 - `format` (String) Output format for event records: 'namespace' or 'access'.
 - `name` (String) Target name identifier.
 - `table` (String) MySQL table name for storing event records.

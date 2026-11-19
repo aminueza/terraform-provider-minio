@@ -10,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -116,6 +119,311 @@ resource "minio_server_config_scanner" "test" {
 	})
 }
 
+// MinIO accepts a key the scanner subsystem does not have and glues it onto
+// the value written before it. An older provider wrote the excess thresholds
+// as excess_versions and excess_folders, so the checks below assert that the
+// server stores them as alert_excess_versions and alert_excess_folders and
+// keeps cycle intact. See issue #1322.
+
+// testAccScannerStoredConfig restarts the primary test server and checks
+// that get-config-kv reports the scanner configuration with the given
+// key=value pairs. The values in want are explicit literals from the test's
+// own configuration: they assert what the server persisted, not what the
+// provider would have written.
+func testAccScannerStoredConfig(want map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if err := testAccRestartPrimaryServer(); err != nil {
+			return err
+		}
+
+		data, err := testAccClient().S3Admin.GetConfigKV(context.Background(), "scanner")
+		if err != nil {
+			return fmt.Errorf("reading scanner from the server after the restart: %w", err)
+		}
+		stored := parseConfigParams(string(data))
+		for key, value := range want {
+			got, ok := stored[key]
+			if !ok {
+				return fmt.Errorf("scanner stored on the server has no %q key; response: %s", key, data)
+			}
+			if got != value {
+				return fmt.Errorf("%q of scanner stored on the server is %q, want %q", key, got, value)
+			}
+		}
+		return nil
+	}
+}
+
+func TestAccMinioServerConfigScanner_excessThresholds(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	// Values differ from the server defaults (100 and 50000), so the stored
+	// check passes only if the thresholds reached the alert_excess_* keys.
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  max_wait        = "15s"
+  cycle           = "1m"
+  excess_versions = "10"
+  excess_folders  = "25"
+}`
+
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+					resource.TestCheckResourceAttr(resourceName, "excess_versions", "10"),
+					resource.TestCheckResourceAttr(resourceName, "excess_folders", "25"),
+					testAccScannerStoredConfig(map[string]string{
+						"speed":                 "slow",
+						"delay":                 "10",
+						"max_wait":              "15s",
+						"cycle":                 "1m",
+						"alert_excess_versions": "10",
+						"alert_excess_folders":  "25",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+// A scanner configuration written by an older provider stores the excess
+// thresholds glued onto cycle. The read reports the server value, so the
+// refreshed state must show the glued value, the plan must show the cycle
+// diff, and the next apply must rewrite a clean cycle and move the
+// thresholds to the alert_excess_* keys.
+func TestAccMinioServerConfigScanner_excessThresholdsCorruptedByOlderProvider(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  max_wait        = "15s"
+  cycle           = "1m"
+  excess_versions = "100"
+  excess_folders  = "50000"
+}`
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+				),
+			},
+			{
+				PreConfig: func() {
+					admin := testAccClient().S3Admin
+					// Reset the subsystem first so the server looks like one
+					// an older provider wrote: alert_excess_* at their
+					// defaults and the excess thresholds glued onto cycle.
+					if _, err := admin.DelConfigKV(context.Background(), "scanner"); err != nil {
+						t.Fatalf("resetting scanner before the corruption: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+					old := "scanner speed=slow delay=10 max_wait=15s cycle=1m excess_versions=100 excess_folders=50000"
+					if _, err := admin.SetConfigKV(context.Background(), old); err != nil {
+						t.Fatalf("writing scanner the way the older provider did: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				// The refreshed state must show the corruption, and the cycle
+				// diff it causes is what the next step applies.
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+				Check:              resource.TestCheckResourceAttr(resourceName, "cycle", "1m excess_versions=100 excess_folders=50000"),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+					resource.TestCheckResourceAttr(resourceName, "excess_versions", "100"),
+					resource.TestCheckResourceAttr(resourceName, "excess_folders", "50000"),
+					testAccScannerStoredConfig(map[string]string{
+						"cycle":                 "1m",
+						"alert_excess_versions": "100",
+						"alert_excess_folders":  "50000",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+// The upgrade path for a cycle set outside Terraform: the old provider wrote
+// speed, delay, max_wait, cycle and then the excess thresholds, so the
+// unknown keys were glued onto the value written before them, cycle. cycle is
+// Optional and Computed, so the glued value never shows a normal diff when
+// the configuration does not set it. The CustomizeDiff must force the cycle
+// diff so the next apply writes a clean value instead of gluing the old keys
+// on again. The thresholds equal the server defaults, so the forced cycle
+// diff is the only one the apply acts on.
+func TestAccMinioServerConfigScanner_corruptedCycleWithoutCycleInConfig(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  max_wait        = "15s"
+  excess_versions = "100"
+  excess_folders  = "50000"
+}`
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				// The server prints no cycle key for a scanner configuration
+				// that does not set one, so no cycle attribute lands in the
+				// state.
+				Config: config,
+				Check:  resource.TestCheckNoResourceAttr(resourceName, "cycle"),
+			},
+			{
+				PreConfig: func() {
+					admin := testAccClient().S3Admin
+					// Reset the subsystem first so the server looks like one
+					// an older provider wrote: alert_excess_* at their
+					// defaults and the excess thresholds glued onto cycle.
+					if _, err := admin.DelConfigKV(context.Background(), "scanner"); err != nil {
+						t.Fatalf("resetting scanner before the corruption: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+					old := "scanner speed=slow delay=10 max_wait=15s cycle=1m excess_versions=100 excess_folders=50000"
+					if _, err := admin.SetConfigKV(context.Background(), old); err != nil {
+						t.Fatalf("writing scanner the way the older provider did: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
+					testAccScannerStoredConfig(map[string]string{
+						"cycle":                 "1m",
+						"alert_excess_versions": "100",
+						"alert_excess_folders":  "50000",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+// The upgrade path when the old provider never wrote cycle: it wrote speed,
+// delay, max_wait and then the excess thresholds, so the unknown keys were
+// glued onto the value written before them, max_wait. max_wait is Optional
+// and Computed, so when the configuration does not set it, the glued value
+// never shows a normal diff and the CustomizeDiff must force it so the next
+// apply writes a clean value. The thresholds equal the server defaults, so
+// the forced max_wait diff is the only one the apply acts on.
+func TestAccMinioServerConfigScanner_corruptedMaxWaitWithoutMaxWaitInConfig(t *testing.T) {
+	resourceName := "minio_server_config_scanner.test"
+	config := `
+resource "minio_server_config_scanner" "test" {
+  speed           = "slow"
+  delay           = "10"
+  excess_versions = "100"
+  excess_folders  = "50000"
+}`
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				// The server prints no max_wait key for a scanner
+				// configuration that does not set one, so no max_wait
+				// attribute lands in the state.
+				Config: config,
+				Check:  resource.TestCheckNoResourceAttr(resourceName, "max_wait"),
+			},
+			{
+				PreConfig: func() {
+					admin := testAccClient().S3Admin
+					// Reset the subsystem first so the server looks like one
+					// an older provider wrote: alert_excess_* at their
+					// defaults and the excess thresholds glued onto max_wait,
+					// the value written before them.
+					if _, err := admin.DelConfigKV(context.Background(), "scanner"); err != nil {
+						t.Fatalf("resetting scanner before the corruption: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+					old := "scanner speed=slow delay=10 max_wait=15s excess_versions=100 excess_folders=50000"
+					if _, err := admin.SetConfigKV(context.Background(), old); err != nil {
+						t.Fatalf("writing scanner the way the older provider did: %v", err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "max_wait", "15s"),
+					testAccScannerStoredConfig(map[string]string{
+						"max_wait":              "15s",
+						"alert_excess_versions": "100",
+						"alert_excess_folders":  "50000",
+					}),
+				),
+			},
+			{Config: config, PlanOnly: true},
+		},
+	})
+}
+
+func TestBuildScannerCfgUsesAlertExcessKeys(t *testing.T) {
+	d := schema.TestResourceDataRaw(t, resourceMinioServerConfigScanner().Schema, map[string]interface{}{
+		"speed":           "slow",
+		"delay":           "10",
+		"max_wait":        "15s",
+		"cycle":           "1m",
+		"excess_versions": "10",
+		"excess_folders":  "25",
+	})
+
+	got := buildScannerCfg(d)
+	for _, want := range []string{"speed=slow", "delay=10", "max_wait=15s", "cycle=1m", "alert_excess_versions=10", "alert_excess_folders=25"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("buildScannerCfg() = %q, want it to contain %q", got, want)
+		}
+	}
+	for _, bad := range []string{" excess_versions=", " excess_folders="} {
+		if strings.Contains(got, bad) {
+			t.Errorf("buildScannerCfg() = %q contains %q, a key the scanner subsystem does not have", got, bad)
+		}
+	}
+}
+
 func TestAccMinioServerConfigHeal_basic(t *testing.T) {
 	resourceName := "minio_server_config_heal.test"
 
@@ -208,6 +516,811 @@ resource "minio_server_config_etcd" "test" {
 				ImportStateVerifyIgnore: []string{"restart_required"},
 			},
 		},
+	})
+}
+
+// The compression subsystem is a singleton: every test writes the same
+// server config, so these tests must stay sequential resource.Test calls and
+// must not run in parallel with each other.
+func TestAccMinioServerConfigCompression_basic(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the compression defaults seeded by MinIO.
+		CheckDestroy: testAccCheckServerStoredTarget("compression", "", map[string]string{
+			"enable":           "off",
+			"allow_encryption": "off",
+			"extensions":       ".txt,.log,.csv,.json,.tar,.xml,.bin",
+			"mime_types":       "text/*,application/json,application/xml,binary/octet-stream",
+		}),
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = true
+  allow_encryption   = true
+  extensions         = [".txt", ".log"]
+  mime_types         = ["application/json", "text/plain"]
+  comment            = "terraform acceptance test"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "allow_encryption", "true"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.0", ".txt"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.1", ".log"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.#", "2"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.0", "application/json"),
+					resource.TestCheckResourceAttr(resourceName, "mime_types.1", "text/plain"),
+					resource.TestCheckResourceAttr(resourceName, "comment", "terraform acceptance test"),
+					// The server prints enable only when it is off, so with
+					// enable = true the stored config carries no enable key.
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"allow_encryption": "on",
+						"extensions":       ".txt,.log",
+						"mime_types":       "application/json,text/plain",
+						"comment":          "terraform acceptance test",
+					}),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioServerConfigCompression_update(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton
+	// and the server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = false
+  allow_encryption   = true
+  extensions         = [".txt", ".log"]
+  mime_types         = ["text/*"]
+  comment            = "update step one"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "false"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"enable":           "off",
+						"allow_encryption": "on",
+						"extensions":       ".txt,.log",
+						"mime_types":       "text/*",
+						"comment":          "update step one",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable             = true
+  allow_encryption   = false
+  extensions         = [".json"]
+  mime_types         = ["application/xml"]
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "enable", "true"),
+					resource.TestCheckResourceAttr(resourceName, "allow_encryption", "false"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "extensions.0", ".json"),
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"allow_encryption": "off",
+						"extensions":       ".json",
+						"mime_types":       "application/xml",
+						"comment":          "",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "0"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"extensions": "",
+					}),
+				),
+			},
+		},
+	})
+}
+
+// A comment set outside Terraform must not survive a create that leaves the
+// field empty: the resource owns the singleton, so the create clears it.
+func TestAccMinioServerConfigCompression_existingCommentCleared(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton
+	// and the checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() { testAccSeedCompressionComment(t) },
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable = true
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"comment": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the seeded comment, so the next plan is
+				// empty.
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable = true
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccSeedCompressionComment(t *testing.T) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "compression comment=x"); err != nil {
+		t.Fatalf("seeding the compression comment outside Terraform: %v", err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+// An explicit empty list at create must clear the server's list on the first
+// apply: the SDK sees no diff for it (no old value and an empty new value are
+// equal), so the clear cannot be driven by HasChange.
+func TestAccMinioServerConfigCompression_emptyListOnCreate(t *testing.T) {
+	resourceName := "minio_server_config_compression.test"
+
+	// Sequential on purpose: the compression subsystem is a shared singleton.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "extensions.#", "0"),
+					testAccCheckServerStoredTarget("compression", "", map[string]string{
+						"extensions": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the server's default extensions, so the
+				// next plan is empty.
+				Config: `
+resource "minio_server_config_compression" "test" {
+  enable     = true
+  extensions = []
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func TestBuildServerConfigCompressionCfgData(t *testing.T) {
+	d := schema.TestResourceDataRaw(t, resourceMinioServerConfigCompression().Schema, map[string]interface{}{})
+
+	tests := []struct {
+		name     string
+		config   S3MinioServerConfigCompression
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "all fields",
+			config: S3MinioServerConfigCompression{
+				Enable:          true,
+				Extensions:      []string{".txt", ".log"},
+				MimeTypes:       []string{"application/json", "text/plain"},
+				AllowEncryption: true,
+				Comment:         "probe value",
+			},
+			contains: []string{
+				"enable=on",
+				"allow_encryption=on",
+				"extensions=.txt,.log",
+				"mime_types=application/json,text/plain",
+				`comment="probe value"`,
+			},
+		},
+		{
+			name: "disabled with no optional fields",
+			config: S3MinioServerConfigCompression{
+				Enable: false,
+			},
+			contains: []string{
+				"enable=off",
+				"allow_encryption=off",
+				"comment=",
+			},
+			absent: []string{
+				"extensions=",
+				"mime_types=",
+			},
+		},
+		{
+			name: "disabled with values",
+			config: S3MinioServerConfigCompression{
+				Enable:          false,
+				Extensions:      []string{".csv"},
+				MimeTypes:       []string{"text/*"},
+				AllowEncryption: false,
+			},
+			contains: []string{
+				"enable=off",
+				"allow_encryption=off",
+				"extensions=.csv",
+				"mime_types=text/*",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildServerConfigCompressionCfgData(d, &tc.config)
+			for _, want := range tc.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected %q in config data, got: %s", want, got)
+				}
+			}
+			for _, unwanted := range tc.absent {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("unexpected %q in config data, got: %s", unwanted, got)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateCompressionListItem(t *testing.T) {
+	valid := []string{".txt", "application/json", "text/*"}
+	for _, v := range valid {
+		if _, errs := validateCompressionListItem(v, "extensions"); len(errs) != 0 {
+			t.Errorf("validateCompressionListItem(%q): unexpected error: %v", v, errs)
+		}
+	}
+
+	invalid := []string{"", ".txt,.log", "bad\nname", `"leading`}
+	for _, v := range invalid {
+		if _, errs := validateCompressionListItem(v, "extensions"); len(errs) == 0 {
+			t.Errorf("validateCompressionListItem(%q): expected an error", v)
+		}
+	}
+}
+
+func TestConfiguredEmptyList(t *testing.T) {
+	objectType := cty.Object(map[string]cty.Type{
+		"extensions": cty.List(cty.String),
+		"mime_types": cty.List(cty.String),
+	})
+
+	tests := []struct {
+		name string
+		raw  cty.Value
+		key  string
+		want bool
+	}{
+		{"nil raw config carries none", cty.NilVal, "extensions", false},
+		{"null raw config", cty.NullVal(objectType), "extensions", false},
+		{"explicit empty list", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListValEmpty(cty.String),
+			"mime_types": cty.ListValEmpty(cty.String),
+		}), "extensions", true},
+		{"attribute absent from the configuration", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListValEmpty(cty.String),
+		}), "mime_types", false},
+		{"non-empty list", cty.ObjectVal(map[string]cty.Value{
+			"extensions": cty.ListVal([]cty.Value{cty.StringVal(".txt")}),
+		}), "extensions", false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := configuredEmptyList(tc.raw, tc.key); got != tc.want {
+				t.Errorf("configuredEmptyList(%v, %q) = %v, want %v", tc.raw, tc.key, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestAccMinioServerConfigBrowser_basic(t *testing.T) {
+	resourceName := "minio_server_config_browser.test"
+
+	// A CSP policy with spaces and single quotes: it must go through
+	// buildConfigParam quoted, and the server must store it verbatim.
+	csp := "default-src 'self'; img-src 'self' https://cdn.example.com"
+
+	// Sequential on purpose: the browser subsystem is a shared singleton
+	// and the server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the browser defaults seeded by MinIO.
+		CheckDestroy: testAccCheckServerStoredTarget("browser", "", map[string]string{
+			"csp_policy":              browserDefaultCspPolicy,
+			"hsts_seconds":            "0",
+			"hsts_include_subdomains": "off",
+			"hsts_preload":            "off",
+			"referrer_policy":         "strict-origin-when-cross-origin",
+		}),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_server_config_browser" "test" {
+  csp_policy              = %q
+  hsts_seconds            = 31536000
+  hsts_include_subdomains = true
+  hsts_preload            = true
+  referrer_policy         = "strict-origin-when-cross-origin"
+}`, csp),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "csp_policy", csp),
+					resource.TestCheckResourceAttr(resourceName, "hsts_seconds", "31536000"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_include_subdomains", "true"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_preload", "true"),
+					resource.TestCheckResourceAttr(resourceName, "referrer_policy", "strict-origin-when-cross-origin"),
+					testAccCheckServerStoredTarget("browser", "", map[string]string{
+						"csp_policy":              csp,
+						"hsts_seconds":            "31536000",
+						"hsts_include_subdomains": "on",
+						"hsts_preload":            "on",
+						"referrer_policy":         "strict-origin-when-cross-origin",
+					}),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+func TestAccMinioServerConfigBrowser_update(t *testing.T) {
+	resourceName := "minio_server_config_browser.test"
+
+	csp := "default-src 'self'; img-src 'self' https://cdn.example.com"
+
+	// Sequential on purpose: the browser subsystem is a shared singleton
+	// and the server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_browser" "test" {
+  hsts_seconds            = 31536000
+  hsts_include_subdomains = true
+  hsts_preload            = true
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "hsts_include_subdomains", "true"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_preload", "true"),
+					testAccCheckServerStoredTarget("browser", "", map[string]string{
+						"csp_policy":              "",
+						"hsts_seconds":            "31536000",
+						"hsts_include_subdomains": "on",
+						"hsts_preload":            "on",
+					}),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "minio_server_config_browser" "test" {
+  csp_policy      = %q
+  hsts_seconds    = 3600
+  referrer_policy = "no-referrer"
+}`, csp),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "csp_policy", csp),
+					resource.TestCheckResourceAttr(resourceName, "hsts_seconds", "3600"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_include_subdomains", "false"),
+					resource.TestCheckResourceAttr(resourceName, "hsts_preload", "false"),
+					resource.TestCheckResourceAttr(resourceName, "referrer_policy", "no-referrer"),
+					testAccCheckServerStoredTarget("browser", "", map[string]string{
+						"csp_policy":              csp,
+						"hsts_seconds":            "3600",
+						"hsts_include_subdomains": "off",
+						"hsts_preload":            "off",
+						"referrer_policy":         "no-referrer",
+					}),
+				),
+			},
+		},
+	})
+}
+
+// A csp_policy set outside Terraform must not survive a create that leaves
+// the field empty: the resource owns the singleton, so the create clears it
+// back to the server's built-in default.
+func TestAccMinioServerConfigBrowser_existingCspPolicyCleared(t *testing.T) {
+	resourceName := "minio_server_config_browser.test"
+
+	// Sequential on purpose: the checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: testAccCheckServerStoredTarget("browser", "", map[string]string{
+			"csp_policy":              browserDefaultCspPolicy,
+			"hsts_seconds":            "0",
+			"hsts_include_subdomains": "off",
+			"hsts_preload":            "off",
+			"referrer_policy":         "strict-origin-when-cross-origin",
+		}),
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() { testAccSeedBrowserCspPolicy(t) },
+				Config: `
+resource "minio_server_config_browser" "test" {
+  hsts_seconds = 3600
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "csp_policy", ""),
+					testAccCheckServerStoredTarget("browser", "", map[string]string{
+						"csp_policy":   "",
+						"hsts_seconds": "3600",
+					}),
+				),
+			},
+			{
+				// The create cleared the seeded policy, so the next plan is
+				// empty.
+				Config: `
+resource "minio_server_config_browser" "test" {
+  hsts_seconds = 3600
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccSeedBrowserCspPolicy(t *testing.T) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "browser csp_policy=seeded-by-test"); err != nil {
+		t.Fatalf("seeding the csp_policy outside Terraform: %v", err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+// browserDefaultCspPolicy is the Content-Security-Policy the server prints
+// for the browser subsystem after a reset: the default from browser.DefaultKVS
+// in MinIO, verbatim (the two spaces before connect-src are in the default).
+const browserDefaultCspPolicy = "default-src 'self' 'unsafe-eval' 'unsafe-inline'; script-src 'self' https://unpkg.com;  connect-src 'self' https://unpkg.com;"
+
+func TestBuildServerConfigBrowserCfgData(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   S3MinioServerConfigBrowser
+		contains []string
+		absent   []string
+	}{
+		{
+			name: "all fields",
+			config: S3MinioServerConfigBrowser{
+				CspPolicy:             "default-src 'self'; img-src 'self' https://cdn.example.com",
+				HstsSeconds:           31536000,
+				HstsIncludeSubdomains: true,
+				HstsPreload:           true,
+				ReferrerPolicy:        "strict-origin",
+			},
+			contains: []string{
+				`csp_policy="default-src 'self'; img-src 'self' https://cdn.example.com"`,
+				"hsts_seconds=31536000",
+				"hsts_include_subdomains=on",
+				"hsts_preload=on",
+				"referrer_policy=strict-origin",
+			},
+			absent: []string{
+				"hsts_include_subdomains=off",
+				"hsts_preload=off",
+			},
+		},
+		{
+			name:   "all fields empty",
+			config: S3MinioServerConfigBrowser{},
+			contains: []string{
+				"csp_policy=",
+				"hsts_seconds=0",
+				"hsts_include_subdomains=off",
+				"hsts_preload=off",
+				"referrer_policy=",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildServerConfigBrowserCfgData(&tc.config)
+			for _, want := range tc.contains {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected %q in config data, got: %s", want, got)
+				}
+			}
+			for _, unwanted := range tc.absent {
+				if strings.Contains(got, unwanted) {
+					t.Errorf("unexpected %q in config data, got: %s", unwanted, got)
+				}
+			}
+		})
+	}
+}
+
+func TestAccMinioServerConfigSite_basic(t *testing.T) {
+	resourceName := "minio_server_config_site.test"
+
+	// Sequential on purpose: the site subsystem is a shared singleton and the
+	// server checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the site and region defaults.
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckServerStoredTarget("site", "", map[string]string{
+				"name":   "",
+				"region": "",
+			}),
+			testAccCheckServerStoredTarget("region", "", map[string]string{
+				"name": "",
+			}),
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_site" "test" {
+  name    = "tf-site"
+  region  = "us-east-1"
+  comment = "managed by terraform"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					resource.TestCheckResourceAttr(resourceName, "region", "us-east-1"),
+					resource.TestCheckResourceAttr(resourceName, "comment", "managed by terraform"),
+					// The site is stored under the site subsystem.
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "us-east-1",
+						"comment": "managed by terraform",
+					}),
+					// Setting the site does not write to the legacy region
+					// subsystem: it stays at its default.
+					testAccCheckServerStoredTarget("region", "", map[string]string{
+						"name": "",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_site" "test" {
+  name   = "tf-site"
+  region = "eu-west-1"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					resource.TestCheckResourceAttr(resourceName, "region", "eu-west-1"),
+					resource.TestCheckResourceAttr(resourceName, "comment", ""),
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "eu-west-1",
+						"comment": "",
+					}),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+		},
+	})
+}
+
+// A site name and region set outside Terraform must not survive a create that
+// leaves the fields empty: the resource owns the singleton, so the create
+// overwrites the name and clears the rest.
+func TestAccMinioServerConfigSite_existingValuesCleared(t *testing.T) {
+	resourceName := "minio_server_config_site.test"
+
+	// Sequential on purpose: the site subsystem is a shared singleton and the
+	// checks restart the primary test server.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t); testAccCleanupSite(t) },
+		ProviderFactories: testAccProviders,
+		// The subsystem cannot be deleted, only reset: after the destroy the
+		// server is back to the site and region defaults.
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckServerStoredTarget("site", "", map[string]string{
+				"name":   "",
+				"region": "",
+			}),
+			testAccCheckServerStoredTarget("region", "", map[string]string{
+				"name": "",
+			}),
+		),
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() { testAccSeedSiteOutsideTerraform(t) },
+				Config: `
+resource "minio_server_config_site" "test" {
+  name = "tf-site"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", "tf-site"),
+					// region and comment are absent from the flat state, not
+					// empty: an Optional string the configuration never set has no
+					// key to check.
+					resource.TestCheckNoResourceAttr(resourceName, "region"),
+					resource.TestCheckNoResourceAttr(resourceName, "comment"),
+					testAccCheckServerStoredTarget("site", "", map[string]string{
+						"name":    "tf-site",
+						"region":  "",
+						"comment": "",
+					}),
+				),
+			},
+			{
+				// The create cleared the seeded values, so the next plan is
+				// empty.
+				Config: `
+resource "minio_server_config_site" "test" {
+  name = "tf-site"
+}`,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccSeedSiteOutsideTerraform(t *testing.T) {
+	t.Helper()
+	if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), "site name=seeded-site region=seeded-region"); err != nil {
+		t.Fatalf("seeding the site outside Terraform: %v", err)
+	}
+	if err := testAccRestartPrimaryServer(); err != nil {
+		t.Fatalf("restarting the server: %v", err)
+	}
+}
+
+// testAccCleanupSite resets the site subsystem and restarts the primary
+// server so a test that ends before its own destroy leaves the shared
+// server with the site defaults: the SDK skips CheckDestroy when a step
+// fails, so this is the safety net. It is registered from PreCheck, so it
+// runs only when the test will run.
+func testAccCleanupSite(t *testing.T) {
+	t.Helper()
+	t.Cleanup(func() {
+		admin := testAccClient().S3Admin
+		if _, err := admin.DelConfigKV(context.Background(), "site"); err != nil {
+			// The test's own destroy already reset the subsystem, in which
+			// case the delete reports it as missing.
+			if !strings.Contains(strings.ToLower(err.Error()), "not found") &&
+				!strings.Contains(strings.ToLower(err.Error()), "there is no target") {
+				t.Errorf("resetting the site config after the test: %v", err)
+			}
+		}
+		if err := testAccRestartPrimaryServer(); err != nil {
+			t.Errorf("restarting the primary server after the test: %v", err)
+		}
+	})
+}
+
+func TestBuildServerConfigSiteCfgData(t *testing.T) {
+	testCases := []struct {
+		name     string
+		config   S3MinioServerConfigSite
+		expected string
+	}{
+		{
+			name:     "all fields set",
+			config:   S3MinioServerConfigSite{Name: "dc1", Region: "us-east-1", Comment: "a comment"},
+			expected: `name=dc1 region=us-east-1 comment="a comment"`,
+		},
+		{
+			name:     "name only clears region and comment",
+			config:   S3MinioServerConfigSite{Name: "dc1"},
+			expected: "name=dc1 region= comment=",
+		},
+		{
+			name:     "name with a space is quoted",
+			config:   S3MinioServerConfigSite{Name: "dc 1", Region: "us-east-1"},
+			expected: `name="dc 1" region=us-east-1 comment=`,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildServerConfigSiteCfgData(&tc.config)
+			if got != tc.expected {
+				t.Errorf("buildServerConfigSiteCfgData() = %q, want %q", got, tc.expected)
+			}
+		})
+	}
+}
+
+func TestServerConfigSiteRunningConfigMatchesState(t *testing.T) {
+	config := &S3MinioServerConfigSite{Name: "tf-site", Region: "us-east-1", Comment: "managed by terraform"}
+
+	// The maps below are the responses measured from the test server, not the
+	// output of buildServerConfigSiteCfgData.
+	t.Run("pre-restart response with default values does not match", func(t *testing.T) {
+		if serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":   "",
+			"region": "",
+		}) {
+			t.Errorf("expected no match for the pre-restart response")
+		}
+	})
+
+	t.Run("post-restart response matches", func(t *testing.T) {
+		if !serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":    "tf-site",
+			"region":  "us-east-1",
+			"comment": "managed by terraform",
+		}) {
+			t.Errorf("expected the post-restart response to match")
+		}
+	})
+
+	t.Run("stale region does not match", func(t *testing.T) {
+		if serverConfigSiteRunningConfigMatchesState(config, map[string]string{
+			"name":    "tf-site",
+			"region":  "eu-west-9",
+			"comment": "managed by terraform",
+		}) {
+			t.Errorf("expected no match for a stale region value")
+		}
+	})
+
+	cleared := &S3MinioServerConfigSite{Name: "tf-site"}
+	t.Run("cleared region and comment match the cleared response", func(t *testing.T) {
+		if !serverConfigSiteRunningConfigMatchesState(cleared, map[string]string{
+			"name":    "tf-site",
+			"region":  "",
+			"comment": "",
+		}) {
+			t.Errorf("expected the cleared post-restart response to match")
+		}
 	})
 }
 

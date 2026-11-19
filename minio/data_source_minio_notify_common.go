@@ -23,7 +23,6 @@ func dataSourceNotify(nrc notifyResourceConfig, resourceSchema map[string]*schem
 			cp.ForceNew = false
 			cp.Default = nil
 			cp.ValidateFunc = nil
-			cp.Sensitive = false
 		}
 		dsSchema[k] = &cp
 	}

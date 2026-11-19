@@ -21,6 +21,7 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
+		CustomizeDiff: scannerCorruptedKeysCustomizeDiff,
 		Schema: map[string]*schema.Schema{
 			"speed": {
 				Type:         schema.TypeString,
@@ -68,24 +69,77 @@ func resourceMinioServerConfigScanner() *schema.Resource {
 	}
 }
 
+// scannerCorruptedKeysCustomizeDiff forces a diff for a scanner attribute an
+// older provider corrupted (issue #1322). It wrote speed, delay, max_wait,
+// cycle and then the excess thresholds, and MinIO glues an unknown key onto
+// the value written before it, so the thresholds were glued onto the last
+// of those written, usually cycle. Each of those attributes is Optional and
+// Computed, so when the configuration does not set one of them, the glued
+// state value would otherwise never show a diff, and the apply that rewrites
+// a clean value would never run.
+func scannerCorruptedKeysCustomizeDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	// The raw config is a null object when no configuration is available,
+	// for example on the plan right after an import, and GetAttr panics on
+	// it.
+	rawConfig := d.GetRawConfig()
+	if rawConfig.IsNull() {
+		return nil
+	}
+	for _, attr := range []string{"speed", "delay", "max_wait", "cycle"} {
+		value := d.Get(attr).(string)
+		clean := value
+		for _, glued := range []string{" excess_versions=", " excess_folders="} {
+			if i := strings.Index(clean, glued); i >= 0 {
+				clean = clean[:i]
+			}
+		}
+		if clean == value || !rawConfig.GetAttr(attr).IsNull() {
+			continue
+		}
+		if err := d.SetNew(attr, clean); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// scannerConfigFields maps the Terraform attributes to the scanner
+// subsystem's keys. The excess thresholds are stored as alert_excess_*:
+// MinIO accepts an unknown key without an error and glues it onto the value
+// written before it, usually cycle, the last key the old provider wrote
+// (issue #1322).
+var scannerConfigFields = []struct {
+	attr string
+	key  string
+}{
+	{"speed", "speed"},
+	{"delay", "delay"},
+	{"max_wait", "max_wait"},
+	{"cycle", "cycle"},
+	{"excess_versions", "alert_excess_versions"},
+	{"excess_folders", "alert_excess_folders"},
+}
+
+func buildScannerCfg(d *schema.ResourceData) string {
+	var parts []string
+	for _, f := range scannerConfigFields {
+		if v, ok := d.GetOk(f.attr); ok {
+			parts = append(parts, fmt.Sprintf("%s=%s", f.key, v.(string)))
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
 func minioServerConfigScannerSet(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	admin := meta.(*S3MinioClient).S3Admin
 
-	var parts []string
-	fields := []string{"speed", "delay", "max_wait", "cycle", "excess_versions", "excess_folders"}
-	for _, f := range fields {
-		if v, ok := d.GetOk(f); ok {
-			parts = append(parts, fmt.Sprintf("%s=%s", f, v.(string)))
-		}
-	}
-
-	if len(parts) == 0 {
+	cfg := buildScannerCfg(d)
+	if cfg == "" {
 		d.SetId("scanner")
 		return minioServerConfigScannerRead(ctx, d, meta)
 	}
 
-	configString := "scanner " + strings.Join(parts, " ")
-	restart, err := admin.SetConfigKV(ctx, configString)
+	restart, err := admin.SetConfigKV(ctx, "scanner "+cfg)
 	if err != nil {
 		return NewResourceError("setting scanner configuration", "scanner", err)
 	}
@@ -117,9 +171,13 @@ func minioServerConfigScannerRead(ctx context.Context, d *schema.ResourceData, m
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId("scanner")
 
-	for _, f := range []string{"speed", "delay", "max_wait", "cycle", "excess_versions", "excess_folders"} {
-		if v, ok := cfgMap[f]; ok {
-			_ = d.Set(f, v)
+	for _, f := range scannerConfigFields {
+		v, ok := cfgMap[f.key]
+		if !ok {
+			continue
+		}
+		if err := d.Set(f.attr, v); err != nil {
+			return NewResourceError("setting "+f.attr, d.Id(), err)
 		}
 	}
 

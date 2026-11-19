@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -125,35 +124,6 @@ resource "minio_server_config_scanner" "test" {
 // server stores them as alert_excess_versions and alert_excess_folders and
 // keeps cycle intact. See issue #1322.
 
-// testAccScannerStoredConfig restarts the primary test server and checks
-// that get-config-kv reports the scanner configuration with the given
-// key=value pairs. The values in want are explicit literals from the test's
-// own configuration: they assert what the server persisted, not what the
-// provider would have written.
-func testAccScannerStoredConfig(want map[string]string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		if err := testAccRestartPrimaryServer(); err != nil {
-			return err
-		}
-
-		data, err := testAccClient().S3Admin.GetConfigKV(context.Background(), "scanner")
-		if err != nil {
-			return fmt.Errorf("reading scanner from the server after the restart: %w", err)
-		}
-		stored := parseConfigParams(string(data))
-		for key, value := range want {
-			got, ok := stored[key]
-			if !ok {
-				return fmt.Errorf("scanner stored on the server has no %q key; response: %s", key, data)
-			}
-			if got != value {
-				return fmt.Errorf("%q of scanner stored on the server is %q, want %q", key, got, value)
-			}
-		}
-		return nil
-	}
-}
-
 func TestAccMinioServerConfigScanner_excessThresholds(t *testing.T) {
 	resourceName := "minio_server_config_scanner.test"
 	// Values differ from the server defaults (100 and 50000), so the stored
@@ -180,7 +150,7 @@ resource "minio_server_config_scanner" "test" {
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
 					resource.TestCheckResourceAttr(resourceName, "excess_versions", "10"),
 					resource.TestCheckResourceAttr(resourceName, "excess_folders", "25"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"speed":                 "slow",
 						"delay":                 "10",
 						"max_wait":              "15s",
@@ -256,7 +226,7 @@ resource "minio_server_config_scanner" "test" {
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
 					resource.TestCheckResourceAttr(resourceName, "excess_versions", "100"),
 					resource.TestCheckResourceAttr(resourceName, "excess_folders", "50000"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"cycle":                 "1m",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -323,7 +293,7 @@ resource "minio_server_config_scanner" "test" {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "cycle", "1m"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"cycle":                 "1m",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -389,7 +359,7 @@ resource "minio_server_config_scanner" "test" {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "max_wait", "15s"),
-					testAccScannerStoredConfig(map[string]string{
+					testAccCheckServerStoredTarget("scanner", "", map[string]string{
 						"max_wait":              "15s",
 						"alert_excess_versions": "100",
 						"alert_excess_folders":  "50000",
@@ -1668,41 +1638,6 @@ func TestPolicyPluginRunningConfigMatchesState(t *testing.T) {
 	}
 }
 
-// testAccCheckApiConfigStored restarts the primary test server and checks that
-// the stored api subsystem configuration carries the given key=value pairs.
-// The values are explicit literals from the test's own configuration: they
-// assert what the server persisted, not what the provider would have written.
-// The api subsystem is a singleton addressed by the bare key "api", so
-// testAccCheckServerStoredTarget's "subsystem:name" keying cannot reach it and
-// this check pairs testAccRestartPrimaryServer with the bare key instead.
-func testAccCheckApiConfigStored(want map[string]string) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		if err := testAccRestartPrimaryServer(); err != nil {
-			return err
-		}
-
-		client := testAccClient()
-		data, err := client.S3Admin.GetConfigKV(context.Background(), "api")
-		if err != nil {
-			return fmt.Errorf("reading api from the server after the restart: %w", err)
-		}
-		stored, found := notifyTargetConfigParams(string(data), "api")
-		if !found {
-			return fmt.Errorf("api is not stored on the server after the restart; response: %s", string(data))
-		}
-		for key, value := range want {
-			got, ok := stored[key]
-			if !ok {
-				return fmt.Errorf("api stored on the server has no %q key; response: %s", key, string(data))
-			}
-			if got != value {
-				return fmt.Errorf("%q of api stored on the server is %q, want %q", key, got, value)
-			}
-		}
-		return nil
-	}
-}
-
 func TestAccMinioServerConfigApi_newKeys(t *testing.T) {
 	resourceName := "minio_server_config_api.test"
 
@@ -1731,7 +1666,7 @@ resource "minio_server_config_api" "test" {
 					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "10"),
 					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "4"),
 					resource.TestCheckResourceAttr(resourceName, "replication_priority", "fast"),
-					testAccCheckApiConfigStored(map[string]string{
+					testAccCheckServerStoredTarget("api", "", map[string]string{
 						"delete_cleanup_interval":     "7m",
 						"list_quorum":                 "disk",
 						"object_max_versions":         "500",
@@ -1784,7 +1719,7 @@ resource "minio_server_config_api" "test" {
 					resource.TestCheckResourceAttr(resourceName, "replication_max_workers", "20"),
 					resource.TestCheckResourceAttr(resourceName, "replication_max_lrg_workers", "7"),
 					resource.TestCheckResourceAttr(resourceName, "replication_priority", "slow"),
-					testAccCheckApiConfigStored(map[string]string{
+					testAccCheckServerStoredTarget("api", "", map[string]string{
 						"delete_cleanup_interval":     "10m",
 						"list_quorum":                 "optimal",
 						"object_max_versions":         "250",
@@ -1850,7 +1785,7 @@ resource "minio_server_config_api" "test" {
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "stale_uploads_expiry", "12h"),
 					resource.TestCheckResourceAttr(resourceName, "delete_cleanup_interval", "9m"),
-					testAccCheckApiConfigStored(map[string]string{
+					testAccCheckServerStoredTarget("api", "", map[string]string{
 						"stale_uploads_expiry":    "12h",
 						"delete_cleanup_interval": "9m",
 					}),

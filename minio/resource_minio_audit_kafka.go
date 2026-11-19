@@ -21,7 +21,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
-		Schema: mergeSchemas(notifyCommonSchema(), map[string]*schema.Schema{
+		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(map[string]*schema.Schema{
 			"brokers": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -75,7 +75,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 				Optional:    true,
 				Description: "Kafka protocol version.",
 			},
-		}),
+		})),
 	}
 }
 
@@ -94,7 +94,7 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	// turned it off. See issue #1331.
 	notifyBuildCfgAddBool(&parts, "tls", d.Get("tls").(bool))
 	notifyBuildCfgAddBool(&parts, "tls_skip_verify", d.Get("tls_skip_verify").(bool))
-	notifyBuildCommonCfg(&parts, d, meta)
+	notifyBuildQueueSizeCommonCfg(&parts, d)
 	return strings.Join(parts, " ")
 }
 
@@ -123,6 +123,7 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["tls_skip_verify"]; ok {
 		_ = d.Set("tls_skip_verify", v == "on")
 	}
+	notifyReadQueueSize(cfgMap, d)
 	notifyReadCommonFields(cfgMap, d)
 	return nil
 }

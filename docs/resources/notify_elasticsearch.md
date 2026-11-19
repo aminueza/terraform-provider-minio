@@ -56,4 +56,4 @@ Import is supported using the target name:
 terraform import minio_notify_elasticsearch.example target-name
 ```
 
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.
+Note: The import reads `url` back from the server. `password` is not returned by the MinIO API, so after import it is empty in state until the next apply.

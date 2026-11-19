@@ -53,4 +53,4 @@ Import is supported using the target name:
 terraform import minio_notify_postgres.example target-name
 ```
 
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.
+Note: The import reads `connection_string` back from the server, so it is in state after the import, even though it is marked sensitive.

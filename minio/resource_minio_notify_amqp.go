@@ -103,6 +103,7 @@ func readNotifyAmqpFields(cfgMap map[string]string, d *schema.ResourceData) diag
 			return NewResourceError("setting url", d.Id(), err)
 		}
 	}
+
 	if v, ok := cfgMap["exchange"]; ok {
 		_ = d.Set("exchange", v)
 	}

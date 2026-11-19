@@ -201,6 +201,11 @@ func testAccMinioNotifyCredentialDriftCase(t *testing.T, kind, key, fields, conf
 				ExpectNonEmptyPlan: true,
 			},
 			{
+				RefreshState:       true,
+				ExpectNonEmptyPlan: true,
+				Check:              resource.TestCheckResourceAttr(resourceName, key, outside),
+			},
+			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, key, configured),
@@ -208,6 +213,12 @@ func testAccMinioNotifyCredentialDriftCase(t *testing.T, kind, key, fields, conf
 				),
 			},
 			{Config: config, PlanOnly: true},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
 		},
 	})
 }

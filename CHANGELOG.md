@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_server_config_policy_plugin`: manages the `policy_plugin` subsystem,
+  which routes every authorization decision to an external service such as
+  Open Policy Agent. The fields map the subsystem's keys: `url`,
+  `auth_token`, `enable_http2` and `comment`
+  ([#1326](https://github.com/aminueza/terraform-provider-minio/issues/1326)).
 - `minio_server_config_site`: manages the `site` subsystem, MinIO's
   replacement for the legacy `region` subsystem. The fields map the
   subsystem's keys: `name`, `region` and `comment`; when both the site

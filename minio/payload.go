@@ -564,3 +564,11 @@ type S3MinioServerConfigSite struct {
 	Region     string
 	Comment    string
 }
+
+type S3MinioServerConfigPolicyPlugin struct {
+	MinioAdmin  *madmin.AdminClient
+	URL         string
+	AuthToken   string
+	EnableHTTP2 bool
+	Comment     string
+}

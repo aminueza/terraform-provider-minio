@@ -204,14 +204,15 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 // provider sends. lookup_bind_password is never printed by the server, so a
 // change to it alone cannot be seen here. enable is printed only when it is
 // off, so the check is whether the server reports enable=off exactly when the
-// config turns LDAP off.
+// config turns LDAP off. A key missing from the response counts as empty, so a
+// cleared key matches even on a server that leaves empty keys out.
 func idpLdapRunningConfigMatchesState(config *S3MinioIdpLdap, cfgMap map[string]string) bool {
 	intended := parseConfigParams(buildIdpLdapCfgData(config))
 	for key, want := range intended {
 		if key == "lookup_bind_password" || key == "enable" {
 			continue
 		}
-		if got, ok := cfgMap[key]; !ok || got != want {
+		if cfgMap[key] != want {
 			return false
 		}
 	}
@@ -266,6 +267,12 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 			parts = append(parts, buildConfigParam(key, val))
 		}
 	}
+	// set-config-kv merges into the stored config, so an optional string the
+	// configuration removed is sent empty, or the server keeps the old value.
+	// See issue #1348.
+	addStrOrClear := func(key, val string) {
+		parts = append(parts, buildConfigParam(key, val))
+	}
 	addBool := func(key string, val bool) {
 		if val {
 			parts = append(parts, key+"=on")
@@ -275,12 +282,14 @@ func buildIdpLdapCfgData(config *S3MinioIdpLdap) string {
 	}
 
 	addStr("server_addr", config.ServerAddr)
-	addStr("lookup_bind_dn", config.LookupBindDN)
+	addStrOrClear("lookup_bind_dn", config.LookupBindDN)
+	// The server never returns the password, so it is only sent when set:
+	// an empty write would erase a password the provider cannot read back.
 	addStr("lookup_bind_password", config.LookupBindPassword)
-	addStr("user_dn_search_base_dn", config.UserDNSearchBaseDN)
-	addStr("user_dn_search_filter", config.UserDNSearchFilter)
-	addStr("group_search_base_dn", config.GroupSearchBaseDN)
-	addStr("group_search_filter", config.GroupSearchFilter)
+	addStrOrClear("user_dn_search_base_dn", config.UserDNSearchBaseDN)
+	addStrOrClear("user_dn_search_filter", config.UserDNSearchFilter)
+	addStrOrClear("group_search_base_dn", config.GroupSearchBaseDN)
+	addStrOrClear("group_search_filter", config.GroupSearchFilter)
 	addBool("tls_skip_verify", config.TLSSkipVerify)
 	addBool("server_insecure", config.ServerInsecure)
 	addBool("server_starttls", config.StartTLS)

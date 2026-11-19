@@ -339,6 +339,72 @@ func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key s
 	notifyBuildCfgAddParam(parts, key, val)
 }
 
+// notifyWithQueueSize replaces queue_limit for logger_webhook and
+// audit_kafka. Those subsystems size their queue with queue_size and have no
+// queue_limit key, and MinIO glues an unknown key onto the value written
+// before it, so a queue_limit sent there corrupted the comment, queue_dir or
+// topic.
+func notifyWithQueueSize(specific map[string]*schema.Schema) map[string]*schema.Schema {
+	for k, v := range map[string]*schema.Schema{
+		"queue_size": {
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Computed:      true,
+			ConflictsWith: []string{"queue_limit"},
+			Description:   "Maximum number of undelivered events to queue.",
+		},
+		"queue_limit": {
+			Type:          schema.TypeInt,
+			Optional:      true,
+			Computed:      true,
+			ConflictsWith: []string{"queue_size"},
+			Deprecated:    "Use 'queue_size' instead. This target has no queue_limit setting; the value is sent as queue_size. This attribute will be removed in a future major version.",
+			Description:   "Deprecated: use 'queue_size' instead.",
+		},
+	} {
+		specific[k] = v
+	}
+	return specific
+}
+
+// notifyBuildQueueSizeCommonCfg is notifyBuildCommonCfg for the subsystems
+// that use queue_size. A queue_limit set without queue_size in the
+// configuration is sent as queue_size.
+func notifyBuildQueueSizeCommonCfg(parts *[]string, d *schema.ResourceData) {
+	notifyBuildCfgClearableParam(parts, d, "queue_dir")
+	notifyBuildCfgClearableParam(parts, d, "comment")
+	notifyBuildCfgAddInt(parts, "queue_size", notifyQueueSize(d))
+	// d.Get, not getOptionalField: GetOk reads false as unset and would send
+	// enable=on for a target the configuration disables.
+	notifyBuildCfgAddBool(parts, "enable", d.Get("enable").(bool))
+}
+
+// notifyReadQueueSize stores the server's queue_size in queue_size and in
+// the deprecated queue_limit. Mirroring it into queue_limit makes a target an
+// older provider corrupted show up as a diff: that provider glued queue_limit
+// onto the value written before it, so the server kept the default
+// queue_size, and only a diff on queue_limit triggers the update that writes
+// every key again.
+func notifyReadQueueSize(cfgMap map[string]string, d *schema.ResourceData) {
+	v, ok := cfgMap["queue_size"]
+	if !ok {
+		return
+	}
+	if n, err := parseInt(v); err == nil {
+		_ = d.Set("queue_size", n)
+		_ = d.Set("queue_limit", n)
+	}
+}
+
+func notifyQueueSize(d *schema.ResourceData) int {
+	if raw := d.GetRawConfig(); !raw.IsNull() && raw.GetAttr("queue_size").IsNull() {
+		if limit, ok := d.GetOk("queue_limit"); ok {
+			return limit.(int)
+		}
+	}
+	return d.Get("queue_size").(int)
+}
+
 func notifyBuildCommonCfg(parts *[]string, d *schema.ResourceData, meta interface{}) {
 	notifyBuildCfgClearableParam(parts, d, "queue_dir")
 	notifyBuildCfgClearableParam(parts, d, "comment")

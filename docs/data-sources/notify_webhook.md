@@ -30,9 +30,9 @@ output "webhook_endpoint" {
 
 ### Read-Only
 
-- `auth_token` (String) Authentication token for the webhook endpoint. MinIO does not return this value on read.
+- `auth_token` (String, Sensitive) Authentication token for the webhook endpoint. MinIO does not return this value on read.
 - `client_cert` (String) Path to the X.509 client certificate for mTLS authentication.
-- `client_key` (String) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.
+- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `endpoint` (String) HTTP(S) endpoint URL to send bucket event notifications to.

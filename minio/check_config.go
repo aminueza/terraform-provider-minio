@@ -386,6 +386,21 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 	}
 }
 
+func ServerConfigCompressionConfig(d *schema.ResourceData, meta interface{}) *S3MinioServerConfigCompression {
+	m := meta.(*S3MinioClient)
+
+	return &S3MinioServerConfigCompression{
+		MinioAdmin: m.S3Admin,
+		// d.Get, not getOptionalField: GetOk reads false as unset and would send
+		// enable=on for a configuration that disables the field.
+		Enable:          d.Get("enable").(bool),
+		Extensions:      getStringList(d.Get("extensions").([]interface{})),
+		MimeTypes:       getStringList(d.Get("mime_types").([]interface{})),
+		AllowEncryption: d.Get("allow_encryption").(bool),
+		Comment:         getOptionalField(d, "comment", "").(string),
+	}
+}
+
 func IAMImportConfig(d *schema.ResourceData, meta interface{}) *S3MinioIAMImport {
 	m := meta.(*S3MinioClient)
 	return &S3MinioIAMImport{

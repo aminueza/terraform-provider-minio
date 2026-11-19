@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_server_config_browser`: manages the `browser` subsystem, which sets
+  the security headers of the embedded console. The fields map the
+  subsystem's keys: `csp_policy`, `hsts_seconds`, `hsts_include_subdomains`,
+  `hsts_preload` and `referrer_policy`
+  ([#1325](https://github.com/aminueza/terraform-provider-minio/issues/1325)).
 - `minio_server_config_compression`: manages the `compression` subsystem,
   which controls transparent object compression. The fields map the
   subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`

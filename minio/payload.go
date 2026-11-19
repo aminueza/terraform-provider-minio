@@ -548,3 +548,12 @@ type MutexKV struct {
 	lock  sync.Mutex
 	store map[string]*sync.Mutex
 }
+
+type S3MinioServerConfigBrowser struct {
+	MinioAdmin            *madmin.AdminClient
+	CspPolicy             string
+	HstsSeconds           int
+	HstsIncludeSubdomains bool
+	HstsPreload           bool
+	ReferrerPolicy        string
+}

@@ -28,6 +28,24 @@ History older than 3.39.0 lives in the
   it, which corrupted the `subject`, the password or the token. The
   attribute is deprecated and ignored; use `username` and `password`, or
   `token`.
+- `minio_notify_mysql` writes the connection string to the server. The
+  provider sent it as `connection_string`, a key `notify_mysql` does not have,
+  so MinIO dropped it and every MySQL target was stored without a DSN. It is
+  now written and read as `dsn_string`, the key MinIO uses. Existing MySQL
+  targets show one `connection_string` diff, and the next apply stores the DSN.
+- The `minio_notify_*` data sources keep the `Sensitive` flag of the
+  resource attributes they copy, so a secret the server returns in clear,
+  such as the MySQL DSN with its password, is hidden in plan output. An
+  `output` that references one of those attributes now needs
+  `sensitive = true`.
+- `minio_notify_kafka`, `minio_notify_mqtt` and `minio_notify_nats` no longer
+  show a permanent diff for a value MinIO fills in on its own:
+  `sasl_mechanism` (kafka), `keep_alive_interval` and `reconnect_interval`
+  (mqtt), and `ping_interval` (nats). After a restart the server returns its
+  default for these fields even when the configuration doesn't set them, and
+  every plan proposed to remove it. They now accept the server's value when
+  the configuration leaves them out
+  ([#1307](https://github.com/aminueza/terraform-provider-minio/issues/1307)).
 - `minio_audit_webhook` reads `enable` from the server, so turning the webhook
   on or off outside Terraform shows up in the plan and the next apply puts the
   configured value back. Import now sets `enable` too. A webhook that an older

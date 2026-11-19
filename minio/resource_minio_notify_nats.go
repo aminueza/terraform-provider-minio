@@ -69,6 +69,7 @@ func resourceMinioNotifyNats() *schema.Resource {
 			"ping_interval": {
 				Type:        schema.TypeString,
 				Optional:    true,
+				Computed:    true,
 				Description: "Duration interval between NATS ping requests (e.g., '0s').",
 			},
 			"jetstream": {

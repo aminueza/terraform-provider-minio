@@ -33,12 +33,12 @@ output "nats_subject" {
 - `address` (String) NATS server address (e.g., 'nats://localhost:4222').
 - `cert_authority` (String) Path to the certificate authority file for TLS verification.
 - `client_cert` (String) Path to the client certificate for mTLS authentication.
-- `client_key` (String) Path to the client private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_key` (String, Sensitive) Path to the client private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `id` (String) The ID of this resource.
 - `jetstream` (Boolean) Whether to enable JetStream support for NATS.
-- `password` (String) Password for NATS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `password` (String, Sensitive) Password for NATS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `ping_interval` (String) Duration interval between NATS ping requests (e.g., '0s').
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
@@ -50,6 +50,6 @@ output "nats_subject" {
 - `subject` (String) NATS subject to publish notifications to.
 - `tls` (Boolean) Whether to enable TLS for the NATS connection.
 - `tls_skip_verify` (Boolean) Whether to skip TLS certificate verification.
-- `token` (String) Token for NATS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `token` (String, Sensitive) Token for NATS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `user_credentials` (String, Deprecated) Deprecated: MinIO has no NATS user credentials setting, so this value is ignored.
 - `username` (String) Username for NATS authentication.

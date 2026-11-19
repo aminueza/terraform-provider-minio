@@ -9,6 +9,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -462,6 +464,134 @@ func TestAccMinioS3Bucket_UpdateAclToPrivateIdempotent(t *testing.T) {
 					testAccCheckMinioS3BucketExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
 					testAccCheckBucketNotReadableAnonymously(ri),
+				),
+			},
+		},
+	})
+}
+
+// A policy removed outside Terraform must show up as an acl drift and be
+// restored by the next apply. See issue #1333.
+func TestAccMinioS3Bucket_aclPolicyRemovedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccMinioS3BucketConfigWithACL(name, "public")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+			{
+				PreConfig: func() {
+					minioC := testAccClient().S3Client
+					if err := minioC.SetBucketPolicy(context.Background(), name, ""); err != nil {
+						t.Fatalf("removing the bucket policy outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public"),
+				),
+			},
+		},
+	})
+}
+
+// A bucket whose acl is unset (default private) shares its bucket policy with
+// minio_s3_bucket_anonymous_access; the bucket read must not claim that policy
+// or the two resources fight and the plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclPrivateLeavesPolicyToOtherResources(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccBucketAnonymousAccessConfig(name, "public-read")
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "private"),
+				),
+			},
+		},
+	})
+}
+
+// A public acl paired with minio_s3_bucket_policy: the bucket read must keep
+// the acl and the custom policy, or each apply overwrites the other and the
+// plan never settles. See issue #1333.
+func TestAccMinioS3Bucket_aclStaysStableWithCustomPolicy(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	customPolicy := fmt.Sprintf(`{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {"AWS": ["arn:aws:iam::123456789012:user/bob"]},
+      "Resource": ["arn:aws:s3:::%s/*"],
+      "Action": ["s3:GetObject"]
+    }
+  ]
+}`, name)
+	config := fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  acl    = "public-read"
+}
+
+resource "minio_s3_bucket_policy" "bucket" {
+  bucket = minio_s3_bucket.bucket.bucket
+  policy = <<EOF
+%s
+EOF
+}
+`, name, customPolicy)
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
+				),
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "acl", "public-read"),
+					testAccCheckBucketHasPolicy(resourceName, customPolicy),
 				),
 			},
 		},
@@ -1872,5 +2002,387 @@ func TestBucketHasObjectsFallsBackWithoutVersions(t *testing.T) {
 				t.Fatalf("non-versioned listing called %d times, expected %d", plainCalls, tc.wantPlainCalls)
 			}
 		})
+	}
+}
+
+// Importing a bucket from a backend without bucket policy support
+// (GetBucketPolicy answers 501) must succeed: the import-state ResourceData
+// reads acl as "" (schema defaults are not applied), so the read must skip the
+// acl derivation and leave the policy to the importer, which tolerates the 501.
+// See issue #1206.
+func TestImportMinioS3Bucket_withoutPolicySupport(t *testing.T) {
+	const bucket = "import-bucket"
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`
+	const noObjectLock = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodHead {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		switch {
+		case r.URL.Query().Has("policy"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		case r.URL.Query().Has("object-lock"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noObjectLock)
+			return
+		case r.URL.Query().Has("tagging"):
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, noTagSet)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	// The same construction the SDK uses for import (helper/schema/provider.go):
+	// an empty state, the id, and no diff, so schema defaults are not applied.
+	d := resourceMinioBucket().Data(nil)
+	d.SetId(bucket)
+	d.SetType("minio_s3_bucket")
+	if got := d.Get("acl").(string); got != "" {
+		t.Fatalf("an import-state ResourceData must read acl as the zero value, got %q", got)
+	}
+
+	results, err := resourceMinioS3BucketImportState(context.Background(), d, &S3MinioClient{S3Client: s3Client})
+	if err != nil {
+		t.Fatalf("import failed: %v", err)
+	}
+	if len(results) != 1 || results[0].Id() != bucket {
+		t.Fatalf("import returned %v, want one resource with id %q", results, bucket)
+	}
+	if got := results[0].Get("acl").(string); got != "private" {
+		t.Errorf("acl = %q, want private", got)
+	}
+}
+
+// Refreshing a bucket whose acl is public must keep the acl in state, instead
+// of erroring, when the policy read is refused: a backend that answers 501 with
+// s3_compat_mode on (issue #608), or credentials without s3:GetBucketPolicy,
+// whose refresh worked before acl was read back from the policy.
+func TestMinioReadBucket_unreadablePolicyKeepsAcl(t *testing.T) {
+	const bucket = "read-bucket"
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	cases := []struct {
+		name       string
+		status     int
+		body       string
+		compatMode bool
+	}{
+		{
+			name:       "not implemented with s3_compat_mode",
+			status:     http.StatusNotImplemented,
+			body:       `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`,
+			compatMode: true,
+		},
+		{
+			name:   "access denied",
+			status: http.StatusForbidden,
+			body:   `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			policyRequested := false
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				switch {
+				case r.URL.Query().Has("policy"):
+					policyRequested = true
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(tc.status)
+					_, _ = fmt.Fprint(w, tc.body)
+					return
+				case r.URL.Query().Has("tagging"):
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, noTagSet)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			s3Client, err := minio.New(strings.TrimPrefix(srv.URL, "http://"), &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+				"bucket": bucket,
+				"acl":    "public-read",
+			})
+			d.SetId(bucket)
+
+			diags := minioReadBucket(context.Background(), d, &S3MinioClient{S3Client: s3Client, S3CompatMode: tc.compatMode})
+			if !policyRequested {
+				t.Fatal("the read never requested the bucket policy")
+			}
+			if diags.HasError() {
+				t.Fatalf("read failed: %v", diags)
+			}
+			if len(diags) != 0 {
+				t.Fatalf("read returned %d diagnostics, want none: %v", len(diags), diags)
+			}
+			if got := d.Get("acl").(string); got != "public-read" {
+				t.Errorf("acl = %q, want public-read to stay in state", got)
+			}
+		})
+	}
+}
+
+// A quota changed outside Terraform must show up in the plan and be restored
+// by the next apply. See issue #1334.
+func TestAccMinioS3Bucket_quotaChangedOutsideTerraform(t *testing.T) {
+	name := acctest.RandomWithPrefix("tf-acc-test")
+	config := testAccMinioS3BucketConfigWithQuota(name, 1073741824)
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+			{
+				PreConfig: func() {
+					quota := madmin.BucketQuota{Size: 5368709120, Type: madmin.HardQuota}
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &quota); err != nil {
+						t.Fatalf("changing the bucket quota outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Admin.SetBucketQuota(context.Background(), name, &madmin.BucketQuota{}); err != nil {
+						t.Fatalf("clearing the bucket quota outside Terraform: %v", err)
+					}
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "quota", "1073741824"),
+				),
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigWithQuota(name string, quota int) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket = "%s"
+  quota  = %d
+}
+`, name, quota)
+}
+
+// TestMinioReadBucket_quota pins the drift fix for issue #1334: the bucket
+// read picks up a quota changed outside Terraform, and leaves quota alone
+// when the bucket does not manage one.
+func TestMinioReadBucket_quota(t *testing.T) {
+	cases := []struct {
+		name      string
+		rawConfig map[string]interface{}
+		quotaJSON string
+		wantSet   bool
+		wantQuota string
+	}{
+		{
+			name:      "quota set in state is refreshed from the server",
+			rawConfig: map[string]interface{}{"bucket": "test-bucket", "quota": 1073741824},
+			quotaJSON: `{"size":5368709120,"quotatype":"hard"}`,
+			wantSet:   true,
+			wantQuota: "5368709120",
+		},
+		{
+			name:      "bucket without a managed quota keeps no quota in state",
+			rawConfig: map[string]interface{}{"bucket": "test-bucket"},
+			quotaJSON: `{"size":1048576,"quotatype":"hard"}`,
+			wantSet:   false,
+			wantQuota: "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if strings.Contains(r.URL.Path, "get-bucket-quota") {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = fmt.Fprint(w, tc.quotaJSON)
+					return
+				}
+				if r.URL.Query().Has("tagging") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotImplemented)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer srv.Close()
+
+			host := strings.TrimPrefix(srv.URL, "http://")
+
+			s3Client, err := minio.New(host, &minio.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+				Region: "us-east-1",
+			})
+			if err != nil {
+				t.Fatalf("creating S3 client: %v", err)
+			}
+
+			adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+				Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+				Secure: false,
+			})
+			if err != nil {
+				t.Fatalf("creating admin client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, tc.rawConfig)
+			d.SetId("test-bucket")
+
+			meta := &S3MinioClient{S3Client: s3Client, S3Admin: adminClient}
+			if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+				t.Fatalf("read returned diagnostics: %v", diags)
+			}
+
+			state := d.State()
+			if state == nil {
+				t.Fatal("expected non-nil state after read")
+			}
+			got, has := state.Attributes["quota"]
+			if has != tc.wantSet {
+				t.Fatalf("quota attribute present = %v, want %v", has, tc.wantSet)
+			}
+			if got != tc.wantQuota {
+				t.Errorf("state attribute quota = %q, want %q", got, tc.wantQuota)
+			}
+		})
+	}
+}
+
+// TestMinioReadBucket_quotaUnsupportedFallsThrough pins the s3_compat_mode
+// branch of the #1334 fix: a backend without the admin API answers the quota
+// read as not implemented, and the read must keep the quota as it is instead
+// of erroring. The tagging API call is recorded so the check that it is not
+// made is explicit: with s3_compat_mode the read skips tagging by design
+// (shouldSkipBucketTagging), so the fall-through reaches preserveBucketTagsState
+// and returns without touching the tagging API.
+func TestMinioReadBucket_quotaUnsupportedFallsThrough(t *testing.T) {
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>This operation is not implemented.</Message></Error>`
+
+	var mu sync.Mutex
+	var sawTagging bool
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "get-bucket-quota") {
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		if r.URL.Query().Has("tagging") {
+			mu.Lock()
+			sawTagging = true
+			mu.Unlock()
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	host := strings.TrimPrefix(srv.URL, "http://")
+
+	s3Client, err := minio.New(host, &minio.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+		Region: "us-east-1",
+	})
+	if err != nil {
+		t.Fatalf("creating S3 client: %v", err)
+	}
+
+	adminClient, err := madmin.NewWithOptions(host, &madmin.Options{
+		Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+		Secure: false,
+	})
+	if err != nil {
+		t.Fatalf("creating admin client: %v", err)
+	}
+
+	d := schema.TestResourceDataRaw(t, resourceMinioBucket().Schema, map[string]interface{}{
+		"bucket": "test-bucket",
+		"quota":  1073741824,
+	})
+	d.SetId("test-bucket")
+
+	meta := &S3MinioClient{S3Client: s3Client, S3Admin: adminClient, S3CompatMode: true}
+	if diags := minioReadBucket(context.Background(), d, meta); len(diags) > 0 {
+		t.Fatalf("read returned diagnostics: %v", diags)
+	}
+
+	state := d.State()
+	if state == nil {
+		t.Fatal("expected non-nil state after read")
+	}
+	if got := state.Attributes["quota"]; got != "1073741824" {
+		t.Errorf("state attribute quota = %q, want the state value %q", got, "1073741824")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if sawTagging {
+		t.Error("read called the tagging API; with s3_compat_mode the read must skip it (shouldSkipBucketTagging)")
 	}
 }

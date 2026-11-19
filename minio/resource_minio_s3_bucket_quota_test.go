@@ -46,6 +46,30 @@ func TestAccMinioS3BucketQuota_basic(t *testing.T) {
 	})
 }
 
+// TestAccMinioS3BucketQuota_bucketWithoutQuotaPlansEmpty pins the #1334 guard:
+// the bucket resource must not read back a quota it does not manage, or a
+// bucket paired with minio_s3_bucket_quota would show a diff on every plan.
+func TestAccMinioS3BucketQuota_bucketWithoutQuotaPlansEmpty(t *testing.T) {
+	bucketName := "tfacc-bucket-quota-pairing-" + acctest.RandString(8)
+	config := testAccMinioS3BucketQuotaConfig(bucketName, 1048576)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioBucketQuotaDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+			},
+			// Same config again: the plan must be empty, which fails if the
+			// bucket read picked up the quota managed by minio_s3_bucket_quota.
+			{
+				Config: config,
+			},
+		},
+	})
+}
+
 func testAccCheckMinioS3BucketQuotaExists(n string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]

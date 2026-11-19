@@ -27,7 +27,7 @@ func resourceMinioNotifyMysql() *schema.Resource {
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,
-				Description: "MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "MySQL DSN connection string (e.g., 'user:password@tcp(host:port)/database'). Stored on the server as the `dsn_string` key.",
 			},
 			"table": {
 				Type:        schema.TypeString,
@@ -52,7 +52,9 @@ func resourceMinioNotifyMysql() *schema.Resource {
 func buildNotifyMysqlCfg(d *schema.ResourceData, meta interface{}) string {
 	var parts []string
 
-	notifyBuildCfgAddParam(&parts, "connection_string", d.Get("connection_string").(string))
+	// MinIO's notify_mysql key for the DSN is dsn_string; the server drops a
+	// connection_string key, which left every target without a DSN.
+	notifyBuildCfgAddParam(&parts, "dsn_string", d.Get("connection_string").(string))
 	notifyBuildCfgAddParam(&parts, "table", d.Get("table").(string))
 	notifyBuildCfgAddParam(&parts, "format", d.Get("format").(string))
 	notifyBuildCfgAddInt(&parts, "max_open_connections", getOptionalField(d, "max_open_connections", 0).(int))
@@ -63,6 +65,9 @@ func buildNotifyMysqlCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyMysqlFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
+	if v, ok := cfgMap["dsn_string"]; ok {
+		_ = d.Set("connection_string", v)
+	}
 	if v, ok := cfgMap["table"]; ok {
 		_ = d.Set("table", v)
 	}

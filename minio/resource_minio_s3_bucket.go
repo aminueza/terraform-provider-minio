@@ -319,6 +319,64 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	_ = d.Set("arn", bucketArn(d.Id()))
 	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
 
+	// Read the bucket policy back and derive acl from it, so a policy removed
+	// or changed outside Terraform shows up as an acl diff instead of an empty plan.
+	// A bucket whose acl is private leaves the bucket policy to the resources that
+	// manage it (minio_s3_bucket_policy, minio_s3_bucket_anonymous_access), so a
+	// private bucket's read must not touch acl. That is the cost: a public policy
+	// added outside Terraform to such a bucket is not detected, because it cannot
+	// be told apart from one another resource manages. Likewise a public acl whose
+	// policy matches no canned shape keeps that policy, for the same reason.
+	// A non-private acl paired with a resource that writes a different canned
+	// shape (for example acl = "public" plus minio_s3_bucket_anonymous_access with
+	// access_type = "public-read") now shows a permanent diff, where the old read
+	// left it silently in place; the fix is to drop acl from the bucket. An
+	// import-state ResourceData reads acl as "" (schema defaults are not applied
+	// to the id-only state the SDK builds for import), so the importer's own
+	// GetBucketPolicy call — which tolerates backends without bucket policies,
+	// issue #1206 — must run before any policy read here.
+	if currentACL := d.Get("acl").(string); currentACL != "private" && currentACL != "" {
+		policy, unreadable, readDiags := readBucketPolicyText(ctx, meta.(*S3MinioClient), d, d.Id())
+		if readDiags.HasError() {
+			return readDiags
+		}
+		if !unreadable {
+			derivedACL, err := bucketACLFromPolicy(policy, d.Id(), currentACL)
+			if err != nil {
+				return NewResourceError("error deriving acl from bucket policy", d.Id(), err)
+			}
+			if derivedACL != currentACL {
+				if err := d.Set("acl", derivedACL); err != nil {
+					return NewResourceError("setting acl", d.Id(), err)
+				}
+			}
+		}
+	}
+
+	// Only read the quota back when the bucket itself manages one. A bucket
+	// whose quota is owned by minio_s3_bucket_quota has no quota in its state
+	// or configuration, and reading it here would start showing a diff the
+	// bucket cannot manage. See issue #1334.
+	if _, ok := d.GetOk("quota"); ok {
+		bucketQuota, err := bucketConfig.MinioAdmin.GetBucketQuota(ctx, d.Id())
+		if err != nil {
+			// An S3 backend that does not serve the admin API answers the read
+			// as unsupported: keep the quota as it is and read the rest of the
+			// bucket like the tags below.
+			if !s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket quota", err) {
+				return NewResourceError("reading bucket quota", d.Id(), err)
+			}
+		} else {
+			quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
+			if !ok {
+				return NewResourceError("reading bucket quota", d.Id(), fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
+			}
+			if err := d.Set("quota", int(quotaVal)); err != nil {
+				return NewResourceError("setting bucket quota", d.Id(), err)
+			}
+		}
+	}
+
 	if shouldSkipBucketTagging(bucketConfig) {
 		preserveBucketTagsState(d)
 		return nil
@@ -620,6 +678,68 @@ func removeRemainingObjectVersions(ctx context.Context, client *minio.Client, bu
 	}
 
 	return nil
+}
+
+// readBucketPolicyText returns the bucket policy held on the server. A missing
+// policy (NoSuchBucketPolicy or 404) reports an empty string. A backend that
+// answers the read with 501 or 405 is handled like every other resource through
+// s3CompatReadUnsupported: with s3_compat_mode on the caller keeps the state
+// value, without it the error surfaces (see issue #608). Credentials without
+// s3:GetBucketPolicy get AccessDenied; refresh worked for them before acl was
+// read back, so the caller keeps the state value there too.
+func readBucketPolicyText(ctx context.Context, compatClient *S3MinioClient, d *schema.ResourceData, bucket string) (policy string, unreadable bool, diags diag.Diagnostics) {
+	rawPolicy, err := compatClient.S3Client.GetBucketPolicy(ctx, bucket)
+	if err != nil {
+		errResp := minio.ToErrorResponse(err)
+		if errResp.Code == "NoSuchBucketPolicy" || errResp.StatusCode == http.StatusNotFound {
+			return "", false, nil
+		}
+		if s3CompatReadUnsupported(ctx, compatClient, s3Compat405IsMissingFeature, d, "bucket policy", err) {
+			return "", true, nil
+		}
+		if errResp.Code == "AccessDenied" || errResp.StatusCode == http.StatusForbidden {
+			tflog.Warn(ctx, fmt.Sprintf(
+				"access denied reading the policy of bucket %s; keeping acl in state with its last known value, so a policy changed outside Terraform is not detected. Grant s3:GetBucketPolicy to detect it.",
+				bucket,
+			))
+			return "", true, nil
+		}
+		return "", false, NewResourceError("error reading bucket policy", bucket, err)
+	}
+	return rawPolicy, false, nil
+}
+
+// bucketACLFromPolicy derives the acl attribute from the policy on the server
+// for a bucket whose acl is a canned public value. public and public-read-write
+// write the same policy shape, so the value already held is kept when it is one
+// of them; a missing policy is reported as private so the plan shows the drift
+// and the next apply puts the configured ACL back. A policy that matches no
+// canned shape is kept as-is: the read cannot tell it from a policy another
+// resource manages, and changing acl would make the bucket overwrite that
+// policy and the two keep fighting.
+func bucketACLFromPolicy(policy, bucket, currentACL string) (string, error) {
+	if policy == "" {
+		return "private", nil
+	}
+
+	accessType, err := getAccessTypeFromPolicy(policy, bucket)
+	if err != nil {
+		return "", err
+	}
+
+	switch accessType {
+	case "public-read":
+		return "public-read", nil
+	case "public-write":
+		return "public-write", nil
+	case "public":
+		if currentACL == "public" || currentACL == "public-read-write" {
+			return currentACL, nil
+		}
+		return "public", nil
+	default:
+		return currentACL, nil
+	}
 }
 
 func minioSetBucketACL(ctx context.Context, bucketConfig *S3MinioBucket) diag.Diagnostics {

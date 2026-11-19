@@ -84,6 +84,12 @@ output "minio_id" {
 
 - `id` (String) The ID of this resource.
 
+## Changes Made Outside Terraform
+
+On each plan, the provider compares the MD5 of the configured `content`, `content_base64` or `source` with the object's `etag`. When they differ, the plan shows a change and the next apply uploads the configured content again.
+
+The comparison only works when the object on the server was uploaded in a single part, because only then is its ETag the MD5 of the content. An object uploaded in several parts, or streamed with an unknown size, has an ETag with a `-N` suffix, and the check skips it. This includes the provider's own uploads, which are streamed. So an overwrite made outside Terraform is detected when it is a single-part upload (for example `mc cp` of a small file), and is not detected when it is a multipart upload (for example a large file).
+
 ## Import
 
 Import using `bucket_name/object_name`:

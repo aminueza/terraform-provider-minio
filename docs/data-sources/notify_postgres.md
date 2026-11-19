@@ -31,7 +31,7 @@ output "postgres_table" {
 ### Read-Only
 
 - `comment` (String) Comment or description for this notification target.
-- `connection_string` (String) PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `connection_string` (String, Sensitive) PostgreSQL connection string (e.g., 'host=localhost port=5432 dbname=minio user=minio password=secret sslmode=disable'). MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `format` (String) Output format for event records: 'namespace' or 'access'.
 - `id` (String) The ID of this resource.

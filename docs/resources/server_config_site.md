@@ -9,6 +9,10 @@ description: |-
 
 Manages the MinIO site configuration (site name and region). The site subsystem replaces the legacy region subsystem managed by `minio_server_config_region`; when `region` is set here it takes precedence over the legacy region for the region MinIO reports.
 
+**NOTE:** After the server restarts, the site region is the region MinIO checks S3 request signatures against. Set the provider's `minio_region` (and the region of every other S3 client) to the same value: with `region = "eu-west-1"` and `minio_region` still at `us-east-1`, every bucket and object call fails with `AuthorizationHeaderMalformed`, while admin calls keep working.
+
+**NOTE:** A change takes effect after a MinIO server restart, and the `restart_required` attribute says when one is pending. Until the restart, the resource keeps the configured values in state, so a change made outside Terraform in that window does not show up in the plan.
+
 ## Example Usage
 
 ```terraform

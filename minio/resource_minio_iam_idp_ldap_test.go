@@ -239,6 +239,56 @@ resource "minio_iam_idp_ldap" "test" {
 	})
 }
 
+// With LDAP disabled, MinIO accepts removing the bind DN and the user search
+// too, which it rejects while LDAP is enabled. See issue #1348.
+func TestAccMinioIAMIdpLdap_disabledSearchCleared(t *testing.T) {
+	resourceName := "minio_iam_idp_ldap.test"
+	serverAddr := os.Getenv("MINIO_LDAP_SERVER_ADDR")
+	disabledMinimal := fmt.Sprintf(`
+resource "minio_iam_idp_ldap" "test" {
+  server_addr     = %q
+  server_insecure = true
+  enable          = false
+}
+`, serverAddr)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccLDAPPreCheck(t); testAccCleanupIdpLdap(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMIdpLdapRemoved(),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioIAMIdpLdapBoolVariant(serverAddr, false, false, true, false),
+				Check: testAccCheckMinioIAMIdpLdapStored(map[string]string{
+					"lookup_bind_dn":        "cn=admin,dc=example,dc=com",
+					"user_dn_search_filter": "(cn=%s)",
+					"enable":                "off",
+				}),
+			},
+			{
+				Config: disabledMinimal,
+				Check: testAccCheckMinioIAMIdpLdapStored(map[string]string{
+					"lookup_bind_dn":         "",
+					"user_dn_search_base_dn": "",
+					"user_dn_search_filter":  "",
+					"group_search_base_dn":   "",
+					"group_search_filter":    "",
+					"enable":                 "off",
+				}),
+			},
+			{
+				Config: disabledMinimal,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "lookup_bind_dn", ""),
+					resource.TestCheckResourceAttr(resourceName, "user_dn_search_filter", ""),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "false"),
+				),
+			},
+			{Config: disabledMinimal, PlanOnly: true},
+		},
+	})
+}
+
 // testAccCheckMinioIAMIdpLdapStored restarts the primary server and fails
 // unless get-config-kv reports each key of want with that value.
 func testAccCheckMinioIAMIdpLdapStored(want map[string]string) resource.TestCheckFunc {
@@ -558,6 +608,20 @@ func TestIdpLdapRunningConfigMatchesState(t *testing.T) {
 			t.Errorf("expected the post-restart response with the cleared keys to match")
 		}
 	})
+
+	t.Run("cleared group search missing from the response matches", func(t *testing.T) {
+		if !idpLdapRunningConfigMatchesState(&cleared, map[string]string{
+			"server_addr":            "openldap:389",
+			"lookup_bind_dn":         "cn=admin,dc=example,dc=com",
+			"user_dn_search_base_dn": "ou=users,dc=example,dc=com",
+			"user_dn_search_filter":  "(cn=%s)",
+			"tls_skip_verify":        "off",
+			"server_insecure":        "on",
+			"server_starttls":        "off",
+		}) {
+			t.Errorf("expected a match: a key the server leaves out counts as empty")
+		}
+	})
 }
 
 func TestBuildIdpLdapCfgData(t *testing.T) {
@@ -594,9 +658,6 @@ func TestBuildIdpLdapCfgData(t *testing.T) {
 			contains: []string{`lookup_bind_dn="cn=Service Account,dc=example,dc=com"`},
 		},
 		{
-			// MinIO merges a write into the stored config, so an optional
-			// string the configuration removed must be sent empty to clear it
-			// on the server. See issue #1348.
 			name: "empty optional strings are sent empty",
 			config: S3MinioIdpLdap{
 				ServerAddr: "ldap.example.com:389",

@@ -204,14 +204,15 @@ func minioReadIdpLdap(ctx context.Context, d *schema.ResourceData, meta interfac
 // provider sends. lookup_bind_password is never printed by the server, so a
 // change to it alone cannot be seen here. enable is printed only when it is
 // off, so the check is whether the server reports enable=off exactly when the
-// config turns LDAP off.
+// config turns LDAP off. A key missing from the response counts as empty, so a
+// cleared key matches even on a server that leaves empty keys out.
 func idpLdapRunningConfigMatchesState(config *S3MinioIdpLdap, cfgMap map[string]string) bool {
 	intended := parseConfigParams(buildIdpLdapCfgData(config))
 	for key, want := range intended {
 		if key == "lookup_bind_password" || key == "enable" {
 			continue
 		}
-		if got, ok := cfgMap[key]; !ok || got != want {
+		if cfgMap[key] != want {
 			return false
 		}
 	}

@@ -38,7 +38,8 @@ resource "minio_logger_webhook" "splunk" {
 - `enable` (Boolean) Whether this notification target is enabled.
 - `proxy` (String) Proxy URL for the webhook endpoint.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
-- `queue_limit` (Number) Maximum number of undelivered messages to queue.
+- `queue_limit` (Number, Deprecated) Deprecated: use 'queue_size' instead.
+- `queue_size` (Number) Maximum number of undelivered events to queue.
 
 ### Read-Only
 

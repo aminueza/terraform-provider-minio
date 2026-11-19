@@ -10,6 +10,13 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_server_config_compression`: manages the `compression` subsystem,
+  which controls transparent object compression. The fields map the
+  subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`
+  and `comment` ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
+
 ### Fixed
 
 - `minio_notify_mysql` writes the connection string to the server. The

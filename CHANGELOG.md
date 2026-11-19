@@ -35,6 +35,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_idp_ldap` keeps its planned values in state while MinIO needs a
+  restart to apply a change. The read right after a write loaded the
+  pre-restart config back, so `server_addr` ended up empty in the state and
+  `server_insecure`, `tls_skip_verify` and `starttls` false, while `enable`
+  was not affected, and the plan that followed a successful apply showed
+  the same change again. `restart_required` now clears on its own once the
+  server reports the configured values
+  ([#1318](https://github.com/aminueza/terraform-provider-minio/issues/1318)).
 - `minio_s3_bucket` reads the bucket quota back from the server, so a quota
   changed or cleared outside Terraform shows up in the plan and the next
   apply puts the configured value back. A bucket whose quota is managed by

@@ -180,7 +180,7 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if v, ok := cfgMap["client_cert"]; ok && v != "" {
+	if v, ok := cfgMap["client_cert"]; ok {
 		if setErr := d.Set("client_cert", v); setErr != nil {
 			return NewResourceError("setting client_cert", name, setErr)
 		}
@@ -195,6 +195,9 @@ func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	tflog.Debug(ctx, fmt.Sprintf("Updating audit webhook: %s", config.Name))
 
 	cfgData := buildAuditWebhookCfgData(config)
+	for _, key := range auditWebhookClearedKeys(d) {
+		cfgData += " " + key + "="
+	}
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, configString)
 	if err != nil {
@@ -232,6 +235,20 @@ func minioDeleteAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	tflog.Debug(ctx, fmt.Sprintf("Deleted audit webhook: %s", name))
 
 	return nil
+}
+
+// auditWebhookClearedKeys lists the optional strings that were removed from
+// the configuration. MinIO merges set-config-kv into the target's current
+// settings, so a key that is left out keeps its old value; these are sent as
+// an empty key= instead.
+func auditWebhookClearedKeys(d *schema.ResourceData) []string {
+	var keys []string
+	for _, key := range []string{"auth_token", "client_cert", "client_key"} {
+		if d.HasChange(key) && d.Get(key).(string) == "" {
+			keys = append(keys, key)
+		}
+	}
+	return keys
 }
 
 func buildAuditWebhookCfgData(config *S3MinioAuditWebhook) string {

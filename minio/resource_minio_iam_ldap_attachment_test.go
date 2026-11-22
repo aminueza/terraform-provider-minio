@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
@@ -69,6 +70,87 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 	})
 }
 
+// The user and the group share the policy, so MinIO keeps listing it for the
+// queried policy after one of them loses it. Read has to notice anyway.
+func TestAccMinioIAMLDAPPolicyAttachment_detachedOutsideTerraform(t *testing.T) {
+	userDN := os.Getenv("MINIO_LDAP_TEST_USER_DN")
+	groupDN := os.Getenv("MINIO_LDAP_TEST_GROUP_DN")
+	policyName := "writeonly"
+	config := testAccLDAPUserPolicyAttachmentConfig(userDN, policyName) + testAccLDAPGroupPolicyAttachmentConfig(groupDN, policyName)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccLDAPAttachmentPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckLDAPUserPolicyAttachmentDestroy,
+			testAccCheckLDAPGroupPolicyAttachmentDestroy,
+		),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+			},
+			{
+				PreConfig: func() {
+					testAccDetachLDAPPolicy(t, madmin.PolicyAssociationReq{Policies: []string{policyName}, User: userDN})
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check:  testAccCheckLDAPPolicyAttached(userDN, "", policyName),
+			},
+			{
+				PreConfig: func() {
+					testAccDetachLDAPPolicy(t, madmin.PolicyAssociationReq{Policies: []string{policyName}, Group: groupDN})
+				},
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check:  testAccCheckLDAPPolicyAttached("", groupDN, policyName),
+			},
+		},
+	})
+}
+
+func testAccDetachLDAPPolicy(t *testing.T, req madmin.PolicyAssociationReq) {
+	t.Helper()
+	ldap, err := testAccLdapClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ldap.S3Admin.DetachPolicyLDAP(context.Background(), req); err != nil {
+		t.Fatalf("detaching %v outside Terraform: %v", req, err)
+	}
+}
+
+func testAccCheckLDAPPolicyAttached(userDN, groupDN, policyName string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		ldap, err := testAccLdapClient()
+		if err != nil {
+			return err
+		}
+		var policies []string
+		var diags diag.Diagnostics
+		if userDN != "" {
+			policies, diags = minioReadLDAPUserPolicies(context.Background(), ldap.S3Admin, userDN)
+		} else {
+			policies, diags = minioReadLDAPGroupPolicies(context.Background(), ldap.S3Admin, groupDN)
+		}
+		if diags.HasError() {
+			return fmt.Errorf("reading policies of %s%s: %v", userDN, groupDN, diags)
+		}
+		if !Contains(policies, policyName) {
+			return fmt.Errorf("%s%s has policies %v, want %s attached again", userDN, groupDN, policies, policyName)
+		}
+		return nil
+	}
+}
+
 func testAccCheckLDAPUserPolicyAttachmentDestroy(s *terraform.State) error {
 	ldap, err := testAccLdapClient()
 	if err != nil {
@@ -84,14 +166,11 @@ func testAccCheckLDAPUserPolicyAttachmentDestroy(s *terraform.State) error {
 		userDN := rs.Primary.Attributes["user_dn"]
 		policyName := rs.Primary.Attributes["policy_name"]
 
-		per, err := client.GetLDAPPolicyEntities(context.Background(), madmin.PolicyEntitiesQuery{
-			Policy: []string{policyName},
-			Users:  []string{userDN},
-		})
-		if err != nil {
-			continue
+		policies, diags := minioReadLDAPUserPolicies(context.Background(), client, userDN)
+		if diags.HasError() {
+			return fmt.Errorf("reading policies of %s: %v", userDN, diags)
 		}
-		if len(per.PolicyMappings) > 0 {
+		if Contains(policies, policyName) {
 			return fmt.Errorf("LDAP user policy attachment %s/%s still exists", userDN, policyName)
 		}
 	}
@@ -114,14 +193,11 @@ func testAccCheckLDAPGroupPolicyAttachmentDestroy(s *terraform.State) error {
 		groupDN := rs.Primary.Attributes["group_dn"]
 		policyName := rs.Primary.Attributes["policy_name"]
 
-		per, err := client.GetLDAPPolicyEntities(context.Background(), madmin.PolicyEntitiesQuery{
-			Policy: []string{policyName},
-			Groups: []string{groupDN},
-		})
-		if err != nil {
-			continue
+		policies, diags := minioReadLDAPGroupPolicies(context.Background(), client, groupDN)
+		if diags.HasError() {
+			return fmt.Errorf("reading policies of %s: %v", groupDN, diags)
 		}
-		if len(per.PolicyMappings) > 0 {
+		if Contains(policies, policyName) {
 			return fmt.Errorf("LDAP group policy attachment %s/%s still exists", groupDN, policyName)
 		}
 	}

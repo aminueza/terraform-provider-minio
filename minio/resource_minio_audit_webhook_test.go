@@ -191,6 +191,38 @@ func testAccEnableAuditWebhookOutsideTerraform(t *testing.T, name string) {
 	}
 }
 
+func TestAccMinioAuditWebhook_removeCredentials(t *testing.T) {
+	resourceName := "minio_audit_webhook.test"
+	name := "tfacc-" + acctest.RandString(6)
+
+	// Sequential on purpose: the server check restarts the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioAuditWebhookDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioAuditWebhookWithCredentials(name),
+				Check:  resource.TestCheckResourceAttr(resourceName, "client_cert", "/srv/tls/client-cert"),
+			},
+			{
+				Config: testAccMinioAuditWebhookBasic(name),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "client_cert", ""),
+					// get-config-kv leaves out an auth_token that is set and
+					// prints it empty once it is cleared.
+					testAccCheckServerStoredTarget("audit_webhook", name, map[string]string{
+						"auth_token":  "",
+						"client_cert": "",
+						"client_key":  "",
+					}),
+				),
+			},
+		},
+	})
+}
+
 func TestAccMinioAuditWebhook_update(t *testing.T) {
 	resourceName := "minio_audit_webhook.test"
 	name := "tfacc-" + acctest.RandString(6)
@@ -275,4 +307,17 @@ resource "minio_audit_webhook" "test" {
   batch_size = %[3]d
 }
 `, name, queueSize, batchSize)
+}
+
+func testAccMinioAuditWebhookWithCredentials(name string) string {
+	return fmt.Sprintf(`
+resource "minio_audit_webhook" "test" {
+  name        = %[1]q
+  endpoint    = "http://audit.example.com/ingest"
+  enable      = false
+  auth_token  = "Bearer tfacc"
+  client_cert = "/srv/tls/client-cert"
+  client_key  = "/srv/tls/client-privkey"
+}
+`, name)
 }

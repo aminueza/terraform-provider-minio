@@ -95,6 +95,8 @@ func doMinioReadLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		return diags
 	}
 
+	tflog.Debug(ctx, fmt.Sprintf("'%s' user policies: %v", userDN, policies))
+
 	if !Contains(policies, policyName) {
 		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")

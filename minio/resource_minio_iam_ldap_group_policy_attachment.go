@@ -95,6 +95,8 @@ func doMinioReadLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		return diags
 	}
 
+	tflog.Debug(ctx, fmt.Sprintf("'%s' group policies: %v", groupDN, policies))
+
 	if !Contains(policies, policyName) {
 		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")

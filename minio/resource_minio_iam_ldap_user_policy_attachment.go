@@ -90,17 +90,12 @@ func minioReadLDAPUserPolicyAttachment(ctx context.Context, d *schema.ResourceDa
 func doMinioReadLDAPUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}, userDN, policyName string) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
-	per, err := minioAdmin.GetLDAPPolicyEntities(ctx, madmin.PolicyEntitiesQuery{
-		Policy: []string{policyName},
-		Users:  []string{userDN},
-	})
-
-	if err != nil {
-		return NewResourceError(fmt.Sprintf("Failed to query for user policy '%s'", policyName), userDN, err)
+	policies, diags := minioReadLDAPUserPolicies(ctx, minioAdmin, userDN)
+	if diags != nil {
+		return diags
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("PolicyEntityResponse: %v", per))
-	if len(per.PolicyMappings) == 0 {
+	if !Contains(policies, policyName) {
 		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil

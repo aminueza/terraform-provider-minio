@@ -42,6 +42,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment` read the policies of their own
+  user or group. They used to check whether any LDAP user or group had the
+  policy, so a policy detached outside Terraform stayed in the state as long
+  as some other entity still had it, and the next apply did not attach it
+  again.
 - `minio_notify_amqp` and `minio_notify_elasticsearch` read `url` back from
   the server, and `minio_notify_postgres` reads `connection_string`, so a
   change made outside Terraform shows up in the plan and the next apply puts

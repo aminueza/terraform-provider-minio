@@ -90,17 +90,12 @@ func minioReadLDAPGroupPolicyAttachment(ctx context.Context, d *schema.ResourceD
 func doMinioReadLDAPGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}, groupDN, policyName string) diag.Diagnostics {
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 
-	per, err := minioAdmin.GetLDAPPolicyEntities(ctx, madmin.PolicyEntitiesQuery{
-		Policy: []string{policyName},
-		Groups: []string{groupDN},
-	})
-
-	if err != nil {
-		return NewResourceError(fmt.Sprintf("Failed to query for group policy '%s'", policyName), groupDN, err)
+	policies, diags := minioReadLDAPGroupPolicies(ctx, minioAdmin, groupDN)
+	if diags != nil {
+		return diags
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("PolicyEntityResponse: %v", per))
-	if len(per.PolicyMappings) == 0 {
+	if !Contains(policies, policyName) {
 		tflog.Warn(ctx, fmt.Sprintf("No such policy association (%s) found, removing from state", d.Id()))
 		d.SetId("")
 		return nil

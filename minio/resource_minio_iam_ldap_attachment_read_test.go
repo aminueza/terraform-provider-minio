@@ -79,6 +79,7 @@ func TestLDAPPolicyAttachmentReadChecksTheEntity(t *testing.T) {
 	const (
 		alice = "cn=alice,ou=users,dc=example,dc=com"
 		bob   = "cn=bob,ou=users,dc=example,dc=com"
+		carol = "cn=carol,ou=users,dc=example,dc=com"
 		devs  = "cn=devs,ou=groups,dc=example,dc=com"
 		ops   = "cn=ops,ou=groups,dc=example,dc=com"
 	)
@@ -102,6 +103,11 @@ func TestLDAPPolicyAttachmentReadChecksTheEntity(t *testing.T) {
 		{
 			name:     "user detached while another user keeps the policy",
 			res:      func() *terraform.InstanceState { return ldapAttachmentState("user_dn", bob, "readonly") },
+			wantGone: true,
+		},
+		{
+			name:     "user without any mapping while another user keeps the policy",
+			res:      func() *terraform.InstanceState { return ldapAttachmentState("user_dn", carol, "readonly") },
 			wantGone: true,
 		},
 		{

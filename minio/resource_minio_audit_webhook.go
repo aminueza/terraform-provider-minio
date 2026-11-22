@@ -248,6 +248,12 @@ func auditWebhookClearedKeys(d *schema.ResourceData) []string {
 			keys = append(keys, key)
 		}
 	}
+	// MinIO only accepts client_cert and client_key as a pair, and Read does
+	// not store client_key, so an imported key is not in the state: removing
+	// the certificate clears the key with it.
+	if Contains(keys, "client_cert") && !Contains(keys, "client_key") && d.Get("client_key").(string) == "" {
+		keys = append(keys, "client_key")
+	}
 	return keys
 }
 

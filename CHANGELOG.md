@@ -46,7 +46,9 @@ History older than 3.39.0 lives in the
   `minio_audit_webhook` clears it on the server. MinIO merges a config update
   into the target's current settings, so the old value stayed: audit events
   kept going out with the old token or certificate, and a removed
-  `client_cert` came back on every plan. Read also picks up a client
+  `client_cert` came back on every plan. Removing `client_cert` also clears a
+  `client_key` that is not in the configuration, such as an imported one,
+  since MinIO only accepts the two as a pair. Read also picks up a client
   certificate cleared outside Terraform.
 - `minio_notify_amqp` and `minio_notify_elasticsearch` read `url` back from
   the server, and `minio_notify_postgres` reads `connection_string`, so a

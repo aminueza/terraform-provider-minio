@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"io"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -45,7 +46,7 @@ func dataSourceMinioS3Object() *schema.Resource {
 			"expires": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "The  date and time at which the object is no longer able to be cached",
+				Description: "The date and time, in RFC3339 format, at which the object is no longer able to be cached",
 			},
 			"expiration_rule_id": {
 				Type:        schema.TypeString,
@@ -60,7 +61,7 @@ func dataSourceMinioS3Object() *schema.Resource {
 			"last_modified": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "The last modified time of the object",
+				Description: "The last modified time of the object in RFC3339 format",
 			},
 			"owner": {
 				Type:     schema.TypeMap,
@@ -157,21 +158,38 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 		"id":           objectInfo.Owner.ID,
 	}
 
-	_ = d.Set("content_type", objectInfo.ContentType)
-	_ = d.Set("content", string(objectContent))
-	_ = d.Set("etag", objectInfo.ETag)
-	_ = d.Set("expires", objectInfo.Expires)
-	_ = d.Set("expiration_rule_id", objectInfo.ExpirationRuleID)
-	_ = d.Set("is_latest", objectInfo.IsLatest)
-	_ = d.Set("last_modified", objectInfo.LastModified)
-	_ = d.Set("owner", owner)
-	_ = d.Set("size", objectInfo.Size)
-	_ = d.Set("storage_class", objectInfo.StorageClass)
-	_ = d.Set("version_id", objectInfo.VersionID)
-	_ = d.Set("checksum_crc32", objectInfo.ChecksumCRC32)
-	_ = d.Set("checksum_crc32c", objectInfo.ChecksumCRC32C)
-	_ = d.Set("checksum_sha1", objectInfo.ChecksumSHA1)
-	_ = d.Set("checksum_sha256", objectInfo.ChecksumSHA256)
+	fields := []struct {
+		key string
+		val interface{}
+	}{
+		{"content_type", objectInfo.ContentType},
+		{"content", string(objectContent)},
+		{"etag", objectInfo.ETag},
+		{"expires", formatOptionalRFC3339(objectInfo.Expires)},
+		{"expiration_rule_id", objectInfo.ExpirationRuleID},
+		{"is_latest", objectInfo.IsLatest},
+		{"last_modified", formatOptionalRFC3339(objectInfo.LastModified)},
+		{"owner", owner},
+		{"size", objectInfo.Size},
+		{"storage_class", objectInfo.StorageClass},
+		{"version_id", objectInfo.VersionID},
+		{"checksum_crc32", objectInfo.ChecksumCRC32},
+		{"checksum_crc32c", objectInfo.ChecksumCRC32C},
+		{"checksum_sha1", objectInfo.ChecksumSHA1},
+		{"checksum_sha256", objectInfo.ChecksumSHA256},
+	}
+	for _, field := range fields {
+		if err := d.Set(field.key, field.val); err != nil {
+			return NewResourceError("setting "+field.key, d.Id(), err)
+		}
+	}
 
 	return diags
+}
+
+func formatOptionalRFC3339(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
 }

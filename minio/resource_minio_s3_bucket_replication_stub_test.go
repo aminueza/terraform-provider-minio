@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -86,5 +87,81 @@ func TestPutBucketReplicationKeepsIDWhenStaleTargetRemovalFails(t *testing.T) {
 	}
 	if d.Id() != "source" {
 		t.Fatalf("resource ID = %q, want %q so the written configuration stays in state", d.Id(), "source")
+	}
+}
+
+func newReplicationStubClient(t *testing.T, handler http.HandlerFunc) *S3MinioClient {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	host := strings.TrimPrefix(srv.URL, "http://")
+	creds := credentials.NewStaticV4("accesskey", "secretkey", "")
+	s3Client, err := minio.New(host, &minio.Options{Creds: creds, Secure: false, Region: "us-east-1"})
+	if err != nil {
+		t.Fatalf("creating the S3 client: %v", err)
+	}
+	admin, err := madmin.NewWithOptions(host, &madmin.Options{Creds: creds, Secure: false})
+	if err != nil {
+		t.Fatalf("creating the admin client: %v", err)
+	}
+	return &S3MinioClient{S3Client: s3Client, S3Admin: admin}
+}
+
+func TestBucketReplicationRuleSchemaRequired(t *testing.T) {
+	res := resourceMinioBucketReplication()
+	ruleSchema := res.Schema["rule"]
+	if !ruleSchema.Required {
+		t.Fatal(`Schema["rule"].Required = false, want true`)
+	}
+	if ruleSchema.MinItems != 1 {
+		t.Fatalf(`Schema["rule"].MinItems = %d, want 1`, ruleSchema.MinItems)
+	}
+	if diags := res.Validate(terraform.NewResourceConfigRaw(map[string]interface{}{"bucket": "source"})); !diags.HasError() {
+		t.Fatal("expected config validation error when rule block is omitted, got nil")
+	}
+}
+
+func TestPutBucketReplicationErrorsWithoutRules(t *testing.T) {
+	meta := newReplicationStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Fatalf("unexpected request %s %s when no rules are configured", r.Method, r.URL.String())
+	})
+
+	d := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	diags := minioPutBucketReplication(context.Background(), d, meta)
+	if !diags.HasError() {
+		t.Fatal("expected minioPutBucketReplication to return an error when no rules are provided")
+	}
+	if d.Id() != "" {
+		t.Fatalf("resource ID = %q, want empty on error", d.Id())
+	}
+}
+
+func TestReadAndDeleteBucketReplicationDropMissingBucket(t *testing.T) {
+	meta := newReplicationStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><Resource>/source</Resource></Error>`)
+	})
+
+	dRead := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	dRead.SetId("source")
+	if diags := minioReadBucketReplication(context.Background(), dRead, meta); diags.HasError() {
+		t.Fatalf("minioReadBucketReplication returned unexpected error on NoSuchBucket: %v", diags)
+	}
+	if dRead.Id() != "" {
+		t.Fatalf("minioReadBucketReplication kept ID %q, want empty after NoSuchBucket", dRead.Id())
+	}
+
+	dDel := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	dDel.SetId("source")
+	if diags := minioDeleteBucketReplication(context.Background(), dDel, meta); diags.HasError() {
+		t.Fatalf("minioDeleteBucketReplication returned unexpected error on NoSuchBucket: %v", diags)
 	}
 }

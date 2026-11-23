@@ -56,6 +56,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_replication` now requires at least one `rule` block at plan
+  time (`Insufficient rule blocks`) instead of letting `create` fail with an
+  inconsistent result or leaving stale rules behind when all `rule` blocks are
+  removed, and `minioPutBucketReplication` returns an error if called with no
+  rules. Read and delete also treat `NoSuchBucket` as already removed, so
+  deleting the source bucket outside Terraform plans a recreation instead of
+  failing every plan and destroy
+  ([#1380](https://github.com/aminueza/terraform-provider-minio/issues/1380)).
 - `minio_iam_group_user_attachment`, `minio_iam_group_policy_attachment` and
   `minio_iam_user_group_membership` drop the attachment or membership from state
   when their group or user is deleted outside Terraform

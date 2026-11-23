@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -50,6 +51,13 @@ func TestAccMinioGroupMembership_basic(t *testing.T) {
 					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
 					testAccCheckMinioGroupMembershipAttributes(&group, groupName, []string{userName3}),
 				),
+			},
+			{
+				ResourceName:            "minio_iam_group_membership.team",
+				ImportState:             true,
+				ImportStateId:           groupName,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"name"},
 			},
 		},
 	})
@@ -504,4 +512,162 @@ resource "minio_iam_group_membership" "team" {
 	}
 
 	return b.String()
+}
+
+func TestAccMinioGroupMembership_importLifecycle(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-gm-imp-%s", rString)
+	missingGroupName := fmt.Sprintf("tf-acc-group-gm-missing-%s", rString)
+	userName := fmt.Sprintf("tf-acc-user-gm-imp-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-policy-gm-imp-%s", rString)
+	membershipName := fmt.Sprintf("tf-acc-membership-gm-imp-%s", rString)
+	updatedMembershipName := fmt.Sprintf("tf-acc-membership-gm-imp-upd-%s", rString)
+
+	var group madmin.GroupDesc
+	baseOnly := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, true, false)
+	withMembership := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, true, true)
+	renamedMembership := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, updatedMembershipName, true, true)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupMembershipDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: baseOnly,
+				Check:  testAccCheckMinioGroupMembershipState(groupName, policyName, []string{}),
+			},
+			{
+				Config:        withMembership,
+				ResourceName:  "minio_iam_group_membership.team",
+				ImportState:   true,
+				ImportStateId: missingGroupName,
+				ExpectError:   regexp.MustCompile("Cannot import non-existent remote object"),
+			},
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
+						Group:    groupName,
+						Members:  []string{userName},
+						IsRemove: false,
+					}); err != nil {
+						t.Fatalf("adding user %s to group %s outside Terraform: %v", userName, groupName, err)
+					}
+					deadline := time.Now().Add(5 * time.Second)
+					for time.Now().Before(deadline) {
+						desc, err := admin.GetGroupDescription(ctx, groupName)
+						if err == nil && slices.Contains(desc.Members, userName) {
+							return
+						}
+						time.Sleep(200 * time.Millisecond)
+					}
+					t.Fatalf("group %s did not receive member %s before import", groupName, userName)
+				},
+				Config:             withMembership,
+				ResourceName:       "minio_iam_group_membership.team",
+				ImportState:        true,
+				ImportStateId:      groupName,
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					for _, is := range states {
+						if is.Ephemeral.Type != "minio_iam_group_membership" {
+							continue
+						}
+						if is.ID != groupName {
+							return fmt.Errorf("expected imported id %q, got %q", groupName, is.ID)
+						}
+						if got := is.Attributes["group"]; got != groupName {
+							return fmt.Errorf("expected imported group %q, got %q", groupName, got)
+						}
+						if got := is.Attributes["name"]; got != "" {
+							return fmt.Errorf("expected imported name to be empty, got %q", got)
+						}
+						return nil
+					}
+					return fmt.Errorf("imported minio_iam_group_membership resource missing from state")
+				},
+			},
+			{
+				// Applying after import sets `name` in state in-place without replacing
+				// the membership; replacement would delete the group's only member and
+				// cause MinIO to drop the attached policy.
+				Config: withMembership,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					testAccCheckMinioGroupMembershipState(groupName, policyName, []string{userName}),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "id", groupName),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "name", membershipName),
+				),
+			},
+			{
+				Config: renamedMembership,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					testAccCheckMinioGroupMembershipState(groupName, policyName, []string{userName}),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "id", groupName),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "name", updatedMembershipName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioGroupMembership_upgradeFromLegacyStateID(t *testing.T) {
+	t.Setenv("TF_ACC_PROVIDER_NAMESPACE", "aminueza")
+
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-gm-upg-%s", rString)
+	userName := fmt.Sprintf("tf-acc-user-gm-upg-%s", rString)
+	membershipName := fmt.Sprintf("tf-acc-membership-gm-upg-%s", rString)
+
+	var group madmin.GroupDesc
+	legacyCfg := testAccMinioGroupMemberConfig(groupName, userName, membershipName)
+	upgradedCfg := fmt.Sprintf(`
+terraform {
+  required_providers {
+    minio = {
+      source = "aminueza/minio"
+    }
+  }
+}
+
+provider "minio" {}
+%s`, legacyCfg)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioGroupMembershipDestroy,
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: legacyCfg,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "id", membershipName),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             upgradedCfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            upgradedCfg,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "id", groupName),
+					resource.TestCheckResourceAttr("minio_iam_group_membership.team", "name", membershipName),
+				),
+			},
+		},
+	})
 }

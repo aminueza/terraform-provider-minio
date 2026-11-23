@@ -19,7 +19,7 @@ func resourceMinioIAMGroupMembership() *schema.Resource {
 		UpdateContext: minioUpdateGroupMembership,
 		DeleteContext: minioDeleteGroupMembership,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: minioImportGroupMembership,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -27,7 +27,6 @@ func resourceMinioIAMGroupMembership() *schema.Resource {
 				Type:        schema.TypeString,
 				Description: "Name of group membership",
 				Required:    true,
-				ForceNew:    true,
 			},
 			"users": {
 				Type:        schema.TypeSet,
@@ -60,7 +59,7 @@ func minioCreateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("error adding user(s) to group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
-	d.SetId(iamGroupMembershipConfig.MinioIAMName)
+	d.SetId(iamGroupMembershipConfig.MinioIAMGroup)
 
 	return minioReadGroupMembership(ctx, d, meta)
 }
@@ -109,29 +108,50 @@ func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 
 func minioReadGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
-
-	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
-	if err != nil {
-		if strings.Contains(err.Error(), "not exist") {
-			tflog.Warn(ctx, fmt.Sprintf("No IAM group by name (%s) found, removing from state", d.Id()))
-			d.SetId("")
-			return nil
-		}
-		return NewResourceError("error reading IAM Group", d.Id(), err)
+	groupName := iamGroupMembershipConfig.MinioIAMGroup
+	if groupName == "" {
+		groupName = d.Id()
 	}
-
-	if groupDesc.Name == "" {
+	if groupName == "" {
+		d.SetId("")
 		return nil
 	}
 
-	if err := d.Set("users", groupDesc.Members); err != nil {
-		return NewResourceError("error reading IAM Group", d.Id(), err)
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, groupName)
+	if err != nil {
+		if isGroupMembershipGroupMissing(err) || strings.Contains(err.Error(), "group does not exist") {
+			tflog.Warn(ctx, fmt.Sprintf("No IAM group by name (%s) found, removing from state", groupName))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("error reading IAM Group", groupName, err)
+	}
+	if groupDesc == nil {
+		return NewResourceError("error reading IAM Group", groupName, errors.New("empty group description"))
 	}
 
-	d.SetId(iamGroupMembershipConfig.MinioIAMName)
+	if err := d.Set("group", groupName); err != nil {
+		return NewResourceError("error reading IAM Group", groupName, err)
+	}
+	if err := d.Set("users", groupDesc.Members); err != nil {
+		return NewResourceError("error reading IAM Group", groupName, err)
+	}
+
+	d.SetId(groupName)
 
 	return nil
 
+}
+
+func minioImportGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
+	groupName := d.Id()
+	if groupName == "" {
+		return nil, fmt.Errorf("cannot import IAM group membership: group name is empty")
+	}
+	if err := d.Set("group", groupName); err != nil {
+		return nil, errors.New(NewResourceErrorStr("importing IAM group membership", groupName, err))
+	}
+	return []*schema.ResourceData{d}, nil
 }
 
 func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

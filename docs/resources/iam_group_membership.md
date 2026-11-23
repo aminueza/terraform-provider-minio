@@ -7,6 +7,10 @@ description: |-
 
 # minio_iam_group_membership (Resource)
 
+`users` is the complete membership of the group: members added outside this
+resource are removed on the next apply. Manage each group with exactly one
+`minio_iam_group_membership`; for per-user management use
+`minio_iam_group_user_attachment`.
 
 
 ## Example Usage
@@ -69,3 +73,8 @@ Import is supported using the following syntax:
 # IAM group memberships can be imported using the group name
 terraform import minio_iam_group_membership.example group-name
 ```
+
+Because `name` is a Terraform-only label and is not stored by MinIO, it is not
+populated during import. Adding `name` in your configuration after importing
+plans an in-place state update on the first apply without modifying or
+replacing the group membership on MinIO.

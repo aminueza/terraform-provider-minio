@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -50,24 +49,6 @@ func resourceMinioObjectLegalHold() *schema.Resource {
 	}
 }
 
-func legalHoldID(bucket, key, versionID string) string {
-	id := fmt.Sprintf("%s/%s", bucket, key)
-	if versionID != "" {
-		id += "#" + versionID
-	}
-	return id
-}
-
-func parseLegalHoldID(id string) (bucket, key, versionID string) {
-	rest := id
-	if idx := strings.LastIndex(id, "#"); idx != -1 {
-		rest = id[:idx]
-		versionID = id[idx+1:]
-	}
-	bucket, key = parseBucketAndKeyFromID(rest)
-	return bucket, key, versionID
-}
-
 func minioCreateObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	cfg := ObjectLegalHoldConfig(d, meta)
 
@@ -83,7 +64,7 @@ func minioCreateObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("creating object legal hold", fmt.Sprintf("%s/%s", cfg.MinioBucket, cfg.MinioObjectKey), s3CompatWriteError(meta.(*S3MinioClient), "object legal hold", err))
 	}
 
-	d.SetId(legalHoldID(cfg.MinioBucket, cfg.MinioObjectKey, cfg.MinioVersionID))
+	d.SetId(objectVersionID(cfg.MinioBucket, cfg.MinioObjectKey, cfg.MinioVersionID))
 	return minioReadObjectLegalHold(ctx, d, meta)
 }
 
@@ -93,8 +74,13 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 	versionID := d.Get("version_id").(string)
 
 	// On import, attributes are empty — parse them from the ID.
-	if bucket == "" || objectKey == "" {
-		bucket, objectKey, versionID = parseLegalHoldID(d.Id())
+	parsedFromID := bucket == "" || objectKey == ""
+	if parsedFromID {
+		var err error
+		bucket, objectKey, versionID, err = parseObjectVersionID(d.Id())
+		if err != nil {
+			return NewResourceError("parsing object legal hold import ID", d.Id(), err)
+		}
 	}
 
 	client := meta.(*S3MinioClient).S3Client
@@ -109,21 +95,21 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 			return nil
 		}
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) {
-			switch minioErr.Code {
-			case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
-				tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing from state", bucket, objectKey))
-				d.SetId("")
-				return nil
-			case "InvalidRequest":
-				if strings.Contains(minioErr.Message, "ObjectLockConfiguration") {
-					tflog.Warn(ctx, fmt.Sprintf("Bucket %s missing object lock config, removing from state", bucket))
-					d.SetId("")
-					return nil
-				}
-			}
+		if !errors.As(err, &minioErr) {
+			return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), objectVersionImportHint(err, parsedFromID))
 		}
-		return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), err)
+		if objectLockReadGone(minioErr) {
+			tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing from state", bucket, objectKey))
+			d.SetId("")
+			return nil
+		}
+		if minioErr.Code != "NoSuchObjectLockConfiguration" {
+			return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), objectVersionImportHint(err, parsedFromID))
+		}
+		// MinIO answers NoSuchObjectLockConfiguration for an object that never
+		// had a legal hold. The effective status is OFF, not a failed read, so
+		// an import of that object records the status instead of erroring.
+		status = nil
 	}
 
 	if err := d.Set("bucket", bucket); err != nil {
@@ -175,7 +161,11 @@ func minioDeleteObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 	versionID := d.Get("version_id").(string)
 
 	if bucket == "" || objectKey == "" {
-		bucket, objectKey, versionID = parseLegalHoldID(d.Id())
+		var err error
+		bucket, objectKey, versionID, err = parseObjectVersionID(d.Id())
+		if err != nil {
+			return NewResourceError("parsing object legal hold import ID", d.Id(), err)
+		}
 	}
 
 	client := meta.(*S3MinioClient).S3Client
@@ -190,15 +180,8 @@ func minioDeleteObjectLegalHold(ctx context.Context, d *schema.ResourceData, met
 
 	if err := client.PutObjectLegalHold(ctx, bucket, objectKey, opts); err != nil {
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) {
-			switch minioErr.Code {
-			case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
-				return nil
-			case "InvalidRequest":
-				if strings.Contains(minioErr.Message, "ObjectLockConfiguration") {
-					return nil
-				}
-			}
+		if errors.As(err, &minioErr) && objectLockReadGone(minioErr) {
+			return nil
 		}
 		return NewResourceError("deleting object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), err)
 	}

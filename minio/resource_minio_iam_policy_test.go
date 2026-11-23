@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -494,4 +495,66 @@ EOT
 
 func getExpectedJsonPolicy() string {
 	return `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListBucket","s3:GetObject","s3:PutObject"],"Resource":["arn:aws:s3:::*"]}]}`
+}
+
+func TestAccMinioIAMPolicy_longNames(t *testing.T) {
+	resourceName := "minio_iam_policy.test"
+	prefix := "tfacc-" + strings.Repeat("p", 229-len("tfacc-"))
+	name100 := "tfacc-" + strings.Repeat("a", 100-len("tfacc-"))
+	name255 := "tfacc-" + strings.Repeat("b", 255-len("tfacc-"))
+	name256 := strings.Repeat("c", 256)
+	prefix230 := strings.Repeat("d", 230)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioIAMPolicyConfigName(name256),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`(?s)cannot\s+be\s+longer\s+than\s+255\s+characters`),
+			},
+			{
+				Config:      testAccMinioIAMPolicyConfigNamePrefix(prefix230),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`(?s)cannot\s+be\s+longer\s+than\s+229\s+characters`),
+			},
+			{
+				Config:      testAccMinioIAMPolicyConfigName("a,b"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`must\s+match`),
+			},
+			{
+				Config: testAccMinioIAMPolicyConfigName(name100),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMPolicyExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", name100),
+				),
+			},
+			{
+				Config: testAccMinioIAMPolicyConfigName(name255),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMPolicyExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "name", name255),
+				),
+			},
+			{
+				Config: testAccMinioIAMPolicyConfigNamePrefix(prefix),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioIAMPolicyExists(resourceName),
+					func(s *terraform.State) error {
+						rs, ok := s.RootModule().Resources[resourceName]
+						if !ok {
+							return fmt.Errorf("not found: %s", resourceName)
+						}
+						if got := len(rs.Primary.Attributes["name"]); got != 255 {
+							return fmt.Errorf("generated policy name len = %d, want 255", got)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
 }

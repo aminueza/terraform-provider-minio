@@ -2,6 +2,8 @@ package minio
 
 import (
 	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -370,4 +372,67 @@ resource "minio_iam_group_user_attachment" "test" {
   user_name  = minio_iam_user.test.name
 }
 `, groupName, userName)
+}
+
+func TestAccMinioIAMAttachments_longNamesAndValidation(t *testing.T) {
+	suffix := acctest.RandString(6)
+	longPolicy := "tfacc-pol-" + suffix + "-" + strings.Repeat("p", 100-len("tfacc-pol-"+suffix+"-"))
+	longGroup := "tfacc-grp-" + suffix + "-" + strings.Repeat("g", 100-len("tfacc-grp-"+suffix+"-"))
+	groupName := "tfacc-grp-a-" + suffix
+	userName := "tfacc-usr-a-" + suffix
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccIAMGroupPolicyAttachmentConfig(groupName, "a,b"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`must\s+match`),
+			},
+			{
+				Config:      testAccIAMUserPolicyAttachmentConfig(userName, "a,b"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`must\s+match`),
+			},
+			{
+				Config: `
+resource "minio_iam_ldap_group_policy_attachment" "test" {
+  group_dn    = "CN=admins,OU=Groups,DC=example,DC=com"
+  policy_name = "a,b"
+}
+`,
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`must\s+match`),
+			},
+			{
+				Config: `
+resource "minio_iam_ldap_user_policy_attachment" "test" {
+  user_dn     = "CN=alice,OU=Users,DC=example,DC=com"
+  policy_name = "a,b"
+}
+`,
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`must\s+match`),
+			},
+			{
+				Config: testAccIAMGroupPolicyAttachmentConfig(groupName, longPolicy),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_policy_attachment.test", "policy_name", longPolicy),
+				),
+			},
+			{
+				Config: testAccIAMUserPolicyAttachmentConfig(userName, longPolicy),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_user_policy_attachment.test", "policy_name", longPolicy),
+				),
+			},
+			{
+				Config: testAccIAMGroupUserAttachmentConfig(longGroup, userName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_user_attachment.test", "group_name", longGroup),
+				),
+			},
+		},
+	})
 }

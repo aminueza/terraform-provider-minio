@@ -69,6 +69,10 @@ History older than 3.39.0 lives in the
   plans a new token once `token_expiry` has passed, and the docs say that a
   new token or a destroy does not revoke the old one
   ([#1388](https://github.com/aminueza/terraform-provider-minio/issues/1388)).
+- `minio_iam_group_membership` no longer deletes the group when removed with no
+  users in state, and `userToADD`/`userToRemove` return group lookup errors
+  instead of panicking
+  ([#1376](https://github.com/aminueza/terraform-provider-minio/issues/1376)).
 - `minio_iam_user` now fails to create when a user with that name already exists,
   instead of replacing its secret and status. Import the existing user with
   `terraform import` (or an `import` block) to manage it. Create now reads the

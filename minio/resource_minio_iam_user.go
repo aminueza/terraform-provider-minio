@@ -102,12 +102,29 @@ func resourceMinioIAMUser() *schema.Resource {
 	}
 }
 
+var iamUserCreateLock = NewMutexKV()
+
 func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamUserConfig := IAMUserConfig(d, meta)
 
 	var err error
 	accessKey := iamUserConfig.MinioIAMName
+
+	iamUserCreateLock.Lock(accessKey)
+	defer iamUserCreateLock.Unlock(accessKey)
+
+	// AddUser on MinIO is create-or-update, so an existing user would have its secret and status overwritten.
+	_, err = iamUserConfig.MinioAdmin.GetUserInfo(ctx, accessKey)
+	if err == nil {
+		return NewResourceError("creating user", accessKey, fmt.Errorf(
+			"minio_iam_user %q already exists. To manage it with Terraform, import it: terraform import minio_iam_user.<name> %s",
+			accessKey, accessKey))
+	}
+	if errResp := (madmin.ErrorResponse{}); !errors.As(err, &errResp) || errResp.Code != "XMinioAdminNoSuchUser" {
+		return NewResourceError("checking for existing IAM user", accessKey, err)
+	}
+
 	secretKey := iamUserConfig.MinioSecret
 	secretWO, hasSecretWO, err := getWriteOnlyStringAt(d, cty.GetAttrPath("secret_wo"), "secret_wo")
 	if err != nil {

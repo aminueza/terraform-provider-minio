@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketReplicationMetrics() *schema.Resource {
@@ -32,14 +33,6 @@ func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schem
 	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
-	zeros := []string{
-		"pending_size", "pending_count",
-		"failed_size", "failed_count",
-		"replicated_size", "replicated_count",
-		"replica_size", "replica_count",
-		"queued_size", "queued_count",
-	}
-
 	var diags diag.Diagnostics
 	m, err := client.S3Client.GetBucketReplicationMetricsV2(ctx, bucket)
 	switch {
@@ -56,10 +49,10 @@ func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schem
 		_ = d.Set("replica_count", strconv.FormatInt(metrics.ReplicaCount, 10))
 		_ = d.Set("queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64))
 		_ = d.Set("queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64))
+	case isReplicationConfigNotFoundError(err):
+		setBucketReplicationMetricsZero(d)
 	case isS3CompatJSONEndpointNotSupported(client, err):
-		for _, k := range zeros {
-			_ = d.Set(k, "0")
-		}
+		setBucketReplicationMetricsZero(d)
 		diags = append(diags, dataSourceS3CompatGap(bucket, "pending_size", "bucket replication metrics"))
 	default:
 		return NewResourceError("reading bucket replication metrics", bucket, err)
@@ -67,4 +60,20 @@ func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schem
 
 	d.SetId(bucket)
 	return diags
+}
+
+func isReplicationConfigNotFoundError(err error) bool {
+	return err != nil && minio.ToErrorResponse(err).Code == "ReplicationConfigurationNotFoundError"
+}
+
+func setBucketReplicationMetricsZero(d *schema.ResourceData) {
+	for _, k := range []string{
+		"pending_size", "pending_count",
+		"failed_size", "failed_count",
+		"replicated_size", "replicated_count",
+		"replica_size", "replica_count",
+		"queued_size", "queued_count",
+	} {
+		_ = d.Set(k, "0")
+	}
 }

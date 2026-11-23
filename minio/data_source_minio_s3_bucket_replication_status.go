@@ -73,6 +73,8 @@ func dataSourceMinioS3BucketReplicationStatusRead(ctx context.Context, d *schema
 		_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
 		_ = d.Set("replicated_count", int(metrics.ReplicatedCount))
 		_ = d.Set("replica_count", int(metrics.ReplicaCount))
+	case isReplicationConfigNotFoundError(err):
+		// An unconfigured bucket returns ReplicationConfigurationNotFoundError on metrics too.
 	case isS3CompatJSONEndpointNotSupported(client, err):
 		diags = append(diags, dataSourceS3CompatGap(bucket, "replicated_size", "bucket replication metrics"))
 	default:

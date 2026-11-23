@@ -625,11 +625,11 @@ func TestDataSourceMinioS3BucketReplicationStatusAndMetricsAgainstStubBackend(t 
 				wantRuleCount: 1,
 			},
 			{
-				name:          "unconfigured replication with zero metrics succeeds",
+				name:          "unconfigured replication with not found metrics succeeds",
 				replStatus:    http.StatusNotFound,
 				replBody:      dataSourceBucketStubXML("ReplicationConfigurationNotFoundError", "The replication configuration was not found"),
-				metricsStatus: http.StatusOK,
-				metricsBody:   `{}`,
+				metricsStatus: http.StatusNotFound,
+				metricsBody:   dataSourceBucketStubXML("ReplicationConfigurationNotFoundError", "The replication configuration was not found"),
 			},
 			{
 				name:       "NoSuchBucket on replication returns error",
@@ -719,6 +719,12 @@ func TestDataSourceMinioS3BucketReplicationStatusAndMetricsAgainstStubBackend(t 
 				status:      http.StatusOK,
 				body:        `{"currStats":{"pendingReplicationSize":128,"completedReplicationSize":256}}`,
 				wantPending: "128",
+			},
+			{
+				name:        "unconfigured bucket ReplicationConfigurationNotFoundError returns zeros",
+				status:      http.StatusNotFound,
+				body:        dataSourceBucketStubXML("ReplicationConfigurationNotFoundError", "The replication configuration was not found"),
+				wantPending: "0",
 			},
 			{
 				name:    "NoSuchBucket returns error instead of zeros",

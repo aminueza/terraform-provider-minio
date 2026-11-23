@@ -18,9 +18,6 @@ func resourceMinioServiceAction() *schema.Resource {
 		CreateContext: minioCreateServiceAction,
 		ReadContext:   minioReadServiceAction,
 		DeleteContext: minioDeleteServiceAction,
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
-		},
 		Timeouts: &schema.ResourceTimeout{
 			Create: schema.DefaultTimeout(10 * time.Minute),
 		},

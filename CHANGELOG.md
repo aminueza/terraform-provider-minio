@@ -56,6 +56,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_policy` and `minio_iam_group_policy` now mark `name_prefix` as
+  `Computed` and recover it from generated policy names ending with Terraform's
+  26-character unique ID suffix on read/import (`""` for plain `name`
+  policies), so importing either resource preserves `name_prefix` without
+  forcing replacement on the next plan
+  ([#1384](https://github.com/aminueza/terraform-provider-minio/issues/1384)).
 - `minio_iam_group_user_attachment`, `minio_iam_group_policy_attachment` and
   `minio_iam_user_group_membership` drop the attachment or membership from state
   when their group or user is deleted outside Terraform

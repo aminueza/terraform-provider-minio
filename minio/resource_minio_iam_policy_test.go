@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
@@ -32,6 +33,7 @@ func TestAccMinioIAMPolicy_basic(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "name", rName),
+					resource.TestCheckResourceAttr(resourceName, "name_prefix", ""),
 					testCheckJSONResourceAttr(resourceName, "policy", expectedPolicy),
 				),
 			},
@@ -131,13 +133,14 @@ func TestAccMinioIAMPolicy_namePrefix(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioIAMPolicyExists(resourceName),
 					resource.TestMatchResourceAttr(resourceName, "name", regexp.MustCompile(fmt.Sprintf("^%s", namePrefix))),
+					resource.TestCheckResourceAttr(resourceName, "name_prefix", namePrefix),
 				),
 			},
 			{
 				ResourceName:            resourceName,
 				ImportState:             true,
 				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"name_prefix", "policy"},
+				ImportStateVerifyIgnore: []string{"policy"},
 				Check: resource.ComposeTestCheckFunc(
 					func(s *terraform.State) error {
 						rs, ok := s.RootModule().Resources[resourceName]
@@ -554,6 +557,47 @@ func TestAccMinioIAMPolicy_longNames(t *testing.T) {
 						return nil
 					},
 				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMPolicy_importNamePrefixNoReplacement(t *testing.T) {
+	namePrefix := acctest.RandomWithPrefix("tf-acc-imp") + "-"
+	policyName := id.PrefixedUniqueId(namePrefix)
+	policyJSON := `{"Version":"2012-10-17","Statement":[{"Action":["s3:ListBucket"],"Effect":"Allow","Resource":["arn:aws:s3:::*"]}]}`
+	resourceName := "minio_iam_policy.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioIAMPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Admin.AddCannedPolicy(context.Background(), policyName, []byte(policyJSON)); err != nil {
+						t.Fatalf("creating pre-existing policy %s: %v", policyName, err)
+					}
+				},
+				Config:             testAccMinioIAMPolicyConfigNamePrefix(namePrefix),
+				ResourceName:       resourceName,
+				ImportState:        true,
+				ImportStateId:      policyName,
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					if len(states) != 1 {
+						return fmt.Errorf("expected 1 imported state, got %d", len(states))
+					}
+					if got := states[0].Attributes["name_prefix"]; got != namePrefix {
+						return fmt.Errorf("imported name_prefix = %q, want %q", got, namePrefix)
+					}
+					return nil
+				},
+			},
+			{
+				Config:             testAccMinioIAMPolicyConfigNamePrefix(namePrefix),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
 			},
 		},
 	})

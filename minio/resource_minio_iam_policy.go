@@ -44,6 +44,7 @@ func resourceMinioIAMPolicy() *schema.Resource {
 				Type:          schema.TypeString,
 				Description:   "Prefix to the generated policy name. Do not use with `name`.",
 				Optional:      true,
+				Computed:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},
 				ValidateFunc:  validateIAMNamePrefixPolicy,
@@ -98,6 +99,10 @@ func minioReadPolicy(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("setting policy name", d.Id(), err)
 	}
 
+	if err := d.Set("name_prefix", iamPolicyNamePrefixFromName(d.Id())); err != nil {
+		return NewResourceError("setting policy name_prefix", d.Id(), err)
+	}
+
 	actualPolicyText := strings.TrimSpace(string(info.Policy))
 	existingPolicy := ""
 	if v, ok := d.GetOk("policy"); ok {
@@ -148,6 +153,22 @@ const (
 )
 
 var iamPolicyNamePattern = regexp.MustCompile(`^[\w+=.@:/-]*$`)
+
+var iamPolicyUniqueSuffixPattern = regexp.MustCompile(`^\d{18}[0-9a-f]{8}$`)
+
+// iamPolicyNamePrefixFromName recovers name_prefix when a policy name ends with
+// Terraform's 26-character UniqueId suffix (18 decimal digits + 8 lowercase hex),
+// returning "" otherwise so plain names import with an empty prefix.
+func iamPolicyNamePrefixFromName(name string) string {
+	if len(name) < id.UniqueIDSuffixLength {
+		return ""
+	}
+	suffixStart := len(name) - id.UniqueIDSuffixLength
+	if !iamPolicyUniqueSuffixPattern.MatchString(name[suffixStart:]) {
+		return ""
+	}
+	return name[:suffixStart]
+}
 
 func validateIAMPolicyName(v interface{}, k string, maxLength int, limitDetail string) (ws []string, errors []error) {
 	value := v.(string)

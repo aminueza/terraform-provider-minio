@@ -143,3 +143,55 @@ func TestIAMPolicyReadErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestIAMPolicyAndGroupPolicyRecoverNamePrefixOnRead(t *testing.T) {
+	const policyBody = `{"PolicyName":"test-policy","Policy":{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::bucket/*"]}]}}`
+
+	for _, r := range []struct {
+		name string
+		res  *schema.Resource
+	}{
+		{"minio_iam_policy", resourceMinioIAMPolicy()},
+		{"minio_iam_group_policy", resourceMinioIAMGroupPolicy()},
+	} {
+		s := r.res.Schema["name_prefix"]
+		if !s.Optional || !s.Computed {
+			t.Fatalf("%s name_prefix Optional=%v Computed=%v, want true/true", r.name, s.Optional, s.Computed)
+		}
+	}
+
+	cases := []struct {
+		name       string
+		policyName string
+		wantPrefix string
+	}{
+		{name: "generated unique suffix", policyName: "tfacc-20261123010026647900000001", wantPrefix: "tfacc-"},
+		{name: "plain name", policyName: "mypolicy", wantPrefix: ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			removed := false
+			client := groupPolicyAdminStub(t, http.StatusOK, policyBody, &removed)
+			meta := &S3MinioClient{S3Admin: client}
+
+			dPolicy := resourceMinioIAMPolicy().TestResourceData()
+			dPolicy.SetId(tc.policyName)
+			if diags := minioReadPolicy(context.Background(), dPolicy, meta); diags.HasError() {
+				t.Fatalf("minioReadPolicy error: %v", diags)
+			}
+			if got := dPolicy.Get("name_prefix").(string); got != tc.wantPrefix {
+				t.Fatalf("minioReadPolicy(%q) name_prefix = %q, want %q", tc.policyName, got, tc.wantPrefix)
+			}
+
+			dGroup := resourceMinioIAMGroupPolicy().TestResourceData()
+			dGroup.SetId("devs:" + tc.policyName)
+			if diags := minioReadGroupPolicy(context.Background(), dGroup, meta); diags.HasError() {
+				t.Fatalf("minioReadGroupPolicy error: %v", diags)
+			}
+			if got := dGroup.Get("name_prefix").(string); got != tc.wantPrefix {
+				t.Fatalf("minioReadGroupPolicy(%q) name_prefix = %q, want %q", tc.policyName, got, tc.wantPrefix)
+			}
+		})
+	}
+}

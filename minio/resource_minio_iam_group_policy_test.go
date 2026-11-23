@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
@@ -153,13 +154,13 @@ func TestAccMinioIAMGroupPolicy_namePrefix(t *testing.T) {
 						&groupPolicy2,
 					),
 					resource.TestMatchResourceAttr(resourceName, "name", regexp.MustCompile(fmt.Sprintf("^%s", namePrefix))),
+					resource.TestCheckResourceAttr(resourceName, "name_prefix", namePrefix),
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"name_prefix"},
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -459,6 +460,63 @@ resource "minio_iam_group_policy" "test" {
 					testAccCheckIAMGroupPolicyExists("minio_iam_group.test", "minio_iam_group_policy.test", &out),
 					resource.TestCheckResourceAttr("minio_iam_group_policy.test", "name", name100),
 				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_importNamePrefixNoReplacement(t *testing.T) {
+	rInt := acctest.RandInt()
+	groupName := fmt.Sprintf("test_group_%d", rInt)
+	namePrefix := acctest.RandomWithPrefix("tf-acc-imp") + "-"
+	policyName := id.PrefixedUniqueId(namePrefix)
+	policyJSON := `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:ListAllMyBuckets","Resource":["arn:aws:s3:::*"]}]}`
+	resourceName := "minio_iam_group_policy.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_iam_group" "test" {
+  name = %q
+}
+`, groupName),
+			},
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Admin.AddCannedPolicy(context.Background(), policyName, []byte(policyJSON)); err != nil {
+						t.Fatalf("creating pre-existing policy %s: %v", policyName, err)
+					}
+				},
+				Config:             testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
+				ResourceName:       resourceName,
+				ImportState:        true,
+				ImportStateId:      fmt.Sprintf("%s:%s", groupName, policyName),
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					var gp *terraform.InstanceState
+					for _, s := range states {
+						if s.ID == fmt.Sprintf("%s:%s", groupName, policyName) {
+							gp = s
+							break
+						}
+					}
+					if gp == nil {
+						return fmt.Errorf("imported group policy state %s:%s not found", groupName, policyName)
+					}
+					if got := gp.Attributes["name_prefix"]; got != namePrefix {
+						return fmt.Errorf("imported name_prefix = %q, want %q", got, namePrefix)
+					}
+					return nil
+				},
+			},
+			{
+				Config:             testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
 			},
 		},
 	})

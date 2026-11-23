@@ -311,12 +311,26 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	m := meta.(*S3MinioClient)
 	bucketName := d.Get("bucket_name").(string)
 	objectName := d.Get("object_name").(string)
-	if bucketName == "" || objectName == "" {
+	if bucketName == "" && objectName == "" {
+		// Only a hand-corrupted state reaches this: import and normal reads
+		// always have both attributes. Recover them from the ID so the state
+		// ends self-consistent instead of diffing a ForceNew attribute.
 		parts := strings.SplitN(d.Id(), "/", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 			return diag.Errorf("unexpected object ID format (%q), expected bucket_name/object_name", d.Id())
 		}
 		bucketName, objectName = parts[0], parts[1]
+		if err := d.Set("bucket_name", bucketName); err != nil {
+			return NewResourceError("setting bucket name", d.Id(), err)
+		}
+		if err := d.Set("object_name", objectName); err != nil {
+			return NewResourceError("setting object name", d.Id(), err)
+		}
+	} else if bucketName == "" || objectName == "" {
+		// A legacy ID is a bare object name: parsing it against the one
+		// present attribute could StatObject a wrong key and silently drop
+		// the resource, so refuse to guess.
+		return diag.Errorf("state has bucket_name (%q) and object_name (%q); both must be set, or both empty to recover from a bucket/object ID", bucketName, objectName)
 	}
 	objectID := s3ObjectID(bucketName, objectName)
 
@@ -390,6 +404,8 @@ func minioUpdateObject(ctx context.Context, d *schema.ResourceData, meta interfa
 	return minioPutObject(ctx, d, meta)
 }
 
+// s3ObjectID builds the resource ID. Bucket names cannot contain "/", so the
+// first "/" always delimits the bucket from the object key, which may.
 func s3ObjectID(bucketName, objectName string) string {
 	return fmt.Sprintf("%s/%s", bucketName, objectName)
 }

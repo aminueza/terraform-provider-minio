@@ -171,4 +171,75 @@ func TestS3ObjectCreateAndReadIDFormat(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("read recovers both attributes from a full id", func(t *testing.T) {
+		client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodHead {
+				t.Errorf("unexpected HTTP %s %s", r.Method, r.URL.String())
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			if r.URL.Path != "/test-bucket/dir/file.txt" {
+				t.Errorf("stat on %q, want %q", r.URL.Path, "/test-bucket/dir/file.txt")
+			}
+			w.Header().Set("ETag", `"5eb63bbbe01eeed093cb22bb8f5acdc3"`)
+			w.Header().Set("Content-Length", "11")
+			w.Header().Set("Last-Modified", "Mon, 02 Jan 2006 15:04:05 GMT")
+			w.WriteHeader(http.StatusOK)
+		})
+
+		d := schema.TestResourceDataRaw(t, resourceMinioObject().Schema, map[string]interface{}{})
+		d.SetId("test-bucket/dir/file.txt")
+
+		if diags := minioReadObject(context.Background(), d, &S3MinioClient{S3Client: client}); diags.HasError() {
+			t.Fatalf("minioReadObject failed: %v", diags)
+		}
+		if got := d.Get("bucket_name").(string); got != "test-bucket" {
+			t.Errorf("bucket_name = %q, want %q", got, "test-bucket")
+		}
+		if got := d.Get("object_name").(string); got != "dir/file.txt" {
+			t.Errorf("object_name = %q, want %q", got, "dir/file.txt")
+		}
+		if d.Id() != "test-bucket/dir/file.txt" {
+			t.Errorf("Id() = %q, want it kept", d.Id())
+		}
+	})
+
+	t.Run("read rejects a legacy id when no attributes are set", func(t *testing.T) {
+		client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request %s %s: the id is not parseable, so no call should be made", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusBadRequest)
+		})
+
+		d := schema.TestResourceDataRaw(t, resourceMinioObject().Schema, map[string]interface{}{})
+		d.SetId("plain.txt")
+
+		diags := minioReadObject(context.Background(), d, &S3MinioClient{S3Client: client})
+		if !diags.HasError() {
+			t.Fatal("expected an error for an id without the bucket prefix, got none")
+		}
+		if d.Id() != "plain.txt" {
+			t.Errorf("Id() = %q, want it kept so the user can fix the state", d.Id())
+		}
+	})
+
+	t.Run("read refuses to guess when only one attribute is set", func(t *testing.T) {
+		client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+			t.Errorf("unexpected request %s %s: a legacy id must not be parsed against one attribute", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusBadRequest)
+		})
+
+		d := schema.TestResourceDataRaw(t, resourceMinioObject().Schema, map[string]interface{}{
+			"bucket_name": "test-bucket",
+		})
+		d.SetId("dir/file.txt")
+
+		diags := minioReadObject(context.Background(), d, &S3MinioClient{S3Client: client})
+		if !diags.HasError() {
+			t.Fatal("expected an error when only bucket_name is set, got none")
+		}
+		if d.Id() != "dir/file.txt" {
+			t.Errorf("Id() = %q, want it kept so the user can fix the state", d.Id())
+		}
+	})
 }

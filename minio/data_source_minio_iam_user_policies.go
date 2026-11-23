@@ -47,7 +47,7 @@ func dataSourceIAMUserPoliciesRead(ctx context.Context, d *schema.ResourceData, 
 	name := d.Get("name").(string)
 	info, err := admin.GetUserInfo(ctx, name)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading IAM user", name, err)
 	}
 
 	d.SetId(name)
@@ -69,7 +69,7 @@ func dataSourceIAMUserPoliciesRead(ctx context.Context, d *schema.ResourceData, 
 	for _, groupName := range info.MemberOf {
 		desc, err := admin.GetGroupDescription(ctx, groupName)
 		if err != nil {
-			continue
+			return NewResourceError("reading IAM group", groupName, err)
 		}
 		if desc.Policy != "" {
 			for _, p := range strings.Split(desc.Policy, ",") {

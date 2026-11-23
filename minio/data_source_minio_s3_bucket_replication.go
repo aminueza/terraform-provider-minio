@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/replication"
 )
 
@@ -58,19 +59,36 @@ func dataSourceMinioS3BucketReplicationRead(ctx context.Context, d *schema.Resou
 	admin := m.S3Admin
 	bucket := d.Get("bucket").(string)
 
-	d.SetId(bucket)
-
+	var diags diag.Diagnostics
 	cfg, err := client.GetBucketReplication(ctx, bucket)
-	if err != nil {
-		_ = d.Set("rule", []interface{}{})
-		return nil
+	switch {
+	case err == nil:
+	case isS3CompatNotSupported(m, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "rule", "bucket replication configuration"))
+		d.SetId(bucket)
+		if err := d.Set("rule", []interface{}{}); err != nil {
+			return NewResourceError("setting rule", bucket, err)
+		}
+		return diags
+	default:
+		return NewResourceError("reading bucket replication configuration", bucket, err)
 	}
 
+	d.SetId(bucket)
+
 	arnToTarget := map[string]int{}
-	remoteTargets, err := admin.ListRemoteTargets(ctx, bucket, "")
-	if err == nil {
-		for i := range remoteTargets {
-			arnToTarget[remoteTargets[i].Arn] = i
+	var remoteTargets []madmin.BucketTarget
+	if len(cfg.Rules) > 0 {
+		remoteTargets, err = admin.ListRemoteTargets(ctx, bucket, "")
+		switch {
+		case err == nil:
+			for i := range remoteTargets {
+				arnToTarget[remoteTargets[i].Arn] = i
+			}
+		case isS3CompatNotSupported(m, s3Compat405IsMissingFeature, err):
+			diags = append(diags, dataSourceS3CompatGap(bucket, "rule", "bucket replication remote targets"))
+		default:
+			return NewResourceError("reading bucket replication remote targets", bucket, err)
 		}
 	}
 
@@ -120,6 +138,8 @@ func dataSourceMinioS3BucketReplicationRead(ctx context.Context, d *schema.Resou
 		rules = append(rules, r)
 	}
 
-	_ = d.Set("rule", rules)
-	return nil
+	if err := d.Set("rule", rules); err != nil {
+		return NewResourceError("setting rule", bucket, err)
+	}
+	return diags
 }

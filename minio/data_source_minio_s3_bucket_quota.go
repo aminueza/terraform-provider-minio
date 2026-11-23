@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -20,23 +21,37 @@ func dataSourceMinioS3BucketQuota() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketQuotaRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	admin := meta.(*S3MinioClient).S3Admin
+	client := meta.(*S3MinioClient)
+	admin := client.S3Admin
 	bucket := d.Get("bucket").(string)
 
-	d.SetId(bucket)
+	var diags diag.Diagnostics
+	quotaVal := 0
+	quotaType := ""
 
 	bucketQuota, err := admin.GetBucketQuota(ctx, bucket)
-	if err != nil || bucketQuota.Size == 0 {
-		_ = d.Set("quota", 0)
-		_ = d.Set("type", "")
-		return nil
+	switch {
+	case err == nil:
+		if bucketQuota.Size > 0 {
+			q, ok := SafeUint64ToInt64(bucketQuota.Size)
+			if !ok {
+				return NewResourceError("reading bucket quota", bucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
+			}
+			quotaVal = int(q)
+			quotaType = string(bucketQuota.Type)
+		}
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "quota", "bucket quota"))
+	default:
+		return NewResourceError("reading bucket quota", bucket, err)
 	}
 
-	quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
-	if !ok {
-		return diag.Errorf("quota value overflows int64: %d", bucketQuota.Size)
+	d.SetId(bucket)
+	if err := d.Set("quota", quotaVal); err != nil {
+		return NewResourceError("setting quota", bucket, err)
 	}
-	_ = d.Set("quota", int(quotaVal))
-	_ = d.Set("type", string(bucketQuota.Type))
-	return nil
+	if err := d.Set("type", quotaType); err != nil {
+		return NewResourceError("setting type", bucket, err)
+	}
+	return diags
 }

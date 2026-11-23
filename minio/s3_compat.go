@@ -79,7 +79,7 @@ func s3CompatErrorResponse(err error) (string, int) {
 
 	var madminErr madmin.ErrorResponse
 	if errors.As(err, &madminErr) {
-		return madminErr.Code, 0
+		return madminErr.Code, madminErr.StatusCode
 	}
 
 	return "", 0

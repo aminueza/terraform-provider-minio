@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -78,6 +80,17 @@ func TestAccMinioGroupMembership_paginatedUserList(t *testing.T) {
 	})
 }
 
+func checkMinioGroupMembershipDestroyed(ctx context.Context, iamconn *madmin.AdminClient, group string) error {
+	_, err := iamconn.GetGroupDescription(ctx, group)
+	if err == nil {
+		return fmt.Errorf("group %s still exists", group)
+	}
+	if !isGroupMembershipGroupMissing(err) && !strings.Contains(err.Error(), "not exist") {
+		return fmt.Errorf("checking group %s after destroy: %w", group, err)
+	}
+	return nil
+}
+
 func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
 	iamconn := testAccClient().S3Admin
 
@@ -87,10 +100,8 @@ func testAccCheckMinioGroupMembershipDestroy(s *terraform.State) error {
 		}
 
 		group := rs.Primary.Attributes["group"]
-
-		_, err := iamconn.GetGroupDescription(context.Background(), group)
-		if err == nil {
-			return fmt.Errorf("group still exists")
+		if err := checkMinioGroupMembershipDestroyed(context.Background(), iamconn, group); err != nil {
+			return err
 		}
 	}
 
@@ -124,27 +135,27 @@ func testAccCheckMinioGroupMembershipExists(n string, g *madmin.GroupDesc) resou
 	}
 }
 
+func checkMinioGroupMembershipAttributes(group *madmin.GroupDesc, groupName string, users []string) error {
+	if group.Name != groupName {
+		return fmt.Errorf("bad group membership: expected %q, got %q", groupName, group.Name)
+	}
+
+	got := slices.Clone(group.Members)
+	want := slices.Clone(users)
+	slices.Sort(got)
+	slices.Sort(want)
+
+	log.Printf("MEMBERS: %v and %v", got, want)
+
+	if !slices.Equal(got, want) {
+		return fmt.Errorf("bad group membership members, expected %v, got %v", want, got)
+	}
+	return nil
+}
+
 func testAccCheckMinioGroupMembershipAttributes(group *madmin.GroupDesc, groupName string, users []string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
-		if !strings.Contains(group.Name, groupName) {
-			return fmt.Errorf("bad group membership: expected %s, got %s", groupName, group.Name)
-		}
-
-		log.Printf("MEMBERS: %v  and %v", group.Members, users)
-
-		uc := len(users)
-		for _, u := range users {
-			for _, gu := range group.Members {
-				if u == gu {
-					uc--
-				}
-			}
-		}
-
-		if uc > 0 {
-			return fmt.Errorf("bad group membership count, expected (%v), but only (%v) found", users, group.Members)
-		}
-		return nil
+		return checkMinioGroupMembershipAttributes(group, groupName, users)
 	}
 }
 
@@ -323,4 +334,174 @@ resource "minio_iam_user" "user" {
   name  = "${format("%s%%d", count.index + 1)}"
 }
 `, groupName, membershipName, userNamePrefix)
+}
+
+func TestAccMinioGroupMembership_userRemovedOutsideKeepGroup(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-gm-keep-%s", rString)
+	userName := fmt.Sprintf("tf-acc-user-gm-keep-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-policy-gm-keep-%s", rString)
+	membershipName := fmt.Sprintf("tf-acc-membership-gm-keep-%s", rString)
+
+	var group madmin.GroupDesc
+	withMembership := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, true, true)
+	withoutMembership := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, true, false)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: withMembership,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					testAccCheckMinioGroupMembershipAttributes(&group, groupName, []string{userName}),
+					testAccCheckMinioGroupMembershipState(groupName, policyName, []string{userName}),
+				),
+			},
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
+						Group:    groupName,
+						Members:  []string{userName},
+						IsRemove: true,
+					}); err != nil {
+						t.Fatalf("removing user %s from group %s outside Terraform: %v", userName, groupName, err)
+					}
+					deadline := time.Now().Add(5 * time.Second)
+					for time.Now().Before(deadline) {
+						desc, err := admin.GetGroupDescription(ctx, groupName)
+						if err == nil && len(desc.Members) == 0 {
+							return
+						}
+						time.Sleep(200 * time.Millisecond)
+					}
+					t.Fatalf("group %s still has members after outside removal", groupName)
+				},
+				Config: withoutMembership,
+				Check:  testAccCheckMinioGroupMembershipState(groupName, policyName, []string{}),
+			},
+			{
+				Config:   withoutMembership,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func TestAccMinioGroupMembership_userDeletedOutsideKeepGroup(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-gm-delu-%s", rString)
+	userName := fmt.Sprintf("tf-acc-user-gm-delu-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-policy-gm-delu-%s", rString)
+	membershipName := fmt.Sprintf("tf-acc-membership-gm-delu-%s", rString)
+
+	var group madmin.GroupDesc
+	withMembership := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, true, true)
+	withoutMembershipAndUser := testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName, false, false)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: withMembership,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioGroupMembershipExists("minio_iam_group_membership.team", &group),
+					testAccCheckMinioGroupMembershipAttributes(&group, groupName, []string{userName}),
+					testAccCheckMinioGroupMembershipState(groupName, policyName, []string{userName}),
+				),
+			},
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.RemoveUser(ctx, userName); err != nil {
+						t.Fatalf("deleting user %s outside Terraform: %v", userName, err)
+					}
+					deadline := time.Now().Add(5 * time.Second)
+					for time.Now().Before(deadline) {
+						_, err := admin.GetUserInfo(ctx, userName)
+						if err != nil && isGroupMembershipUserMissing(err) {
+							return
+						}
+						time.Sleep(200 * time.Millisecond)
+					}
+					t.Fatalf("user %s still exists after outside deletion", userName)
+				},
+				Config: withoutMembershipAndUser,
+				Check:  testAccCheckMinioGroupMembershipState(groupName, policyName, []string{}),
+			},
+			{
+				Config:   withoutMembershipAndUser,
+				PlanOnly: true,
+			},
+		},
+	})
+}
+
+func testAccCheckMinioGroupMembershipState(groupName, policyName string, wantUsers []string) resource.TestCheckFunc {
+	return func(*terraform.State) error {
+		desc, err := testAccClient().S3Admin.GetGroupDescription(context.Background(), groupName)
+		if err != nil {
+			return fmt.Errorf("reading group %s: %w", groupName, err)
+		}
+		if err := checkMinioGroupMembershipAttributes(desc, groupName, wantUsers); err != nil {
+			return err
+		}
+		if !slices.Contains(strings.Split(desc.Policy, ","), policyName) {
+			return fmt.Errorf("expected group %s to retain policy %q, got %q", groupName, policyName, desc.Policy)
+		}
+		return nil
+	}
+}
+
+func testAccMinioGroupMembershipWithPolicyConfig(groupName, userName, policyName, membershipName string, includeUser, includeMembership bool) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, `
+resource "minio_iam_group" "group" {
+  name = %q
+}
+
+resource "minio_iam_policy" "policy" {
+  name = %q
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["s3:GetObject"]
+      Resource = ["arn:aws:s3:::*"]
+    }]
+  })
+}
+
+resource "minio_iam_group_policy_attachment" "attachment" {
+  group_name  = minio_iam_group.group.name
+  policy_name = minio_iam_policy.policy.name
+}
+`, groupName, policyName)
+
+	if includeUser {
+		fmt.Fprintf(&b, `
+resource "minio_iam_user" "user" {
+  name = %q
+}
+`, userName)
+	}
+
+	if includeMembership {
+		fmt.Fprintf(&b, `
+resource "minio_iam_group_membership" "team" {
+  name  = %q
+  group = minio_iam_group.group.name
+  users = [minio_iam_user.user.name]
+}
+`, membershipName)
+	}
+
+	return b.String()
 }

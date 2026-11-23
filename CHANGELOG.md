@@ -63,6 +63,10 @@ History older than 3.39.0 lives in the
   characters and reject commas, while `name_prefix` allows up to 229 characters
   (255 minus the 26-character generated suffix)
   ([#1392](https://github.com/aminueza/terraform-provider-minio/issues/1392)).
+- `minio_iam_group_membership` no longer deletes the group when removed with no
+  users in state, and `userToADD`/`userToRemove` return group lookup errors
+  instead of panicking
+  ([#1376](https://github.com/aminueza/terraform-provider-minio/issues/1376)).
 
 - `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
   `rule.default_retention` at plan time (`ExactlyOneOf`), and both

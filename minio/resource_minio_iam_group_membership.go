@@ -2,10 +2,11 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
@@ -95,7 +96,7 @@ func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 			if err := userToRemove(ctx, iamGroupMembershipConfig, usersToRemove); err != nil {
 				// Ignore "user does not exist" errors - the user may have been deleted
 				// before the membership update, which effectively removes them from the group
-				if !strings.Contains(err.Error(), "does not exist") {
+				if !isGroupMembershipUserMissing(err) {
 					return NewResourceError("removing users from group", iamGroupMembershipConfig.MinioIAMGroup, err)
 				}
 			}
@@ -136,6 +137,15 @@ func minioReadGroupMembership(ctx context.Context, d *schema.ResourceData, meta 
 func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	iamGroupMembershipConfig := IAMGroupMembershipConfig(d, meta)
 
+	// MinIO deletes the entire group (and its policy mapping) when UpdateGroupMembers
+	// receives IsRemove=true with an empty member slice. Skip the API call when state
+	// already has no members so removing the membership leaves the group intact.
+	if len(iamGroupMembershipConfig.MinioIAMUsers) == 0 {
+		tflog.Debug(ctx, fmt.Sprintf("No members to remove from IAM group (%s), skipping UpdateGroupMembers", iamGroupMembershipConfig.MinioIAMGroup))
+		d.SetId("")
+		return nil
+	}
+
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
 		Members:  iamGroupMembershipConfig.MinioIAMUsers,
@@ -144,20 +154,47 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
+		if isGroupMembershipGroupMissing(err) || isGroupMembershipUserMissing(err) {
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("error deleting user(s) to group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
+	d.SetId("")
 	return nil
 }
 
-func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []string) error {
-	var users []string
+func isGroupMembershipGroupMissing(err error) bool {
+	var errResp madmin.ErrorResponse
+	if errors.As(err, &errResp) {
+		return errResp.Code == "XMinioAdminNoSuchGroup"
+	}
+	return strings.Contains(err.Error(), "group does not exist")
+}
 
-	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
+func isGroupMembershipUserMissing(err error) bool {
+	var errResp madmin.ErrorResponse
+	if errors.As(err, &errResp) {
+		return errResp.Code == "XMinioAdminNoSuchUser"
+	}
+	return strings.Contains(err.Error(), "user does not exist")
+}
+
+func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToAdd []string) error {
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
+	if err != nil {
+		return fmt.Errorf("error reading group %s: %w", iamGroupMembershipConfig.MinioIAMGroup, err)
+	}
+	if groupDesc == nil {
+		return fmt.Errorf("error reading group %s: empty group description", iamGroupMembershipConfig.MinioIAMGroup)
+	}
 
 	tflog.Warn(ctx, fmt.Sprintf("Users to add before: %v and after: %v", groupDesc.Members, usersToAdd))
 
-	users = append(groupDesc.Members, usersToAdd...)
+	users := make([]string, 0, len(groupDesc.Members)+len(usersToAdd))
+	users = append(users, groupDesc.Members...)
+	users = append(users, usersToAdd...)
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
@@ -165,8 +202,7 @@ func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMem
 		IsRemove: false,
 	}
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
-	if err != nil {
+	if err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove); err != nil {
 		return fmt.Errorf("error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
@@ -174,6 +210,17 @@ func userToADD(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMem
 }
 
 func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroupMembershipConfig, usersToRemove []string) error {
+	if len(usersToRemove) == 0 {
+		return nil
+	}
+
+	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
+	if err != nil {
+		return fmt.Errorf("error reading group %s: %w", iamGroupMembershipConfig.MinioIAMGroup, err)
+	}
+	if groupDesc == nil {
+		return fmt.Errorf("error reading group %s: empty group description", iamGroupMembershipConfig.MinioIAMGroup)
+	}
 
 	groupAddRemove := madmin.GroupAddRemove{
 		Group:    iamGroupMembershipConfig.MinioIAMGroup,
@@ -181,12 +228,9 @@ func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroup
 		IsRemove: true,
 	}
 
-	groupDesc, _ := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
-
 	tflog.Warn(ctx, fmt.Sprintf("Users to remove before: %v and after: %v", groupDesc.Members, groupAddRemove.Members))
 
-	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
-	if err != nil {
+	if err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove); err != nil {
 		return fmt.Errorf("error updating user(s) to group %s: %s", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 

@@ -291,6 +291,13 @@ History older than 3.39.0 lives in the
 
 ### Removed
 
+- `minio_service_action` and `minio_prometheus_bearer_token` no longer
+  advertise Terraform import, because MinIO stores neither past service
+  actions nor locally signed Prometheus bearer tokens. Importing either
+  resource forced replacement on the next plan (`minio_service_action`) or
+  re-ran the action on the next apply; use `moved` blocks or `terraform state mv`
+  to move existing resources between configurations
+  ([#1379](https://github.com/aminueza/terraform-provider-minio/issues/1379)).
 - `minio_bucket_metadata_import` no longer advertises Terraform import, because
   every import failed with `Bucket name cannot be empty` and MinIO does not
   retain the applied metadata zip. Applying the resource sends the zip again

@@ -26,6 +26,7 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 				Config: testAccMinioS3ObjectConfigBasic(rInt),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("tf-test-bucket-%d/test-object", rInt)),
 					resource.TestCheckResourceAttr(resourceName, "bucket_name", fmt.Sprintf("tf-test-bucket-%d", rInt)),
 					resource.TestCheckResourceAttr(resourceName, "object_name", "test-object"),
 					resource.TestCheckResourceAttr(resourceName, "content", "test content"),
@@ -36,9 +37,75 @@ func TestAccMinioS3Object_basic(t *testing.T) {
 			{
 				ResourceName:            resourceName,
 				ImportState:             true,
-				ImportStateId:           fmt.Sprintf("tf-test-bucket-%d/test-object", rInt),
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"content", "content_base64", "source", "acl"},
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Object_nestedKey(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_object.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3ObjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3ObjectConfigWithName(rInt, "dir/file.txt"),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("tf-test-bucket-%d/dir/file.txt", rInt)),
+					resource.TestCheckResourceAttr(resourceName, "bucket_name", fmt.Sprintf("tf-test-bucket-%d", rInt)),
+					resource.TestCheckResourceAttr(resourceName, "object_name", "dir/file.txt"),
+				),
+			},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"content", "content_base64", "source", "acl"},
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Object_upgradeFromOldID(t *testing.T) {
+	rInt := acctest.RandInt()
+	resourceName := "minio_s3_object.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioS3ObjectDestroy,
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: testAccMinioS3ObjectConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "id", "test-object"),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             testAccMinioS3ObjectConfigBasic(rInt),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            testAccMinioS3ObjectConfigBasic(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("tf-test-bucket-%d/test-object", rInt)),
+				),
 			},
 		},
 	})
@@ -227,6 +294,10 @@ func testAccCheckMinioS3ObjectExists(n string) resource.TestCheckFunc {
 }
 
 func testAccMinioS3ObjectConfigBasic(rInt int) string {
+	return testAccMinioS3ObjectConfigWithName(rInt, "test-object")
+}
+
+func testAccMinioS3ObjectConfigWithName(rInt int, objectName string) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket = "tf-test-bucket-%d"
@@ -234,10 +305,10 @@ resource "minio_s3_bucket" "test" {
 
 resource "minio_s3_object" "test" {
   bucket_name = minio_s3_bucket.test.bucket
-  object_name = "test-object"
+  object_name = %q
   content     = "test content"
 }
-`, rInt)
+`, rInt, objectName)
 }
 
 func testAccMinioS3ObjectConfigWithACL(rInt int, acl string) string {

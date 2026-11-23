@@ -285,19 +285,23 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 		options.UserMetadata["x-amz-acl"] = acl
 	}
 
+	bucketName := d.Get("bucket_name").(string)
+	objectName := d.Get("object_name").(string)
+	objectID := s3ObjectID(bucketName, objectName)
+
 	_, err := m.S3Client.PutObject(
 		ctx,
-		d.Get("bucket_name").(string),
-		d.Get("object_name").(string),
+		bucketName,
+		objectName,
 		body, -1,
 		options,
 	)
 
 	if err != nil {
-		return NewResourceError("putting object failed", d.Id(), s3CompatWriteError(m, "object", err))
+		return NewResourceError("putting object failed", objectID, s3CompatWriteError(m, "object", err))
 	}
 
-	d.SetId(d.Get("object_name").(string))
+	d.SetId(objectID)
 
 	return minioReadObject(ctx, d, meta)
 }
@@ -305,24 +309,37 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	m := meta.(*S3MinioClient)
+	bucketName := d.Get("bucket_name").(string)
+	objectName := d.Get("object_name").(string)
+	if bucketName == "" || objectName == "" {
+		parts := strings.SplitN(d.Id(), "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return diag.Errorf("unexpected object ID format (%q), expected bucket_name/object_name", d.Id())
+		}
+		bucketName, objectName = parts[0], parts[1]
+	}
+	objectID := s3ObjectID(bucketName, objectName)
 
 	objInfo, err := m.S3Client.StatObject(
 		ctx,
-		d.Get("bucket_name").(string),
-		d.Get("object_name").(string),
+		bucketName,
+		objectName,
 		minio.StatObjectOptions{},
 	)
 
 	if err != nil {
 		if s3CompatReadUnsupported(ctx, m, s3Compat405IsAnAnswer, d, "object", err) {
+			d.SetId(objectID)
 			return nil
 		}
 		if err.Error() == "The specified key does not exist." {
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("reading object failed", d.Id(), err)
+		return NewResourceError("reading object failed", objectID, err)
 	}
+
+	d.SetId(objectID)
 
 	if err := d.Set("etag", objInfo.ETag); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
@@ -373,6 +390,10 @@ func minioUpdateObject(ctx context.Context, d *schema.ResourceData, meta interfa
 	return minioPutObject(ctx, d, meta)
 }
 
+func s3ObjectID(bucketName, objectName string) string {
+	return fmt.Sprintf("%s/%s", bucketName, objectName)
+}
+
 func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -381,7 +402,7 @@ func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	_ = d.Set("bucket_name", parts[0])
 	_ = d.Set("object_name", parts[1])
-	d.SetId(parts[1])
+	d.SetId(s3ObjectID(parts[0], parts[1]))
 
 	return []*schema.ResourceData{d}, nil
 }

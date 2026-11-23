@@ -47,6 +47,11 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_s3_object` now sets `id` to `<bucket_name>/<object_name>` (matching its
+  import format) instead of `<object_name>` alone, so stored IDs can be
+  imported directly and no longer collide across buckets. Existing states
+  migrate on the next refresh without replacement
+  ([#1368](https://github.com/aminueza/terraform-provider-minio/issues/1368)).
 - `minio_iam_group_user_attachment`: `group_name` now uses
   `validateMinioIamGroupName` instead of the policy name validator, allowing
   group names longer than 96 characters while rejecting `:` and `/` to match

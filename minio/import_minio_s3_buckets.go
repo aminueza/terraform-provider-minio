@@ -31,10 +31,6 @@ func resourceMinioS3BucketImportState(
 
 	conn := meta.(*S3MinioClient).S3Client
 
-	bucketObjectLocking, _, _, _, err := conn.GetObjectLockConfig(ctx, d.Id())
-	object_locking := err == nil && bucketObjectLocking == "Enabled"
-	_ = d.Set("object_locking", object_locking)
-
 	pol, err := conn.GetBucketPolicy(ctx, d.Id())
 	if err != nil {
 		// A backend without bucket policies, such as Garage, can only hold the default,

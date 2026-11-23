@@ -47,6 +47,16 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_s3_bucket`: `object_locking` changes on an existing bucket (`false` to
+  `true` or `true` to `false`) are now rejected during plan instead of being
+  silently ignored in `Update` or forcing destructive replacement via
+  `ForceNew`. Because `Read` now refreshes `object_locking` from the server
+  instead of keeping stale state, states that previously recorded
+  `object_locking = true` on a bucket created without Object Lock will refresh
+  to `object_locking = false` and fail to plan until the configuration sets
+  `object_locking = false` (matching the live bucket) or the bucket is
+  recreated with `object_locking = true`
+  ([#1387](https://github.com/aminueza/terraform-provider-minio/issues/1387)).
 - `minio_iam_group_membership`: `id` now stores the `group` name instead of
   the Terraform-only `name` label, and `name` is no longer `ForceNew`. Existing
   states created before this change migrate `id` from `name` to `group` on the
@@ -72,6 +82,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket`: `Read` (and therefore `terraform import`) now refreshes
+  `object_locking` via `GetObjectLockConfig` instead of silently leaving stale
+  state or swallowing non-not-found errors during import, and removes the
+  stale claim that Object Lock can be added to existing buckets on
+  `RELEASE.2025-05-20T20-30-00Z+`
+  ([#1387](https://github.com/aminueza/terraform-provider-minio/issues/1387)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema
   attributes (which dropped both fields and panicked under `TF_ACC`), and

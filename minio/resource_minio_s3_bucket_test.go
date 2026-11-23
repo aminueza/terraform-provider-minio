@@ -1852,6 +1852,12 @@ func TestMinioReadBucket_taggingNotImplemented(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Has("object-lock") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`)
+					return
+				}
 				if r.URL.Query().Has("tagging") {
 					w.Header().Set("Content-Type", "application/xml")
 					w.WriteHeader(http.StatusNotImplemented)
@@ -2108,6 +2114,11 @@ func TestMinioReadBucket_unreadablePolicyKeepsAcl(t *testing.T) {
 					return
 				}
 				switch {
+				case r.URL.Query().Has("object-lock"):
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`)
+					return
 				case r.URL.Query().Has("policy"):
 					policyRequested = true
 					w.Header().Set("Content-Type", "application/xml")
@@ -2253,6 +2264,12 @@ func TestMinioReadBucket_quota(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Query().Has("object-lock") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`)
+					return
+				}
 				if strings.Contains(r.URL.Path, "get-bucket-quota") {
 					w.Header().Set("Content-Type", "application/json")
 					_, _ = fmt.Fprint(w, tc.quotaJSON)
@@ -2324,6 +2341,12 @@ func TestMinioReadBucket_quotaUnsupportedFallsThrough(t *testing.T) {
 	var sawTagging bool
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Has("object-lock") {
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusNotImplemented)
+			_, _ = fmt.Fprint(w, notImplemented)
+			return
+		}
 		if strings.Contains(r.URL.Path, "get-bucket-quota") {
 			w.WriteHeader(http.StatusNotImplemented)
 			_, _ = fmt.Fprint(w, notImplemented)
@@ -2385,4 +2408,129 @@ func TestMinioReadBucket_quotaUnsupportedFallsThrough(t *testing.T) {
 	if sawTagging {
 		t.Error("read called the tagging API; with s3_compat_mode the read must skip it (shouldSkipBucketTagging)")
 	}
+}
+
+func TestAccMinioS3Bucket_objectLockingChangeRejected(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-acc-lock-reject-%d", acctest.RandInt())
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigObjectLockingDisabled(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "object_locking", "false"),
+				),
+			},
+			{
+				Config:      testAccMinioS3BucketConfigObjectLockNoForceDestroy(bucketName),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("must be recreated"),
+			},
+			{
+				Config: testAccMinioS3BucketConfigObjectLockingDisabled(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "object_locking", "false"),
+					func(s *terraform.State) error {
+						_, _, _, _, err := testAccClient().S3Client.GetObjectLockConfig(context.Background(), bucketName)
+						if err == nil {
+							return fmt.Errorf("expected ObjectLockConfigurationNotFoundError for bucket %q, got nil", bucketName)
+						}
+						if errResp := minio.ToErrorResponse(err); errResp.Code != "ObjectLockConfigurationNotFoundError" {
+							return fmt.Errorf("expected ObjectLockConfigurationNotFoundError for bucket %q, got %v (code %q)", bucketName, err, errResp.Code)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_objectLockingDisableRejected(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-acc-lock-disable-%d", acctest.RandInt())
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3BucketConfigObjectLockNoForceDestroy(bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3BucketExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "object_locking", "true"),
+				),
+			},
+			{
+				Config:      testAccMinioS3BucketConfigObjectLockingDisabled(bucketName),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile("can't be disabled"),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_importWithObjectLocking(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-acc-lock-import-%d", acctest.RandInt())
+	resourceName := "minio_s3_bucket.bucket"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					if err := testAccClient().S3Client.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{ObjectLocking: true}); err != nil {
+						t.Fatalf("creating pre-existing bucket with object locking %s: %v", bucketName, err)
+					}
+					t.Cleanup(func() {
+						_ = testAccClient().S3Client.RemoveBucket(context.Background(), bucketName)
+					})
+				},
+				Config:             testAccMinioS3BucketConfigObjectLockNoForceDestroy(bucketName),
+				ResourceName:       resourceName,
+				ImportState:        true,
+				ImportStateId:      bucketName,
+				ImportStatePersist: true,
+				ImportStateCheck: func(states []*terraform.InstanceState) error {
+					var bucketState *terraform.InstanceState
+					for _, s := range states {
+						if s.ID == bucketName {
+							bucketState = s
+							break
+						}
+					}
+					if bucketState == nil {
+						return fmt.Errorf("imported bucket state %q not found", bucketName)
+					}
+					if got := bucketState.Attributes["object_locking"]; got != "true" {
+						return fmt.Errorf("imported object_locking = %q, want \"true\"", got)
+					}
+					return nil
+				},
+			},
+			{
+				Config:             testAccMinioS3BucketConfigObjectLockNoForceDestroy(bucketName),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketConfigObjectLockingDisabled(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket         = "%s"
+  object_locking = false
+}
+`, bucketName)
 }

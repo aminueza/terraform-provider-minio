@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_prometheus_bearer_token` validates `limit` (1 to 2562047 hours) and
+  `expires_in` (a whole number of hours above zero) at plan time, instead of
+  wrapping into a token that is already expired or failing at apply. Read now
+  plans a new token once `token_expiry` has passed, and the docs say that a
+  new token or a destroy does not revoke the old one
+  ([#1388](https://github.com/aminueza/terraform-provider-minio/issues/1388)).
 - `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
   `rule.default_retention` at plan time (`ExactlyOneOf`), and both
   `minio_s3_bucket_object_lock_configuration` and `minio_s3_bucket_retention`

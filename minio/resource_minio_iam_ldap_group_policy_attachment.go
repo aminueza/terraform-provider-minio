@@ -72,7 +72,7 @@ func minioCreateLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		}
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", policyName, groupDN))
+	d.SetId(fmt.Sprintf("%s/%s", groupDN, policyName))
 
 	return doMinioReadLDAPGroupPolicyAttachment(ctx, d, meta, groupDN, policyName)
 }
@@ -106,6 +106,8 @@ func doMinioReadLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 	if err := d.Set("policy_name", policyName); err != nil {
 		return NewResourceError("failed to load group infos", groupDN, err)
 	}
+
+	d.SetId(fmt.Sprintf("%s/%s", groupDN, policyName))
 
 	return nil
 }
@@ -146,7 +148,7 @@ func minioDeleteLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 func minioImportLDAPGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.SplitN(d.Id(), "/", 2)
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy-name>", d.Id())
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <dn>/<policy-name>", d.Id())
 	}
 
 	groupDN := idParts[0]
@@ -161,7 +163,7 @@ func minioImportLDAPGroupPolicyAttachment(ctx context.Context, d *schema.Resourc
 		return nil, errors.New(NewResourceErrorStr("unable to import group policy", groupDN, err))
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", policyName, groupDN))
+	d.SetId(fmt.Sprintf("%s/%s", groupDN, policyName))
 	return []*schema.ResourceData{d}, nil
 }
 
@@ -179,7 +181,7 @@ func minioReadLDAPGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminCli
 	}
 
 	if len(policyEntities.GroupMappings) > 1 {
-		return nil, NewResourceError("failed to load user infos", groupDN, errors.New("more than one group returned when getting LDAP policies for single group"))
+		return nil, NewResourceError("failed to load group infos", groupDN, errors.New("more than one group returned when getting LDAP policies for single group"))
 	}
 
 	return policyEntities.GroupMappings[0].Policies, nil

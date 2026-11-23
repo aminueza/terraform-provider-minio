@@ -60,8 +60,11 @@ resource "minio_iam_ldap_group_policy_attachment" "admins" {
 
 ## Import
 
-LDAP group policy attachments can be imported using the group DN and policy name separated by a slash:
+Import uses the resource ID, formatted as `<dn>/<policy>`:
 
 ```shell
 terraform import minio_iam_ldap_group_policy_attachment.example "cn=developers,ou=groups,dc=example,dc=com/policy-name"
 ```
+
+The importer splits at the first `/` and therefore assumes the group DN itself
+does not contain `/`.

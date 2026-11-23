@@ -72,7 +72,7 @@ func minioCreateLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		}
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", policyName, userDN))
+	d.SetId(fmt.Sprintf("%s/%s", userDN, policyName))
 
 	return doMinioReadLDAPUserPolicyAttachment(ctx, d, meta, userDN, policyName)
 }
@@ -106,6 +106,8 @@ func doMinioReadLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 	if err := d.Set("policy_name", policyName); err != nil {
 		return NewResourceError("failed to load user infos", userDN, err)
 	}
+
+	d.SetId(fmt.Sprintf("%s/%s", userDN, policyName))
 
 	return nil
 }
@@ -146,7 +148,7 @@ func minioDeleteLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 func minioImportLDAPUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.SplitN(d.Id(), "/", 2)
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy-name>", d.Id())
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <dn>/<policy-name>", d.Id())
 	}
 
 	userDN := idParts[0]
@@ -161,7 +163,7 @@ func minioImportLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userDN, err))
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", policyName, userDN))
+	d.SetId(fmt.Sprintf("%s/%s", userDN, policyName))
 	return []*schema.ResourceData{d}, nil
 }
 

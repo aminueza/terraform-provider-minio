@@ -60,8 +60,11 @@ resource "minio_iam_ldap_user_policy_attachment" "admins" {
 
 ## Import
 
-LDAP user policy attachments can be imported using the user DN and policy name separated by a slash:
+Import uses the resource ID, formatted as `<dn>/<policy>`:
 
 ```shell
 terraform import minio_iam_ldap_user_policy_attachment.example "cn=john,ou=users,dc=example,dc=com/policy-name"
 ```
+
+The importer splits at the first `/` and therefore assumes the user DN itself
+does not contain `/`.

@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: resource `id` now stores
+  `<dn>/<policy>` instead of `<policy>/<dn>` to match their documented import
+  format. Existing states migrate to the new ID on the next refresh with an
+  empty plan and no replacement
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `minio_iam_group_membership`: `id` now stores the `group` name instead of
   the Terraform-only `name` label, and `name` is no longer `ForceNew`. Existing
   states created before this change migrate `id` from `name` to `group` on the
@@ -72,6 +78,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: Create and import now record
+  `<dn>/<policy>` as the resource ID so stored IDs work directly with
+  `terraform import`, importer format errors name `<dn>/<policy-name>`, and
+  the LDAP group read error no longer mentions a user
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema
   attributes (which dropped both fields and panicked under `TF_ACC`), and

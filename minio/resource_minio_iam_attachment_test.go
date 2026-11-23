@@ -436,3 +436,73 @@ resource "minio_iam_ldap_user_policy_attachment" "test" {
 		},
 	})
 }
+
+func TestAccMinioIAMGroupUserAttachment_groupDeletedOutsideTerraform(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-del-%s", rString)
+	userName := fmt.Sprintf("tf-acc-user-del-%s", rString)
+	config := testAccIAMGroupUserAttachmentConfig(groupName, userName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_user_attachment.test", "group_name", groupName),
+					testAccCheckMinioGroupMemberExists(groupName, userName),
+				),
+			},
+			{
+				PreConfig:          func() { testAccDeleteMinioGroup(t, groupName) },
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_user_attachment.test", "group_name", groupName),
+					testAccCheckMinioGroupMemberExists(groupName, userName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicyAttachment_groupDeletedOutsideTerraform(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-pol-del-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-policy-del-%s", rString)
+	config := testAccIAMGroupPolicyAttachmentConfig(groupName, policyName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_policy_attachment.test", "group_name", groupName),
+					testAccCheckMinioGroupPolicyAttached(groupName, policyName),
+				),
+			},
+			{
+				PreConfig:          func() { testAccDeleteMinioGroup(t, groupName) },
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group_policy_attachment.test", "group_name", groupName),
+					testAccCheckMinioGroupPolicyAttached(groupName, policyName),
+				),
+			},
+		},
+	})
+}

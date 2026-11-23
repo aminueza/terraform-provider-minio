@@ -66,6 +66,11 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 	groupDesc, err := iamGroupMembershipConfig.MinioAdmin.GetGroupDescription(ctx, iamGroupMembershipConfig.MinioIAMGroup)
 
 	if err != nil {
+		if isNoSuchGroupError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("No such Group (%s) found, removing from state", iamGroupMembershipConfig.MinioIAMGroup))
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("failed to load group infos", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 	if !Contains(groupDesc.Members, iamGroupMembershipConfig.MinioIAMUser) {
@@ -88,6 +93,10 @@ func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
+		if isNoSuchGroupError(err) || isNoSuchUserError(err) {
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("removing user from group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 

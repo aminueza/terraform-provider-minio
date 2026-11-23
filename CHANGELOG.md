@@ -56,6 +56,10 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_group_user_attachment`, `minio_iam_group_policy_attachment` and
+  `minio_iam_user_group_membership` drop the attachment or membership from state
+  when their group or user is deleted outside Terraform
+  ([#1377](https://github.com/aminueza/terraform-provider-minio/issues/1377)).
 - `minio_iam_policy`, `minio_iam_group_policy`, and the policy attachment
   resources (`minio_iam_group_policy_attachment`,
   `minio_iam_user_policy_attachment`, `minio_iam_ldap_group_policy_attachment`,

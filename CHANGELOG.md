@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_user` now fails to create when a user with that name already exists,
+  instead of replacing its secret and status. Import the existing user with
+  `terraform import` (or an `import` block) to manage it. Create now reads the
+  user first, so the provider credential must also be allowed to read user info
+  (`admin:GetUser`).
+
 - `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
   `rule.default_retention` at plan time (`ExactlyOneOf`), and both
   `minio_s3_bucket_object_lock_configuration` and `minio_s3_bucket_retention`

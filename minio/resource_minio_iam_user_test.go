@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -431,6 +432,38 @@ func testAccMinioUserConfigWithSecretTwo(rName string) string {
 	  name   = %q
 	}
 	`, rName)
+}
+
+func TestAccMinioIAMUser_createFailsWhenExists(t *testing.T) {
+	name := fmt.Sprintf("test-user-%s", acctest.RandString(8))
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				PreConfig:   func() { testAccCreateUserOutsideTerraform(t, name) },
+				Config:      testAccMinioUserConfig(name),
+				ExpectError: regexp.MustCompile(`already exists`),
+			},
+		},
+	})
+}
+
+// testAccCreateUserOutsideTerraform seeds a user that no Terraform state knows
+// about and removes it again when the test ends, since CheckDestroy only walks
+// resources in state.
+func testAccCreateUserOutsideTerraform(t *testing.T, name string) {
+	ctx := context.Background()
+	minioIam := testAccClient().S3Admin
+
+	if err := minioIam.AddUser(ctx, name, "tfacc-outside-secret"); err != nil {
+		t.Fatalf("creating user %s outside Terraform: %v", name, err)
+	}
+	t.Cleanup(func() {
+		_ = minioIam.RemoveUser(ctx, name)
+	})
 }
 
 func testAccMinioUserConfig(rName string) string {

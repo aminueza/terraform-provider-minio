@@ -26,6 +26,11 @@ func TestAccMinioBucketMetadataImport_basic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
 				),
 			},
+			{
+				ResourceName: resourceName,
+				ImportState:  true,
+				ExpectError:  regexp.MustCompile(`doesn't support import`),
+			},
 		},
 	})
 }

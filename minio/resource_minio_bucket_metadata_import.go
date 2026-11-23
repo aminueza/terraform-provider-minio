@@ -23,9 +23,6 @@ func resourceMinioBucketMetadataImport() *schema.Resource {
 		ReadContext:   minioReadBucketMetadataImport,
 		UpdateContext: minioReadBucketMetadataImport,
 		DeleteContext: minioDeleteBucketMetadataImport,
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
-		},
 		Schema: map[string]*schema.Schema{
 			"bucket": {
 				Type:         schema.TypeString,

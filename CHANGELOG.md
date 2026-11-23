@@ -228,6 +228,13 @@ History older than 3.39.0 lives in the
   `minio_server_config_etcd`
   ([#1300](https://github.com/aminueza/terraform-provider-minio/issues/1300)).
 
+### Removed
+
+- `minio_bucket_metadata_import` no longer advertises Terraform import, because
+  every import failed with `Bucket name cannot be empty` and MinIO does not
+  retain the applied metadata zip. Applying the resource sends the zip again
+  ([#1374](https://github.com/aminueza/terraform-provider-minio/issues/1374)).
+
 ## [3.46.4] - 2026-11-17
 
 ### Fixed

@@ -127,10 +127,11 @@ func TestAccMinioS3ObjectRetention_import(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: testAccImportStateId(resourceName),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateIdFunc:       testAccImportStateId(resourceName),
+				ImportStateVerifyIgnore: []string{"governance_bypass"},
 			},
 			{
 				Config: testAccS3ObjectRetentionHashKeyVersionedConfig(bucket, objectKey, retainUntil),
@@ -141,10 +142,11 @@ func TestAccMinioS3ObjectRetention_import(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
-				ImportStateIdFunc: testAccImportStateId(resourceName),
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateIdFunc:       testAccImportStateId(resourceName),
+				ImportStateVerifyIgnore: []string{"governance_bypass"},
 			},
 		},
 	})

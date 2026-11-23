@@ -7,6 +7,10 @@ description: |-
 
 # minio_iam_group_membership (Resource)
 
+`users` is the complete membership of the group: members added outside this
+resource are removed on the next apply. Manage each group with exactly one
+`minio_iam_group_membership`; for per-user management use
+`minio_iam_group_user_attachment`.
 
 
 ## Example Usage

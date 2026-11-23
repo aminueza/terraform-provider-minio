@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -425,4 +426,40 @@ resource "minio_iam_group_policy" "test" {
   })
 }
 `, rInt, rInt)
+}
+
+func TestAccMinioIAMGroupPolicy_longNames(t *testing.T) {
+	rInt := acctest.RandInt()
+	name100 := "tfacc-gp-" + strings.Repeat("a", 100-len("tfacc-gp-"))
+	prefix230 := strings.Repeat("d", 230)
+	var out string
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccIAMGroupPolicyConfigNamePrefix(prefix230, rInt, "s3:ListAllMyBuckets"),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`(?s)cannot\s+be\s+longer\s+than\s+229\s+characters`),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "minio_iam_group" "test" {
+  name = "test_group_%d"
+}
+resource "minio_iam_group_policy" "test" {
+  name   = %q
+  group  = minio_iam_group.test.group_name
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+`, rInt, name100),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists("minio_iam_group.test", "minio_iam_group_policy.test", &out),
+					resource.TestCheckResourceAttr("minio_iam_group_policy.test", "name", name100),
+				),
+			},
+		},
+	})
 }

@@ -45,7 +45,24 @@ History older than 3.39.0 lives in the
   subsystem's keys: `enable`, `extensions`, `mime_types`, `allow_encryption`
   and `comment` ([#1324](https://github.com/aminueza/terraform-provider-minio/issues/1324)).
 
+### Changed
+
+- `minio_iam_group_user_attachment`: `group_name` now uses
+  `validateMinioIamGroupName` instead of the policy name validator, allowing
+  group names longer than 96 characters while rejecting `:` and `/` to match
+  `minio_iam_group`. Configurations attaching users to groups created outside
+  Terraform whose names contain `:` or `/` are rejected at plan time
+  ([#1392](https://github.com/aminueza/terraform-provider-minio/issues/1392)).
+
 ### Fixed
+
+- `minio_iam_policy`, `minio_iam_group_policy`, and the policy attachment
+  resources (`minio_iam_group_policy_attachment`,
+  `minio_iam_user_policy_attachment`, `minio_iam_ldap_group_policy_attachment`,
+  `minio_iam_ldap_user_policy_attachment`) now accept policy names up to 255
+  characters and reject commas, while `name_prefix` allows up to 229 characters
+  (255 minus the 26-character generated suffix)
+  ([#1392](https://github.com/aminueza/terraform-provider-minio/issues/1392)).
 
 - `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
   `rule.default_retention` at plan time (`ExactlyOneOf`), and both

@@ -46,7 +46,7 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},
-				ValidateFunc:  validateIAMNamePolicy,
+				ValidateFunc:  validateIAMNamePrefixPolicy,
 			},
 			"group": {
 				Type:        schema.TypeString,

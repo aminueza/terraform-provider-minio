@@ -62,6 +62,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
+  RFC 3339 strings instead of passing `time.Time` values into string schema
+  attributes (which dropped both fields and panicked under `TF_ACC`), and
+  returns `d.Set` errors through `NewResourceError`
+  ([#1356](https://github.com/aminueza/terraform-provider-minio/issues/1356)).
 - `minio_s3_bucket_replication` Read and delete treat `NoSuchBucket` as
   already removed, so deleting the source bucket outside Terraform plans a
   recreation instead of failing every plan and destroy, and

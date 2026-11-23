@@ -46,7 +46,7 @@ func resourceMinioIAMPolicy() *schema.Resource {
 				Optional:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},
-				ValidateFunc:  validateIAMNamePolicy,
+				ValidateFunc:  validateIAMNamePrefixPolicy,
 			},
 		},
 	}
@@ -142,23 +142,40 @@ func minioDeletePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 	return nil
 }
 
-func validateIAMNamePolicy(v interface{}, k string) (ws []string, errors []error) {
+const (
+	maxIAMPolicyNameLength       = 255
+	maxIAMPolicyNamePrefixLength = maxIAMPolicyNameLength - id.UniqueIDSuffixLength
+)
+
+var iamPolicyNamePattern = regexp.MustCompile(`^[\w+=.@:/-]*$`)
+
+func validateIAMPolicyName(v interface{}, k string, maxLength int, limitDetail string) (ws []string, errors []error) {
 	value := v.(string)
-	if len(value) > 128 {
-		errors = append(errors, fmt.Errorf(
-			"%q cannot be longer than 128 characters", k))
+	if len(value) > maxLength {
+		if limitDetail != "" {
+			errors = append(errors, fmt.Errorf("%q cannot be longer than %d characters, %s", k, maxLength, limitDetail))
+		} else {
+			errors = append(errors, fmt.Errorf("%q cannot be longer than %d characters", k, maxLength))
+		}
 	}
 
-	if len(value) > 96 {
-		errors = append(errors, fmt.Errorf(
-			"%q cannot be longer than 96 characters, name is limited to 128", k))
-	}
-
-	if !regexp.MustCompile(`^[\w+=,.@:/-]*$`).MatchString(value) {
-		errors = append(errors, fmt.Errorf(
-			"%q must match [\\w+=,.@:/-]", k))
+	if !iamPolicyNamePattern.MatchString(value) {
+		errors = append(errors, fmt.Errorf("%q must match [\\w+=.@:/-]", k))
 	}
 	return
+}
+
+func validateIAMNamePolicy(v interface{}, k string) (ws []string, errors []error) {
+	return validateIAMPolicyName(v, k, maxIAMPolicyNameLength, "")
+}
+
+func validateIAMNamePrefixPolicy(v interface{}, k string) (ws []string, errors []error) {
+	return validateIAMPolicyName(
+		v,
+		k,
+		maxIAMPolicyNamePrefixLength,
+		fmt.Sprintf("name is limited to %d", maxIAMPolicyNameLength),
+	)
 }
 
 func validateIAMPolicyJSON(v interface{}, k string) (ws []string, errors []error) {

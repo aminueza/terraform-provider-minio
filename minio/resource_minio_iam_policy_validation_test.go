@@ -247,6 +247,7 @@ func TestIAMPolicyNamePrefixFromName(t *testing.T) {
 		{name: "bare 26-char unique suffix", in: "20261123010026647900000001", want: ""},
 		{name: "long plain name without unique suffix", in: "ordinary-policy-name-longer-than-twenty-six-chars", want: ""},
 		{name: "non-hex tail rejected", in: "tfacc-2026112301002664790000000z", want: ""},
+		{name: "prefix ending in a pseudo-suffix strips from the right", in: "20261123010026647900000001" + "202611230100266479abcdef01", want: "20261123010026647900000001"},
 	}
 
 	for _, tc := range cases {

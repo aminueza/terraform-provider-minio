@@ -56,7 +56,7 @@ func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schem
 		_ = d.Set("replica_count", strconv.FormatInt(metrics.ReplicaCount, 10))
 		_ = d.Set("queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64))
 		_ = d.Set("queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64))
-	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+	case isS3CompatJSONEndpointNotSupported(client, err):
 		for _, k := range zeros {
 			_ = d.Set(k, "0")
 		}

@@ -654,13 +654,27 @@ func TestDataSourceMinioS3BucketReplicationStatusAndMetricsAgainstStubBackend(t 
 				metricsBody:    dataSourceBucketStubXML("NotImplemented", "This operation is not implemented."),
 				wantGapWarning: "replicated_size",
 			},
+			{
+				name:           "with s3_compat_mode a 200 XML ListObjects fallback on metrics warns",
+				compatMode:     true,
+				replStatus:     http.StatusOK,
+				replBody:       replXML,
+				metricsStatus:  http.StatusOK,
+				metricsBody:    `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name></ListBucketResult>`,
+				wantRuleCount:  1,
+				wantGapWarning: "replicated_size",
+			},
 		}
 
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
 					if r.URL.Query().Has("replication-metrics") {
-						w.Header().Set("Content-Type", "application/json")
+						if strings.HasPrefix(tc.metricsBody, "<") {
+							w.Header().Set("Content-Type", "application/xml")
+						} else {
+							w.Header().Set("Content-Type", "application/json")
+						}
 						w.WriteHeader(tc.metricsStatus)
 						_, _ = fmt.Fprint(w, tc.metricsBody)
 						return
@@ -727,12 +741,30 @@ func TestDataSourceMinioS3BucketReplicationStatusAndMetricsAgainstStubBackend(t 
 				wantGapWarning: true,
 				wantPending:    "0",
 			},
+			{
+				name:           "with s3_compat_mode a 200 XML ListObjects fallback warns and returns zeros",
+				compatMode:     true,
+				status:         http.StatusOK,
+				body:           `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name></ListBucketResult>`,
+				wantGapWarning: true,
+				wantPending:    "0",
+			},
+			{
+				name:    "without s3_compat_mode a 200 XML response returns an error",
+				status:  http.StatusOK,
+				body:    `<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Name>test-bucket</Name></ListBucketResult>`,
+				wantErr: "reading bucket replication metrics",
+			},
 		}
 
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				client := lifecycleStubClient(t, func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
+					if strings.HasPrefix(tc.body, "<") {
+						w.Header().Set("Content-Type", "application/xml")
+					} else {
+						w.Header().Set("Content-Type", "application/json")
+					}
 					w.WriteHeader(tc.status)
 					_, _ = fmt.Fprint(w, tc.body)
 				})

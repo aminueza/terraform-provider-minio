@@ -176,9 +176,25 @@ func resourceMinioIamGroupPolicyParseID(id string) (groupName, policyName string
 	return
 }
 
+func isMadminErrorCode(err error, code string) bool {
+	var errResp madmin.ErrorResponse
+	return errors.As(err, &errResp) && errResp.Code == code
+}
+
 // isNoSuchPolicyError reports whether a madmin call failed because the canned
 // policy does not exist.
 func isNoSuchPolicyError(err error) bool {
-	var errResp madmin.ErrorResponse
-	return errors.As(err, &errResp) && errResp.Code == "XMinioAdminNoSuchPolicy"
+	return isMadminErrorCode(err, "XMinioAdminNoSuchPolicy")
+}
+
+// isNoSuchGroupError reports whether a madmin call failed because the group
+// does not exist.
+func isNoSuchGroupError(err error) bool {
+	return isMadminErrorCode(err, "XMinioAdminNoSuchGroup")
+}
+
+// isNoSuchUserError reports whether a madmin call failed because the user
+// does not exist.
+func isNoSuchUserError(err error) bool {
+	return isMadminErrorCode(err, "XMinioAdminNoSuchUser")
 }

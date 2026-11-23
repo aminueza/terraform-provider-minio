@@ -2,7 +2,9 @@ package minio
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
@@ -103,6 +105,11 @@ func minioReadUserGroupMembership(ctx context.Context, d *schema.ResourceData, m
 
 	userInfo, err := cfg.MinioAdmin.GetUserInfo(ctx, cfg.UserName)
 	if err != nil {
+		if isNoSuchUserError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("No such IAM user (%s) found, removing group membership from state", cfg.UserName))
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("reading user info", cfg.UserName, err)
 	}
 
@@ -178,6 +185,13 @@ func minioDeleteUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members:  []string{cfg.UserName},
 			IsRemove: true,
 		}); err != nil {
+			if isNoSuchUserError(err) {
+				d.SetId("")
+				return nil
+			}
+			if isNoSuchGroupError(err) {
+				continue
+			}
 			return NewResourceError("removing user from group", cfg.UserName, err)
 		}
 	}

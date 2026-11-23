@@ -124,6 +124,15 @@ func TestAccMinioServiceAction_stop(t *testing.T) {
 	})
 }
 
+func TestResourceMinioNonRecoverableImportersRemoved(t *testing.T) {
+	if res := resourceMinioServiceAction(); res.Importer != nil {
+		t.Fatalf("resourceMinioServiceAction().Importer = %+v, want nil (service actions are not recoverable via import)", res.Importer)
+	}
+	if res := resourceMinioPrometheusBearerToken(); res.Importer != nil {
+		t.Fatalf("resourceMinioPrometheusBearerToken().Importer = %+v, want nil (locally signed bearer tokens cannot be recovered via import)", res.Importer)
+	}
+}
+
 func testAccMinioServiceActionConfig(actionName string, action string) string {
 	return fmt.Sprintf(`
 resource "minio_service_action" "test" {

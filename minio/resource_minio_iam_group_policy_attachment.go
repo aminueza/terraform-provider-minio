@@ -53,7 +53,7 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
-		return err
+		return NewResourceError("failed to load group infos", groupName, err)
 	}
 	if !Contains(policies, policyName) {
 		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to group: %s", policyName, groupName))
@@ -85,7 +85,12 @@ func doMinioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	minioAdmin := meta.(*S3MinioClient).S3Admin
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
-		return err
+		if isNoSuchGroupError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("No such Group (%s) found, removing policy attachment from state", groupName))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("failed to load group infos", groupName, err)
 	}
 	if !Contains(policies, policyName) {
 		tflog.Warn(ctx, fmt.Sprintf("No such policy by name (%s) found, removing from state", d.Id()))
@@ -111,7 +116,11 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
-		return err
+		if isNoSuchGroupError(err) {
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("failed to load group infos", groupName, err)
 	}
 
 	if !Contains(policies, policyName) {
@@ -124,6 +133,10 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		Group:    groupName,
 	})
 	if errIam != nil {
+		if isNoSuchGroupError(errIam) {
+			d.SetId("")
+			return nil
+		}
 		return NewResourceError("unable to delete group policy", groupName, errIam)
 	}
 
@@ -151,10 +164,10 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	return []*schema.ResourceData{d}, nil
 }
 
-func minioReadGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, groupName string) ([]string, diag.Diagnostics) {
+func minioReadGroupPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, groupName string) ([]string, error) {
 	groupInfo, errGroup := minioAdmin.GetGroupDescription(ctx, groupName)
 	if errGroup != nil {
-		return nil, NewResourceError("failed to load group infos", groupName, errGroup)
+		return nil, errGroup
 	}
 	if groupInfo.Policy == "" {
 		return nil, nil

@@ -292,9 +292,8 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	if diags.HasError() {
 		return diags
 	}
-	if bucketReplicationConfig == nil || len(bucketReplicationConfig.ReplicationRules) == 0 {
-		bucket, _ := d.Get("bucket").(string)
-		return NewResourceError("putting bucket replication configuration", bucket, fmt.Errorf("at least one rule block is required"))
+	if len(bucketReplicationConfig.ReplicationRules) == 0 {
+		return NewResourceError("putting bucket replication configuration", bucketReplicationConfig.MinioBucket, fmt.Errorf("at least one rule block is required"))
 	}
 	replicationConfig := bucketReplicationConfig.ReplicationRules
 
@@ -383,7 +382,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket replication configuration", err) {
 			return nil
 		}
-		if isNoSuchBucketError(err) {
+		if isNoSuchBucketError(err) && !d.IsNewResource() {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing replication resource from state", bucketName))
 			d.SetId("")
 			return nil
@@ -399,7 +398,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
 	if err != nil {
-		if isNoSuchBucketError(err) {
+		if isNoSuchBucketError(err) && !d.IsNewResource() {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing replication resource from state", bucketName))
 			d.SetId("")
 			return nil

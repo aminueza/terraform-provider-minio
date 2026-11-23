@@ -165,3 +165,97 @@ func TestReadAndDeleteBucketReplicationDropMissingBucket(t *testing.T) {
 		t.Fatalf("minioDeleteBucketReplication returned unexpected error on NoSuchBucket: %v", diags)
 	}
 }
+
+func TestReadAndDeleteBucketReplicationDropMissingBucketAdminAPI(t *testing.T) {
+	// The S3 replication read succeeds while the admin API reports the bucket
+	// gone with a non-standard message: only the typed madmin classification
+	// in isNoSuchBucketError can catch this.
+	meta := newReplicationStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/list-remote-targets"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, `{"Code":"BucketNotFound","Message":"bucket missing","Resource":"/minio/admin/v3/list-remote-targets"}`)
+		case strings.TrimSuffix(r.URL.Path, "/") == "/source" && r.URL.Query().Has("replication") && r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></ReplicationConfiguration>`)
+		case strings.TrimSuffix(r.URL.Path, "/") == "/source" && r.URL.Query().Has("replication") && r.Method == http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+		case strings.TrimSuffix(r.URL.Path, "/") == "/source" && r.URL.Query().Has("replication") && r.Method == http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusNotImplemented)
+		}
+	})
+
+	dRead := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	dRead.SetId("source")
+	if diags := minioReadBucketReplication(context.Background(), dRead, meta); diags.HasError() {
+		t.Fatalf("minioReadBucketReplication returned unexpected error on admin BucketNotFound: %v", diags)
+	}
+	if dRead.Id() != "" {
+		t.Fatalf("minioReadBucketReplication kept ID %q, want empty after admin BucketNotFound", dRead.Id())
+	}
+
+	dDel := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	dDel.SetId("source")
+	if diags := minioDeleteBucketReplication(context.Background(), dDel, meta); diags.HasError() {
+		t.Fatalf("minioDeleteBucketReplication returned unexpected error on admin BucketNotFound: %v", diags)
+	}
+}
+
+func TestReadBucketReplicationAdminAccessDeniedKeepsResource(t *testing.T) {
+	meta := newReplicationStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/list-remote-targets"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = fmt.Fprint(w, `{"Code":"AccessDenied","Message":"Access Denied.","Resource":"/minio/admin/v3/list-remote-targets"}`)
+		case strings.TrimSuffix(r.URL.Path, "/") == "/source" && r.URL.Query().Has("replication") && r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/xml")
+			_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></ReplicationConfiguration>`)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
+			w.WriteHeader(http.StatusNotImplemented)
+		}
+	})
+
+	d := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+	})
+	d.SetId("source")
+	if diags := minioReadBucketReplication(context.Background(), d, meta); !diags.HasError() {
+		t.Fatal("expected an error when the admin API denies access, got none")
+	}
+	if d.Id() != "source" {
+		t.Fatalf("resource ID = %q, want %q kept after a non-NoSuchBucket admin error", d.Id(), "source")
+	}
+}
+
+func TestReadBucketReplicationDropAfterCreateStillErrors(t *testing.T) {
+	// The read that runs in the same apply as create must report the error
+	// instead of dropping the resource that was just created.
+	meta := newReplicationStubClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message><Resource>/source</Resource></Error>`)
+	})
+
+	d := resourceMinioBucketReplication().TestResourceData()
+	d.MarkNewResource()
+	d.SetId("source")
+	if err := d.Set("bucket", "source"); err != nil {
+		t.Fatal(err)
+	}
+	if diags := minioReadBucketReplication(context.Background(), d, meta); !diags.HasError() {
+		t.Fatal("expected an error when the bucket is missing right after create, got none")
+	}
+	if d.Id() != "source" {
+		t.Fatalf("resource ID = %q, want %q kept when the read runs right after create", d.Id(), "source")
+	}
+}

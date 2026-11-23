@@ -42,6 +42,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_group` no longer attaches the built-in `readonly` policy during
+  delete. Check groups whose destroy failed before this fix with
+  `mc admin group info` and detach `readonly` if it was not intentionally
+  assigned
+  ([#1385](https://github.com/aminueza/terraform-provider-minio/issues/1385)).
 - `minio_iam_ldap_user_policy_attachment` and
   `minio_iam_ldap_group_policy_attachment` read the policies of their own
   user or group. They used to check whether any LDAP user or group had the

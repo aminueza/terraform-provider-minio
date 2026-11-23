@@ -7,16 +7,50 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"math"
 	"regexp"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 const prometheusIssuer = "prometheus"
+
+// prometheusTokenMaxHours is the largest whole number of hours a time.Duration
+// can hold (2562047). Larger values wrap negative when multiplied by
+// time.Hour and produce a token that is already expired. See issue #1388.
+const prometheusTokenMaxHours = int(math.MaxInt64 / int64(time.Hour))
+
+// prometheusTokenNow lets tests move the clock that Read compares
+// token_expiry against.
+var prometheusTokenNow = time.Now
+
+var prometheusExpiresInPattern = regexp.MustCompile(`^\d+h$`)
+
+func validatePrometheusTokenExpiresIn(v interface{}, k string) ([]string, []error) {
+	value, ok := v.(string)
+	if !ok {
+		return nil, []error{fmt.Errorf("expected type of %s to be string", k)}
+	}
+
+	if !prometheusExpiresInPattern.MatchString(value) {
+		return nil, []error{fmt.Errorf("%s must be in format: number followed by 'h' (e.g., 24h, 87600h), got: %s", k, value)}
+	}
+
+	duration, err := time.ParseDuration(value)
+	if err != nil {
+		return nil, []error{fmt.Errorf("%s must be at most %dh, got: %s", k, prometheusTokenMaxHours, value)}
+	}
+
+	if duration <= 0 {
+		return nil, []error{fmt.Errorf("%s must be greater than 0h, got: %s", k, value)}
+	}
+
+	return nil, nil
+}
 
 func resourceMinioPrometheusBearerToken() *schema.Resource {
 	return &schema.Resource{
@@ -49,7 +83,7 @@ duration from creation time.`,
 				Type:         schema.TypeString,
 				Optional:     true,
 				Default:      "87600h",
-				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^\d+h$`), "must be in format: number followed by 'h' (e.g., 24h, 87600h)"),
+				ValidateFunc: validatePrometheusTokenExpiresIn,
 				Description:  "Token expiry duration in whole hours only (e.g., 24h, 87600h). Go time.Duration formats like 24h30m or units such as m/s are not supported. Default: 87600h (10 years)",
 			},
 			"limit": {
@@ -57,7 +91,7 @@ duration from creation time.`,
 				Optional:     true,
 				Default:      876000,
 				ForceNew:     true,
-				ValidateFunc: validation.IntAtLeast(1),
+				ValidateFunc: validation.IntBetween(1, prometheusTokenMaxHours),
 				Description:  "Maximum token expiry in hours. Default: 876000 (100 years)",
 			},
 			"token": {
@@ -131,6 +165,15 @@ func minioReadPrometheusBearerToken(ctx context.Context, d *schema.ResourceData,
 
 	tokenExpiry, ok := d.GetOk("token_expiry")
 	if ok {
+		// The token is signed locally and MinIO keeps no record of it, so the
+		// only way to notice expiry is the stored timestamp. Dropping the
+		// resource from state makes the next plan issue a new token.
+		if expiry, err := time.Parse(time.RFC3339, tokenExpiry.(string)); err == nil && !prometheusTokenNow().Before(expiry) {
+			tflog.Warn(ctx, fmt.Sprintf("Prometheus bearer token for metric type %s expired at %s, planning a new token", metricType, expiry.Format(time.RFC3339)))
+			d.SetId("")
+			return nil
+		}
+
 		if err := d.Set("token_expiry", tokenExpiry); err != nil {
 			return NewResourceError("setting token_expiry", metricType, err)
 		}

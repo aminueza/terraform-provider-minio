@@ -11,6 +11,8 @@ Lists IAM users with optional filtering by name prefix and status.
 
 Lists IAM users with optional filtering by name prefix and status. This is useful for discovering existing users, bulk operations, and auditing.
 
+-> **Note:** Service accounts are not returned by this data source; use `minio_access_keys` to list them. When LDAP is enabled, MinIO also includes LDAP users that have a direct policy mapping, keyed by DN with `policy_names` set, `member_of_groups` empty, and `status` reported as `"enabled"`.
+
 ## Example Usage
 
 ```terraform
@@ -26,13 +28,13 @@ output "enabled_user_names" {
   value = [for user in data.minio_iam_users.all_enabled.users : user.name]
 }
 
-data "minio_iam_users" "service_accounts" {
-  name_prefix = "svc-"
+data "minio_iam_users" "team" {
+  name_prefix = "team-"
   status      = "enabled"
 }
 
-output "service_account_users" {
-  value = data.minio_iam_users.service_accounts.users
+output "team_users" {
+  value = data.minio_iam_users.team.users
 }
 
 data "minio_iam_users" "all" {
@@ -57,7 +59,7 @@ resource "minio_iam_user_policy_attachment" "readonly_for_all" {
 ## Use Cases
 
 - **User Discovery**: List all users in the MinIO deployment
-- **Filtered Queries**: Find users by prefix (e.g., service accounts)
+- **Filtered Queries**: Find users by prefix (e.g., `team-`)
 - **Status Filtering**: List only enabled or disabled users
 - **Bulk Operations**: Apply policies or configurations to multiple users
 - **Audit Reports**: Generate user inventory for compliance
@@ -67,13 +69,13 @@ resource "minio_iam_user_policy_attachment" "readonly_for_all" {
 
 ### Optional
 
-- `name_prefix` (String)
-- `status` (String)
+- `name_prefix` (String) Optional prefix filter matching user names.
+- `status` (String) Filter users by account status. Valid values are `enabled`, `disabled`, or `all`. Defaults to `enabled`.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `users` (List of Object) (see [below for nested schema](#nestedatt--users))
+- `users` (List of Object) IAM users matching the filters, sorted by name. (see [below for nested schema](#nestedatt--users))
 
 <a id="nestedatt--users"></a>
 ### Nested Schema for `users`

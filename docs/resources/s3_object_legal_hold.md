@@ -57,4 +57,8 @@ terraform import minio_s3_object_legal_hold.example bucket_name/object_key
 
 # Import a specific object version by appending #version_id
 terraform import minio_s3_object_legal_hold.example bucket_name/object_key#version_id
+
+# An object key that contains "#" ends with "#" when it has no version, so the
+# key is not read as a version ID
+terraform import minio_s3_object_legal_hold.example bucket_name/reports#2026.csv#
 ```

@@ -157,6 +157,7 @@ func TestObjectVersionIDRoundTrip(t *testing.T) {
 		{"b", "reports#2026.csv", testVersionID},
 		{"b", "dir/a#b", ""},
 		{"b", "key#with#many#hashes", ""},
+		{"b", "dir/file#", ""},
 	}
 	for _, c := range cases {
 		id := objectVersionID(c.bucket, c.key, c.verID)

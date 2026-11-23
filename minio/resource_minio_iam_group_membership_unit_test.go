@@ -152,6 +152,72 @@ func TestIAMGroupMembershipGroupLookup500ReturnsErrorWithoutPanic(t *testing.T) 
 	}
 }
 
+func TestIAMGroupMembershipDeleteToleratesMissingTargets(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		code    string
+		message string
+	}{
+		{
+			name:    "missing user counts as already removed",
+			code:    "XMinioAdminNoSuchUser",
+			message: "The specified user does not exist.",
+		},
+		{
+			name:    "missing group counts as already destroyed",
+			code:    "XMinioAdminNoSuchGroup",
+			message: "The specified group does not exist.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := groupMembershipStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				if err := json.NewEncoder(w).Encode(map[string]string{
+					"Code":    tc.code,
+					"Message": tc.message,
+				}); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+			})
+
+			res := resourceMinioIAMGroupMembership()
+			d := res.TestResourceData()
+			if err := d.Set("name", "team-membership"); err != nil {
+				t.Fatal(err)
+			}
+			if err := d.Set("group", "test-group"); err != nil {
+				t.Fatal(err)
+			}
+			if err := d.Set("users", []string{"alice"}); err != nil {
+				t.Fatal(err)
+			}
+			d.SetId("team-membership")
+
+			diags := res.DeleteContext(context.Background(), d, &S3MinioClient{S3Admin: client})
+			if diags.HasError() {
+				t.Fatalf("expected delete to tolerate %s, got %v", tc.code, diags)
+			}
+			if d.Id() != "" {
+				t.Fatalf("expected state ID to be cleared, got %q", d.Id())
+			}
+		})
+	}
+
+	// The helpers must match only their own code, so a real failure is never
+	// swallowed by the tolerated-missing paths.
+	if isGroupMembershipGroupMissing(madmin.ErrorResponse{Code: "XMinioAdminNoSuchKey"}) ||
+		isGroupMembershipUserMissing(madmin.ErrorResponse{Code: "XMinioAdminNoSuchKey"}) {
+		t.Fatal("missing-target helpers matched an unrelated error code")
+	}
+	if !isGroupMembershipUserMissing(madmin.ErrorResponse{Code: "XMinioAdminNoSuchUser"}) {
+		t.Fatal("isGroupMembershipUserMissing did not match XMinioAdminNoSuchUser")
+	}
+	if !isGroupMembershipGroupMissing(madmin.ErrorResponse{Code: "XMinioAdminNoSuchGroup"}) {
+		t.Fatal("isGroupMembershipGroupMissing did not match XMinioAdminNoSuchGroup")
+	}
+}
+
 func TestIAMGroupMembershipHelpersStrictChecks(t *testing.T) {
 	// Attribute check must reject substring group names and extra/missing members.
 	if err := checkMinioGroupMembershipAttributes(&madmin.GroupDesc{

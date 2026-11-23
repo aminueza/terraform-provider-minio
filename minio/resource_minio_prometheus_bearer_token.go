@@ -58,9 +58,6 @@ func resourceMinioPrometheusBearerToken() *schema.Resource {
 		ReadContext:   minioReadPrometheusBearerToken,
 		UpdateContext: minioUpdatePrometheusBearerToken,
 		DeleteContext: minioDeletePrometheusBearerToken,
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
-		},
 		Description: `Manages MinIO Prometheus bearer tokens for metrics authentication.
 
 Bearer tokens are JWTs signed with MinIO credentials that authenticate

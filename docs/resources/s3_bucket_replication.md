@@ -199,11 +199,11 @@ resource "minio_s3_bucket_replication" "replication_in_a" {
 ### Required
 
 - `bucket` (String) Name of the bucket on which to setup replication rules
+- `rule` (Block List, Min: 1) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
 ### Optional
 
 - `resync_version` (Number) Increment this value to trigger a resync of existing objects for all replication rules. Each increment triggers one resync.
-- `rule` (Block List) Rule definitions (see [below for nested schema](#nestedblock--rule))
 
 ### Read-Only
 

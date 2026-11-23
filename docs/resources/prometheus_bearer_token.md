@@ -92,15 +92,10 @@ output "prometheus_scrape_config" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-```shell
-# Import using the metric type
-terraform import minio_prometheus_bearer_token.example cluster
-terraform import minio_prometheus_bearer_token.example node
-terraform import minio_prometheus_bearer_token.example bucket
-terraform import minio_prometheus_bearer_token.example resource
-```
+`minio_prometheus_bearer_token` cannot be imported. Tokens are signed locally
+by the provider and MinIO keeps no copy on the server, so neither the token nor
+its expiry can be recovered. Use a `moved` block or `terraform state mv` to move
+existing resources between configurations.
 
 ## Security Considerations
 

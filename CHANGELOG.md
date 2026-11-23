@@ -53,9 +53,20 @@ History older than 3.39.0 lives in the
   `minio_iam_group`. Configurations attaching users to groups created outside
   Terraform whose names contain `:` or `/` are rejected at plan time
   ([#1392](https://github.com/aminueza/terraform-provider-minio/issues/1392)).
+- `minio_s3_bucket_replication`: `rule` is now required with at least one
+  block, so configurations with no `rule` blocks are rejected at plan time
+  (`Insufficient rule blocks`) instead of applying with an empty replication
+  configuration; remove the resource or keep at least one rule. This is a
+  breaking change for configurations that had no `rule` blocks
+  ([#1380](https://github.com/aminueza/terraform-provider-minio/issues/1380)).
 
 ### Fixed
 
+- `minio_s3_bucket_replication` Read and delete treat `NoSuchBucket` as
+  already removed, so deleting the source bucket outside Terraform plans a
+  recreation instead of failing every plan and destroy, and
+  `minioPutBucketReplication` returns an error if called with no rules
+  ([#1380](https://github.com/aminueza/terraform-provider-minio/issues/1380)).
 - `minio_iam_policy` and `minio_iam_group_policy` now mark `name_prefix` as
   `Computed` and recover it from generated policy names ending with Terraform's
   26-character unique ID suffix on read/import (`""` for plain `name`
@@ -297,6 +308,13 @@ History older than 3.39.0 lives in the
 
 ### Removed
 
+- `minio_service_action` and `minio_prometheus_bearer_token` no longer
+  advertise Terraform import, because MinIO stores neither past service
+  actions nor locally signed Prometheus bearer tokens. Importing either
+  resource forced replacement on the next plan (`minio_service_action`) or
+  re-ran the action on the next apply; use `moved` blocks or `terraform state mv`
+  to move existing resources between configurations
+  ([#1379](https://github.com/aminueza/terraform-provider-minio/issues/1379)).
 - `minio_bucket_metadata_import` no longer advertises Terraform import, because
   every import failed with `Bucket name cannot be empty` and MinIO does not
   retain the applied metadata zip. Applying the resource sends the zip again

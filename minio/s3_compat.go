@@ -2,9 +2,11 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -60,12 +62,29 @@ func isS3CompatNotSupported(client *S3MinioClient, methodNotAllowed string, err 
 	return code == s3CompatMethodNotAllowed || status == http.StatusMethodNotAllowed
 }
 
+// isS3CompatJSONEndpointNotSupported reports whether an error from a MinIO-only
+// JSON bucket subresource endpoint (such as ?replication-metrics) indicates that
+// an S3-compatible backend does not implement it: either a typed 501/405
+// response or a 200 OK XML listing (json.SyntaxError on '<') when the backend
+// ignores unknown MinIO query parameters and falls back to ListObjects.
+func isS3CompatJSONEndpointNotSupported(client *S3MinioClient, err error) bool {
+	if isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err) {
+		return true
+	}
+	if client == nil || !client.S3CompatMode || err == nil {
+		return false
+	}
+	var syntaxErr *json.SyntaxError
+	return errors.As(err, &syntaxErr) &&
+		strings.HasPrefix(syntaxErr.Error(), "invalid character '<' looking for beginning of value")
+}
+
 // s3CompatErrorResponse returns the S3 error code and the HTTP status of a typed
 // backend error. Both are needed: minio-go fills Code with the S3 error code only
 // when the error body is S3 XML, and falls back to the HTTP status line otherwise,
 // so a backend behind a gateway that answers 501 with a plain-text or empty body
 // reports Code "501 Not Implemented" and is recognisable only by its status.
-// madmin.ErrorResponse carries no status, so only its code is available.
+// madmin.ErrorResponse carries the HTTP status too.
 func s3CompatErrorResponse(err error) (string, int) {
 	var minioErr minio.ErrorResponse
 	if errors.As(err, &minioErr) {
@@ -79,7 +98,7 @@ func s3CompatErrorResponse(err error) (string, int) {
 
 	var madminErr madmin.ErrorResponse
 	if errors.As(err, &madminErr) {
-		return madminErr.Code, 0
+		return madminErr.Code, madminErr.StatusCode
 	}
 
 	return "", 0

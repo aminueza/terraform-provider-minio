@@ -31,28 +31,37 @@ func dataSourceMinioS3BucketCorsConfig() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketCorsConfigRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
+
+	var diags diag.Diagnostics
+	cfg, err := client.S3Client.GetBucketCors(ctx, bucket)
+	switch {
+	case err == nil:
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "cors_rule", "CORS configuration"))
+	default:
+		return NewResourceError("reading bucket CORS configuration", bucket, err)
+	}
 
 	d.SetId(bucket)
 
-	cfg, err := client.GetBucketCors(ctx, bucket)
-	if err != nil || cfg == nil {
-		_ = d.Set("cors_rule", []interface{}{})
-		return nil
+	rules := make([]map[string]interface{}, 0)
+	if cfg != nil {
+		rules = make([]map[string]interface{}, 0, len(cfg.CORSRules))
+		for _, r := range cfg.CORSRules {
+			rules = append(rules, map[string]interface{}{
+				"allowed_headers": r.AllowedHeader,
+				"allowed_methods": r.AllowedMethod,
+				"allowed_origins": r.AllowedOrigin,
+				"expose_headers":  r.ExposeHeader,
+				"max_age_seconds": r.MaxAgeSeconds,
+			})
+		}
 	}
 
-	var rules []map[string]interface{}
-	for _, r := range cfg.CORSRules {
-		rules = append(rules, map[string]interface{}{
-			"allowed_headers": r.AllowedHeader,
-			"allowed_methods": r.AllowedMethod,
-			"allowed_origins": r.AllowedOrigin,
-			"expose_headers":  r.ExposeHeader,
-			"max_age_seconds": r.MaxAgeSeconds,
-		})
+	if err := d.Set("cors_rule", rules); err != nil {
+		return NewResourceError("setting cors_rule", bucket, err)
 	}
-
-	_ = d.Set("cors_rule", rules)
-	return nil
+	return diags
 }

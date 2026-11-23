@@ -41,7 +41,7 @@ func dataSourceIAMGroupsRead(ctx context.Context, d *schema.ResourceData, meta i
 
 	groupNames, err := admin.ListGroups(ctx)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("listing IAM groups", "iam_groups", err)
 	}
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))
@@ -54,7 +54,7 @@ func dataSourceIAMGroupsRead(ctx context.Context, d *schema.ResourceData, meta i
 
 		desc, err := admin.GetGroupDescription(ctx, name)
 		if err != nil {
-			continue
+			return NewResourceError("reading IAM group", name, err)
 		}
 
 		out = append(out, map[string]interface{}{

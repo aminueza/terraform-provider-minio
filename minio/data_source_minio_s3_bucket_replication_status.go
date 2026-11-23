@@ -36,21 +36,26 @@ func dataSourceMinioS3BucketReplicationStatus() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketReplicationStatusRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
-	d.SetId(bucket)
-
-	cfg, err := client.GetBucketReplication(ctx, bucket)
-	if err != nil {
+	var diags diag.Diagnostics
+	cfg, err := client.S3Client.GetBucketReplication(ctx, bucket)
+	switch {
+	case err == nil:
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "rule_count", "bucket replication status"))
+		d.SetId(bucket)
 		_ = d.Set("rule_count", 0)
-		return nil
+		return diags
+	default:
+		return NewResourceError("reading bucket replication status", bucket, err)
 	}
 
+	d.SetId(bucket)
 	_ = d.Set("rule_count", len(cfg.Rules))
 
-	var rules []map[string]interface{}
+	rules := make([]map[string]interface{}, 0, len(cfg.Rules))
 	for _, r := range cfg.Rules {
 		rules = append(rules, map[string]interface{}{
 			"id":       r.ID,
@@ -61,13 +66,20 @@ func dataSourceMinioS3BucketReplicationStatusRead(ctx context.Context, d *schema
 	}
 	_ = d.Set("rules", rules)
 
-	metrics, err := client.GetBucketReplicationMetrics(ctx, bucket)
-	if err == nil {
+	metrics, err := client.S3Client.GetBucketReplicationMetrics(ctx, bucket)
+	switch {
+	case err == nil:
 		_ = d.Set("replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10))
 		_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
 		_ = d.Set("replicated_count", int(metrics.ReplicatedCount))
 		_ = d.Set("replica_count", int(metrics.ReplicaCount))
+	case isReplicationConfigNotFoundError(err):
+		// An unconfigured bucket returns ReplicationConfigurationNotFoundError on metrics too.
+	case isS3CompatJSONEndpointNotSupported(client, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "replicated_size", "bucket replication metrics"))
+	default:
+		return NewResourceError("reading bucket replication metrics", bucket, err)
 	}
 
-	return nil
+	return diags
 }

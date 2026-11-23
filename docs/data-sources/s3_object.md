@@ -45,10 +45,10 @@ data "minio_s3_object" "document" {
 - `content_type` (String) The content type of the object
 - `etag` (String) The ETag of the object
 - `expiration_rule_id` (String) The lifecycle expiry-date and ruleID associated with the expiry
-- `expires` (String) The  date and time at which the object is no longer able to be cached
+- `expires` (String) The date and time, in RFC3339 format, at which the object is no longer able to be cached
 - `id` (String) The ID of this resource.
 - `is_latest` (Boolean) Whether the object is the latest version
-- `last_modified` (String) The last modified time of the object
+- `last_modified` (String) The last modified time of the object in RFC3339 format
 - `owner` (Map of String) The owner of the object
 - `size` (Number) The size of the object
 - `storage_class` (String) The storage class of the object

@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -50,6 +51,14 @@ func TestAccMinioS3BucketObjectLockConfiguration_years(t *testing.T) {
 					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "bucket", bucketName),
 					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "rule.0.default_retention.0.mode", "COMPLIANCE"),
 					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "rule.0.default_retention.0.years", "7"),
+				),
+			},
+			{
+				Config: testAccMinioS3BucketObjectLockConfiguration_yearsValue(bucketName, 1),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "bucket", bucketName),
+					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "rule.0.default_retention.0.mode", "COMPLIANCE"),
+					resource.TestCheckResourceAttr("minio_s3_bucket_object_lock_configuration.test", "rule.0.default_retention.0.years", "1"),
 				),
 			},
 		},
@@ -104,6 +113,10 @@ resource "minio_s3_bucket_object_lock_configuration" "test" {
 }
 
 func testAccMinioS3BucketObjectLockConfiguration_years(bucketName string) string {
+	return testAccMinioS3BucketObjectLockConfiguration_yearsValue(bucketName, 7)
+}
+
+func testAccMinioS3BucketObjectLockConfiguration_yearsValue(bucketName string, years int) string {
 	return fmt.Sprintf(`
 resource "minio_s3_bucket" "test" {
   bucket         = %[1]q
@@ -116,11 +129,11 @@ resource "minio_s3_bucket_object_lock_configuration" "test" {
   rule {
     default_retention {
       mode  = "COMPLIANCE"
-      years = 7
+      years = %[2]d
     }
   }
 }
-`, bucketName)
+`, bucketName, years)
 }
 
 func testAccMinioS3BucketObjectLockConfiguration_updated(bucketName string) string {
@@ -137,6 +150,93 @@ resource "minio_s3_bucket_object_lock_configuration" "test" {
     default_retention {
       mode = "COMPLIANCE"
       days = 90
+    }
+  }
+}
+`, bucketName)
+}
+
+func TestAccMinioS3BucketObjectLockConfiguration_validation_defaultRetention(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioS3BucketObjectLockConfiguration_neitherDaysNorYears(bucketName),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`one of .*days.*years.* must be specified`),
+			},
+			{
+				Config:      testAccMinioS3BucketObjectLockConfiguration_bothDaysAndYears(bucketName),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`only one of .*days.*years.* can be specified`),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3BucketObjectLockConfiguration_requiresObjectLockBucket(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioS3BucketObjectLockConfiguration_bucketWithoutObjectLock(bucketName),
+				ExpectError: regexp.MustCompile(`doesn't have object lock enabled`),
+			},
+		},
+	})
+}
+
+func testAccMinioS3BucketObjectLockConfiguration_neitherDaysNorYears(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket_object_lock_configuration" "test" {
+  bucket = %[1]q
+
+  rule {
+    default_retention {
+      mode = "GOVERNANCE"
+    }
+  }
+}
+`, bucketName)
+}
+
+func testAccMinioS3BucketObjectLockConfiguration_bothDaysAndYears(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket_object_lock_configuration" "test" {
+  bucket = %[1]q
+
+  rule {
+    default_retention {
+      mode  = "GOVERNANCE"
+      days  = 30
+      years = 1
+    }
+  }
+}
+`, bucketName)
+}
+
+func testAccMinioS3BucketObjectLockConfiguration_bucketWithoutObjectLock(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket        = %[1]q
+  force_destroy = true
+}
+
+resource "minio_s3_bucket_object_lock_configuration" "test" {
+  bucket = minio_s3_bucket.test.bucket
+
+  rule {
+    default_retention {
+      mode = "GOVERNANCE"
+      days = 30
     }
   }
 }

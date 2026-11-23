@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
+  `rule.default_retention` at plan time (`ExactlyOneOf`), and both
+  `minio_s3_bucket_object_lock_configuration` and `minio_s3_bucket_retention`
+  check object lock before versioning so buckets created without object lock
+  report the object lock error directly instead of asking for versioning first
+  ([#1391](https://github.com/aminueza/terraform-provider-minio/issues/1391)).
 - `minio_iam_group` no longer attaches the built-in `readonly` policy during
   delete. Check groups whose destroy failed before this fix with
   `mc admin group info` and detach `readonly` if it was not intentionally

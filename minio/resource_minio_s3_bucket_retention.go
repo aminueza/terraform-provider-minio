@@ -97,15 +97,6 @@ func validateBucketObjectLock(ctx context.Context, client *minio.Client, bucket 
 		return fmt.Errorf("bucket %s does not exist", bucket)
 	}
 
-	versioning, err := client.GetBucketVersioning(ctx, bucket)
-	if err != nil {
-		return fmt.Errorf("error checking bucket versioning: %w", err)
-	}
-
-	if !versioning.Enabled() { // Use the method, not the field
-		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
-	}
-
 	objectLock, _, _, _, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
@@ -116,6 +107,15 @@ func validateBucketObjectLock(ctx context.Context, client *minio.Client, bucket 
 
 	if objectLock != "Enabled" {
 		return fmt.Errorf("bucket %s does not have object lock enabled. Object lock must be enabled when creating the bucket", bucket)
+	}
+
+	versioning, err := client.GetBucketVersioning(ctx, bucket)
+	if err != nil {
+		return fmt.Errorf("error checking bucket versioning: %w", err)
+	}
+
+	if !versioning.Enabled() { // Use the method, not the field
+		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
 	}
 
 	return nil

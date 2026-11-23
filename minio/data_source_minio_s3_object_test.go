@@ -90,7 +90,7 @@ func TestAccDataSourceMinioS3Object_basic(t *testing.T) {
 					resource.TestCheckResourceAttr("data.minio_s3_object.test", "object_name", "hello.txt"),
 					resource.TestCheckResourceAttr("data.minio_s3_object.test", "content", "hello world"),
 					resource.TestCheckResourceAttr("data.minio_s3_object.test", "size", "11"),
-					resource.TestMatchResourceAttr("data.minio_s3_object.test", "last_modified", regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$`)),
+					resource.TestMatchResourceAttr("data.minio_s3_object.test", "last_modified", regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$`)),
 					resource.TestCheckResourceAttr("data.minio_s3_object.test", "expires", ""),
 				),
 			},

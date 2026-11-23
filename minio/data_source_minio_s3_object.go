@@ -46,7 +46,7 @@ func dataSourceMinioS3Object() *schema.Resource {
 			"expires": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "The  date and time at which the object is no longer able to be cached",
+				Description: "The date and time, in RFC3339 format, at which the object is no longer able to be cached",
 			},
 			"expiration_rule_id": {
 				Type:        schema.TypeString,
@@ -61,7 +61,7 @@ func dataSourceMinioS3Object() *schema.Resource {
 			"last_modified": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "The last modified time of the object",
+				Description: "The last modified time of the object in RFC3339 format",
 			},
 			"owner": {
 				Type:     schema.TypeMap,

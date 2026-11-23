@@ -291,6 +291,12 @@ History older than 3.39.0 lives in the
 
 ### Removed
 
+- `minio_s3_incomplete_upload_cleanup` no longer advertises Terraform import,
+  because it is a stateless cleanup action whose `triggers` map is not stored
+  by MinIO; importing could re-run cleanup on Update or plan changes on the
+  next apply. Use `moved` blocks or `terraform state mv` to move existing
+  resources between configurations
+  ([#1408](https://github.com/aminueza/terraform-provider-minio/issues/1408)).
 - `minio_service_action` and `minio_prometheus_bearer_token` no longer
   advertise Terraform import, because MinIO stores neither past service
   actions nor locally signed Prometheus bearer tokens. Importing either

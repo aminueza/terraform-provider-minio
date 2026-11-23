@@ -2,6 +2,7 @@ package minio
 
 import (
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -26,10 +27,9 @@ func TestAccMinioS3IncompleteUploadCleanup_basic(t *testing.T) {
 				),
 			},
 			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_cleanup"},
+				ResourceName: resourceName,
+				ImportState:  true,
+				ExpectError:  regexp.MustCompile(`doesn't support import`),
 			},
 		},
 	})
@@ -50,12 +50,6 @@ func TestAccMinioS3IncompleteUploadCleanup_withPrefix(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bucket", bucketName),
 					resource.TestCheckResourceAttr(resourceName, "prefix", "uploads/"),
 				),
-			},
-			{
-				ResourceName:            resourceName,
-				ImportState:             true,
-				ImportStateVerify:       true,
-				ImportStateVerifyIgnore: []string{"last_cleanup"},
 			},
 		},
 	})
@@ -159,4 +153,10 @@ resource "minio_s3_incomplete_upload_cleanup" "test" {
   }
 }
 `, bucketName, triggerVal)
+}
+
+func TestResourceMinioS3IncompleteUploadCleanupImporterRemoved(t *testing.T) {
+	if res := resourceMinioS3IncompleteUploadCleanup(); res.Importer != nil {
+		t.Fatalf("resourceMinioS3IncompleteUploadCleanup().Importer = %+v, want nil (stateless cleanup triggers are not recoverable via import)", res.Importer)
+	}
 }

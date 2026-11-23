@@ -108,12 +108,14 @@ terraform import minio_prometheus_bearer_token.example resource
 - Tokens are generated locally using the provider's access and secret keys.
 - The token is stored in Terraform state as a sensitive value.
 - Use appropriate expiry durations based on your security requirements.
-- Regularly rotate tokens by updating the `expires_in` field.
+- MinIO keeps no copy of the token, so it cannot be revoked. Issuing a new token, by changing `expires_in` or running `terraform apply -replace=minio_prometheus_bearer_token.example`, does not invalidate the old one: it stays valid until its own expiry.
+- `terraform destroy` only removes the token from state. The token itself stays valid until it expires. To invalidate every token at once, rotate the credentials it was signed with.
 
 ## Token Expiry
 
-- The `expires_in` field accepts durations in whole hours only (e.g., `24h`, `168h`).
-- The `limit` field sets the maximum allowed expiry in hours.
+- The `expires_in` field accepts durations in whole hours only (e.g., `24h`, `168h`). It must be greater than `0h` and at most `2562047h`.
+- The `limit` field sets the maximum allowed expiry in hours, between 1 and 2562047 (the largest whole number of hours a Go `time.Duration` can hold).
 - If the requested expiry exceeds the limit, it will be capped at the limit.
+- Once `token_expiry` has passed, the next plan creates a new token.
 - Default expiry is 87600 hours (10 years).
 - Default limit is 876000 hours (100 years).

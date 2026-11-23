@@ -44,6 +44,7 @@ resource "minio_notify_amqp" "events" {
 - `internal` (Boolean) Whether the exchange is internal.
 - `mandatory` (Boolean) Whether to set the mandatory flag on published messages.
 - `no_wait` (Boolean) Whether to set the no-wait flag on queue declaration.
+- `publisher_confirms` (Boolean) Whether MinIO waits for the broker to confirm each published message and treats a rejected publish as an error. Use it together with `queue_dir` for guaranteed delivery.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
 - `routing_key` (String) AMQP routing key for message delivery.

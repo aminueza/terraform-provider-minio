@@ -75,6 +75,11 @@ func resourceMinioNotifyAmqp() *schema.Resource {
 				Optional:    true,
 				Description: "AMQP delivery mode: 1 for non-persistent, 2 for persistent.",
 			},
+			"publisher_confirms": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Whether MinIO waits for the broker to confirm each published message and treats a rejected publish as an error. Use it together with `queue_dir` for guaranteed delivery.",
+			},
 		}),
 	}
 }
@@ -92,6 +97,7 @@ func buildNotifyAmqpCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddBool(&parts, "internal", getOptionalField(d, "internal", false).(bool))
 	notifyBuildCfgAddBool(&parts, "auto_deleted", getOptionalField(d, "auto_deleted", false).(bool))
 	notifyBuildCfgAddInt(&parts, "delivery_mode", getOptionalField(d, "delivery_mode", 0).(int))
+	notifyBuildCfgAddBool(&parts, "publisher_confirms", d.Get("publisher_confirms").(bool))
 
 	notifyBuildCommonCfg(&parts, d, meta)
 	return strings.Join(parts, " ")
@@ -142,6 +148,9 @@ func readNotifyAmqpFields(cfgMap map[string]string, d *schema.ResourceData) diag
 		if n, err := parseInt(v); err == nil {
 			_ = d.Set("delivery_mode", n)
 		}
+	}
+	if err := d.Set("publisher_confirms", cfgMap["publisher_confirms"] == "on"); err != nil {
+		return NewResourceError("setting publisher_confirms", d.Id(), err)
 	}
 
 	notifyReadCommonFields(cfgMap, d)

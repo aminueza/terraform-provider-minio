@@ -19,17 +19,22 @@ func dataSourceMinioS3BucketPolicy() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketPolicyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
-	policy, err := client.GetBucketPolicy(ctx, bucket)
-	if err != nil {
-		d.SetId(bucket)
-		_ = d.Set("policy", "")
-		return nil
+
+	var diags diag.Diagnostics
+	policy, err := client.S3Client.GetBucketPolicy(ctx, bucket)
+	switch {
+	case err == nil:
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "policy", "bucket policies"))
+	default:
+		return NewResourceError("reading bucket policy", bucket, err)
 	}
 
 	d.SetId(bucket)
-	_ = d.Set("policy", policy)
-	return nil
+	if err := d.Set("policy", policy); err != nil {
+		return NewResourceError("setting policy", bucket, err)
+	}
+	return diags
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketTags() *schema.Resource {
@@ -23,18 +24,27 @@ func dataSourceMinioS3BucketTags() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketTagsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
-	tagging, err := client.GetBucketTagging(ctx, bucket)
-	if err != nil {
-		d.SetId(bucket)
-		_ = d.Set("tags", map[string]string{})
-		return nil
+
+	var diags diag.Diagnostics
+	tagsMap := map[string]string{}
+
+	tagging, err := client.S3Client.GetBucketTagging(ctx, bucket)
+	switch {
+	case err == nil:
+		tagsMap = tagging.ToMap()
+	case minio.ToErrorResponse(err).Code == "NoSuchTagSet":
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "tags", "bucket tagging"))
+	default:
+		return NewResourceError("reading bucket tags", bucket, err)
 	}
 
 	d.SetId(bucket)
-	_ = d.Set("tags", tagging.ToMap())
+	if err := d.Set("tags", tagsMap); err != nil {
+		return NewResourceError("setting tags", bucket, err)
+	}
 
-	return nil
+	return diags
 }

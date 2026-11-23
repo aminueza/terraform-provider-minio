@@ -53,6 +53,16 @@ History older than 3.39.0 lives in the
   check object lock before versioning so buckets created without object lock
   report the object lock error directly instead of asking for versioning first
   ([#1391](https://github.com/aminueza/terraform-provider-minio/issues/1391)).
+- The `minio_s3_bucket_quota`, `minio_s3_bucket_policy`,
+  `minio_s3_bucket_tags`, `minio_s3_bucket_cors_config`,
+  `minio_s3_bucket_replication`, `minio_s3_bucket_replication_status`,
+  `minio_s3_bucket_replication_metrics`, `minio_s3_bucket_notification_config`,
+  `minio_iam_groups` and `minio_iam_user_policies` data sources return API
+  errors instead of empty or zero values, so a missing bucket, a server that is
+  down or missing permissions fail the read. A bucket with nothing configured
+  still reads as empty, and a backend without the feature under
+  `s3_compat_mode` gives a warning
+  ([#1375](https://github.com/aminueza/terraform-provider-minio/issues/1375)).
 - `minio_iam_group` no longer attaches the built-in `readonly` policy during
   delete. Check groups whose destroy failed before this fix with
   `mc admin group info` and detach `readonly` if it was not intentionally
@@ -243,6 +253,13 @@ History older than 3.39.0 lives in the
   `minio_iam_idp_openid`, `minio_server_config_region` and
   `minio_server_config_etcd`
   ([#1300](https://github.com/aminueza/terraform-provider-minio/issues/1300)).
+
+### Removed
+
+- `minio_bucket_metadata_import` no longer advertises Terraform import, because
+  every import failed with `Bucket name cannot be empty` and MinIO does not
+  retain the applied metadata zip. Applying the resource sends the zip again
+  ([#1374](https://github.com/aminueza/terraform-provider-minio/issues/1374)).
 
 ## [3.46.4] - 2026-11-17
 

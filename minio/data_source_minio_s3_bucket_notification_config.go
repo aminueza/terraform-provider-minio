@@ -2,11 +2,9 @@ package minio
 
 import (
 	"context"
-	"errors"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketNotificationConfig() *schema.Resource {
@@ -32,16 +30,16 @@ func dataSourceMinioS3BucketNotificationConfig() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketNotificationConfigRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
-	cfg, err := client.GetBucketNotification(ctx, bucket)
-	if err != nil {
-		var respErr minio.ErrorResponse
-		if errors.As(err, &respErr) && respErr.Code == "NoSuchBucket" {
-			d.SetId("")
-			return nil
-		}
+	var diags diag.Diagnostics
+	cfg, err := client.S3Client.GetBucketNotification(ctx, bucket)
+	switch {
+	case err == nil:
+	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
+		diags = append(diags, dataSourceS3CompatGap(bucket, "queue", "bucket notification configuration"))
+	default:
 		return NewResourceError("reading bucket notification configuration", bucket, err)
 	}
 
@@ -55,12 +53,14 @@ func dataSourceMinioS3BucketNotificationConfigRead(ctx context.Context, d *schem
 		}
 		prefix := ""
 		suffix := ""
-		for _, rule := range q.Filter.S3Key.FilterRules {
-			switch rule.Name {
-			case "prefix":
-				prefix = rule.Value
-			case "suffix":
-				suffix = rule.Value
+		if q.Filter != nil {
+			for _, rule := range q.Filter.S3Key.FilterRules {
+				switch rule.Name {
+				case "prefix":
+					prefix = rule.Value
+				case "suffix":
+					suffix = rule.Value
+				}
 			}
 		}
 		queues = append(queues, map[string]interface{}{
@@ -77,5 +77,5 @@ func dataSourceMinioS3BucketNotificationConfigRead(ctx context.Context, d *schem
 	if err := d.Set("queue", queues); err != nil {
 		return NewResourceError("setting queue", d.Id(), err)
 	}
-	return nil
+	return diags
 }

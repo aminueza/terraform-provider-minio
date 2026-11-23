@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/minio/minio-go/v7"
 )
 
 func dataSourceMinioS3BucketReplicationMetrics() *schema.Resource {
@@ -29,39 +30,50 @@ func dataSourceMinioS3BucketReplicationMetrics() *schema.Resource {
 }
 
 func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	client := meta.(*S3MinioClient).S3Client
-
+	client := meta.(*S3MinioClient)
 	bucket := d.Get("bucket").(string)
 
-	d.SetId(bucket)
+	var diags diag.Diagnostics
+	m, err := client.S3Client.GetBucketReplicationMetricsV2(ctx, bucket)
+	switch {
+	case err == nil:
+		metrics := m.CurrentStats
 
-	zeros := []string{
+		_ = d.Set("pending_size", strconv.FormatUint(metrics.PendingSize, 10))
+		_ = d.Set("pending_count", strconv.FormatUint(metrics.PendingCount, 10))
+		_ = d.Set("failed_size", strconv.FormatUint(metrics.FailedSize, 10))
+		_ = d.Set("failed_count", strconv.FormatUint(metrics.FailedCount, 10))
+		_ = d.Set("replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10))
+		_ = d.Set("replicated_count", strconv.FormatInt(metrics.ReplicatedCount, 10))
+		_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
+		_ = d.Set("replica_count", strconv.FormatInt(metrics.ReplicaCount, 10))
+		_ = d.Set("queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64))
+		_ = d.Set("queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64))
+	case isReplicationConfigNotFoundError(err):
+		setBucketReplicationMetricsZero(d)
+	case isS3CompatJSONEndpointNotSupported(client, err):
+		setBucketReplicationMetricsZero(d)
+		diags = append(diags, dataSourceS3CompatGap(bucket, "pending_size", "bucket replication metrics"))
+	default:
+		return NewResourceError("reading bucket replication metrics", bucket, err)
+	}
+
+	d.SetId(bucket)
+	return diags
+}
+
+func isReplicationConfigNotFoundError(err error) bool {
+	return err != nil && minio.ToErrorResponse(err).Code == "ReplicationConfigurationNotFoundError"
+}
+
+func setBucketReplicationMetricsZero(d *schema.ResourceData) {
+	for _, k := range []string{
 		"pending_size", "pending_count",
 		"failed_size", "failed_count",
 		"replicated_size", "replicated_count",
 		"replica_size", "replica_count",
 		"queued_size", "queued_count",
+	} {
+		_ = d.Set(k, "0")
 	}
-
-	m, err := client.GetBucketReplicationMetricsV2(ctx, bucket)
-	if err != nil {
-		for _, k := range zeros {
-			_ = d.Set(k, "0")
-		}
-		return nil
-	}
-	metrics := m.CurrentStats
-
-	_ = d.Set("pending_size", strconv.FormatUint(metrics.PendingSize, 10))
-	_ = d.Set("pending_count", strconv.FormatUint(metrics.PendingCount, 10))
-	_ = d.Set("failed_size", strconv.FormatUint(metrics.FailedSize, 10))
-	_ = d.Set("failed_count", strconv.FormatUint(metrics.FailedCount, 10))
-	_ = d.Set("replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10))
-	_ = d.Set("replicated_count", strconv.FormatInt(metrics.ReplicatedCount, 10))
-	_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
-	_ = d.Set("replica_count", strconv.FormatInt(metrics.ReplicaCount, 10))
-	_ = d.Set("queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64))
-	_ = d.Set("queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64))
-
-	return nil
 }

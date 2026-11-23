@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_notify_amqp` and its data source expose `publisher_confirms`. With
+  it on, MinIO waits for the broker to confirm each published message and
+  treats a rejected publish as an error; pair it with `queue_dir` for
+  guaranteed delivery
+  ([#1371](https://github.com/aminueza/terraform-provider-minio/issues/1371)).
 - `minio_server_config_api` exposes the remaining keys of the `api` subsystem as
   optional attributes: `delete_cleanup_interval`, `gzip_objects`,
   `list_quorum`, `object_max_versions`, `odirect`, `replication_max_lrg_workers`,
@@ -42,6 +47,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_group` no longer attaches the built-in `readonly` policy during
+  delete. Check groups whose destroy failed before this fix with
+  `mc admin group info` and detach `readonly` if it was not intentionally
+  assigned
+  ([#1385](https://github.com/aminueza/terraform-provider-minio/issues/1385)).
 - `minio_iam_ldap_user_policy_attachment` and
   `minio_iam_ldap_group_policy_attachment` read the policies of their own
   user or group. They used to check whether any LDAP user or group had the

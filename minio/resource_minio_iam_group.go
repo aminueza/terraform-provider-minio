@@ -144,15 +144,6 @@ func minioDeleteGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return nil
 	}
 
-	if len(groupDesc.Policy) == 0 {
-		//delete group requires to set policy if it doesn't exist
-		_, _ = iamGroupConfig.MinioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
-			Policies: []string{"readonly"},
-			Group:    d.Id(),
-		})
-
-	}
-
 	//Group must be empty to be deleted
 	if len(groupDesc.Members) != 0 {
 		if iamGroupConfig.MinioForceDestroy {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -392,4 +393,58 @@ func TestAccMinioIAMGroup_renameRecreates(t *testing.T) {
 			},
 		},
 	})
+}
+
+func TestAccMinioIAMGroup_noPolicyAttachedOnFailedDelete(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-np-%s", rString)
+	outsideUser := fmt.Sprintf("tf-acc-user-np-%s", rString)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() {
+			testAccPreCheck(t)
+			t.Cleanup(func() { _ = testAccClient().S3Admin.RemoveUser(context.Background(), outsideUser) })
+		},
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioGroupConfig(groupName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_group.test", "force_destroy", "false"),
+					testAccAddGroupMemberOutsideTerraform(groupName, outsideUser),
+				),
+			},
+			{
+				Config:      testAccMinioGroupConfig(groupName),
+				Destroy:     true,
+				ExpectError: regexp.MustCompile(`group still has 1 member`),
+			},
+			{
+				Config: testAccMinioGroupConfig(groupName),
+				Check: func(*terraform.State) error {
+					desc, err := testAccClient().S3Admin.GetGroupDescription(context.Background(), groupName)
+					if err != nil {
+						return fmt.Errorf("reading group %s after failed destroy: %w", groupName, err)
+					}
+					if desc.Policy != "" {
+						return fmt.Errorf("group %s policy = %q after failed destroy, want empty", groupName, desc.Policy)
+					}
+					return nil
+				},
+			},
+			{
+				Config: testAccMinioGroupConfigTestForceDestroy(groupName),
+			},
+		},
+	})
+}
+
+func testAccMinioGroupConfigTestForceDestroy(groupName string) string {
+	return fmt.Sprintf(`
+resource "minio_iam_group" "test" {
+  name          = "%s"
+  force_destroy = true
+}
+`, groupName)
 }

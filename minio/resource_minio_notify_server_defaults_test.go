@@ -228,6 +228,82 @@ func TestAccMinioNotifyAmqp_urlChangedOutsideTerraform(t *testing.T) {
 		"amqp://user:pw1@localhost:5672", "amqp://other:pw2@broker.internal:5672")
 }
 
+// publisher_confirms must reach the server as on and as off, and a value
+// changed outside Terraform must show up in the plan. The test is sequential
+// because the server checks restart the primary test server. See issue #1371.
+func TestAccMinioNotifyAmqp_publisherConfirms(t *testing.T) {
+	resourceName := "minio_notify_amqp.test"
+	dataSourceName := "data.minio_notify_amqp.test"
+	name := "tfacc-" + acctest.RandString(6)
+	config := func(confirms bool) string {
+		return testAccMinioNotifyDisabledTarget("amqp", name, fmt.Sprintf(`  url                = "amqp://user:pw1@localhost:5672"
+  publisher_confirms = %t`, confirms))
+	}
+	withDataSource := config(true) + `
+data "minio_notify_amqp" "test" {
+  name = minio_notify_amqp.test.name
+}
+`
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckServerRemovedTarget("notify_amqp", name),
+		Steps: []resource.TestStep{
+			{
+				Config: config(true),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "publisher_confirms", "true"),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "true"),
+					testAccCheckServerStoredTarget("notify_amqp", name, map[string]string{"publisher_confirms": "on"}),
+				),
+			},
+			{
+				Config: withDataSource,
+				Check:  resource.TestCheckResourceAttr(dataSourceName, "publisher_confirms", "true"),
+			},
+			{Config: withDataSource, PlanOnly: true},
+			{
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
+			},
+			{
+				Config: config(false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "publisher_confirms", "false"),
+					resource.TestCheckResourceAttr(resourceName, "restart_required", "true"),
+					testAccCheckServerStoredTarget("notify_amqp", name, map[string]string{"publisher_confirms": "off"}),
+				),
+			},
+			{Config: config(false), PlanOnly: true},
+			{
+				PreConfig: func() {
+					changed := notifyConfigKey("notify_amqp", name) + " publisher_confirms=on enable=off"
+					if _, err := testAccClient().S3Admin.SetConfigKV(context.Background(), changed); err != nil {
+						t.Fatalf("changing publisher_confirms of %s outside Terraform: %v", name, err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting the server: %v", err)
+					}
+				},
+				Config:             config(false),
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config(false),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "publisher_confirms", "false"),
+					testAccCheckServerStoredTarget("notify_amqp", name, map[string]string{"publisher_confirms": "off"}),
+				),
+			},
+			{Config: config(false), PlanOnly: true},
+		},
+	})
+}
+
 func TestAccMinioNotifyElasticsearch_urlChangedOutsideTerraform(t *testing.T) {
 	testAccMinioNotifyCredentialDriftCase(t, "elasticsearch", "url", `  url    = %q
   index  = "minio-events"

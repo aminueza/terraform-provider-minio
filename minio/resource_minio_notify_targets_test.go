@@ -94,6 +94,7 @@ func TestNotifyResourceSchemaFieldTypes(t *testing.T) {
 				{field: "internal", wantType: schema.TypeBool, wantOptional: true},
 				{field: "auto_deleted", wantType: schema.TypeBool, wantOptional: true},
 				{field: "delivery_mode", wantType: schema.TypeInt, wantOptional: true},
+				{field: "publisher_confirms", wantType: schema.TypeBool, wantOptional: true},
 			},
 		},
 		{

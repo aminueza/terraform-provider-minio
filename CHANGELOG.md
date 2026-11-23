@@ -47,6 +47,16 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- The `minio_s3_bucket_quota`, `minio_s3_bucket_policy`,
+  `minio_s3_bucket_tags`, `minio_s3_bucket_cors_config`,
+  `minio_s3_bucket_replication`, `minio_s3_bucket_replication_status`,
+  `minio_s3_bucket_replication_metrics`, `minio_s3_bucket_notification_config`,
+  `minio_iam_groups` and `minio_iam_user_policies` data sources return API
+  errors instead of empty or zero values, so a missing bucket, a server that is
+  down or missing permissions fail the read. A bucket with nothing configured
+  still reads as empty, and a backend without the feature under
+  `s3_compat_mode` gives a warning
+  ([#1375](https://github.com/aminueza/terraform-provider-minio/issues/1375)).
 - `minio_iam_group` no longer attaches the built-in `readonly` policy during
   delete. Check groups whose destroy failed before this fix with
   `mc admin group info` and detach `readonly` if it was not intentionally

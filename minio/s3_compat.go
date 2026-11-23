@@ -84,7 +84,7 @@ func isS3CompatJSONEndpointNotSupported(client *S3MinioClient, err error) bool {
 // when the error body is S3 XML, and falls back to the HTTP status line otherwise,
 // so a backend behind a gateway that answers 501 with a plain-text or empty body
 // reports Code "501 Not Implemented" and is recognisable only by its status.
-// madmin.ErrorResponse carries no status, so only its code is available.
+// madmin.ErrorResponse carries the HTTP status too.
 func s3CompatErrorResponse(err error) (string, int) {
 	var minioErr minio.ErrorResponse
 	if errors.As(err, &minioErr) {

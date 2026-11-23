@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
@@ -148,8 +150,13 @@ func TestAccMinioPrometheusBearerToken_expiredTokenReplaced(t *testing.T) {
 				Check:              testAccCheckMinioPrometheusBearerTokenGone(resourceName),
 			},
 			{
-				PreConfig: func() { prometheusTokenNow = time.Now },
-				Config:    testAccMinioPrometheusBearerTokenNamed(name, "bucket", "24h"),
+				PreConfig: func() {
+					prometheusTokenNow = time.Now
+					// JWT exp has 1-second Unix resolution; wait past a second boundary
+					// so step 3's replacement token is never byte-identical to step 1's.
+					time.Sleep(1100 * time.Millisecond)
+				},
+				Config: testAccMinioPrometheusBearerTokenNamed(name, "bucket", "24h"),
 				Check: resource.ComposeTestCheckFunc(
 					testAccCheckMinioPrometheusBearerTokenExists(resourceName),
 					testAccCheckMinioPrometheusBearerTokenChanged(resourceName, &firstToken),
@@ -366,4 +373,45 @@ resource "minio_prometheus_bearer_token" "test" {
   expires_in  = %q
 }
 `, metricType, expiresIn)
+}
+
+func TestPrometheusBearerTokenExpiryBoundaryClearsState(t *testing.T) {
+	t.Cleanup(func() { prometheusTokenNow = time.Now })
+
+	meta := &S3MinioClient{
+		S3UserAccess: "minio",
+		S3UserSecret: "minio123",
+	}
+	d := schema.TestResourceDataRaw(t, resourceMinioPrometheusBearerToken().Schema, map[string]interface{}{
+		"metric_type": "bucket",
+		"expires_in":  "24h",
+	})
+
+	if diags := minioCreatePrometheusBearerToken(context.Background(), d, meta); diags.HasError() {
+		t.Fatalf("minioCreatePrometheusBearerToken failed: %v", diags)
+	}
+	if d.Id() != "bucket" {
+		t.Fatalf("Id() = %q, want %q", d.Id(), "bucket")
+	}
+
+	expiry, err := time.Parse(time.RFC3339, d.Get("token_expiry").(string))
+	if err != nil {
+		t.Fatalf("parsing token_expiry: %v", err)
+	}
+
+	prometheusTokenNow = func() time.Time { return expiry.Add(-time.Second) }
+	if diags := minioReadPrometheusBearerToken(context.Background(), d, meta); diags.HasError() {
+		t.Fatalf("minioReadPrometheusBearerToken before expiry failed: %v", diags)
+	}
+	if d.Id() != "bucket" {
+		t.Fatalf("Id() before expiry = %q, want %q", d.Id(), "bucket")
+	}
+
+	prometheusTokenNow = func() time.Time { return expiry }
+	if diags := minioReadPrometheusBearerToken(context.Background(), d, meta); diags.HasError() {
+		t.Fatalf("minioReadPrometheusBearerToken at expiry failed: %v", diags)
+	}
+	if d.Id() != "" {
+		t.Fatalf("Id() at expiry = %q, want empty string", d.Id())
+	}
 }

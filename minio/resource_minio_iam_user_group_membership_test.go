@@ -100,3 +100,34 @@ resource "minio_iam_user_group_membership" "test" {
 }
 `, r, r, r)
 }
+
+func TestAccMinioIAMUserGroupMembership_userDeletedOutsideTerraform(t *testing.T) {
+	rInt := acctest.RandInt()
+	config := testAccIAMUserGroupMembershipConfig(rInt)
+	var userName string
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMUserGroupMembershipDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMUserGroupMembershipExists("minio_iam_user_group_membership.test"),
+					testAccCaptureResourceID("minio_iam_user.user", &userName),
+				),
+			},
+			{
+				PreConfig:          func() { testAccDeleteMinioUser(t, userName) },
+				Config:             config,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: true,
+			},
+			{
+				Config: config,
+				Check:  testAccCheckIAMUserGroupMembershipExists("minio_iam_user_group_membership.test"),
+			},
+		},
+	})
+}

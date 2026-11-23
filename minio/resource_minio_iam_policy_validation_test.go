@@ -233,3 +233,28 @@ func TestValidateIAMResourceSchemasPolicyAndGroupNames(t *testing.T) {
 		})
 	}
 }
+
+func TestIAMPolicyNamePrefixFromName(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "generated unique suffix", in: "tfacc-20261123010026647900000001", want: "tfacc-"},
+		{name: "plain short name", in: "mypolicy", want: ""},
+		{name: "empty name", in: "", want: ""},
+		{name: "default terraform prefix", in: "terraform-202611230100266479abcdef01", want: "terraform-"},
+		{name: "bare 26-char unique suffix", in: "20261123010026647900000001", want: ""},
+		{name: "long plain name without unique suffix", in: "ordinary-policy-name-longer-than-twenty-six-chars", want: ""},
+		{name: "non-hex tail rejected", in: "tfacc-2026112301002664790000000z", want: ""},
+		{name: "prefix ending in a pseudo-suffix strips from the right", in: "20261123010026647900000001" + "202611230100266479abcdef01", want: "20261123010026647900000001"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := iamPolicyNamePrefixFromName(tc.in); got != tc.want {
+				t.Errorf("iamPolicyNamePrefixFromName(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}

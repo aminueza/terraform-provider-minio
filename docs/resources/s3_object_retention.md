@@ -46,4 +46,8 @@ Import using `bucket/key` or `bucket/key#version_id`:
 ```shell
 terraform import minio_s3_object_retention.example my-bucket/my-object
 terraform import minio_s3_object_retention.example my-bucket/my-object#version-id
+
+# An object key that contains "#" ends with "#" when it has no version, so the
+# key is not read as a version ID
+terraform import minio_s3_object_retention.example my-bucket/reports#2026.csv#
 ```

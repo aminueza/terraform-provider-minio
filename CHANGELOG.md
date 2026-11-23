@@ -47,19 +47,54 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_s3_object` now sets `id` to `<bucket_name>/<object_name>` (matching its
+  import format) instead of `<object_name>` alone, so stored IDs can be
+  imported directly and no longer collide across buckets. Existing states
+  migrate on the next refresh without replacement
+  ([#1368](https://github.com/aminueza/terraform-provider-minio/issues/1368)).
 - `minio_iam_group_user_attachment`: `group_name` now uses
   `validateMinioIamGroupName` instead of the policy name validator, allowing
   group names longer than 96 characters while rejecting `:` and `/` to match
   `minio_iam_group`. Configurations attaching users to groups created outside
   Terraform whose names contain `:` or `/` are rejected at plan time
   ([#1392](https://github.com/aminueza/terraform-provider-minio/issues/1392)).
+- `minio_s3_bucket_replication`: `rule` is now required with at least one
+  block, so configurations with no `rule` blocks are rejected at plan time
+  (`Insufficient rule blocks`) instead of applying with an empty replication
+  configuration; remove the resource or keep at least one rule. This is a
+  breaking change for configurations that had no `rule` blocks
+  ([#1380](https://github.com/aminueza/terraform-provider-minio/issues/1380)).
 
 ### Fixed
 
+- `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
+  RFC 3339 strings instead of passing `time.Time` values into string schema
+  attributes (which dropped both fields and panicked under `TF_ACC`), and
+  returns `d.Set` errors through `NewResourceError`
+  ([#1356](https://github.com/aminueza/terraform-provider-minio/issues/1356)).
+- `minio_s3_bucket_replication` Read and delete treat `NoSuchBucket` as
+  already removed, so deleting the source bucket outside Terraform plans a
+  recreation instead of failing every plan and destroy, and
+  `minioPutBucketReplication` returns an error if called with no rules
+  ([#1380](https://github.com/aminueza/terraform-provider-minio/issues/1380)).
+- `minio_iam_policy` and `minio_iam_group_policy` now mark `name_prefix` as
+  `Computed` and recover it from generated policy names ending with Terraform's
+  26-character unique ID suffix on read/import (`""` for plain `name`
+  policies), so importing either resource preserves `name_prefix` without
+  forcing replacement on the next plan
+  ([#1384](https://github.com/aminueza/terraform-provider-minio/issues/1384)).
 - `minio_iam_group_user_attachment`, `minio_iam_group_policy_attachment` and
   `minio_iam_user_group_membership` drop the attachment or membership from state
   when their group or user is deleted outside Terraform
   ([#1377](https://github.com/aminueza/terraform-provider-minio/issues/1377)).
+- `minio_s3_object_legal_hold` and `minio_s3_object_retention` now import
+  objects whose key contains `#`: the stored ID keeps the key intact by ending
+  with `#` when there is no version, `minio_s3_object_legal_hold` reads an
+  object that never had a legal hold as `status = "OFF"` instead of failing,
+  `minio_s3_object_retention` drops the resource for a deleted version or
+  bucket as the legal hold resource already did, and an import ID with no key
+  is rejected before any API call
+  ([#1378](https://github.com/aminueza/terraform-provider-minio/issues/1378)).
 - `minio_iam_policy`, `minio_iam_group_policy`, and the policy attachment
   resources (`minio_iam_group_policy_attachment`,
   `minio_iam_user_policy_attachment`, `minio_iam_ldap_group_policy_attachment`,

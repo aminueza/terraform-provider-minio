@@ -285,19 +285,23 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 		options.UserMetadata["x-amz-acl"] = acl
 	}
 
+	bucketName := d.Get("bucket_name").(string)
+	objectName := d.Get("object_name").(string)
+	objectID := s3ObjectID(bucketName, objectName)
+
 	_, err := m.S3Client.PutObject(
 		ctx,
-		d.Get("bucket_name").(string),
-		d.Get("object_name").(string),
+		bucketName,
+		objectName,
 		body, -1,
 		options,
 	)
 
 	if err != nil {
-		return NewResourceError("putting object failed", d.Id(), s3CompatWriteError(m, "object", err))
+		return NewResourceError("putting object failed", objectID, s3CompatWriteError(m, "object", err))
 	}
 
-	d.SetId(d.Get("object_name").(string))
+	d.SetId(objectID)
 
 	return minioReadObject(ctx, d, meta)
 }
@@ -305,24 +309,51 @@ func minioPutObject(ctx context.Context, d *schema.ResourceData, meta interface{
 func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	m := meta.(*S3MinioClient)
+	bucketName := d.Get("bucket_name").(string)
+	objectName := d.Get("object_name").(string)
+	if bucketName == "" && objectName == "" {
+		// Only a hand-corrupted state reaches this: import and normal reads
+		// always have both attributes. Recover them from the ID so the state
+		// ends self-consistent instead of diffing a ForceNew attribute.
+		parts := strings.SplitN(d.Id(), "/", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return diag.Errorf("unexpected object ID format (%q), expected bucket_name/object_name", d.Id())
+		}
+		bucketName, objectName = parts[0], parts[1]
+		if err := d.Set("bucket_name", bucketName); err != nil {
+			return NewResourceError("setting bucket name", d.Id(), err)
+		}
+		if err := d.Set("object_name", objectName); err != nil {
+			return NewResourceError("setting object name", d.Id(), err)
+		}
+	} else if bucketName == "" || objectName == "" {
+		// A legacy ID is a bare object name: parsing it against the one
+		// present attribute could StatObject a wrong key and silently drop
+		// the resource, so refuse to guess.
+		return diag.Errorf("state has bucket_name (%q) and object_name (%q); both must be set, or both empty to recover from a bucket/object ID", bucketName, objectName)
+	}
+	objectID := s3ObjectID(bucketName, objectName)
 
 	objInfo, err := m.S3Client.StatObject(
 		ctx,
-		d.Get("bucket_name").(string),
-		d.Get("object_name").(string),
+		bucketName,
+		objectName,
 		minio.StatObjectOptions{},
 	)
 
 	if err != nil {
 		if s3CompatReadUnsupported(ctx, m, s3Compat405IsAnAnswer, d, "object", err) {
+			d.SetId(objectID)
 			return nil
 		}
 		if err.Error() == "The specified key does not exist." {
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("reading object failed", d.Id(), err)
+		return NewResourceError("reading object failed", objectID, err)
 	}
+
+	d.SetId(objectID)
 
 	if err := d.Set("etag", objInfo.ETag); err != nil {
 		return NewResourceError("reading object failed", d.Id(), err)
@@ -373,6 +404,12 @@ func minioUpdateObject(ctx context.Context, d *schema.ResourceData, meta interfa
 	return minioPutObject(ctx, d, meta)
 }
 
+// s3ObjectID builds the resource ID. Bucket names cannot contain "/", so the
+// first "/" always delimits the bucket from the object key, which may.
+func s3ObjectID(bucketName, objectName string) string {
+	return fmt.Sprintf("%s/%s", bucketName, objectName)
+}
+
 func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	parts := strings.SplitN(d.Id(), "/", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
@@ -381,7 +418,7 @@ func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	_ = d.Set("bucket_name", parts[0])
 	_ = d.Set("object_name", parts[1])
-	d.SetId(parts[1])
+	d.SetId(s3ObjectID(parts[0], parts[1]))
 
 	return []*schema.ResourceData{d}, nil
 }

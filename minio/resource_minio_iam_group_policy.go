@@ -44,6 +44,7 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 				Type:          schema.TypeString,
 				Description:   "Prefix to the generated policy name. Do not use with `name`.",
 				Optional:      true,
+				Computed:      true,
 				ForceNew:      true,
 				ConflictsWith: []string{"name"},
 				ValidateFunc:  validateIAMNamePrefixPolicy,
@@ -107,6 +108,10 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	if err := d.Set("name", policyName); err != nil {
+		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
+	}
+
+	if err := d.Set("name_prefix", iamPolicyNamePrefixFromName(policyName)); err != nil {
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 

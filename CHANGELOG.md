@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Added
 
+- `minio_notify_amqp` and its data source expose `publisher_confirms`. With
+  it on, MinIO waits for the broker to confirm each published message and
+  treats a rejected publish as an error; pair it with `queue_dir` for
+  guaranteed delivery
+  ([#1371](https://github.com/aminueza/terraform-provider-minio/issues/1371)).
 - `minio_server_config_api` exposes the remaining keys of the `api` subsystem as
   optional attributes: `delete_cleanup_interval`, `gzip_objects`,
   `list_quorum`, `object_max_versions`, `odirect`, `replication_max_lrg_workers`,

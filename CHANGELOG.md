@@ -47,6 +47,11 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_group_membership`: `id` now stores the `group` name instead of
+  the Terraform-only `name` label, and `name` is no longer `ForceNew`. Existing
+  states created before this change migrate `id` from `name` to `group` on the
+  next refresh with an empty plan and no replacement
+  ([#1373](https://github.com/aminueza/terraform-provider-minio/issues/1373)).
 - `minio_s3_object` now sets `id` to `<bucket_name>/<object_name>` (matching its
   import format) instead of `<object_name>` alone, so stored IDs can be
   imported directly and no longer collide across buckets. Existing states
@@ -67,6 +72,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_group_membership`: `terraform import` (by `group` name) now
+  populates state instead of querying an empty group name, fails cleanly when
+  the group does not exist, and lets the first apply after import set `name`
+  in state in place without recreating the membership
+  ([#1373](https://github.com/aminueza/terraform-provider-minio/issues/1373)).
 - `minio_s3_bucket_replication` Read and delete treat `NoSuchBucket` as
   already removed, so deleting the source bucket outside Terraform plans a
   recreation instead of failing every plan and destroy, and

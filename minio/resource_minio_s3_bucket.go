@@ -893,6 +893,13 @@ func isNoSuchBucketError(err error) bool {
 		return false
 	}
 
+	// madmin errors are values minio.ToErrorResponse cannot classify, and admin
+	// API calls report a missing bucket as BucketNotFound (see s3CompatErrorResponse).
+	var madminErr madmin.ErrorResponse
+	if errors.As(err, &madminErr) && (madminErr.Code == "BucketNotFound" || madminErr.Code == "NoSuchBucket" || madminErr.StatusCode == http.StatusNotFound) {
+		return true
+	}
+
 	errResp := minio.ToErrorResponse(err)
 	if errResp.Code == "NoSuchBucket" || errResp.StatusCode == http.StatusNotFound {
 		return true

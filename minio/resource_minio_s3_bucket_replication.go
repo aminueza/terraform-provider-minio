@@ -55,7 +55,8 @@ func resourceMinioBucketReplication() *schema.Resource {
 			"rule": {
 				Type:        schema.TypeList,
 				Description: "Rule definitions",
-				Optional:    true,
+				Required:    true,
+				MinItems:    1,
 				Elem:        bucketReplicationRuleResource(),
 			},
 		},
@@ -288,11 +289,13 @@ func validateReplicationBandwidthLimit(i interface{}, _ cty.Path) (diags diag.Di
 
 func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketReplicationConfig, diags := BucketReplicationConfig(ctx, d, meta)
-	replicationConfig := bucketReplicationConfig.ReplicationRules
-
-	if replicationConfig == nil || diags.HasError() {
+	if diags.HasError() {
 		return diags
 	}
+	if len(bucketReplicationConfig.ReplicationRules) == 0 {
+		return NewResourceError("putting bucket replication configuration", bucketReplicationConfig.MinioBucket, fmt.Errorf("at least one rule block is required"))
+	}
+	replicationConfig := bucketReplicationConfig.ReplicationRules
 
 	tflog.Debug(ctx, fmt.Sprintf("S3 bucket: %s, put replication configuration: %v", bucketReplicationConfig.MinioBucket, replicationConfig))
 
@@ -379,6 +382,11 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 		if s3CompatReadUnsupported(ctx, meta.(*S3MinioClient), s3Compat405IsMissingFeature, d, "bucket replication configuration", err) {
 			return nil
 		}
+		if isNoSuchBucketError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing replication resource from state", bucketName))
+			d.SetId("")
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketName, err))
 		return NewResourceError("reading bucket replication configuration", bucketName, err)
 	}
@@ -390,6 +398,11 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
 	if err != nil {
+		if isNoSuchBucketError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found, removing replication resource from state", bucketName))
+			d.SetId("")
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketName, err))
 		return NewResourceError("reading replication remote target configuration", bucketName, err)
 	}
@@ -593,6 +606,10 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 
 	rcfg, err := client.GetBucketReplication(ctx, bucketReplicationConfig.MinioBucket)
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found during replication deletion", bucketReplicationConfig.MinioBucket))
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch bucket replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("reading bucket replication configuration", bucketReplicationConfig.MinioBucket, err)
 	}
@@ -602,12 +619,20 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 	rcfg.Rules = []replication.Rule{}
 	err = client.SetBucketReplication(ctx, bucketReplicationConfig.MinioBucket, rcfg)
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found during replication deletion", bucketReplicationConfig.MinioBucket))
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to set an empty replication config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("disabling bucket replication", bucketReplicationConfig.MinioBucket, err)
 	}
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketReplicationConfig.MinioBucket, string(madmin.ReplicationService))
 	if err != nil {
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found during replication deletion", bucketReplicationConfig.MinioBucket))
+			return nil
+		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketReplicationConfig.MinioBucket, err))
 		return NewResourceError("reading replication remote target configuration", bucketReplicationConfig.MinioBucket, err)
 	}
@@ -616,6 +641,10 @@ func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, m
 		arns = append(arns, target.Arn)
 	}
 	if err := removeRemoteTargets(ctx, admclient, bucketReplicationConfig.MinioBucket, arns); err != nil {
+		if isNoSuchBucketError(err) {
+			tflog.Warn(ctx, fmt.Sprintf("Bucket %s not found during replication deletion", bucketReplicationConfig.MinioBucket))
+			return nil
+		}
 		return NewResourceError("removing replication remote targets", bucketReplicationConfig.MinioBucket, err)
 	}
 

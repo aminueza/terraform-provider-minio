@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_object_lock_configuration` now requires `days` or `years` on
+  `rule.default_retention` at plan time (`ExactlyOneOf`), and both
+  `minio_s3_bucket_object_lock_configuration` and `minio_s3_bucket_retention`
+  check object lock before versioning so buckets created without object lock
+  report the object lock error directly instead of asking for versioning first
+  ([#1391](https://github.com/aminueza/terraform-provider-minio/issues/1391)).
 - The `minio_s3_bucket_quota`, `minio_s3_bucket_policy`,
   `minio_s3_bucket_tags`, `minio_s3_bucket_cors_config`,
   `minio_s3_bucket_replication`, `minio_s3_bucket_replication_status`,

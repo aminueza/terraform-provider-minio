@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -189,6 +190,39 @@ resource "minio_s3_bucket_retention" "retention" {
   unit            = "YEARS"
   validity_period = 1
 
+}
+`, bucketName)
+}
+
+func TestAccMinioBucketRetention_requiresObjectLockBucket(t *testing.T) {
+	bucketName := fmt.Sprintf("tf-test-bucket-%d", acctest.RandInt())
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioBucketRetentionConfig_bucketWithoutObjectLock(bucketName),
+				ExpectError: regexp.MustCompile(`does not have object lock enabled`),
+			},
+		},
+	})
+}
+
+func testAccMinioBucketRetentionConfig_bucketWithoutObjectLock(bucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket        = %[1]q
+  acl           = "private"
+  force_destroy = true
+}
+
+resource "minio_s3_bucket_retention" "retention" {
+  bucket          = minio_s3_bucket.test.bucket
+  mode            = "GOVERNANCE"
+  unit            = "DAYS"
+  validity_period = 30
 }
 `, bucketName)
 }

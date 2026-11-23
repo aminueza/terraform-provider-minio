@@ -64,18 +64,18 @@ Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 										Description:  "GOVERNANCE (bypassable with permissions) or COMPLIANCE (strict, no overrides)",
 									},
 									"days": {
-										Type:          schema.TypeInt,
-										Optional:      true,
-										ValidateFunc:  validation.IntAtLeast(1),
-										ConflictsWith: []string{"rule.0.default_retention.0.years"},
-										Description:   "Retention period in days. Mutually exclusive with years.",
+										Type:         schema.TypeInt,
+										Optional:     true,
+										ValidateFunc: validation.IntAtLeast(1),
+										ExactlyOneOf: []string{"rule.0.default_retention.0.days", "rule.0.default_retention.0.years"},
+										Description:  "Retention period in days. Mutually exclusive with years.",
 									},
 									"years": {
-										Type:          schema.TypeInt,
-										Optional:      true,
-										ValidateFunc:  validation.IntAtLeast(1),
-										ConflictsWith: []string{"rule.0.default_retention.0.days"},
-										Description:   "Retention period in years. Mutually exclusive with days.",
+										Type:         schema.TypeInt,
+										Optional:     true,
+										ValidateFunc: validation.IntAtLeast(1),
+										ExactlyOneOf: []string{"rule.0.default_retention.0.days", "rule.0.default_retention.0.years"},
+										Description:  "Retention period in years. Mutually exclusive with days.",
 									},
 								},
 							},
@@ -217,15 +217,6 @@ func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, 
 		return fmt.Errorf("bucket %s does not exist", bucket)
 	}
 
-	versioning, err := client.GetBucketVersioning(ctx, bucket)
-	if err != nil {
-		return fmt.Errorf("error checking bucket versioning: %w", err)
-	}
-
-	if !versioning.Enabled() {
-		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
-	}
-
 	objectLockStatus, _, _, _, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
@@ -236,6 +227,15 @@ func validateObjectLockPrerequisites(ctx context.Context, client *minio.Client, 
 
 	if objectLockStatus != "Enabled" {
 		return fmt.Errorf("bucket %s doesn't have object lock enabled", bucket)
+	}
+
+	versioning, err := client.GetBucketVersioning(ctx, bucket)
+	if err != nil {
+		return fmt.Errorf("error checking bucket versioning: %w", err)
+	}
+
+	if !versioning.Enabled() {
+		return fmt.Errorf("bucket %s does not have versioning enabled. Object locking requires versioning", bucket)
 	}
 
 	return nil

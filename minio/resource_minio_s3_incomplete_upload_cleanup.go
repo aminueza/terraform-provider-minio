@@ -18,9 +18,6 @@ func resourceMinioS3IncompleteUploadCleanup() *schema.Resource {
 		ReadContext:   minioReadIncompleteUploadCleanup,
 		UpdateContext: minioUpdateIncompleteUploadCleanup,
 		DeleteContext: minioDeleteIncompleteUploadCleanup,
-		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
-		},
 		Description: `Cleans up incomplete/stuck multipart uploads in a MinIO bucket. ` +
 			`Uses ListIncompleteUploads and RemoveIncompleteUpload to find and abort ` +
 			`multipart uploads that were never completed.`,

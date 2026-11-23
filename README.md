@@ -50,7 +50,7 @@ Provision and manage [MinIO](https://min.io) with the same Terraform workflow yo
 - **Proven in production**: over 18 million downloads on the [Terraform Registry](https://registry.terraform.io/providers/aminueza/minio/latest), with frequent releases.
 - **Flexible auth**: static keys, environment variables, STS AssumeRole, OIDC web identity (passwordless CI/CD), and mTLS.
 - **Works beyond MinIO**: set `s3_compat_mode = true` to target Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Hetzner Object Storage, and other S3-compatible stores. Continuous integration exercises MinIO and Garage; the other stores are reported by users (see [S3-compatible backends](#s3-compatible-backends)).
-- **Import everywhere**: every resource supports `terraform import`, so you can bring existing infrastructure under management.
+- **Import almost everywhere**: nearly all resources support `terraform import`, so you can bring existing infrastructure under management; a few stateless action resources do not.
 - **AI-agent ready**: ships a [Claude Code](https://docs.claude.com/en/docs/claude-code) skill and an [`AGENTS.md`](./AGENTS.md) so coding agents produce correct configuration out of the box.
 
 ## Quick start

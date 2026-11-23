@@ -50,15 +50,11 @@ resource "minio_s3_incomplete_upload_cleanup" "scheduled" {
 
 ## Import
 
-Import is supported using the following syntax:
-
-```shell
-# Incomplete upload cleanup can be imported using the bucket name
-terraform import minio_s3_incomplete_upload_cleanup.example bucket-name
-
-# Or with prefix
-terraform import minio_s3_incomplete_upload_cleanup.example bucket-name/prefix
-```
+`minio_s3_incomplete_upload_cleanup` cannot be imported. It is a stateless
+cleanup action whose `triggers` map and execution parameters (`prefix`) are not
+stored by MinIO, so importing either re-runs the cleanup or produces state that
+plans changes on the next apply. Use a `moved` block or `terraform state mv` to
+move existing resources between configurations.
 
 ## Notes
 

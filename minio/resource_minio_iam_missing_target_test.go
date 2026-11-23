@@ -613,11 +613,14 @@ func testAccCheckMinioGroupMemberExists(groupName, userName string) resource.Tes
 
 func testAccCheckMinioGroupPolicyAttached(groupName, policyName string) resource.TestCheckFunc {
 	return func(*terraform.State) error {
-		policies, err := minioReadGroupPolicies(context.Background(), testAccClient().S3Admin, groupName)
+		// Assert against GetGroupDescription directly: minioReadGroupPolicies
+		// is production code under test, and an expectation built by it only
+		// proves the code agrees with itself.
+		desc, err := testAccClient().S3Admin.GetGroupDescription(context.Background(), groupName)
 		if err != nil {
-			return fmt.Errorf("reading policies for group %s: %w", groupName, err)
+			return fmt.Errorf("reading group %s: %w", groupName, err)
 		}
-		for _, attached := range policies {
+		for _, attached := range strings.Split(desc.Policy, ",") {
 			if attached == policyName {
 				return nil
 			}

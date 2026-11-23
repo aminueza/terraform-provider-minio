@@ -117,6 +117,7 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
 	if err != nil {
 		if isNoSuchGroupError(err) {
+			d.SetId("")
 			return nil
 		}
 		return NewResourceError("failed to load group infos", groupName, err)
@@ -133,6 +134,7 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	})
 	if errIam != nil {
 		if isNoSuchGroupError(errIam) {
+			d.SetId("")
 			return nil
 		}
 		return NewResourceError("unable to delete group policy", groupName, errIam)

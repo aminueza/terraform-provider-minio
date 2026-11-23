@@ -94,6 +94,7 @@ func minioDeleteGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 	err := iamGroupMembershipConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
 		if isNoSuchGroupError(err) || isNoSuchUserError(err) {
+			d.SetId("")
 			return nil
 		}
 		return NewResourceError("removing user from group", iamGroupMembershipConfig.MinioIAMGroup, err)

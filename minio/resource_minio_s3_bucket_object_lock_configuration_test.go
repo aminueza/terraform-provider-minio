@@ -166,12 +166,12 @@ func TestAccMinioS3BucketObjectLockConfiguration_validation_defaultRetention(t *
 			{
 				Config:      testAccMinioS3BucketObjectLockConfiguration_neitherDaysNorYears(bucketName),
 				PlanOnly:    true,
-				ExpectError: regexp.MustCompile(`one of .*days.*years.* must be specified`),
+				ExpectError: regexp.MustCompile(`(?s)one\s+of\s+.*days.*years.*must\s+be\s+specified`),
 			},
 			{
 				Config:      testAccMinioS3BucketObjectLockConfiguration_bothDaysAndYears(bucketName),
 				PlanOnly:    true,
-				ExpectError: regexp.MustCompile(`only one of .*days.*years.* can be specified`),
+				ExpectError: regexp.MustCompile(`(?s)only\s+one\s+of\s+.*days.*years.*can\s+be\s+specified`),
 			},
 		},
 	})

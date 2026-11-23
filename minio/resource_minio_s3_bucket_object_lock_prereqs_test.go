@@ -18,8 +18,8 @@ func TestResourceMinioS3BucketObjectLockConfigurationDefaultRetentionValidation(
 		t.Fatalf("InternalValidate() failed: %v", err)
 	}
 
-	neitherPattern := regexp.MustCompile(`one of .*days.*years.* must be specified`)
-	bothPattern := regexp.MustCompile(`only one of .*days.*years.* can be specified`)
+	neitherPattern := regexp.MustCompile(`(?s)one\s+of\s+.*days.*years.*must\s+be\s+specified`)
+	bothPattern := regexp.MustCompile(`(?s)only\s+one\s+of\s+.*days.*years.*can\s+be\s+specified`)
 
 	cases := []struct {
 		name        string

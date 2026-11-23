@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"hash/crc32"
 	"math"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
+	"github.com/minio/minio-go/v7"
 )
 
 const (
@@ -284,6 +286,68 @@ func convertToStringMap(v interface{}) map[string]string {
 		}
 	}
 	return result
+}
+
+// objectVersionID builds the ID shared by the object legal hold and the object
+// retention resources. A key that itself contains "#" gets a trailing "#" when
+// no version is set: without it the separator splits the key, and the stored ID
+// does not parse back to the key it was built from. See issue #1378.
+func objectVersionID(bucket, key, versionID string) string {
+	id := fmt.Sprintf("%s/%s", bucket, key)
+	if versionID != "" {
+		return id + "#" + versionID
+	}
+	if strings.Contains(key, "#") {
+		return id + "#"
+	}
+	return id
+}
+
+// parseObjectVersionID is the inverse of objectVersionID. A part after the last
+// "#" that is empty means "no version", which is how a key containing "#" keeps
+// the separator unambiguous. An ID that yields no bucket or no key is rejected
+// here, before any API call is made with an empty object name. See issue #1378.
+func parseObjectVersionID(id string) (bucket, key, versionID string, err error) {
+	rest := id
+	if idx := strings.LastIndex(id, "#"); idx != -1 {
+		rest = id[:idx]
+		versionID = id[idx+1:]
+	}
+	bucket, key = parseBucketAndKeyFromID(rest)
+	if bucket == "" || key == "" {
+		return "", "", "", fmt.Errorf("expected <bucket>/<key>[#<version id>], got %q", id)
+	}
+	return bucket, key, versionID, nil
+}
+
+// objectLockReadGone reports whether a GetObjectLegalHold or GetObjectRetention
+// error means the object, its version, the bucket, or the bucket's object lock
+// configuration no longer exists, so the resource belongs out of state. MinIO
+// answers a missing bucket's lock configuration as InvalidRequest rather than
+// with a dedicated code. See issue #1378.
+func objectLockReadGone(minioErr minio.ErrorResponse) bool {
+	switch minioErr.Code {
+	case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":
+		return true
+	case "InvalidRequest":
+		return strings.Contains(minioErr.Message, "ObjectLockConfiguration")
+	}
+	return false
+}
+
+// objectVersionImportHint explains the import ID syntax when the server rejects
+// a version that was parsed out of that ID. Importing "<bucket>/<key>" for a key
+// containing "#" splits the key into a version, and without the hint the
+// failure reads as a missing object. See issue #1378.
+func objectVersionImportHint(err error, versionFromID bool) error {
+	var minioErr minio.ErrorResponse
+	if !versionFromID || !errors.As(err, &minioErr) {
+		return err
+	}
+	if minioErr.Code != "InvalidArgument" || !strings.Contains(minioErr.Message, "Invalid version id") {
+		return err
+	}
+	return fmt.Errorf(`%w; a part of the import ID after "#" is read as a version ID, so end the ID with "#" when the object key itself contains "#"`, err)
 }
 
 // isLifecycleNotFoundError reports whether a GetBucketLifecycle error means the

@@ -56,6 +56,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_object_legal_hold` and `minio_s3_object_retention` now import
+  objects whose key contains `#`: the stored ID keeps the key intact by ending
+  with `#` when there is no version, `minio_s3_object_legal_hold` reads an
+  object that never had a legal hold as `status = "OFF"` instead of failing,
+  `minio_s3_object_retention` drops the resource for a deleted version or
+  bucket as the legal hold resource already did, and an import ID with no key
+  is rejected before any API call
+  ([#1378](https://github.com/aminueza/terraform-provider-minio/issues/1378)).
 - `minio_iam_policy`, `minio_iam_group_policy`, and the policy attachment
   resources (`minio_iam_group_policy_attachment`,
   `minio_iam_user_policy_attachment`, `minio_iam_ldap_group_policy_attachment`,

@@ -105,3 +105,94 @@ resource "minio_s3_object_retention" "test" {
 }
 `, bucket, retainUntil)
 }
+
+// Retention had no import test: cover a key that contains the "#" separator,
+// with and without a version. See issue #1378.
+func TestAccMinioS3ObjectRetention_import(t *testing.T) {
+	bucket := "tfacc-ret-imp-" + acctest.RandString(6)
+	objectKey := "reports#2026.csv"
+	retainUntil := time.Now().UTC().Add(24 * time.Hour).Format(time.RFC3339)
+	resourceName := "minio_s3_object_retention.test"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccS3ObjectRetentionHashKeyConfig(bucket, objectKey, retainUntil),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "key", objectKey),
+					resource.TestCheckResourceAttr(resourceName, "id", bucket+"/"+objectKey+"#"),
+					resource.TestCheckResourceAttr(resourceName, "mode", "GOVERNANCE"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: testAccImportStateId(resourceName),
+			},
+			{
+				Config: testAccS3ObjectRetentionHashKeyVersionedConfig(bucket, objectKey, retainUntil),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "key", objectKey),
+					resource.TestCheckResourceAttrSet(resourceName, "version_id"),
+					resource.TestCheckResourceAttr(resourceName, "mode", "GOVERNANCE"),
+				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: testAccImportStateId(resourceName),
+			},
+		},
+	})
+}
+
+func testAccS3ObjectRetentionHashKeyConfig(bucket, objectKey, retainUntil string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket         = %[1]q
+  object_locking = true
+  force_destroy  = true
+}
+
+resource "minio_s3_object" "test" {
+  bucket_name = minio_s3_bucket.test.id
+  object_name = %[2]q
+  content     = "hello"
+}
+
+resource "minio_s3_object_retention" "test" {
+  bucket            = minio_s3_bucket.test.id
+  key               = minio_s3_object.test.object_name
+  mode              = "GOVERNANCE"
+  retain_until_date = %[3]q
+}
+`, bucket, objectKey, retainUntil)
+}
+
+func testAccS3ObjectRetentionHashKeyVersionedConfig(bucket, objectKey, retainUntil string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "test" {
+  bucket         = %[1]q
+  object_locking = true
+  force_destroy  = true
+}
+
+resource "minio_s3_object" "test" {
+  bucket_name = minio_s3_bucket.test.id
+  object_name = %[2]q
+  content     = "hello"
+}
+
+resource "minio_s3_object_retention" "test" {
+  bucket            = minio_s3_bucket.test.id
+  key               = minio_s3_object.test.object_name
+  version_id        = minio_s3_object.test.version_id
+  mode              = "GOVERNANCE"
+  retain_until_date = %[3]q
+}
+`, bucket, objectKey, retainUntil)
+}

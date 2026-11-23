@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -64,24 +63,6 @@ func resourceMinioObjectRetention() *schema.Resource {
 	}
 }
 
-func retentionID(bucket, key, versionID string) string {
-	id := fmt.Sprintf("%s/%s", bucket, key)
-	if versionID != "" {
-		id += "#" + versionID
-	}
-	return id
-}
-
-func parseRetentionID(id string) (bucket, key, versionID string) {
-	rest := id
-	if idx := strings.LastIndex(id, "#"); idx != -1 {
-		rest = id[:idx]
-		versionID = id[idx+1:]
-	}
-	bucket, key = parseBucketAndKeyFromID(rest)
-	return bucket, key, versionID
-}
-
 func minioCreateObjectRetention(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*S3MinioClient).S3Client
 
@@ -111,7 +92,7 @@ func minioCreateObjectRetention(ctx context.Context, d *schema.ResourceData, met
 		return NewResourceError("setting object retention", fmt.Sprintf("%s/%s", bucket, key), s3CompatWriteError(meta.(*S3MinioClient), "object retention", err))
 	}
 
-	d.SetId(retentionID(bucket, key, versionID))
+	d.SetId(objectVersionID(bucket, key, versionID))
 	return minioReadObjectRetention(ctx, d, meta)
 }
 
@@ -120,8 +101,13 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 	key := d.Get("key").(string)
 	versionID := d.Get("version_id").(string)
 
-	if bucket == "" || key == "" {
-		bucket, key, versionID = parseRetentionID(d.Id())
+	parsedFromID := bucket == "" || key == ""
+	if parsedFromID {
+		var err error
+		bucket, key, versionID, err = parseObjectVersionID(d.Id())
+		if err != nil {
+			return NewResourceError("parsing object retention import ID", d.Id(), err)
+		}
 	}
 
 	client := meta.(*S3MinioClient).S3Client
@@ -132,11 +118,14 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 			return nil
 		}
 		var minioErr minio.ErrorResponse
-		if errors.As(err, &minioErr) && (minioErr.Code == "NoSuchKey" || minioErr.Code == "NoSuchObjectLockConfiguration") {
+		// NoSuchObjectLockConfiguration is the server saying this object has no
+		// retention, which for this resource means it is gone from state.
+		if errors.As(err, &minioErr) && (objectLockReadGone(minioErr) || minioErr.Code == "NoSuchObjectLockConfiguration") {
+			tflog.Warn(ctx, fmt.Sprintf("Object %s/%s has no retention, removing from state", bucket, key))
 			d.SetId("")
 			return nil
 		}
-		return NewResourceError("reading object retention", fmt.Sprintf("%s/%s", bucket, key), err)
+		return NewResourceError("reading object retention", fmt.Sprintf("%s/%s", bucket, key), objectVersionImportHint(err, parsedFromID))
 	}
 
 	_ = d.Set("bucket", bucket)

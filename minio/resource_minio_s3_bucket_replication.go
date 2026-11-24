@@ -31,6 +31,7 @@ func resourceMinioBucketReplication() *schema.Resource {
 		ReadContext:   minioReadBucketReplication,
 		UpdateContext: minioPutBucketReplication,
 		DeleteContext: minioDeleteBucketReplication,
+		CustomizeDiff: customizeBucketReplicationDiff,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -161,10 +162,11 @@ func bucketReplicationTargetResource() *schema.Resource {
 				Required:    true,
 			},
 			"secure": {
-				Type:        schema.TypeBool,
-				Description: "Whether to use HTTPS with this target (Recommended). Note that disabling HTTPS will yield Terraform warning for security reason`",
-				Optional:    true,
-				Default:     true,
+				Type:             schema.TypeBool,
+				Description:      "Whether to use HTTPS with this target (Recommended). Note that disabling HTTPS will yield Terraform warning for security reason`",
+				Optional:         true,
+				Default:          true,
+				ValidateDiagFunc: validateReplicationTargetSecure,
 			},
 			"path_style": {
 				Type:         schema.TypeString,
@@ -206,7 +208,7 @@ func bucketReplicationTargetResource() *schema.Resource {
 					newVal, err := time.ParseDuration(newValue)
 					return err == nil && shortDur(newVal) == oldValue
 				},
-				ValidateFunc: validation.StringMatch(regexp.MustCompile(`^[0-9]+\s?[s|m|h]$`), "must be a valid golang duration"),
+				ValidateDiagFunc: validateReplicationHealthCheckPeriod,
 			},
 			"bandwidth_limit": {
 				Type:             schema.TypeString,
@@ -220,10 +222,12 @@ func bucketReplicationTargetResource() *schema.Resource {
 				// Deprecated misspelling of bandwidth_limit. Kept in the schema so
 				// existing configs do not error at plan time; the legacy value is read
 				// via ParseBandwidthLimit in utils.go. Remove in the next major version.
-				Type:        schema.TypeString,
-				Description: "Deprecated: use 'bandwidth_limit' instead. Will be removed in a future major version.",
-				Optional:    true,
-				Deprecated:  "Use 'bandwidth_limit' instead. This attribute will be removed in a future major version.",
+				Type:             schema.TypeString,
+				Description:      "Deprecated: use 'bandwidth_limit' instead. Will be removed in a future major version.",
+				Optional:         true,
+				Deprecated:       "Use 'bandwidth_limit' instead. This attribute will be removed in a future major version.",
+				DiffSuppressFunc: suppressBandwidthLimitDiff,
+				ValidateDiagFunc: validateReplicationBandwidthLimitField("bandwidth_limt"),
 			},
 			"region": {
 				Type:        schema.TypeString,
@@ -253,38 +257,66 @@ func suppressBandwidthLimitDiff(_, oldValue, newValue string, _ *schema.Resource
 	return oldErr == nil && newErr == nil && oldBytes == newBytes
 }
 
-func validateReplicationBandwidthLimit(i interface{}, _ cty.Path) (diags diag.Diagnostics) {
+func validateReplicationTargetSecure(i interface{}, _ cty.Path) diag.Diagnostics {
+	v, ok := i.(bool)
+	if ok && !v {
+		return diag.Diagnostics{{
+			Severity: diag.Warning,
+			Summary:  "target.secure is false. It is unsafe to use bucket replication over HTTP",
+		}}
+	}
+	return nil
+}
+
+func validateReplicationHealthCheckPeriod(i interface{}, _ cty.Path) diag.Diagnostics {
 	v, ok := i.(string)
 	if !ok {
-		diags = append(diags, diag.Diagnostic{
-			Severity: diag.Error,
-			Summary:  "expected type of bandwidth_limit to be string",
-		})
+		return diag.Errorf("expected type of health_check_period to be string")
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return diag.Errorf("health_check_period must be a positive golang duration, got %q", v)
+	}
+	return nil
+}
+
+func validateReplicationBandwidthLimit(i interface{}, path cty.Path) diag.Diagnostics {
+	return validateReplicationBandwidthLimitField("bandwidth_limit")(i, path)
+}
+
+func validateReplicationBandwidthLimitField(fieldName string) schema.SchemaValidateDiagFunc {
+	return func(i interface{}, _ cty.Path) (diags diag.Diagnostics) {
+		v, ok := i.(string)
+		if !ok {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Error,
+				Summary:  fmt.Sprintf("expected type of %s to be string", fieldName),
+			})
+			return
+		}
+
+		if v == "" {
+			return
+		}
+
+		bandwidth, err := humanize.ParseBytes(v)
+		if err != nil {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Error,
+				Summary:  fmt.Sprintf("%s must be a positive value. It may use suffixes (k, m, g, ..) '%s'", fieldName, v),
+			})
+			return
+		}
+		// 100 MB (SI) = 100 * 1,000,000 = 100,000,000 bytes
+		const minBandwidthLimit = uint64(100000000)
+		if bandwidth < minBandwidthLimit {
+			diags = append(diags, diag.Diagnostic{
+				Severity: diag.Error,
+				Summary:  fmt.Sprintf("When set, %s must be at least 100MBps '%s'", fieldName, v),
+			})
+		}
 		return
 	}
-
-	if v == "" {
-		return
-	}
-
-	bandwidth, err := humanize.ParseBytes(v)
-	if err != nil {
-		diags = append(diags, diag.Diagnostic{
-			Severity: diag.Error,
-			Summary:  fmt.Sprintf("bandwidth_limit must be a positive value. It may use suffixes (k, m, g, ..) '%s'", v),
-		})
-		return
-	}
-	// 100 MB (SI) = 100 * 1,000,000 = 100,000,000 bytes
-	const minBandwidthLimit = uint64(100000000)
-	if bandwidth < minBandwidthLimit {
-		diags = append(diags, diag.Diagnostic{
-			Severity: diag.Error,
-			Summary:  fmt.Sprintf("When set, bandwidth_limit must be at least 100MBps '%s'", v),
-		})
-
-	}
-	return
 }
 
 func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -292,8 +324,8 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	if diags.HasError() {
 		return diags
 	}
-	if len(bucketReplicationConfig.ReplicationRules) == 0 {
-		return NewResourceError("putting bucket replication configuration", bucketReplicationConfig.MinioBucket, fmt.Errorf("at least one rule block is required"))
+	if bucketReplicationConfig == nil || len(bucketReplicationConfig.ReplicationRules) == 0 {
+		return append(diags, NewResourceError("putting bucket replication configuration", d.Get("bucket").(string), fmt.Errorf("at least one rule block is required"))...)
 	}
 	replicationConfig := bucketReplicationConfig.ReplicationRules
 
@@ -302,7 +334,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	cfg, staleARNs, err := convertBucketReplicationConfig(ctx, bucketReplicationConfig, replicationConfig)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
+		return append(diags, NewResourceError(fmt.Sprintf("error generating bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))...)
 	}
 
 	err = bucketReplicationConfig.MinioClient.SetBucketReplication(
@@ -312,7 +344,7 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	)
 
 	if err != nil {
-		return NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))
+		return append(diags, NewResourceError(fmt.Sprintf("error putting bucket replication configuration for %q", bucketReplicationConfig.MinioBucket), d.Id(), s3CompatWriteError(meta.(*S3MinioClient), "bucket replication configuration", err))...)
 	}
 
 	// The configuration is written, so track the resource before cleaning up:
@@ -324,9 +356,8 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 	// the new configuration is written. A failure here is only a warning: an
 	// error would taint the resource and force a replacement, and Read already
 	// ignores remote targets that no rule uses.
-	var warnings diag.Diagnostics
 	if err := removeRemoteTargets(ctx, bucketReplicationConfig.MinioAdmin, bucketReplicationConfig.MinioBucket, staleARNs); err != nil {
-		warnings = append(warnings, diag.Diagnostic{
+		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Warning,
 			Summary:  fmt.Sprintf("Could not remove unused replication remote targets of bucket %q", bucketReplicationConfig.MinioBucket),
 			Detail:   fmt.Sprintf("The replication configuration was written, but removing the remote targets no rule uses failed: %v. They are left on the bucket and the next apply tries to remove them again.", err),
@@ -335,11 +366,11 @@ func minioPutBucketReplication(ctx context.Context, d *schema.ResourceData, meta
 
 	if d.HasChange("resync_version") {
 		if resyncDiags := triggerBucketReplicationResync(ctx, bucketReplicationConfig, d); resyncDiags.HasError() {
-			return append(warnings, resyncDiags...)
+			return append(diags, resyncDiags...)
 		}
 	}
 
-	return warnings
+	return diags
 }
 
 // triggerBucketReplicationResync resets replication on every configured target so
@@ -393,7 +424,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 
 	rules, ruleArnMap, ruleDiags := buildReplicationRuleStates(ctx, bucketName, bucketReplicationConfig, rcfg)
 	if ruleDiags.HasError() {
-		return ruleDiags
+		return append(diags, ruleDiags...)
 	}
 
 	existingRemoteTargets, err := admclient.ListRemoteTargets(ctx, bucketName, "")
@@ -404,7 +435,7 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 			return nil
 		}
 		tflog.Warn(ctx, fmt.Sprintf("Unable to fetch existing remote target config for %q: %v", bucketName, err))
-		return NewResourceError("reading replication remote target configuration", bucketName, err)
+		return append(diags, NewResourceError("reading replication remote target configuration", bucketName, err)...)
 	}
 
 	// A remote target no rule references is left behind when the removal that
@@ -416,11 +447,11 @@ func minioReadBucketReplication(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	if len(referencedRemoteTargets) != len(rules) {
-		return NewResourceError("reading replication configuration", bucketName, fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(referencedRemoteTargets), len(rules)))
+		return append(diags, NewResourceError("reading replication configuration", bucketName, fmt.Errorf("inconsistent number of remote target and bucket replication rules (%d != %d)", len(referencedRemoteTargets), len(rules)))...)
 	}
 
-	if targetDiags := applyRemoteTargetsToRules(ctx, bucketName, bucketReplicationConfig, referencedRemoteTargets, rules, ruleArnMap); targetDiags.HasError() {
-		return targetDiags
+	if targetDiags := applyRemoteTargetsToRules(ctx, d, bucketName, bucketReplicationConfig, referencedRemoteTargets, rules, ruleArnMap); targetDiags.HasError() {
+		return append(diags, targetDiags...)
 	}
 
 	if err := d.Set("bucket", d.Id()); err != nil {
@@ -526,7 +557,7 @@ func splitReferencedRemoteTargets(targets []madmin.BucketTarget, ruleArnMap map[
 
 // applyRemoteTargetsToRules enriches the rule state with the remote target details
 // read from MinIO's admin API.
-func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketReplicationConfig *S3MinioBucketReplication, existingRemoteTargets []madmin.BucketTarget, rules []map[string]interface{}, ruleArnMap map[string]int) diag.Diagnostics {
+func applyRemoteTargetsToRules(ctx context.Context, d *schema.ResourceData, bucketName string, bucketReplicationConfig *S3MinioBucketReplication, existingRemoteTargets []madmin.BucketTarget, rules []map[string]interface{}, ruleArnMap map[string]int) diag.Diagnostics {
 	for _, remoteTarget := range existingRemoteTargets {
 		var ruleIdx int
 		var ok bool
@@ -566,7 +597,13 @@ func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketRep
 		} else {
 			bwUint64 = uint64(remoteTarget.BandwidthLimit)
 		}
-		target["bandwidth_limit"] = strconv.FormatUint(bwUint64, 10)
+		renderedBW := strconv.FormatUint(bwUint64, 10)
+		if useLegacyReplicationBandwidth(d, ruleIdx) {
+			target["bandwidth_limt"] = renderedBW
+			target["bandwidth_limit"] = "0"
+		} else {
+			target["bandwidth_limit"] = renderedBW
+		}
 		target["region"] = remoteTarget.Region
 
 		target["access_key"] = remoteTarget.Credentials.AccessKey
@@ -594,11 +631,12 @@ func applyRemoteTargetsToRules(ctx context.Context, bucketName string, bucketRep
 
 func minioDeleteBucketReplication(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	bucketReplicationConfig, diags := BucketReplicationConfig(ctx, d, meta)
-
-	if len(bucketReplicationConfig.ReplicationRules) == 0 && !diags.HasError() {
-		tflog.Debug(ctx, fmt.Sprintf("Removing bucket replication for unversioned bucket (%s) from state", d.Id()))
-	} else if diags.HasError() {
+	if diags.HasError() {
 		return diags
+	}
+
+	if len(bucketReplicationConfig.ReplicationRules) == 0 {
+		tflog.Debug(ctx, fmt.Sprintf("Removing bucket replication for unversioned bucket (%s) from state", d.Id()))
 	}
 
 	client := bucketReplicationConfig.MinioClient
@@ -1070,10 +1108,10 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 	result.Target.DisableProxy, ok = target["disable_proxy"].(bool)
 	result.Target.DisableProxy = result.Target.DisableProxy && ok
 
-	var err error
 	bandwidth, ok, parseDiags := ParseBandwidthLimit(ctx, target)
-	if len(parseDiags) > 0 {
-		errs = append(errs, diag.Errorf("rule[%d].target.bandwidth_limit is invalid. Make sure to use k, m, g as prefix only", i)...)
+	if parseDiags.HasError() {
+		_, fieldName := replicationBandwidthInput(target)
+		errs = append(errs, diag.Errorf("rule[%d].target.%s is invalid. Make sure to use k, m, g as prefix only", i, fieldName)...)
 	}
 
 	if ok {
@@ -1089,9 +1127,10 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 
 	var healthcheckDuration string
 	if healthcheckDuration, ok = target["health_check_period"].(string); ok {
+		var err error
 		result.Target.HealthCheckPeriod, err = time.ParseDuration(healthcheckDuration)
-		if err != nil {
-			tflog.Warn(ctx, fmt.Sprintf("invalid healthcheck value %q: %v", result.Target.HealthCheckPeriod, err))
+		if err != nil || result.Target.HealthCheckPeriod <= 0 {
+			tflog.Warn(ctx, fmt.Sprintf("invalid healthcheck value %q: %v", healthcheckDuration, err))
 			errs = append(errs, diag.Errorf("rule[%d].target.health_check_period is invalid. Make sure to use a valid golang time duration notation", i)...)
 		}
 	}
@@ -1116,6 +1155,100 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 	return
 }
 
+func rawReplicationTargetFromConfig(rawConfig cty.Value, i int) (cty.Value, bool) {
+	if rawConfig.IsNull() || !rawConfig.IsKnown() {
+		return cty.NilVal, false
+	}
+	rulesAttr := rawConfig.GetAttr("rule")
+	if rulesAttr.IsNull() || !rulesAttr.IsKnown() || rulesAttr.LengthInt() <= i {
+		return cty.NilVal, false
+	}
+	ruleVal := rulesAttr.Index(cty.NumberIntVal(int64(i)))
+	if ruleVal.IsNull() || !ruleVal.IsKnown() {
+		return cty.NilVal, false
+	}
+	targetAttr := ruleVal.GetAttr("target")
+	if targetAttr.IsNull() || !targetAttr.IsKnown() || targetAttr.LengthInt() == 0 {
+		return cty.NilVal, false
+	}
+	targetVal := targetAttr.Index(cty.NumberIntVal(0))
+	if targetVal.IsNull() || !targetVal.IsKnown() {
+		return cty.NilVal, false
+	}
+	return targetVal, true
+}
+
+func rawConfigStringSet(targetVal cty.Value, attr string) bool {
+	val := targetVal.GetAttr(attr)
+	return !val.IsNull() && val.IsKnown() && val.Type() == cty.String && val.AsString() != ""
+}
+
+func decodedReplicationTargetAt(getter interface{ Get(string) interface{} }, i int) (map[string]interface{}, bool) {
+	rules, ok := getter.Get("rule").([]interface{})
+	if !ok || i < 0 || i >= len(rules) {
+		return nil, false
+	}
+	ruleMap, ok := rules[i].(map[string]interface{})
+	if !ok {
+		return nil, false
+	}
+	targets, ok := ruleMap["target"].([]interface{})
+	if !ok || len(targets) == 0 {
+		return nil, false
+	}
+	targetMap, ok := targets[0].(map[string]interface{})
+	return targetMap, ok
+}
+
+func customizeBucketReplicationDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	rawConfig := d.GetRawConfig()
+	if !rawConfig.IsNull() && rawConfig.IsKnown() {
+		rulesAttr := rawConfig.GetAttr("rule")
+		if !rulesAttr.IsNull() && rulesAttr.IsKnown() {
+			for i := 0; i < rulesAttr.LengthInt(); i++ {
+				targetVal, ok := rawReplicationTargetFromConfig(rawConfig, i)
+				if !ok {
+					continue
+				}
+				if rawConfigStringSet(targetVal, "bandwidth_limit") && rawConfigStringSet(targetVal, "bandwidth_limt") {
+					return fmt.Errorf("rule[%d].target: conflicts with bandwidth_limit and bandwidth_limt; use bandwidth_limit instead", i)
+				}
+			}
+			return nil
+		}
+	}
+
+	rules, ok := d.Get("rule").([]interface{})
+	if !ok {
+		return nil
+	}
+	for i := range rules {
+		targetMap, ok := decodedReplicationTargetAt(d, i)
+		if !ok {
+			continue
+		}
+		legacy, _ := targetMap["bandwidth_limt"].(string)
+		canonical, _ := targetMap["bandwidth_limit"].(string)
+		if legacy != "" && canonical != "" && canonical != "0" {
+			return fmt.Errorf("rule[%d].target: conflicts with bandwidth_limit and bandwidth_limt; use bandwidth_limit instead", i)
+		}
+	}
+	return nil
+}
+
+func useLegacyReplicationBandwidth(d *schema.ResourceData, i int) bool {
+	if targetVal, ok := rawReplicationTargetFromConfig(d.GetRawConfig(), i); ok {
+		return rawConfigStringSet(targetVal, "bandwidth_limt") && !rawConfigStringSet(targetVal, "bandwidth_limit")
+	}
+	targetMap, ok := decodedReplicationTargetAt(d, i)
+	if !ok {
+		return false
+	}
+	legacy, _ := targetMap["bandwidth_limt"].(string)
+	canonical, _ := targetMap["bandwidth_limit"].(string)
+	return legacy != "" && (canonical == "" || canonical == "0")
+}
+
 // resolveReplicationTargetSync determines the synchronous replication setting for a
 // target, preferring the canonical "synchronous" attribute over the deprecated
 // "syncronous" one.
@@ -1123,27 +1256,14 @@ func resolveReplicationTargetSync(d *schema.ResourceData, i int, target map[stri
 	// Prefer "synchronous" over deprecated "syncronous".
 	// Note: GetRawConfig returns null during Read operations (when reading from state),
 	// so we fall back to the decoded value from the target map in that case.
-	rawConfig := d.GetRawConfig()
-	if !rawConfig.IsNull() {
-		rulesAttr := rawConfig.GetAttr("rule")
-		if !rulesAttr.IsNull() && rulesAttr.IsKnown() && rulesAttr.LengthInt() > i {
-			ruleVal := rulesAttr.Index(cty.NumberIntVal(int64(i)))
-			if !ruleVal.IsNull() && ruleVal.IsKnown() {
-				targetAttr := ruleVal.GetAttr("target")
-				if !targetAttr.IsNull() && targetAttr.IsKnown() && targetAttr.LengthInt() > 0 {
-					targetVal := targetAttr.Index(cty.NumberIntVal(0))
-					if !targetVal.IsNull() && targetVal.IsKnown() {
-						syncAttr := targetVal.GetAttr("synchronous")
-						if !syncAttr.IsNull() && syncAttr.IsKnown() {
-							return syncAttr.True()
-						}
-						syncronousAttr := targetVal.GetAttr("syncronous")
-						if !syncronousAttr.IsNull() && syncronousAttr.IsKnown() {
-							return syncronousAttr.True()
-						}
-					}
-				}
-			}
+	if targetVal, ok := rawReplicationTargetFromConfig(d.GetRawConfig(), i); ok {
+		syncAttr := targetVal.GetAttr("synchronous")
+		if !syncAttr.IsNull() && syncAttr.IsKnown() {
+			return syncAttr.True()
+		}
+		syncronousAttr := targetVal.GetAttr("syncronous")
+		if !syncronousAttr.IsNull() && syncronousAttr.IsKnown() {
+			return syncronousAttr.True()
 		}
 	}
 	// Fall back to decoded value from state when raw config is not available (e.g., during Read)

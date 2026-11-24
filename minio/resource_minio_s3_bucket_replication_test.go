@@ -578,6 +578,103 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 	})
 }
 
+func TestAccS3BucketReplication_targetValidationAndLegacyBandwidth(t *testing.T) {
+	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
+	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")
+	username := acctest.RandomWithPrefix("tf-acc-usr")
+
+	primaryMinioEndpoint := os.Getenv("MINIO_ENDPOINT")
+	secondaryMinioEndpoint := os.Getenv("SECOND_MINIO_ENDPOINT")
+
+	baseConfig := testAccBucketReplicationConfigLocals(primaryMinioEndpoint, secondaryMinioEndpoint) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_a", "minio", bucketName) +
+		testAccBucketReplicationConfigBucket("my_bucket_in_b", "secondminio", secondBucketName) +
+		testAccBucketReplicationConfigPolicy(bucketName, secondBucketName) +
+		testAccBucketReplicationConfigServiceAccount(username, 2)
+
+	replicationResource := func(targetAttrs string) string {
+		return baseConfig + fmt.Sprintf(`
+resource "minio_s3_bucket_replication" "replication_in_b" {
+  bucket = minio_s3_bucket.my_bucket_in_a.bucket
+
+  rule {
+    delete_replication          = true
+    delete_marker_replication   = true
+    existing_object_replication = true
+    metadata_sync               = false
+
+    target {
+      bucket     = minio_s3_bucket.my_bucket_in_b.bucket
+      host       = local.second_minio_host
+      secure     = false
+      access_key = minio_iam_service_account.replication_in_b.access_key
+      secret_key = minio_iam_service_account.replication_in_b.secret_key
+      %s
+    }
+  }
+
+  depends_on = [
+    minio_s3_bucket_versioning.my_bucket_in_a,
+    minio_s3_bucket_versioning.my_bucket_in_b
+  ]
+}
+`, targetAttrs)
+	}
+
+	expectedRule := []S3MinioBucketReplicationRule{
+		{
+			Enabled:                   true,
+			Priority:                  1,
+			Prefix:                    "",
+			Tags:                      map[string]string{},
+			DeleteReplication:         true,
+			DeleteMarkerReplication:   true,
+			ExistingObjectReplication: true,
+			MetadataSync:              false,
+			Target: S3MinioBucketReplicationRuleTarget{
+				Bucket:            secondBucketName,
+				Host:              secondaryMinioEndpoint,
+				Path:              "/",
+				Synchronous:       false,
+				Secure:            false,
+				PathStyle:         S3PathStyleAuto,
+				HealthCheckPeriod: 90 * time.Second,
+				BandwidthLimit:    200000000,
+			},
+		},
+	}
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccReplicationPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      replicationResource(`health_check_period = "5|"`),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`health_check_period must be a positive golang duration`),
+			},
+			{
+				Config:      replicationResource(`bandwidth_limt = "abc"`),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`bandwidth_limt`),
+			},
+			{
+				Config:      replicationResource("bandwidth_limit = \"200M\"\n      bandwidth_limt  = \"200M\""),
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`bandwidth_limit.*bandwidth_limt`),
+			},
+			{
+				Config: replicationResource("health_check_period = \"1m30s\"\n      bandwidth_limt      = \"200M\""),
+				Check: testAccCheckBucketHasReplication(
+					"minio_s3_bucket_replication.replication_in_b",
+					expectedRule,
+				),
+			},
+		},
+	})
+}
+
 func TestAccS3BucketReplication_disappearsOnDeletedBucket(t *testing.T) {
 	bucketName := acctest.RandomWithPrefix("tf-acc-test-a")
 	secondBucketName := acctest.RandomWithPrefix("tf-acc-test-b")

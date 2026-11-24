@@ -59,7 +59,8 @@ func buildNotifyRedisCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddParam(&parts, "address", d.Get("address").(string))
 	notifyBuildCfgAddParam(&parts, "key", d.Get("key").(string))
 	notifyBuildCfgAddParam(&parts, "format", d.Get("format").(string))
-	notifyBuildCfgClearablePair(&parts, d, "user", "password")
+	notifyBuildCfgClearableParam(&parts, d, "password")
+	notifyBuildCfgClearableParam(&parts, d, "user")
 
 	notifyBuildCommonCfg(&parts, d, meta)
 

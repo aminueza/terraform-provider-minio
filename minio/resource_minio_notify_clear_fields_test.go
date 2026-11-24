@@ -809,42 +809,6 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 				"topic":  "events",
 			},
 		},
-		{
-			name:     "notify_redis user password pair",
-			stubKey:  "notify_redis:primary",
-			resource: resourceMinioNotifyRedis,
-			serverInitial: map[string]string{
-				"address":  "redis:6379",
-				"key":      "events",
-				"format":   "namespace",
-				"user":     "redisuser",
-				"password": "redispass",
-			},
-			readableKey: "user",
-			secretKey:   "password",
-			rotatedVal:  "otheruser",
-			keepConfig: map[string]interface{}{
-				"name":    "primary",
-				"address": "redis:6379",
-				"key":     "events",
-				"format":  "namespace",
-				"user":    "redisuser",
-				"comment": "unrelated",
-			},
-			rotateConfig: map[string]interface{}{
-				"name":    "primary",
-				"address": "redis:6379",
-				"key":     "events",
-				"format":  "namespace",
-				"user":    "otheruser",
-			},
-			removeConfig: map[string]interface{}{
-				"name":    "primary",
-				"address": "redis:6379",
-				"key":     "events",
-				"format":  "namespace",
-			},
-		},
 	}
 
 	importState := func(t *testing.T, tcStubKey string, resourceFn func() *schema.Resource, serverInitial map[string]string) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
@@ -921,6 +885,51 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestNotifyRedisUserRemovalKeepsPasswordAfterImport(t *testing.T) {
+	// Redis authenticates with `AUTH <password>` when no user is set, so a
+	// password is valid on its own and `user` is not the readable half of a
+	// pair: removing `user` after an import must clear only `user` and leave
+	// the server's password in place.
+	stub, client := newNotifyConfigStub(t, "notify_redis:primary")
+	stub.kvs["address"] = "redis:6379"
+	stub.kvs["key"] = "events"
+	stub.kvs["format"] = "namespace"
+	stub.kvs["user"] = "redisuser"
+	stub.kvs["password"] = "redispass"
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyRedis()
+	ctx := context.Background()
+
+	state, diags := res.RefreshWithoutUpgrade(ctx, &terraform.InstanceState{
+		ID:         "primary",
+		Attributes: map[string]string{"id": "primary"},
+	}, meta)
+	if diags.HasError() {
+		t.Fatalf("import: %v", diags)
+	}
+
+	raw := map[string]interface{}{
+		"name":    "primary",
+		"address": "redis:6379",
+		"key":     "events",
+		"format":  "namespace",
+	}
+	diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	if _, diags := res.Apply(ctx, state, diff, meta); diags.HasError() {
+		t.Fatalf("apply: %v", diags)
+	}
+
+	if got := stub.kvs["user"]; got != "" {
+		t.Errorf("server user after removing it = %q, want empty; last set-config-kv: %q", got, stub.sets[len(stub.sets)-1])
+	}
+	if got := stub.kvs["password"]; got != "redispass" {
+		t.Errorf("server password after removing user = %q, want it kept; last set-config-kv: %q", got, stub.sets[len(stub.sets)-1])
 	}
 }
 

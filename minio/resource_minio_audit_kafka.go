@@ -65,10 +65,16 @@ func resourceMinioAuditKafka() *schema.Resource {
 				Optional:    true,
 				Description: "Skip TLS certificate verification.",
 			},
+			// RequiredWith keeps a cert-only configuration out of the plan: the
+			// readback would put the server's key path into state and the empty
+			// config value would then clear it, which MinIO rejects as a broken
+			// pair. The key alone stays allowed: removing the certificate while
+			// the key remains is how the pair gets cleared.
 			"client_tls_cert": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Path to client TLS certificate.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"client_tls_key"},
+				Description:  "Path to client TLS certificate.",
 			},
 			"client_tls_key": {
 				Type:        schema.TypeString,
@@ -123,7 +129,9 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 		_ = d.Set("client_tls_cert", v)
 	}
 	if v, ok := cfgMap["client_tls_key"]; ok {
-		_ = d.Set("client_tls_key", v)
+		if setErr := d.Set("client_tls_key", v); setErr != nil {
+			return diag.FromErr(setErr)
+		}
 	}
 	if v, ok := cfgMap["version"]; ok {
 		_ = d.Set("version", v)

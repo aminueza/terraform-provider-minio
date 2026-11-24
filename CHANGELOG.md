@@ -47,6 +47,15 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_notify_webhook`, `minio_notify_nats`, `minio_notify_kafka`,
+  `minio_logger_webhook`, `minio_audit_webhook`, `minio_audit_kafka`, and
+  `minio_server_config_etcd` now require the private key path (`client_key`,
+  `client_tls_key`, `client_cert_key`) whenever the matching certificate path
+  is set: MinIO only accepts the pair together, and a certificate-only
+  configuration would plan to clear the key the server holds. Configurations
+  that manage an imported target holding both and declare only the certificate
+  now fail at plan time, so declare the key path next to the certificate
+  ([#1355](https://github.com/aminueza/terraform-provider-minio/issues/1355)).
 - `minio_notify_kafka`, `minio_audit_kafka`, and `data.minio_notify_kafka` now
   expose `sasl` as a boolean defaulting to `false`, sent to MinIO as
   `sasl=on`/`sasl=off`. Configurations that set `sasl_username` or

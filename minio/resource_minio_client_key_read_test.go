@@ -378,6 +378,105 @@ func TestNotifyClientKeyPathsRespectRestartGate(t *testing.T) {
 	}
 }
 
+// The restart gate compares the server response against the state through
+// notifyRunningConfigMatchesState; this pins the client_key entry in
+// isClearableNotifyConfigKey that the gate needs to treat a pre-restart key as
+// stale, which the end-to-end gate test passes without.
+func TestNotifyRunningConfigMatchesStateDetectsStaleClientKey(t *testing.T) {
+	nrc := notifyResourceConfig{
+		subsystem:  "notify_webhook",
+		buildCfg:   buildNotifyWebhookCfg,
+		readFields: readNotifyWebhookFields,
+	}
+	d := resourceMinioNotifyWebhook().TestResourceData()
+	d.SetId("primary")
+	if err := d.Set("name", "primary"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Set("endpoint", "http://hook:8080"); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Set("client_cert", "/certs/v1.crt"); err != nil {
+		t.Fatal(err)
+	}
+	// client_key is empty in state: it was just removed from the configuration.
+
+	cfgMap := map[string]string{
+		"endpoint":    "http://hook:8080",
+		"client_cert": "/certs/v1.crt",
+		"enable":      "off",
+	}
+
+	cfgMap["client_key"] = "/certs/v1.key"
+	if notifyRunningConfigMatchesState(nrc, cfgMap, d, nil) {
+		t.Fatal("a pre-restart server still serving the removed client_key must not match the cleared state")
+	}
+
+	cfgMap["client_key"] = ""
+	if !notifyRunningConfigMatchesState(nrc, cfgMap, d, nil) {
+		t.Fatalf("config should match once the server stops serving the key, intended=%v", parseConfigParams(nrc.buildCfg(d, nil)))
+	}
+}
+
+// A certificate without its key would clear the key the server holds after the
+// readback populated state, so the schema rejects it at plan time instead.
+func TestClientKeyPairRequiredWithCertificate(t *testing.T) {
+	cases := []struct {
+		name     string
+		resource func() *schema.Resource
+		certAttr string
+		keyAttr  string
+		base     map[string]interface{}
+	}{
+		{"minio_notify_webhook", resourceMinioNotifyWebhook, "client_cert", "client_key",
+			map[string]interface{}{"name": "primary", "endpoint": "http://hook:8080"}},
+		{"minio_notify_nats", resourceMinioNotifyNats, "client_cert", "client_key",
+			map[string]interface{}{"name": "primary", "address": "nats://nats:4222", "subject": "events"}},
+		{"minio_notify_kafka", resourceMinioNotifyKafka, "client_tls_cert", "client_tls_key",
+			map[string]interface{}{"name": "primary", "brokers": "kafka:9092", "topic": "events"}},
+		{"minio_logger_webhook", resourceMinioLoggerWebhook, "client_cert", "client_key",
+			map[string]interface{}{"name": "primary", "endpoint": "http://logger:8080"}},
+		{"minio_audit_webhook", resourceMinioAuditWebhook, "client_cert", "client_key",
+			map[string]interface{}{"name": "primary", "endpoint": "http://audit:8080"}},
+		{"minio_audit_kafka", resourceMinioAuditKafka, "client_tls_cert", "client_tls_key",
+			map[string]interface{}{"name": "primary", "brokers": "kafka:9092", "topic": "audit"}},
+		{"minio_server_config_etcd", resourceMinioServerConfigEtcd, "client_cert", "client_cert_key",
+			map[string]interface{}{"endpoints": "http://127.0.0.1:2379"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := tc.resource()
+
+			certOnly := map[string]interface{}{}
+			for k, v := range tc.base {
+				certOnly[k] = v
+			}
+			certOnly[tc.certAttr] = "/srv/tls/client.crt"
+			diags := res.Validate(terraform.NewResourceConfigRaw(certOnly))
+			if !diags.HasError() {
+				t.Fatalf("a %s configuration with %s and no %s must fail validation", tc.name, tc.certAttr, tc.keyAttr)
+			}
+			var messages []string
+			for _, diag := range diags {
+				messages = append(messages, diag.Summary+" "+diag.Detail)
+			}
+			if !strings.Contains(strings.Join(messages, "\n"), tc.keyAttr) {
+				t.Errorf("validation error should name %s, got: %v", tc.keyAttr, messages)
+			}
+
+			withKey := map[string]interface{}{}
+			for k, v := range certOnly {
+				withKey[k] = v
+			}
+			withKey[tc.keyAttr] = "/srv/tls/client.key"
+			if diags := res.Validate(terraform.NewResourceConfigRaw(withKey)); diags.HasError() {
+				t.Errorf("certificate and key together must validate: %v", diags)
+			}
+		})
+	}
+}
+
 func testAccMinioClientKeyDriftCase(t *testing.T, resourceType, subsystem, key, fieldsFmt, configured, outside string) {
 	resourceName := resourceType + ".test"
 	name := "tfacc-" + acctest.RandString(6)

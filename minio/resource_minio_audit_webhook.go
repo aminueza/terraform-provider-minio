@@ -59,10 +59,16 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Computed:    true,
 				Description: "Number of audit events to send in a single batch to the endpoint.",
 			},
+			// RequiredWith keeps a cert-only configuration out of the plan: the
+			// readback would put the server's key path into state and the empty
+			// config value would then clear it, which MinIO rejects as a broken
+			// pair. The key alone stays allowed: removing the certificate while
+			// the key remains is how the pair gets cleared.
 			"client_cert": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validateConfigValue,
+				RequiredWith: []string{"client_key"},
 				Description:  "Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.",
 			},
 			"client_key": {

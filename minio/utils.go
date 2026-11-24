@@ -199,14 +199,22 @@ func SafeInt64ToInt64(val int64) int64 {
 	return val
 }
 
+// replicationBandwidthInput selects the configured bandwidth attribute and its
+// field name, preferring the legacy "bandwidth_limt" attribute when non-empty.
+func replicationBandwidthInput(target map[string]any) (string, string) {
+	if legacyLimitValue, ok := target["bandwidth_limt"].(string); ok && legacyLimitValue != "" {
+		return legacyLimitValue, "bandwidth_limt"
+	}
+	if limitValue, ok := target["bandwidth_limit"].(string); ok {
+		return limitValue, "bandwidth_limit"
+	}
+	return "", "bandwidth_limit"
+}
+
 // ParseBandwidthLimit extracts and parses the bandwidth limit from a target map.
 // It handles both the legacy attribute "bandwidth_limt" and the new attribute "bandwidth_limit".
 // Returns the parsed bandwidth value, a boolean indicating success, and any diagnostic errors.
 func ParseBandwidthLimit(ctx context.Context, target map[string]any) (uint64, bool, diag.Diagnostics) {
-	var ok bool
-	var bandwidthStr string
-	var legacyLimitValue string
-	var limitValue string
 	var errs diag.Diagnostics
 
 	// Prefer the legacy attribute only when it is explicitly set to a non-empty
@@ -216,11 +224,7 @@ func ParseBandwidthLimit(ctx context.Context, target map[string]any) (uint64, bo
 	// empty-string as "unset" lets the canonical "bandwidth_limit" field take
 	// effect in that common case, while still honouring an explicitly-set
 	// legacy value for backward compatibility.
-	if legacyLimitValue, ok = target["bandwidth_limt"].(string); ok && legacyLimitValue != "" {
-		bandwidthStr = legacyLimitValue
-	} else if limitValue, ok = target["bandwidth_limit"].(string); ok {
-		bandwidthStr = limitValue
-	}
+	bandwidthStr, fieldName := replicationBandwidthInput(target)
 
 	if bandwidthStr == "" {
 		return 0, false, nil
@@ -228,8 +232,8 @@ func ParseBandwidthLimit(ctx context.Context, target map[string]any) (uint64, bo
 
 	bandwidth, err := humanize.ParseBytes(bandwidthStr)
 	if err != nil {
-		tflog.Warn(ctx, "invalid bandwidth value", map[string]interface{}{"value": bandwidthStr, "err": err.Error()})
-		errs = append(errs, diag.Errorf("bandwidth_limit is invalid. Make sure to use k, m, g as prefix only")...)
+		tflog.Warn(ctx, "invalid bandwidth value", map[string]interface{}{"field": fieldName, "value": bandwidthStr, "err": err.Error()})
+		errs = append(errs, diag.Errorf("%s is invalid. Make sure to use k, m, g as prefix only", fieldName)...)
 		return 0, false, errs
 	}
 

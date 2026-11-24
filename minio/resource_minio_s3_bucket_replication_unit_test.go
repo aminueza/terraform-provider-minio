@@ -1,10 +1,16 @@
 package minio
 
 import (
+	"context"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/go-cty/cty"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 )
 
@@ -122,5 +128,304 @@ func TestSplitReferencedRemoteTargetsKeepsOnlyTargetsOfRules(t *testing.T) {
 	}
 	if want := []string{"arn:minio:replication::stale:bucket-x"}; !slices.Equal(unreferenced, want) {
 		t.Errorf("unreferenced = %v, want %v", unreferenced, want)
+	}
+}
+
+func replicationValidationConfig(target map[string]interface{}) *terraform.ResourceConfig {
+	return terraform.NewResourceConfigRaw(map[string]interface{}{
+		"bucket": "source",
+		"rule": []interface{}{
+			map[string]interface{}{
+				"priority": 1,
+				"target":   []interface{}{target},
+			},
+		},
+	})
+}
+
+func TestValidateReplicationHealthCheckPeriod(t *testing.T) {
+	cases := []struct {
+		value   string
+		wantErr bool
+	}{
+		{value: "5|", wantErr: true},
+		{value: "5 s", wantErr: true},
+		{value: "9999999999h", wantErr: true},
+		{value: "0s", wantErr: true},
+		{value: "", wantErr: true},
+		{value: "abc", wantErr: true},
+		{value: "5s", wantErr: false},
+		{value: "90s", wantErr: false},
+		{value: "2m", wantErr: false},
+		{value: "1m30s", wantErr: false},
+		{value: "1h30m", wantErr: false},
+	}
+
+	res := resourceMinioBucketReplication()
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%q", tc.value), func(t *testing.T) {
+			diags := validateReplicationHealthCheckPeriod(tc.value, cty.Path{})
+			if diags.HasError() != tc.wantErr {
+				t.Fatalf("validator(%q) HasError = %v, want %v (%v)", tc.value, diags.HasError(), tc.wantErr, diags)
+			}
+
+			cfgDiags := res.Validate(replicationValidationConfig(map[string]interface{}{
+				"bucket":              "dest",
+				"host":                "minio-b:9000",
+				"access_key":          "replication",
+				"secret_key":          "replication-secret",
+				"health_check_period": tc.value,
+			}))
+			if cfgDiags.HasError() != tc.wantErr {
+				t.Fatalf("res.Validate(%q) HasError = %v, want %v (%v)", tc.value, cfgDiags.HasError(), tc.wantErr, cfgDiags)
+			}
+		})
+	}
+}
+
+func TestValidateReplicationLegacyBandwidthLimit(t *testing.T) {
+	cases := []struct {
+		value   string
+		wantErr bool
+	}{
+		{value: "abc", wantErr: true},
+		{value: "1k", wantErr: true},
+		{value: "200M", wantErr: false},
+	}
+
+	res := resourceMinioBucketReplication()
+	validator := validateReplicationBandwidthLimitField("bandwidth_limt")
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			diags := validator(tc.value, cty.Path{})
+			if diags.HasError() != tc.wantErr {
+				t.Fatalf("validator(%q) HasError = %v, want %v (%v)", tc.value, diags.HasError(), tc.wantErr, diags)
+			}
+			if tc.wantErr && !strings.Contains(fmt.Sprint(diags), "bandwidth_limt") {
+				t.Fatalf("validator(%q) error = %v, want error naming bandwidth_limt", tc.value, diags)
+			}
+
+			cfgDiags := res.Validate(replicationValidationConfig(map[string]interface{}{
+				"bucket":         "dest",
+				"host":           "minio-b:9000",
+				"access_key":     "replication",
+				"secret_key":     "replication-secret",
+				"bandwidth_limt": tc.value,
+			}))
+			if cfgDiags.HasError() != tc.wantErr {
+				t.Fatalf("res.Validate(%q) HasError = %v, want %v (%v)", tc.value, cfgDiags.HasError(), tc.wantErr, cfgDiags)
+			}
+		})
+	}
+}
+
+func TestValidateReplicationTargetSecureWarning(t *testing.T) {
+	res := resourceMinioBucketReplication()
+
+	diags := res.Validate(replicationValidationConfig(map[string]interface{}{
+		"bucket":     "dest",
+		"host":       "minio-b:9000",
+		"secure":     false,
+		"access_key": "replication",
+		"secret_key": "replication-secret",
+	}))
+	if diags.HasError() {
+		t.Fatalf("res.Validate(secure=false) unexpected error: %v", diags)
+	}
+	foundWarning := false
+	for _, d := range diags {
+		if d.Severity == diag.Warning && strings.Contains(d.Summary, "secure is false") {
+			foundWarning = true
+		}
+	}
+	if !foundWarning {
+		t.Fatalf("res.Validate(secure=false) diagnostics = %v, want warning mentioning secure is false", diags)
+	}
+
+	okDiags := res.Validate(replicationValidationConfig(map[string]interface{}{
+		"bucket":     "dest",
+		"host":       "minio-b:9000",
+		"secure":     true,
+		"access_key": "replication",
+		"secret_key": "replication-secret",
+	}))
+	for _, d := range okDiags {
+		if d.Severity == diag.Warning && strings.Contains(d.Summary, "secure is false") {
+			t.Fatalf("res.Validate(secure=true) unexpectedly warned about secure=false: %v", okDiags)
+		}
+	}
+}
+
+func TestDiffBucketReplicationLegacyBandwidthConverges(t *testing.T) {
+	res := resourceMinioBucketReplication()
+	state := &terraform.InstanceState{
+		ID: "source",
+		Attributes: map[string]string{
+			"id":                                  "source",
+			"bucket":                              "source",
+			"resync_version":                      "0",
+			"rule.#":                              "1",
+			"rule.0.enabled":                      "true",
+			"rule.0.priority":                     "1",
+			"rule.0.target.#":                     "1",
+			"rule.0.target.0.bucket":              "dest",
+			"rule.0.target.0.host":                "minio-b:9000",
+			"rule.0.target.0.secure":              "true",
+			"rule.0.target.0.path_style":          "auto",
+			"rule.0.target.0.disable_proxy":       "false",
+			"rule.0.target.0.synchronous":         "false",
+			"rule.0.target.0.syncronous":          "false",
+			"rule.0.target.0.health_check_period": "30s",
+			"rule.0.target.0.bandwidth_limit":     "0",
+			"rule.0.target.0.bandwidth_limt":      "200000000",
+			"rule.0.target.0.access_key":          "replication",
+			"rule.0.target.0.secret_key":          "replication-secret",
+		},
+	}
+	cfg := replicationValidationConfig(map[string]interface{}{
+		"bucket":         "dest",
+		"host":           "minio-b:9000",
+		"bandwidth_limt": "200M",
+		"access_key":     "replication",
+		"secret_key":     "replication-secret",
+	})
+	diff, err := res.Diff(context.Background(), state, cfg, nil)
+	if err != nil {
+		t.Fatalf("Diff returned unexpected error: %v", err)
+	}
+	if !diff.Empty() {
+		t.Fatalf("expected empty diff after Read with bandwidth_limt=200M, got %#v", diff.Attributes)
+	}
+}
+
+func TestDiffBucketReplicationBothBandwidthFieldsError(t *testing.T) {
+	res := resourceMinioBucketReplication()
+	cfg := replicationValidationConfig(map[string]interface{}{
+		"bucket":          "dest",
+		"host":            "minio-b:9000",
+		"bandwidth_limit": "200M",
+		"bandwidth_limt":  "200M",
+		"access_key":      "replication",
+		"secret_key":      "replication-secret",
+	})
+	_, err := res.Diff(context.Background(), nil, cfg, nil)
+	if err == nil {
+		t.Fatal("expected error when both bandwidth_limit and bandwidth_limt are set, got nil")
+	}
+	if !strings.Contains(err.Error(), "bandwidth_limit") || !strings.Contains(err.Error(), "bandwidth_limt") {
+		t.Fatalf("error = %q, want error naming both bandwidth_limit and bandwidth_limt", err.Error())
+	}
+}
+
+func TestExtractReplicationTargetKeepsLegacyZeroHealthCheckPeriod(t *testing.T) {
+	res := resourceMinioBucketReplication()
+	d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{})
+	cases := []struct {
+		value   string
+		wantErr bool
+	}{
+		// "0s" passed the old schema regex, so it can already be in state.
+		// Read and Delete parse state through extract, so extract must keep
+		// accepting it; validateReplicationHealthCheckPeriod is what rejects
+		// it in new configurations.
+		{value: "0s", wantErr: false},
+		{value: "abc", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			rule := map[string]interface{}{
+				"enabled":  true,
+				"priority": 1,
+				"tags":     map[string]interface{}{},
+				"target": []interface{}{map[string]interface{}{
+					"bucket":              "dest",
+					"host":                "minio-b:9000",
+					"access_key":          "replication",
+					"secret_key":          "replication-secret",
+					"secure":              true,
+					"path_style":          "auto",
+					"health_check_period": tc.value,
+				}},
+			}
+			_, diags := extractBucketReplicationRule(context.Background(), 0, 1, rule, d)
+			if diags.HasError() != tc.wantErr {
+				t.Fatalf("extract with health_check_period=%q: HasError = %v, want %v (%v)", tc.value, diags.HasError(), tc.wantErr, diags)
+			}
+		})
+	}
+}
+
+func TestValidateRawReplicationDiffWithUnknownSiblings(t *testing.T) {
+	makeRawConfig := func(targetFields map[string]cty.Value) cty.Value {
+		fields := map[string]cty.Value{
+			"bucket":     cty.UnknownVal(cty.String),
+			"host":       cty.StringVal("minio-b:9000"),
+			"access_key": cty.UnknownVal(cty.String),
+			"secret_key": cty.UnknownVal(cty.String),
+		}
+		for k, v := range targetFields {
+			fields[k] = v
+		}
+		return cty.ObjectVal(map[string]cty.Value{
+			"rule": cty.ListVal([]cty.Value{
+				cty.ObjectVal(map[string]cty.Value{
+					"target": cty.ListVal([]cty.Value{
+						cty.ObjectVal(fields),
+					}),
+				}),
+			}),
+		})
+	}
+
+	cases := []struct {
+		name    string
+		fields  map[string]cty.Value
+		wantErr string
+	}{
+		{
+			name:    "invalid health_check_period with unknown siblings",
+			fields:  map[string]cty.Value{"health_check_period": cty.StringVal("5|")},
+			wantErr: "health_check_period",
+		},
+		{
+			name:    "invalid bandwidth_limt with unknown siblings",
+			fields:  map[string]cty.Value{"bandwidth_limt": cty.StringVal("abc")},
+			wantErr: "bandwidth_limt",
+		},
+		{
+			name:    "too small bandwidth_limt with unknown siblings",
+			fields:  map[string]cty.Value{"bandwidth_limt": cty.StringVal("1k")},
+			wantErr: "bandwidth_limt",
+		},
+		{
+			name: "both bandwidth_limit and bandwidth_limt set",
+			fields: map[string]cty.Value{
+				"bandwidth_limit": cty.StringVal("200M"),
+				"bandwidth_limt":  cty.StringVal("200M"),
+			},
+			wantErr: "bandwidth_limit and bandwidth_limt",
+		},
+		{
+			name: "valid compound health_check_period and legacy bandwidth_limt",
+			fields: map[string]cty.Value{
+				"health_check_period": cty.StringVal("1m30s"),
+				"bandwidth_limt":      cty.StringVal("200M"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRawReplicationDiffConfig(makeRawConfig(tc.fields))
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want error containing %q", err, tc.wantErr)
+			}
+		})
 	}
 }

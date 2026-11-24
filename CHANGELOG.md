@@ -167,6 +167,10 @@ History older than 3.39.0 lives in the
   in state are reported as diagnostics instead of panicking refresh or
   destroy
   ([#1372](https://github.com/aminueza/terraform-provider-minio/issues/1372)).
+- `minio_s3_bucket_replication` warns once, not twice, when a target sets
+  `secure = false`. The schema validation and the configuration parsing each
+  emitted the same unsafe-HTTP warning
+  ([#1398](https://github.com/aminueza/terraform-provider-minio/pull/1398)).
 - `minio_audit_webhook` refresh now treats the server's "there is no target"
   answer as the target having been removed outside Terraform, dropping the
   resource from state instead of failing the refresh.

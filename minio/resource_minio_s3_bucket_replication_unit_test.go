@@ -429,3 +429,31 @@ func TestValidateRawReplicationDiffWithUnknownSiblings(t *testing.T) {
 		})
 	}
 }
+
+func TestBucketReplicationConfigDoesNotDuplicateSecureWarning(t *testing.T) {
+	d := schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+		"rule": []interface{}{
+			map[string]interface{}{
+				"priority": 1,
+				"target": []interface{}{
+					map[string]interface{}{
+						"bucket":     "target-bucket",
+						"host":       "minio-b:9000",
+						"secure":     false,
+						"access_key": "replication",
+						"secret_key": "replication-secret",
+					},
+				},
+			},
+		},
+	})
+
+	cfg, diags := BucketReplicationConfig(context.Background(), d, &S3MinioClient{})
+	if cfg == nil {
+		t.Fatal("expected non-nil BucketReplicationConfig")
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no duplicate warning from BucketReplicationConfig for secure=false, got %v", diags)
+	}
+}

@@ -1096,12 +1096,9 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 		errs = append(errs, diag.Errorf("rule[%d].target.secret_key cannot be omitted", i)...)
 	}
 
-	if result.Target.Secure, ok = target["secure"].(bool); !result.Target.Secure || !ok {
-		errs = append(errs, diag.Diagnostic{
-			Severity: diag.Warning,
-			Summary:  fmt.Sprintf("rule[%d].target.secure is false. It is unsafe to use bucket replication over HTTP", i),
-		})
-	}
+	// The warning for secure = false comes from the schema's
+	// validateReplicationTargetSecure; warning here too only duplicates it.
+	result.Target.Secure, _ = target["secure"].(bool)
 
 	result.Target.Synchronous = resolveReplicationTargetSync(d, i, target)
 

@@ -74,8 +74,8 @@ func assertNewResourceErrorWithDetails(t *testing.T, diags diag.Diagnostics, wan
 	if !diags.HasError() {
 		t.Fatalf("expected error diagnostics, got none")
 	}
-	if !strings.Contains(diags[0].Summary, wantSummaryPrefix) {
-		t.Errorf("summary = %q, want substring %q", diags[0].Summary, wantSummaryPrefix)
+	if !strings.HasPrefix(diags[0].Summary, wantSummaryPrefix) {
+		t.Errorf("summary = %q, want prefix %q", diags[0].Summary, wantSummaryPrefix)
 	}
 	foundDetails := false
 	for _, d := range diags {

@@ -48,6 +48,8 @@ linters:
     forbidigo:
       analyze-types: true
       forbid:
+        - pattern: ^(fmt\.Print(|f|ln)|print|println)$
+          msg: use tflog instead of printing
         - pattern: ^diag\.FromErr$
           pkg: ^github\.com/hashicorp/terraform-plugin-sdk/v2/diag$
           msg: use NewResourceError from minio/error.go

@@ -25,7 +25,7 @@ func dataSourceMinioS3BucketVersioningRead(ctx context.Context, d *schema.Resour
 
 	cfg, err := client.GetBucketVersioning(ctx, bucket)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading bucket versioning", bucket, err)
 	}
 
 	d.SetId(bucket)

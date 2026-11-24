@@ -31,7 +31,7 @@ func dataSourceIAMGroupRead(ctx context.Context, d *schema.ResourceData, meta in
 	name := d.Get("name").(string)
 	desc, err := admin.GetGroupDescription(ctx, name)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading IAM group", name, err)
 	}
 
 	d.SetId(name)

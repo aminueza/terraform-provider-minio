@@ -24,7 +24,7 @@ func dataSourceIAMPolicyRead(ctx context.Context, d *schema.ResourceData, meta i
 	name := d.Get("name").(string)
 	info, err := admin.InfoCannedPolicy(ctx, name)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading IAM policy", name, err)
 	}
 
 	d.SetId(name)

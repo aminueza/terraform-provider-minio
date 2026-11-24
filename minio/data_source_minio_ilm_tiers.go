@@ -37,7 +37,7 @@ func dataSourceMinioILMTiersRead(ctx context.Context, d *schema.ResourceData, me
 
 	tiers, err := admin.ListTiers(ctx)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("listing ILM tiers", "ilm_tiers", err)
 	}
 
 	var out []map[string]interface{}

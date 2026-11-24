@@ -36,7 +36,7 @@ func dataSourceMinioILMTierStatsRead(ctx context.Context, d *schema.ResourceData
 
 	tierInfos, err := admin.TierStats(ctx)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading ILM tier stats", "ilm_tier_stats", err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

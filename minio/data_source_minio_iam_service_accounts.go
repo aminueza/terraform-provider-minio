@@ -34,7 +34,7 @@ func dataSourceIAMServiceAccountsRead(ctx context.Context, d *schema.ResourceDat
 	user := d.Get("user").(string)
 	resp, err := admin.ListServiceAccounts(ctx, user)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("listing IAM service accounts", user, err)
 	}
 
 	var out []map[string]interface{}

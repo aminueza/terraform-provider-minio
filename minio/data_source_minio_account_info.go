@@ -39,7 +39,7 @@ func dataSourceMinioAccountInfoRead(ctx context.Context, d *schema.ResourceData,
 
 	info, err := admin.AccountInfo(ctx, madmin.AccountOpts{})
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading account info", "account_info", err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

@@ -148,7 +148,7 @@ func dataSourceMinioS3ObjectRead(ctx context.Context, d *schema.ResourceData, me
 		return NewResourceError("reading object content", objectName, err)
 	}
 	if bytesRead != int(objectInfo.Size) {
-		return diag.Errorf("error reading object content: expected %d bytes, got %d", objectInfo.Size, bytesRead)
+		return NewResourceError("reading object content", objectName, fmt.Errorf("expected %d bytes, got %d", objectInfo.Size, bytesRead))
 	}
 
 	d.SetId(strconv.Itoa(HashcodeString(bucketName + objectName + objectInfo.VersionID)))

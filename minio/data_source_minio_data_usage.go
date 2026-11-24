@@ -33,7 +33,7 @@ func dataSourceMinioDataUsageRead(ctx context.Context, d *schema.ResourceData, m
 
 	info, err := admin.DataUsageInfo(ctx)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading data usage", "data_usage", err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

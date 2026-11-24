@@ -441,26 +441,19 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 			t.Fatalf("attachCalls = %v, want [[other-policy group-pol]]", st.attachCalls)
 		}
 
-		// Detached outside Terraform. Unit test data carries no raw config,
-		// so the name counts as generated and Read keeps the resource with a
-		// warning instead of dropping it: dropping a generated-name resource
-		// would leak the canned policy. The drop path for explicitly named
-		// policies needs a real raw config and is covered by the acceptance
-		// test TestAccMinioIAMGroupPolicy_externalDetachPlansCreate.
+		// Detached outside Terraform -> Read removes from state: the name is
+		// explicit (no generated UniqueId suffix), so recreating overwrites the
+		// same canned policy and nothing leaks.
 		st.mu.Lock()
 		st.groups["devs"] = []string{"other-policy"}
 		st.mu.Unlock()
 		dDetached := resourceMinioIAMGroupPolicy().TestResourceData()
 		dDetached.SetId("devs:group-pol")
-		diags := minioReadGroupPolicy(context.Background(), dDetached, meta)
-		if diags.HasError() {
+		if diags := minioReadGroupPolicy(context.Background(), dDetached, meta); diags.HasError() {
 			t.Fatalf("read after external detach failed: %v", diags)
 		}
-		if dDetached.Id() != "devs:group-pol" {
-			t.Fatalf("expected id kept when detached outside Terraform, got %q", dDetached.Id())
-		}
-		if len(diags) != 1 || diags[0].Severity != diag.Warning {
-			t.Fatalf("expected a single warning when detached outside Terraform, got %v", diags)
+		if dDetached.Id() != "" {
+			t.Fatalf("expected empty id when detached outside Terraform, got %q", dDetached.Id())
 		}
 
 		// Re-attach and test Delete detaches only group-pol while keeping other-policy.
@@ -541,6 +534,28 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 		}
 		if _, ok := st.canned["group-pol"]; !ok {
 			t.Fatal("pre-existing canned policy was deleted after attach failure")
+		}
+	})
+
+	t.Run("read after external detach keeps generated-name resource with warning", func(t *testing.T) {
+		genName := "tfacc-20261123010026647900000001"
+		st := &stubState{
+			groups: map[string][]string{"devs": {}},
+			canned: map[string]string{genName: policyJSON},
+		}
+		meta := &S3MinioClient{S3Admin: newClient(st)}
+
+		d := resourceMinioIAMGroupPolicy().TestResourceData()
+		d.SetId("devs:" + genName)
+		diags := minioReadGroupPolicy(context.Background(), d, meta)
+		if diags.HasError() {
+			t.Fatalf("read after external detach failed: %v", diags)
+		}
+		if d.Id() != "devs:"+genName {
+			t.Fatalf("expected id kept for generated name, got %q", d.Id())
+		}
+		if len(diags) != 1 || diags[0].Severity != diag.Warning {
+			t.Fatalf("expected a single warning for generated name, got %v", diags)
 		}
 	})
 }

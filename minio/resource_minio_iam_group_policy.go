@@ -170,7 +170,7 @@ func doMinioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	}
 	if !Contains(policies, policyName) {
 		if !d.IsNewResource() {
-			if groupPolicyNameSetInConfig(d) {
+			if !groupPolicyNameLooksGenerated(policyName) {
 				tflog.Warn(ctx, fmt.Sprintf("IAM group policy (%s) is not attached to group (%s), removing from state", policyName, groupName))
 				d.SetId("")
 				return nil
@@ -206,16 +206,19 @@ func doMinioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	return nil
 }
 
-// groupPolicyNameSetInConfig reports whether the configuration sets name
-// explicitly. A null raw config (import) counts as not set, which is treated
-// as the generated-name case.
-func groupPolicyNameSetInConfig(d *schema.ResourceData) bool {
-	raw := d.GetRawConfig()
-	if raw.IsNull() || !raw.Type().IsObjectType() || !raw.Type().HasAttribute("name") {
+// groupPolicyNameLooksGenerated reports whether the policy name ends with
+// Terraform's 26-character UniqueId suffix (18 decimal digits + 8 lowercase
+// hex), which is what Create produces for `name_prefix` (id.PrefixedUniqueId)
+// and for no name at all (id.UniqueId). The refresh RPC carries no config, so
+// GetRawConfig is always null in Read and the suffix is the only durable trace
+// of generation. An explicit name that happens to match is treated as
+// generated: keeping the resource with a warning instead of dropping it is the
+// safe direction, since dropping a generated name leaks the canned policy.
+func groupPolicyNameLooksGenerated(name string) bool {
+	if len(name) < id.UniqueIDSuffixLength {
 		return false
 	}
-	_, hasName, _ := getRawConfigStringAttr(raw, "name", "name")
-	return hasName
+	return iamPolicyUniqueSuffixPattern.MatchString(name[len(name)-id.UniqueIDSuffixLength:])
 }
 
 func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

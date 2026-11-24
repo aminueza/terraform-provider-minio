@@ -68,25 +68,14 @@ func buildNotifyElasticsearchCfg(d *schema.ResourceData, meta interface{}) strin
 }
 
 func readNotifyElasticsearchFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["url"]; ok {
-		if err := d.Set("url", v); err != nil {
-			return NewResourceError("setting url", d.Id(), err)
-		}
+	if diags := notifySetPresentStrings(d, cfgMap, "url"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["index"]; ok && v != "" {
-		_ = d.Set("index", v)
+	if diags := notifySetNonEmptyStrings(d, cfgMap, "index", "format"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["format"]; ok && v != "" {
-		_ = d.Set("format", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "username"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["username"]; ok {
-		_ = d.Set("username", v)
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

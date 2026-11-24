@@ -68,24 +68,11 @@ func buildNotifyRedisCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyRedisFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-
-	if v, ok := cfgMap["address"]; ok && v != "" {
-		_ = d.Set("address", v)
+	if diags := notifySetNonEmptyStrings(d, cfgMap, "address", "key", "format"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["key"]; ok && v != "" {
-		_ = d.Set("key", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "user"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["format"]; ok && v != "" {
-		_ = d.Set("format", v)
-	}
-
-	if v, ok := cfgMap["user"]; ok {
-		_ = d.Set("user", v)
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

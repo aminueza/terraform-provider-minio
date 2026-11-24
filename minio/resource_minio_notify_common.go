@@ -30,7 +30,9 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 		}
 
 		d.SetId(name)
-		_ = d.Set("restart_required", restart)
+		if diags := setResourceField(d, "restart_required", restart, name); diags != nil {
+			return diags
+		}
 
 		tflog.Debug(ctx, "Created notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "restart_required": restart})
 
@@ -56,7 +58,9 @@ func notifyRead(nrc notifyResourceConfig) schema.ReadContextFunc {
 
 		cfgMap, _ := notifyTargetConfigParams(configStr, configKey)
 
-		_ = d.Set("name", name)
+		if diags := setResourceField(d, "name", name, name); diags != nil {
+			return diags
+		}
 
 		if len(cfgMap) == 0 {
 			// The response carried no keys for this target: env-override
@@ -155,14 +159,13 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 
 		cfgData := nrc.buildCfg(d, meta)
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
-		restart, err := admin.SetConfigKV(ctx, configString)
-		if err != nil {
+		if restart, err := admin.SetConfigKV(ctx, configString); err != nil {
 			return NewResourceError(fmt.Sprintf("updating %s target", nrc.subsystem), name, err)
+		} else if diags := setResourceField(d, "restart_required", restart, name); diags != nil {
+			return diags
+		} else {
+			tflog.Debug(ctx, "Updated notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "restart_required": restart})
 		}
-
-		_ = d.Set("restart_required", restart)
-
-		tflog.Debug(ctx, "Updated notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name, "restart_required": restart})
 
 		return notifyRead(nrc)(ctx, d, meta)
 	}
@@ -211,8 +214,7 @@ func handleNotifyReadError(ctx context.Context, nrc notifyResourceConfig, err er
 		// them the absence only ever means the restart is still pending.
 		if nrc.keepStateOnMissingTarget || d.Get("restart_required").(bool) {
 			tflog.Warn(ctx, "Notification target not yet active (server restart may be required)", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
-			_ = d.Set("name", name)
-			return nil
+			return setResourceField(d, "name", name, name)
 		}
 		tflog.Warn(ctx, "Notification target no longer exists, removing from state", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 		d.SetId("")
@@ -307,25 +309,79 @@ func mergeSchemas(common, specific map[string]*schema.Schema) map[string]*schema
 	return result
 }
 
-func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) {
+func notifyReadCommonFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
+	// The server prints enable only when it is off (SubsysInfo.WriteTo),
+	// so a response without it means the target is on.
+	enabled := true
 	if v, ok := cfgMap["enable"]; ok {
-		_ = d.Set("enable", v == "on")
-	} else {
-		// The server prints enable only when it is off (SubsysInfo.WriteTo),
-		// so a response without it means the target is on.
-		_ = d.Set("enable", true)
+		enabled = v == "on"
 	}
-	if v, ok := cfgMap["queue_limit"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("queue_limit", n)
+	if diags := setResourceField(d, "enable", enabled, d.Id()); diags != nil {
+		return diags
+	}
+	if diags := notifySetInt(d, cfgMap, "queue_limit", "queue_limit"); diags != nil {
+		return diags
+	}
+	return notifySetPresentStrings(d, cfgMap, "queue_dir", "comment")
+}
+
+func notifySetPresentStrings(d *schema.ResourceData, cfgMap map[string]string, keys ...string) diag.Diagnostics {
+	for _, key := range keys {
+		if v, ok := cfgMap[key]; ok {
+			if diags := setResourceField(d, key, v, d.Id()); diags != nil {
+				return diags
+			}
 		}
 	}
-	if v, ok := cfgMap["queue_dir"]; ok {
-		_ = d.Set("queue_dir", v)
+	return nil
+}
+
+func notifySetNonEmptyStrings(d *schema.ResourceData, cfgMap map[string]string, keys ...string) diag.Diagnostics {
+	for _, key := range keys {
+		if v, ok := cfgMap[key]; ok && v != "" {
+			if diags := setResourceField(d, key, v, d.Id()); diags != nil {
+				return diags
+			}
+		}
 	}
-	if v, ok := cfgMap["comment"]; ok {
-		_ = d.Set("comment", v)
+	return nil
+}
+
+func notifySetOnBools(d *schema.ResourceData, cfgMap map[string]string, keys ...string) diag.Diagnostics {
+	for _, key := range keys {
+		if diags := setResourceField(d, key, cfgMap[key] == "on", d.Id()); diags != nil {
+			return diags
+		}
 	}
+	return nil
+}
+
+func notifySetPresentOnBools(d *schema.ResourceData, cfgMap map[string]string, keys ...string) diag.Diagnostics {
+	for _, key := range keys {
+		if v, ok := cfgMap[key]; ok {
+			if diags := setResourceField(d, key, v == "on", d.Id()); diags != nil {
+				return diags
+			}
+		}
+	}
+	return nil
+}
+
+func notifySetInt(d *schema.ResourceData, cfgMap map[string]string, cfgKey string, schemaKeys ...string) diag.Diagnostics {
+	v, ok := cfgMap[cfgKey]
+	if !ok {
+		return nil
+	}
+	n, err := parseInt(v)
+	if err != nil {
+		return nil
+	}
+	for _, key := range schemaKeys {
+		if diags := setResourceField(d, key, n, d.Id()); diags != nil {
+			return diags
+		}
+	}
+	return nil
 }
 
 // notifyBuildCfgClearableParam adds key=value like notifyBuildCfgAddParam, and
@@ -417,15 +473,8 @@ func notifyBuildQueueSizeCommonCfg(parts *[]string, d *schema.ResourceData) {
 // onto the value written before it, so the server kept the default
 // queue_size, and only a diff on queue_limit triggers the update that writes
 // every key again.
-func notifyReadQueueSize(cfgMap map[string]string, d *schema.ResourceData) {
-	v, ok := cfgMap["queue_size"]
-	if !ok {
-		return
-	}
-	if n, err := parseInt(v); err == nil {
-		_ = d.Set("queue_size", n)
-		_ = d.Set("queue_limit", n)
-	}
+func notifyReadQueueSize(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
+	return notifySetInt(d, cfgMap, "queue_size", "queue_size", "queue_limit")
 }
 
 func notifyQueueSize(d *schema.ResourceData) int {

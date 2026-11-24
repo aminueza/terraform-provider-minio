@@ -61,24 +61,11 @@ func buildNotifyNsqCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyNsqFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["nsqd_address"]; ok {
-		_ = d.Set("nsqd_address", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "nsqd_address", "topic"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["topic"]; ok {
-		_ = d.Set("topic", v)
+	if diags := notifySetOnBools(d, cfgMap, "tls", "tls_skip_verify"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["tls"]; ok {
-		_ = d.Set("tls", v == "on")
-	} else {
-		_ = d.Set("tls", false)
-	}
-	if v, ok := cfgMap["tls_skip_verify"]; ok {
-		_ = d.Set("tls_skip_verify", v == "on")
-	} else {
-		_ = d.Set("tls_skip_verify", false)
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

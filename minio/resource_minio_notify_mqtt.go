@@ -81,27 +81,14 @@ func buildNotifyMqttCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyMqttFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["broker"]; ok {
-		_ = d.Set("broker", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "broker", "topic", "username"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["topic"]; ok {
-		_ = d.Set("topic", v)
+	if diags := notifySetInt(d, cfgMap, "qos", "qos"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["username"]; ok {
-		_ = d.Set("username", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "keep_alive_interval", "reconnect_interval"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["qos"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("qos", n)
-		}
-	}
-	if v, ok := cfgMap["keep_alive_interval"]; ok {
-		_ = d.Set("keep_alive_interval", v)
-	}
-	if v, ok := cfgMap["reconnect_interval"]; ok {
-		_ = d.Set("reconnect_interval", v)
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

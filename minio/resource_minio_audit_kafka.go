@@ -110,39 +110,20 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["brokers"]; ok {
-		_ = d.Set("brokers", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "brokers", "topic", "sasl_username", "sasl_mechanism"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["topic"]; ok {
-		_ = d.Set("topic", v)
+	if diags := notifySetOnBools(d, cfgMap, "sasl"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["sasl_username"]; ok {
-		_ = d.Set("sasl_username", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "client_tls_cert", "client_tls_key", "version"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["sasl_mechanism"]; ok {
-		_ = d.Set("sasl_mechanism", v)
+	if diags := notifySetPresentOnBools(d, cfgMap, "tls", "tls_skip_verify"); diags != nil {
+		return diags
 	}
-	if err := d.Set("sasl", cfgMap["sasl"] == "on"); err != nil {
-		return NewResourceError("setting sasl", d.Id(), err)
+	if diags := notifyReadQueueSize(cfgMap, d); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["client_tls_cert"]; ok {
-		_ = d.Set("client_tls_cert", v)
-	}
-	if v, ok := cfgMap["client_tls_key"]; ok {
-		if setErr := d.Set("client_tls_key", v); setErr != nil {
-			return NewResourceError("setting client_tls_key", d.Id(), setErr)
-		}
-	}
-	if v, ok := cfgMap["version"]; ok {
-		_ = d.Set("version", v)
-	}
-	if v, ok := cfgMap["tls"]; ok {
-		_ = d.Set("tls", v == "on")
-	}
-	if v, ok := cfgMap["tls_skip_verify"]; ok {
-		_ = d.Set("tls_skip_verify", v == "on")
-	}
-	notifyReadQueueSize(cfgMap, d)
-	notifyReadCommonFields(cfgMap, d)
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

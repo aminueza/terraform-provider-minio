@@ -104,7 +104,9 @@ func minioCreateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	d.SetId(key)
-	_ = d.Set("restart_required", restartRequired)
+	if diags := setResourceField(d, "restart_required", restartRequired, key); diags != nil {
+		return diags
+	}
 
 	if restartRequired {
 		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))
@@ -153,23 +155,21 @@ func minioReadConfig(ctx context.Context, d *schema.ResourceData, meta interface
 	configStr := strings.TrimSpace(string(configData))
 	tflog.Debug(ctx, fmt.Sprintf("Raw config data for key %s: %s", key, configStr))
 
+	valueToSet := configStr
 	if strings.HasPrefix(configStr, key+" ") {
 		// Format: "key subsys:target key1=value1 key2=value2" -> "key1=value1 key2=value2"
 		parts := strings.SplitN(configStr, " ", 2)
 		if len(parts) == 2 {
 			fullValue := strings.TrimSpace(parts[1])
 			tflog.Debug(ctx, fmt.Sprintf("Setting full value from MinIO: %s", fullValue))
-			_ = d.Set("value", fullValue)
+			valueToSet = fullValue
 		}
-	} else {
-		// For configs that don't follow the standard format (like region)
-		// Just use the raw config string
-		_ = d.Set("value", configStr)
+	}
+	if diags := setResourceField(d, "value", valueToSet, key); diags != nil {
+		return diags
 	}
 
-	_ = d.Set("key", key)
-
-	return nil
+	return setResourceField(d, "key", key, key)
 }
 
 func minioUpdateConfig(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -203,7 +203,9 @@ func minioUpdateConfig(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("updating config", key, err)
 	}
 
-	_ = d.Set("restart_required", restartRequired)
+	if diags := setResourceField(d, "restart_required", restartRequired, key); diags != nil {
+		return diags
+	}
 
 	if restartRequired {
 		tflog.Warn(ctx, fmt.Sprintf("Config change for %s requires MinIO server restart to take effect", key))

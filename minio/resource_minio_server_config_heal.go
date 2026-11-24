@@ -73,7 +73,9 @@ func minioServerConfigHealSet(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	d.SetId("heal")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "heal"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set heal config (restart_required=%v)", restart))
 
 	return minioServerConfigHealRead(ctx, d, meta)
@@ -101,7 +103,9 @@ func minioServerConfigHealRead(ctx context.Context, d *schema.ResourceData, meta
 
 	for _, f := range []string{"bitrotscan", "max_sleep", "max_io", "drive_workers"} {
 		if v, ok := cfgMap[f]; ok && v != "" {
-			_ = d.Set(f, v)
+			if diags := setResourceField(d, f, v, d.Id()); diags != nil {
+				return diags
+			}
 		}
 	}
 

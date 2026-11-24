@@ -68,7 +68,9 @@ func minioServerConfigStorageClassSet(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId("storage_class")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "storage_class"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set storage_class config (restart_required=%v)", restart))
 
 	return minioServerConfigStorageClassRead(ctx, d, meta)
@@ -96,7 +98,9 @@ func minioServerConfigStorageClassRead(ctx context.Context, d *schema.ResourceDa
 
 	for _, f := range []string{"standard", "rrs", "comment"} {
 		if v, ok := cfgMap[f]; ok && v != "" {
-			_ = d.Set(f, v)
+			if diags := setResourceField(d, f, v, d.Id()); diags != nil {
+				return diags
+			}
 		}
 	}
 

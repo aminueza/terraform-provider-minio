@@ -157,9 +157,7 @@ func minioDeletePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("unable to delete policy", d.Id(), err)
 	}
 
-	_ = d.Set("policy", "")
-
-	return nil
+	return setResourceField(d, "policy", "", d.Id())
 }
 
 const (

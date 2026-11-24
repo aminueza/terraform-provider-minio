@@ -259,7 +259,9 @@ func minioCreateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 	}
 
 	d.SetId(creds.AccessKey)
-	_ = d.Set("access_key", creds.AccessKey)
+	if diags := setResourceField(d, "access_key", creds.AccessKey, creds.AccessKey); diags != nil {
+		return diags
+	}
 
 	timeout := d.Timeout(schema.TimeoutCreate)
 	err = retry.RetryContext(ctx, timeout, func() *retry.RetryError {
@@ -325,23 +327,31 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 	}
 
 	parentUser := info.ParentUser
-	_ = d.Set("user", parentUser)
-
 	var status string
 	if info.AccountStatus == "on" {
 		status = "enabled"
 	} else {
 		status = "disabled"
 	}
-	_ = d.Set("status", status)
-	_ = d.Set("access_key", accessKeyID)
-	_ = d.Set("description", info.Description)
-
-	// Clear write-only secret fields from state.
-	_ = d.Set("secret_key", "")
-	_ = d.Set("secret_key_wo", "")
+	for _, field := range []struct {
+		key string
+		val string
+	}{
+		{"user", parentUser},
+		{"status", status},
+		{"access_key", accessKeyID},
+		{"description", info.Description},
+		// Clear write-only secret fields from state.
+		{"secret_key", ""},
+		{"secret_key_wo", ""},
+	} {
+		if diags := setResourceField(d, field.key, field.val, accessKeyID); diags != nil {
+			return diags
+		}
+	}
 
 	// Only set policy in state if it's not implied
+	var policyVal interface{}
 	if !info.ImpliedPolicy {
 		policy := strings.TrimSpace(info.Policy)
 		isEmptyPolicy := false
@@ -370,19 +380,14 @@ func minioReadAccessKey(ctx context.Context, d *schema.ResourceData, meta interf
 			}
 			normalized, err := NormalizeAndCompareJSONPolicies(oldPolicy, policy)
 			if err != nil {
-				_ = d.Set("policy", policy) // fallback to raw
+				policyVal = policy // fallback to raw
 			} else {
-				_ = d.Set("policy", normalized)
+				policyVal = normalized
 			}
-		} else {
-			_ = d.Set("policy", nil)
 		}
-	} else {
-		// If policy is implied, don't set it in state to avoid perpetual diff
-		_ = d.Set("policy", nil)
 	}
 
-	return nil
+	return setResourceField(d, "policy", policyVal, accessKeyID)
 }
 
 func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -513,7 +518,9 @@ func minioUpdateAccessKey(ctx context.Context, d *schema.ResourceData, meta inte
 				return NewResourceError("rotating access key secret", accessKeyID, err)
 			}
 			// Clear secret_key from state after rotation
-			_ = d.Set("secret_key", "")
+			if diags := setResourceField(d, "secret_key", "", accessKeyID); diags != nil {
+				return diags
+			}
 		} else if hasSecretWOChange {
 			return NewResourceError("missing required secret_key_wo for secret rotation", accessKeyID, fmt.Errorf("secret_key_wo must be provided when secret_key_wo_version changes"))
 		} else {

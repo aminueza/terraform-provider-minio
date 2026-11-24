@@ -3,7 +3,7 @@ page_title: "Resource minio_s3_bucket_object_lock_configuration - terraform-prov
 subcategory: "S3 Buckets"
 description: |-
   Configures object lock (WORM) retention policies at the bucket level. Sets default retention that applies to all new objects automatically.
-  Object locking must be enabled when creating the bucket - can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
+  Object locking must be enabled when creating the bucket; it cannot be enabled or disabled on an existing bucket.
   Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)
 ---
 
@@ -11,7 +11,7 @@ description: |-
 
 Configures object lock (WORM) retention policies at the bucket level. Sets default retention that applies to all new objects automatically.
 
-Object locking must be enabled when creating the bucket - can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
+Object locking must be enabled when creating the bucket; it cannot be enabled or disabled on an existing bucket.
 
 Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)
 
@@ -34,7 +34,7 @@ Strict mode - nobody can override, not even root. Can't delete or modify objects
 
 ## Prerequisites
 
-Object locking must be enabled at bucket creation. Can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
+Object locking must be enabled at bucket creation; it cannot be enabled or disabled on an existing bucket.
 
 ```hcl
 resource "minio_s3_bucket" "example" {

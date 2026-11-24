@@ -117,6 +117,10 @@
           "status": "unsupported",
           "reason": "the test enables bucket versioning (PutBucketVersioning not implemented)"
         },
+        "bucket_object_locking": {
+          "status": "unsupported",
+          "reason": "Garage does not implement S3 Object Lock"
+        },
         "bucket_tags_read": {
           "status": "unsupported",
           "reason": "GetBucketTagging is not implemented; tags cannot be read back or re-imported"
@@ -370,6 +374,9 @@
     ],
     "bucket_versioning_usage": [
       "^TestAccMinioS3Bucket_(forceDestroyFalseVersionedWithDeleteMarkers|forceDestroyVersionedMultipleVersions|forceDestroyVersionedNoObjectLock|forceDestroyVersionedWithDeleteMarkers|withPolicyAndVersioning)$"
+    ],
+    "bucket_object_locking": [
+      "^TestAccMinioS3Bucket_(objectLockingChangeRejected|objectLockingDisableRejected|importWithObjectLocking)$"
     ],
     "bucket_tags_read": [
       "^TestAccMinioS3Bucket_tags$",

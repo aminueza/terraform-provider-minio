@@ -107,7 +107,7 @@ func resourceMinioBucket() *schema.Resource {
 			},
 			"object_locking": {
 				Type:        schema.TypeBool,
-				Description: "Enable object locking for the bucket (default: false)",
+				Description: "Enable object locking for the bucket at creation time; cannot be enabled or disabled on an existing bucket (default: false)",
 				Optional:    true,
 				Default:     false,
 				ForceNew:    false,
@@ -126,6 +126,21 @@ func resourceMinioBucket() *schema.Resource {
 func customizeBucketDiff(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
 	if d.Id() == "" {
 		return nil
+	}
+
+	// A changed bucket or bucket_prefix plans a replacement anyway, and the new
+	// bucket is created with the new object_locking. Note that -replace cannot
+	// be detected here: CustomizeDiff runs against the prior state for it too.
+	if d.HasChange("object_locking") && !d.HasChange("bucket") && !d.HasChange("bucket_prefix") {
+		oldLock, newLock := d.GetChange("object_locking")
+		oldEnabled, _ := oldLock.(bool)
+		newEnabled, _ := newLock.(bool)
+		if !oldEnabled && newEnabled {
+			return fmt.Errorf("object_locking cannot be enabled on existing bucket %q: object lock is set only when the bucket is created, so the bucket must be recreated with object_locking = true (destroy it and apply again), or set object_locking = false if the bucket does not have Object Lock", d.Id())
+		}
+		if oldEnabled && !newEnabled {
+			return fmt.Errorf("object_locking can't be disabled on existing bucket %q: object locking is permanent for the lifetime of the bucket and requires recreating the bucket", d.Id())
+		}
 	}
 
 	oldBucket, newBucket := d.GetChange("bucket")
@@ -375,6 +390,10 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 				return NewResourceError("setting bucket quota", d.Id(), err)
 			}
 		}
+	}
+
+	if diags := readBucketObjectLocking(ctx, meta.(*S3MinioClient), d); diags.HasError() {
+		return diags
 	}
 
 	if shouldSkipBucketTagging(bucketConfig) {
@@ -973,4 +992,55 @@ func listBucketAnyObject(ctx context.Context, client *minio.Client, bucketName s
 		return false, obj.Err
 	}
 	return true, nil
+}
+
+// readBucketObjectLocking reads object lock status for the bucket from S3 and
+// updates the object_locking attribute. Missing configuration
+// (ObjectLockConfigurationNotFoundError) refreshes object_locking to false;
+// backends without object lock under s3_compat_mode and AccessDenied responses
+// preserve the existing state value.
+func readBucketObjectLocking(ctx context.Context, client *S3MinioClient, d *schema.ResourceData) diag.Diagnostics {
+	lockStatus, _, _, _, err := client.S3Client.GetObjectLockConfig(ctx, d.Id())
+	if err == nil {
+		if setErr := d.Set("object_locking", lockStatus == "Enabled"); setErr != nil {
+			return NewResourceError("setting bucket object_locking", d.Id(), setErr)
+		}
+		return nil
+	}
+
+	errResp := minio.ToErrorResponse(err)
+	if errResp.Code == "ObjectLockConfigurationNotFoundError" {
+		if setErr := d.Set("object_locking", false); setErr != nil {
+			return NewResourceError("setting bucket object_locking", d.Id(), setErr)
+		}
+		return nil
+	}
+
+	// Unlike the opt-in policy and quota reads, this read runs on every bucket,
+	// so a backend answering 501 must not fail every refresh even with
+	// s3_compat_mode off. Same tolerance as the tags read
+	// (IsS3TaggingNotImplemented); see issue #1206.
+	if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
+		tflog.Warn(ctx, fmt.Sprintf("Backend does not implement object lock configuration for bucket %q; retaining existing object_locking state: %v", d.Id(), err))
+		return retainBucketObjectLockingState(d)
+	}
+
+	if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "bucket object lock configuration", err) {
+		return retainBucketObjectLockingState(d)
+	}
+
+	if errResp.Code == "AccessDenied" || errResp.StatusCode == http.StatusForbidden {
+		tflog.Warn(ctx, fmt.Sprintf("Access denied reading object lock configuration for bucket %q; retaining existing object_locking state: %v", d.Id(), err))
+		return retainBucketObjectLockingState(d)
+	}
+
+	return NewResourceError("reading bucket object lock configuration", d.Id(), err)
+}
+
+func retainBucketObjectLockingState(d *schema.ResourceData) diag.Diagnostics {
+	v, _ := d.Get("object_locking").(bool)
+	if setErr := d.Set("object_locking", v); setErr != nil {
+		return NewResourceError("setting bucket object_locking", d.Id(), setErr)
+	}
+	return nil
 }

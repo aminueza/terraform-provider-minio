@@ -24,7 +24,7 @@ func resourceMinioS3BucketObjectLockConfiguration() *schema.Resource {
 		},
 		Description: `Configures object lock (WORM) retention policies at the bucket level. Sets default retention that applies to all new objects automatically.
 
-Object locking must be enabled when creating the bucket - can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
+Object locking must be enabled when creating the bucket; it cannot be enabled or disabled on an existing bucket.
 
 Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)`,
 

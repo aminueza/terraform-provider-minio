@@ -68,7 +68,7 @@ resource "minio_s3_bucket" "data_lake" {
 - `bucket` (String) Name of the bucket
 - `bucket_prefix` (String) Prefix of the bucket. Only used during bucket creation; ignored for existing resources.
 - `force_destroy` (Boolean) A boolean that indicates all objects (including locked objects) should be deleted from the bucket so that the bucket can be destroyed without error. These objects are not recoverable.
-- `object_locking` (Boolean) Enable object locking for the bucket (default: false)
+- `object_locking` (Boolean) Enable object locking for the bucket at creation time; cannot be enabled or disabled on an existing bucket (default: false)
 - `quota` (Number) Quota of the bucket
 - `tags` (Map of String) A map of tags to assign to the bucket
 
@@ -98,6 +98,7 @@ resource "minio_s3_bucket" "customer" {
 
 - Bucket tagging requires support from the underlying S3-compatible endpoint. If your endpoint does not support tagging, you can set `skip_bucket_tagging = true` in the provider configuration to disable tagging operations and prevent errors.
 - To remove all tags, set `tags = {}` explicitly. Omitting the `tags` argument no longer clears existing tags: `tags` is a computed attribute, so Terraform retains the last known value to avoid perpetual drift during refresh-only plans.
+- `object_locking` must be set when creating the bucket; it cannot be enabled or disabled on an existing bucket.
 
 ## Argument Reference
 

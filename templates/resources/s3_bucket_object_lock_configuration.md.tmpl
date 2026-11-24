@@ -28,7 +28,7 @@ Strict mode - nobody can override, not even root. Can't delete or modify objects
 
 ## Prerequisites
 
-Object locking must be enabled at bucket creation. Can't add it later unless you're on MinIO RELEASE.2025-05-20T20-30-00Z+.
+Object locking must be enabled at bucket creation; it cannot be enabled or disabled on an existing bucket.
 
 ```hcl
 resource "minio_s3_bucket" "example" {

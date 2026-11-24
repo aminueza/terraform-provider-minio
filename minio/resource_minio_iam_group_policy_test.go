@@ -695,6 +695,12 @@ func TestAccMinioIAMGroupPolicy_externalDetachPlansCreate(t *testing.T) {
 						if err != nil {
 							return err
 						}
+						// The refresh after the detach drops the resource from
+						// state, so the SDK destroy would skip the canned
+						// policy; remove it here so nothing is left behind.
+						t.Cleanup(func() {
+							_ = testAccClient().S3Admin.RemoveCannedPolicy(context.Background(), name)
+						})
 						_, err = testAccClient().S3Admin.DetachPolicy(context.Background(), madmin.PolicyAssociationReq{
 							Policies: []string{name},
 							Group:    groupName,
@@ -725,7 +731,7 @@ resource "minio_iam_group_policy" "bad" {
 }
 `,
 				PlanOnly:    true,
-				ExpectError: regexp.MustCompile(`group`),
+				ExpectError: regexp.MustCompile(`only alphanumeric characters`),
 			},
 			{
 				Config: fmt.Sprintf(`

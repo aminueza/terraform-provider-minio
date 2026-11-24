@@ -43,15 +43,21 @@ func groupPolicyAdminStubWithPolicies(t *testing.T, infoStatus int, infoBody str
 		case strings.HasSuffix(r.URL.Path, "/idp/builtin/policy/detach"):
 			raw, err := io.ReadAll(r.Body)
 			if err != nil {
-				t.Fatalf("reading detach body: %v", err)
+				t.Errorf("reading detach body: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
 			}
 			dec, err := madmin.DecryptData("secretkey", strings.NewReader(string(raw)))
 			if err != nil {
-				t.Fatalf("decrypting detach body: %v", err)
+				t.Errorf("decrypting detach body: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
 			}
 			var req madmin.PolicyAssociationReq
 			if err := json.Unmarshal(dec, &req); err != nil {
-				t.Fatalf("unmarshaling detach request: %v", err)
+				t.Errorf("unmarshaling detach request: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
 			}
 			var remaining []string
 			for _, p := range groupPolicies {
@@ -259,7 +265,7 @@ func TestResourceMinioIamGroupPolicyParseID(t *testing.T) {
 func TestIAMGroupPolicyImportAndGroupValidation(t *testing.T) {
 	s := resourceMinioIAMGroupPolicy().Schema["group"]
 	if s.ValidateFunc == nil {
-		t.Fatal("group schema ValidateFunc is nil, want validateMinioIamGroupName")
+		t.Fatal("group schema ValidateFunc is nil, want validateMinioIamStaticGroupName")
 	}
 	if _, errs := s.ValidateFunc("a:b", "group"); len(errs) == 0 {
 		t.Fatal("ValidateFunc(\"a:b\") returned no errors, want rejection")
@@ -322,7 +328,9 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 				name := r.URL.Query().Get("name")
 				body, err := io.ReadAll(r.Body)
 				if err != nil {
-					t.Fatalf("reading canned policy body: %v", err)
+					t.Errorf("reading canned policy body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				st.canned[name] = string(body)
 				w.WriteHeader(http.StatusOK)
@@ -349,15 +357,21 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 				}
 				raw, err := io.ReadAll(r.Body)
 				if err != nil {
-					t.Fatalf("reading attach body: %v", err)
+					t.Errorf("reading attach body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				dec, err := madmin.DecryptData("secretkey", strings.NewReader(string(raw)))
 				if err != nil {
-					t.Fatalf("decrypting attach body: %v", err)
+					t.Errorf("decrypting attach body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				var req madmin.PolicyAssociationReq
 				if err := json.Unmarshal(dec, &req); err != nil {
-					t.Fatalf("unmarshaling attach req: %v", err)
+					t.Errorf("unmarshaling attach req: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				st.attachCalls = append(st.attachCalls, req.Policies)
 				st.groups[req.Group] = append([]string(nil), req.Policies...)
@@ -365,15 +379,21 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 			case strings.HasSuffix(r.URL.Path, "/idp/builtin/policy/detach"):
 				raw, err := io.ReadAll(r.Body)
 				if err != nil {
-					t.Fatalf("reading detach body: %v", err)
+					t.Errorf("reading detach body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				dec, err := madmin.DecryptData("secretkey", strings.NewReader(string(raw)))
 				if err != nil {
-					t.Fatalf("decrypting detach body: %v", err)
+					t.Errorf("decrypting detach body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				var req madmin.PolicyAssociationReq
 				if err := json.Unmarshal(dec, &req); err != nil {
-					t.Fatalf("unmarshaling detach req: %v", err)
+					t.Errorf("unmarshaling detach req: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
 				}
 				st.detachCalls = append(st.detachCalls, req.Policies)
 				var remaining []string
@@ -385,7 +405,8 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 				st.groups[req.Group] = remaining
 				w.WriteHeader(http.StatusNoContent)
 			default:
-				t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
 			}
 		}))
 		t.Cleanup(srv.Close)
@@ -420,17 +441,26 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 			t.Fatalf("attachCalls = %v, want [[other-policy group-pol]]", st.attachCalls)
 		}
 
-		// Detached outside Terraform -> Read removes from state.
+		// Detached outside Terraform. Unit test data carries no raw config,
+		// so the name counts as generated and Read keeps the resource with a
+		// warning instead of dropping it: dropping a generated-name resource
+		// would leak the canned policy. The drop path for explicitly named
+		// policies needs a real raw config and is covered by the acceptance
+		// test TestAccMinioIAMGroupPolicy_externalDetachPlansCreate.
 		st.mu.Lock()
 		st.groups["devs"] = []string{"other-policy"}
 		st.mu.Unlock()
 		dDetached := resourceMinioIAMGroupPolicy().TestResourceData()
 		dDetached.SetId("devs:group-pol")
-		if diags := minioReadGroupPolicy(context.Background(), dDetached, meta); diags.HasError() {
+		diags := minioReadGroupPolicy(context.Background(), dDetached, meta)
+		if diags.HasError() {
 			t.Fatalf("read after external detach failed: %v", diags)
 		}
-		if dDetached.Id() != "" {
-			t.Fatalf("expected empty id when detached outside Terraform, got %q", dDetached.Id())
+		if dDetached.Id() != "devs:group-pol" {
+			t.Fatalf("expected id kept when detached outside Terraform, got %q", dDetached.Id())
+		}
+		if len(diags) != 1 || diags[0].Severity != diag.Warning {
+			t.Fatalf("expected a single warning when detached outside Terraform, got %v", diags)
 		}
 
 		// Re-attach and test Delete detaches only group-pol while keeping other-policy.
@@ -488,6 +518,29 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 		}
 		if len(st.removeCalls) != 1 || st.removeCalls[0] != "group-pol" {
 			t.Fatalf("removeCalls = %v, want rollback [group-pol]", st.removeCalls)
+		}
+	})
+
+	t.Run("create keeps pre-existing canned policy when attach fails", func(t *testing.T) {
+		st := &stubState{
+			groups:          map[string][]string{"devs": {}},
+			canned:          map[string]string{"group-pol": policyJSON},
+			failAttachError: true,
+		}
+		meta := &S3MinioClient{S3Admin: newClient(st)}
+
+		d := resourceMinioIAMGroupPolicy().TestResourceData()
+		d.Set("group", "devs")
+		d.Set("name", "group-pol")
+		d.Set("policy", policyJSON)
+		if diags := minioCreateGroupPolicy(context.Background(), d, meta); !diags.HasError() {
+			t.Fatal("expected error when attach fails")
+		}
+		if len(st.removeCalls) != 0 {
+			t.Fatalf("removeCalls = %v, want none: the policy existed before this resource created it", st.removeCalls)
+		}
+		if _, ok := st.canned["group-pol"]; !ok {
+			t.Fatal("pre-existing canned policy was deleted after attach failure")
 		}
 	})
 }

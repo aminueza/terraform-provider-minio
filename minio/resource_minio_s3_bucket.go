@@ -1022,17 +1022,25 @@ func readBucketObjectLocking(ctx context.Context, client *S3MinioClient, d *sche
 	// (IsS3TaggingNotImplemented); see issue #1206.
 	if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
 		tflog.Warn(ctx, fmt.Sprintf("Backend does not implement object lock configuration for bucket %q; retaining existing object_locking state: %v", d.Id(), err))
-		return nil
+		return retainBucketObjectLockingState(d)
 	}
 
 	if s3CompatReadUnsupported(ctx, client, s3Compat405IsMissingFeature, d, "bucket object lock configuration", err) {
-		return nil
+		return retainBucketObjectLockingState(d)
 	}
 
 	if errResp.Code == "AccessDenied" || errResp.StatusCode == http.StatusForbidden {
 		tflog.Warn(ctx, fmt.Sprintf("Access denied reading object lock configuration for bucket %q; retaining existing object_locking state: %v", d.Id(), err))
-		return nil
+		return retainBucketObjectLockingState(d)
 	}
 
 	return NewResourceError("reading bucket object lock configuration", d.Id(), err)
+}
+
+func retainBucketObjectLockingState(d *schema.ResourceData) diag.Diagnostics {
+	v, _ := d.Get("object_locking").(bool)
+	if setErr := d.Set("object_locking", v); setErr != nil {
+		return NewResourceError("setting bucket object_locking", d.Id(), setErr)
+	}
+	return nil
 }

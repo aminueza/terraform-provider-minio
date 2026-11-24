@@ -270,3 +270,50 @@ func TestImportMinioS3Bucket_objectLockingErrorNotSwallowed(t *testing.T) {
 		t.Fatalf("expected import error to name the object lock read failure, got %q", err.Error())
 	}
 }
+
+func TestImportMinioS3Bucket_notImplementedPopulatesObjectLockingFalse(t *testing.T) {
+	const notImplemented = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`
+	const noTagSet = `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchTagSet</Code><Message>There is no tag set associated with the resource.</Message></Error>`
+
+	for _, compatMode := range []bool{false, true} {
+		t.Run(fmt.Sprintf("s3_compat_mode=%v", compatMode), func(t *testing.T) {
+			s3Client := newObjectLockBucketTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.WriteHeader(http.StatusOK)
+					return
+				}
+				if r.URL.Query().Has("object-lock") || r.URL.Query().Has("policy") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotImplemented)
+					_, _ = fmt.Fprint(w, notImplemented)
+					return
+				}
+				if r.URL.Query().Has("tagging") {
+					w.Header().Set("Content-Type", "application/xml")
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, noTagSet)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			})
+
+			d := resourceMinioBucket().Data(nil)
+			d.SetId("notimplemented-import-bucket")
+			d.SetType("minio_s3_bucket")
+
+			imported, err := resourceMinioS3BucketImportState(context.Background(), d, &S3MinioClient{
+				S3Client:     s3Client,
+				S3CompatMode: compatMode,
+			})
+			if err != nil {
+				t.Fatalf("expected import on 501 object-lock backend to succeed, got: %v", err)
+			}
+			if len(imported) != 1 {
+				t.Fatalf("expected 1 imported resource, got %d", len(imported))
+			}
+			if got, ok := imported[0].State().Attributes["object_locking"]; !ok || got != "false" {
+				t.Fatalf("imported State().Attributes[\"object_locking\"] = (%q, %v), want (\"false\", true)", got, ok)
+			}
+		})
+	}
+}

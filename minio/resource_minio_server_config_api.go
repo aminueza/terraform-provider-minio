@@ -250,7 +250,9 @@ func minioServerConfigApiSet(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	d.SetId("api")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "api"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set api config (restart_required=%v)", restart))
 
 	return minioServerConfigApiRead(ctx, d, meta)

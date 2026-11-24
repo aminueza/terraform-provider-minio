@@ -145,7 +145,9 @@ func minioServerConfigScannerSet(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	d.SetId("scanner")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "scanner"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set scanner config (restart_required=%v)", restart))
 
 	return minioServerConfigScannerRead(ctx, d, meta)

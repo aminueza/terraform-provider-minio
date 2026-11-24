@@ -109,7 +109,9 @@ func minioServerConfigEtcdSet(ctx context.Context, d *schema.ResourceData, meta 
 	}
 
 	d.SetId("etcd")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "etcd"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set etcd config (restart_required=%v)", restart))
 
 	if restart {
@@ -138,25 +140,22 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId("etcd")
 
-	if v, ok := cfgMap["endpoints"]; ok && v != "" {
-		_ = d.Set("endpoints", v)
-	}
-	if v, ok := cfgMap["path_prefix"]; ok && v != "" {
-		_ = d.Set("path_prefix", v)
-	}
-	if v, ok := cfgMap["coredns_path"]; ok && v != "" {
-		_ = d.Set("coredns_path", v)
-	}
-	if v, ok := cfgMap["client_cert"]; ok && v != "" {
-		_ = d.Set("client_cert", v)
+	for _, field := range []string{"endpoints", "path_prefix", "coredns_path", "client_cert"} {
+		if v, ok := cfgMap[field]; ok && v != "" {
+			if diags := setResourceField(d, field, v, d.Id()); diags != nil {
+				return diags
+			}
+		}
 	}
 	if v, ok := cfgMap["client_cert_key"]; ok {
-		if setErr := d.Set("client_cert_key", v); setErr != nil {
-			return NewResourceError("setting client_cert_key", d.Id(), setErr)
+		if diags := setResourceField(d, "client_cert_key", v, d.Id()); diags != nil {
+			return diags
 		}
 	}
 	if v, ok := cfgMap["comment"]; ok && v != "" {
-		_ = d.Set("comment", v)
+		if diags := setResourceField(d, "comment", v, d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	return nil

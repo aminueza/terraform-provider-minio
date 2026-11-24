@@ -59,7 +59,9 @@ func minioServerConfigRegionSet(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	d.SetId("region")
-	_ = d.Set("restart_required", restart)
+	if diags := setResourceField(d, "restart_required", restart, "region"); diags != nil {
+		return diags
+	}
 	tflog.Debug(ctx, fmt.Sprintf("Set region config (restart_required=%v)", restart))
 
 	if restart {
@@ -89,11 +91,12 @@ func minioServerConfigRegionRead(ctx context.Context, d *schema.ResourceData, me
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId("region")
 
-	if v, ok := cfgMap["name"]; ok && v != "" {
-		_ = d.Set("name", v)
-	}
-	if v, ok := cfgMap["comment"]; ok && v != "" {
-		_ = d.Set("comment", v)
+	for _, f := range []string{"name", "comment"} {
+		if v, ok := cfgMap[f]; ok && v != "" {
+			if diags := setResourceField(d, f, v, d.Id()); diags != nil {
+				return diags
+			}
+		}
 	}
 
 	return nil

@@ -99,9 +99,9 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 			strings.Contains(errStr, "not supported") ||
 			strings.Contains(errStr, "not implemented") {
 			tflog.Debug(ctx, fmt.Sprintf("DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err))
-			if diags := setResourceField(d, "key_id", "", d.Id()); diags != nil {
-				return diags
-			}
+			// No key_id write here: the SDK discards the resource state after a
+			// successful delete, and a failing write would report a failed
+			// delete for a key that is already gone.
 			d.SetId("")
 			return nil
 		}
@@ -111,7 +111,7 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	tflog.Debug(ctx, fmt.Sprintf("Deleted KMS key: [%s]", d.Id()))
 
-	return setResourceField(d, "key_id", "", d.Id())
+	return nil
 }
 
 // isKMSKeyNotFound reports whether a key status error means the key does not

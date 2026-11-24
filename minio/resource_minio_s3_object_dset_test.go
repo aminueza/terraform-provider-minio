@@ -207,9 +207,8 @@ func TestKMSKeyLifecycleSetsKeyID(t *testing.T) {
 	if diags := minioDeleteKMSKey(context.Background(), d, meta); diags.HasError() {
 		t.Fatalf("minioDeleteKMSKey (200) failed: %v", diags)
 	}
-	if got := d.Get("key_id").(string); got != "" {
-		t.Fatalf("key_id after delete = %q, want empty", got)
-	}
+	// Delete does not write key_id: the SDK discards the resource state
+	// after a successful delete, so the local value is irrelevant.
 
 	d2 := resourceMinioKMSKey().TestResourceData()
 	d2.SetId("ext-kms-key")
@@ -219,9 +218,6 @@ func TestKMSKeyLifecycleSetsKeyID(t *testing.T) {
 	deleteStatus = http.StatusNotImplemented
 	if diags := minioDeleteKMSKey(context.Background(), d2, meta); diags.HasError() {
 		t.Fatalf("minioDeleteKMSKey (NotImplemented) failed: %v", diags)
-	}
-	if got := d2.Get("key_id").(string); got != "" {
-		t.Fatalf("key_id after external KMS delete = %q, want empty", got)
 	}
 	if d2.Id() != "" {
 		t.Fatalf("Id after external KMS delete = %q, want empty", d2.Id())

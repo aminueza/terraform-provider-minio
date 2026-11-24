@@ -128,37 +128,25 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("reading object retention", fmt.Sprintf("%s/%s", bucket, key), objectVersionImportHint(err, parsedFromID))
 	}
 
-	resourceID := d.Id()
-	if resourceID == "" {
-		resourceID = fmt.Sprintf("%s/%s", bucket, key)
+	resourceID := fmt.Sprintf("%s/%s", bucket, key)
+	if diags := setResourceField(d, "bucket", bucket, resourceID); diags != nil {
+		return diags
 	}
-	fields := []struct {
-		key string
-		val interface{}
-	}{
-		{"bucket", bucket},
-		{"key", key},
+	if diags := setResourceField(d, "key", key, resourceID); diags != nil {
+		return diags
 	}
 	if versionID != "" {
-		fields = append(fields, struct {
-			key string
-			val interface{}
-		}{"version_id", versionID})
+		if diags := setResourceField(d, "version_id", versionID, resourceID); diags != nil {
+			return diags
+		}
 	}
 	if mode != nil {
-		fields = append(fields, struct {
-			key string
-			val interface{}
-		}{"mode", string(*mode)})
+		if diags := setResourceField(d, "mode", string(*mode), resourceID); diags != nil {
+			return diags
+		}
 	}
 	if retainUntil != nil {
-		fields = append(fields, struct {
-			key string
-			val interface{}
-		}{"retain_until_date", retainUntil.Format(time.RFC3339)})
-	}
-	for _, f := range fields {
-		if diags := setResourceField(d, f.key, f.val, resourceID); diags != nil {
+		if diags := setResourceField(d, "retain_until_date", retainUntil.Format(time.RFC3339), resourceID); diags != nil {
 			return diags
 		}
 	}

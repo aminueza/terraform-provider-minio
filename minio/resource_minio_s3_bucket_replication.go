@@ -1183,9 +1183,15 @@ func rawReplicationTargetFromConfig(rawConfig cty.Value, i int) (cty.Value, bool
 	return targetVal, true
 }
 
-func rawConfigStringSet(targetVal cty.Value, attr string) bool {
+func rawConfigStringAttr(targetVal cty.Value, attr string) (string, bool) {
+	if !targetVal.Type().IsObjectType() || !targetVal.Type().HasAttribute(attr) {
+		return "", false
+	}
 	val := targetVal.GetAttr(attr)
-	return !val.IsNull() && val.IsKnown() && val.Type() == cty.String && val.AsString() != ""
+	if val.IsNull() || !val.IsKnown() || val.Type() != cty.String {
+		return "", false
+	}
+	return val.AsString(), true
 }
 
 func decodedReplicationTargetAt(getter interface{ Get(string) interface{} }, i int) (map[string]interface{}, bool) {
@@ -1205,24 +1211,68 @@ func decodedReplicationTargetAt(getter interface{ Get(string) interface{} }, i i
 	return targetMap, ok
 }
 
+func rawConfigStringSet(targetVal cty.Value, attr string) bool {
+	s, ok := rawConfigStringAttr(targetVal, attr)
+	return ok && s != ""
+}
+
+func validateTargetConfigValues(i int, hc string, hasHC bool, bwLimit string, hasLimit bool, bwLimt string, hasLimt bool) error {
+	if hasHC {
+		if diags := validateReplicationHealthCheckPeriod(hc, cty.Path{}); diags.HasError() {
+			return fmt.Errorf("rule[%d].target: %s", i, diags[0].Summary)
+		}
+	}
+	if hasLimit {
+		if diags := validateReplicationBandwidthLimitField("bandwidth_limit")(bwLimit, cty.Path{}); diags.HasError() {
+			return fmt.Errorf("rule[%d].target: %s", i, diags[0].Summary)
+		}
+	}
+	if hasLimt {
+		if diags := validateReplicationBandwidthLimitField("bandwidth_limt")(bwLimt, cty.Path{}); diags.HasError() {
+			return fmt.Errorf("rule[%d].target: %s", i, diags[0].Summary)
+		}
+	}
+	if hasLimit && bwLimit != "" && hasLimt && bwLimt != "" {
+		return fmt.Errorf("rule[%d].target: conflicts with bandwidth_limit and bandwidth_limt; use bandwidth_limit instead", i)
+	}
+	return nil
+}
+
+func validateRawReplicationDiffConfig(rawConfig cty.Value) error {
+	if rawConfig.IsNull() || !rawConfig.IsKnown() {
+		return nil
+	}
+	rulesAttr := rawConfig.GetAttr("rule")
+	if rulesAttr.IsNull() || !rulesAttr.IsKnown() {
+		return nil
+	}
+	for i := 0; i < rulesAttr.LengthInt(); i++ {
+		targetVal, ok := rawReplicationTargetFromConfig(rawConfig, i)
+		if !ok {
+			continue
+		}
+		hc, hasHC := rawConfigStringAttr(targetVal, "health_check_period")
+		bwLimit, hasLimit := rawConfigStringAttr(targetVal, "bandwidth_limit")
+		bwLimt, hasLimt := rawConfigStringAttr(targetVal, "bandwidth_limt")
+		if err := validateTargetConfigValues(i, hc, hasHC, bwLimit, hasLimit, bwLimt, hasLimt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func customizeBucketReplicationDiff(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
 	rawConfig := d.GetRawConfig()
 	if !rawConfig.IsNull() && rawConfig.IsKnown() {
 		rulesAttr := rawConfig.GetAttr("rule")
 		if !rulesAttr.IsNull() && rulesAttr.IsKnown() {
-			for i := 0; i < rulesAttr.LengthInt(); i++ {
-				targetVal, ok := rawReplicationTargetFromConfig(rawConfig, i)
-				if !ok {
-					continue
-				}
-				if rawConfigStringSet(targetVal, "bandwidth_limit") && rawConfigStringSet(targetVal, "bandwidth_limt") {
-					return fmt.Errorf("rule[%d].target: conflicts with bandwidth_limit and bandwidth_limt; use bandwidth_limit instead", i)
-				}
-			}
-			return nil
+			return validateRawReplicationDiffConfig(rawConfig)
 		}
 	}
 
+	if d.Id() != "" && !d.HasChange("rule") {
+		return nil
+	}
 	rules, ok := d.Get("rule").([]interface{})
 	if !ok {
 		return nil
@@ -1232,10 +1282,11 @@ func customizeBucketReplicationDiff(_ context.Context, d *schema.ResourceDiff, _
 		if !ok {
 			continue
 		}
+		hc, _ := targetMap["health_check_period"].(string)
 		legacy, _ := targetMap["bandwidth_limt"].(string)
 		canonical, _ := targetMap["bandwidth_limit"].(string)
-		if legacy != "" && canonical != "" && canonical != "0" {
-			return fmt.Errorf("rule[%d].target: conflicts with bandwidth_limit and bandwidth_limt; use bandwidth_limit instead", i)
+		if err := validateTargetConfigValues(i, hc, hc != "", canonical, canonical != "" && canonical != "0", legacy, legacy != ""); err != nil {
+			return err
 		}
 	}
 	return nil

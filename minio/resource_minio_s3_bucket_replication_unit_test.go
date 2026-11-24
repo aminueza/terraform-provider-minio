@@ -354,3 +354,78 @@ func TestExtractReplicationTargetKeepsLegacyZeroHealthCheckPeriod(t *testing.T) 
 		})
 	}
 }
+
+func TestValidateRawReplicationDiffWithUnknownSiblings(t *testing.T) {
+	makeRawConfig := func(targetFields map[string]cty.Value) cty.Value {
+		fields := map[string]cty.Value{
+			"bucket":     cty.UnknownVal(cty.String),
+			"host":       cty.StringVal("minio-b:9000"),
+			"access_key": cty.UnknownVal(cty.String),
+			"secret_key": cty.UnknownVal(cty.String),
+		}
+		for k, v := range targetFields {
+			fields[k] = v
+		}
+		return cty.ObjectVal(map[string]cty.Value{
+			"rule": cty.ListVal([]cty.Value{
+				cty.ObjectVal(map[string]cty.Value{
+					"target": cty.ListVal([]cty.Value{
+						cty.ObjectVal(fields),
+					}),
+				}),
+			}),
+		})
+	}
+
+	cases := []struct {
+		name    string
+		fields  map[string]cty.Value
+		wantErr string
+	}{
+		{
+			name:    "invalid health_check_period with unknown siblings",
+			fields:  map[string]cty.Value{"health_check_period": cty.StringVal("5|")},
+			wantErr: "health_check_period",
+		},
+		{
+			name:    "invalid bandwidth_limt with unknown siblings",
+			fields:  map[string]cty.Value{"bandwidth_limt": cty.StringVal("abc")},
+			wantErr: "bandwidth_limt",
+		},
+		{
+			name:    "too small bandwidth_limt with unknown siblings",
+			fields:  map[string]cty.Value{"bandwidth_limt": cty.StringVal("1k")},
+			wantErr: "bandwidth_limt",
+		},
+		{
+			name: "both bandwidth_limit and bandwidth_limt set",
+			fields: map[string]cty.Value{
+				"bandwidth_limit": cty.StringVal("200M"),
+				"bandwidth_limt":  cty.StringVal("200M"),
+			},
+			wantErr: "bandwidth_limit and bandwidth_limt",
+		},
+		{
+			name: "valid compound health_check_period and legacy bandwidth_limt",
+			fields: map[string]cty.Value{
+				"health_check_period": cty.StringVal("1m30s"),
+				"bandwidth_limt":      cty.StringVal("200M"),
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRawReplicationDiffConfig(makeRawConfig(tc.fields))
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want error containing %q", err, tc.wantErr)
+			}
+		})
+	}
+}

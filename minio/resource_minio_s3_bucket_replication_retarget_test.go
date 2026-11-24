@@ -311,17 +311,6 @@ func TestBucketReplicationInvalidTargetFieldsDoNotPanic(t *testing.T) {
 			wantField: "health_check_period",
 		},
 		{
-			name: "zero health_check_period",
-			target: map[string]interface{}{
-				"bucket":              "bucket-1",
-				"host":                "minio-b:9000",
-				"access_key":          "replication",
-				"secret_key":          "replication-secret",
-				"health_check_period": "0s",
-			},
-			wantField: "health_check_period",
-		},
-		{
 			name: "invalid bandwidth_limt",
 			target: map[string]interface{}{
 				"bucket":         "bucket-1",

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 )
@@ -313,5 +314,43 @@ func TestDiffBucketReplicationBothBandwidthFieldsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "bandwidth_limit") || !strings.Contains(err.Error(), "bandwidth_limt") {
 		t.Fatalf("error = %q, want error naming both bandwidth_limit and bandwidth_limt", err.Error())
+	}
+}
+
+func TestExtractReplicationTargetKeepsLegacyZeroHealthCheckPeriod(t *testing.T) {
+	res := resourceMinioBucketReplication()
+	d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{})
+	cases := []struct {
+		value   string
+		wantErr bool
+	}{
+		// "0s" passed the old schema regex, so it can already be in state.
+		// Read and Delete parse state through extract, so extract must keep
+		// accepting it; validateReplicationHealthCheckPeriod is what rejects
+		// it in new configurations.
+		{value: "0s", wantErr: false},
+		{value: "abc", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.value, func(t *testing.T) {
+			rule := map[string]interface{}{
+				"enabled":  true,
+				"priority": 1,
+				"tags":     map[string]interface{}{},
+				"target": []interface{}{map[string]interface{}{
+					"bucket":              "dest",
+					"host":                "minio-b:9000",
+					"access_key":          "replication",
+					"secret_key":          "replication-secret",
+					"secure":              true,
+					"path_style":          "auto",
+					"health_check_period": tc.value,
+				}},
+			}
+			_, diags := extractBucketReplicationRule(context.Background(), 0, 1, rule, d)
+			if diags.HasError() != tc.wantErr {
+				t.Fatalf("extract with health_check_period=%q: HasError = %v, want %v (%v)", tc.value, diags.HasError(), tc.wantErr, diags)
+			}
+		})
 	}
 }

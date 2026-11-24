@@ -1127,9 +1127,14 @@ func extractBucketReplicationRule(ctx context.Context, i int, ruleCount int, rul
 
 	var healthcheckDuration string
 	if healthcheckDuration, ok = target["health_check_period"].(string); ok {
+		// Only parse errors are rejected here. The old schema regex accepted
+		// "0s", so a zero duration can already be in state, and Read and Delete
+		// parse state through this function: rejecting it here would fail both
+		// and block refresh and destroy with no way out but state rm. The
+		// plan-time validator is what rejects zero durations in config.
 		var err error
 		result.Target.HealthCheckPeriod, err = time.ParseDuration(healthcheckDuration)
-		if err != nil || result.Target.HealthCheckPeriod <= 0 {
+		if err != nil {
 			tflog.Warn(ctx, fmt.Sprintf("invalid healthcheck value %q: %v", healthcheckDuration, err))
 			errs = append(errs, diag.Errorf("rule[%d].target.health_check_period is invalid. Make sure to use a valid golang time duration notation", i)...)
 		}

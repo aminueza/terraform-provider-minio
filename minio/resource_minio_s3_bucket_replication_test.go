@@ -657,7 +657,7 @@ resource "minio_s3_bucket_replication" "replication_in_b" {
 			{
 				Config:      replicationResource(`bandwidth_limt = "abc"`),
 				PlanOnly:    true,
-				ExpectError: regexp.MustCompile(`bandwidth_limt`),
+				ExpectError: regexp.MustCompile(`bandwidth_limt must be a positive value`),
 			},
 			{
 				Config:      replicationResource("bandwidth_limit = \"200M\"\n      bandwidth_limt  = \"200M\""),

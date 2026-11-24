@@ -129,6 +129,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_replication` no longer crashes the provider when a rule
+  carries an invalid `health_check_period` or `bandwidth_limt`: both fields
+  are now validated at plan time, the duration check uses Go duration syntax
+  instead of a regex that accepted values like `5|`, and invalid values found
+  in state are reported as diagnostics instead of panicking refresh or
+  destroy
+  ([#1372](https://github.com/aminueza/terraform-provider-minio/issues/1372)).
 - Removing optional notification fields now clears them on the server:
   `minio_notify_webhook`, `minio_logger_webhook`, `minio_notify_nats`,
   `minio_notify_kafka`, `minio_audit_kafka`, `minio_notify_mqtt`,

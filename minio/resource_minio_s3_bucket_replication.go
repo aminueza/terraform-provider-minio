@@ -388,7 +388,9 @@ func triggerBucketReplicationResync(ctx context.Context, bucketReplicationConfig
 				return NewResourceError("triggering replication resync", bucketReplicationConfig.MinioBucket, err)
 			}
 			if len(info.Targets) > 0 {
-				_ = d.Set("last_resync_id", info.Targets[0].ResetID)
+				if diags := setResourceField(d, "last_resync_id", info.Targets[0].ResetID, bucketReplicationConfig.MinioBucket); diags != nil {
+					return diags
+				}
 			}
 		}
 	}

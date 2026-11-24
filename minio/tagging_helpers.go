@@ -18,31 +18,30 @@ func shouldSkipBucketTagging(cfg *S3MinioBucket) bool {
 
 // preserveBucketTagsState ensures Terraform state retains the last known set of
 // tags even when we skip remote API calls.
-func preserveBucketTagsState(d *schema.ResourceData) {
+func preserveBucketTagsState(d *schema.ResourceData) error {
 	if d == nil {
-		return
+		return nil
 	}
 
 	if v, ok := d.GetOk("tags"); ok {
 		switch tags := v.(type) {
 		case map[string]string:
 			if len(tags) > 0 {
-				_ = d.Set("tags", tags)
-			} else {
-				_ = d.Set("tags", map[string]string{})
+				return d.Set("tags", tags)
 			}
+			return d.Set("tags", map[string]string{})
 		case map[string]any:
 			if len(tags) > 0 {
-				_ = d.Set("tags", convertToStringMap(tags))
-			} else {
-				_ = d.Set("tags", map[string]string{})
+				return d.Set("tags", convertToStringMap(tags))
 			}
+			return d.Set("tags", map[string]string{})
 		default:
 			// ignore unexpected types; Terraform will maintain existing state
+			return nil
 		}
-	} else {
-		_ = d.Set("tags", map[string]string{})
 	}
+
+	return d.Set("tags", map[string]string{})
 }
 
 // IsS3TaggingNotImplemented attempts to detect when bucket tagging operations

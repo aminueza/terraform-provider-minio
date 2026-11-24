@@ -98,10 +98,10 @@ func minioReadBucketQuota(ctx context.Context, d *schema.ResourceData, meta inte
 	if !ok {
 		return NewResourceError("reading bucket quota", bucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
 	}
-	_ = d.Set("quota", int(quotaVal))
-	_ = d.Set("type", string(bucketQuota.Type))
-
-	return nil
+	if diags := setResourceField(d, "quota", int(quotaVal), bucket); diags != nil {
+		return diags
+	}
+	return setResourceField(d, "type", string(bucketQuota.Type), bucket)
 }
 
 func minioUpdateBucketQuota(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

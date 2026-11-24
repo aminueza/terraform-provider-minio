@@ -44,7 +44,9 @@ func minioCreateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 
 	if shouldSkipBucketTagging(cfg) {
 		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; skipping tag creation")
-		preserveBucketTagsState(d)
+		if err := preserveBucketTagsState(d); err != nil {
+			return NewResourceError("setting tags", bucket, err)
+		}
 		d.SetId(bucket)
 		return nil
 	}
@@ -60,7 +62,9 @@ func minioCreateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 				return NewResourceError("setting bucket tags", bucket, err)
 			}
 			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
-			preserveBucketTagsState(d)
+			if err := preserveBucketTagsState(d); err != nil {
+				return NewResourceError("setting tags", bucket, err)
+			}
 		}
 	}
 	d.SetId(bucket)
@@ -73,18 +77,20 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 
 	if shouldSkipBucketTagging(cfg) {
 		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; preserving state")
-		preserveBucketTagsState(d)
-		_ = d.Set("bucket", bucket)
-		return nil
+		if err := preserveBucketTagsState(d); err != nil {
+			return NewResourceError("setting tags", bucket, err)
+		}
+		return setResourceField(d, "bucket", bucket, bucket)
 	}
 
 	bucketTags, err := cfg.MinioClient.GetBucketTagging(ctx, bucket)
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
-			_ = d.Set("bucket", bucket)
-			_ = d.Set("tags", map[string]string{})
-			return nil
+			if diags := setResourceField(d, "bucket", bucket, bucket); diags != nil {
+				return diags
+			}
+			return setResourceField(d, "tags", map[string]string{}, bucket)
 		}
 		if isNoSuchBucketError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s no longer exists, removing tags from state", bucket))
@@ -93,17 +99,17 @@ func minioReadBucketTags(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 		if IsS3TaggingNotImplemented(err) {
 			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
-			preserveBucketTagsState(d)
-			_ = d.Set("bucket", bucket)
-			return nil
+			if err := preserveBucketTagsState(d); err != nil {
+				return NewResourceError("setting tags", bucket, err)
+			}
+			return setResourceField(d, "bucket", bucket, bucket)
 		}
 		return NewResourceError("reading bucket tags", bucket, err)
 	}
-	if err := d.Set("bucket", bucket); err != nil {
-		return NewResourceError("setting bucket", bucket, err)
+	if diags := setResourceField(d, "bucket", bucket, bucket); diags != nil {
+		return diags
 	}
-	_ = d.Set("tags", bucketTags.ToMap())
-	return nil
+	return setResourceField(d, "tags", bucketTags.ToMap(), bucket)
 }
 
 func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -112,7 +118,9 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 
 	if shouldSkipBucketTagging(cfg) {
 		tflog.Info(ctx, "Bucket tagging is disabled for this provider configuration; preserving state")
-		preserveBucketTagsState(d)
+		if err := preserveBucketTagsState(d); err != nil {
+			return NewResourceError("setting tags", bucket, err)
+		}
 		return nil
 	}
 
@@ -128,7 +136,9 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 					return NewResourceError("setting bucket tags", bucket, err)
 				}
 				tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
-				preserveBucketTagsState(d)
+				if err := preserveBucketTagsState(d); err != nil {
+					return NewResourceError("setting tags", bucket, err)
+				}
 			}
 		} else {
 			if err := cfg.MinioClient.RemoveBucketTagging(ctx, bucket); err != nil {
@@ -136,7 +146,9 @@ func minioUpdateBucketTags(ctx context.Context, d *schema.ResourceData, meta int
 					return NewResourceError("removing bucket tags", bucket, err)
 				}
 				tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
-				preserveBucketTagsState(d)
+				if err := preserveBucketTagsState(d); err != nil {
+					return NewResourceError("setting tags", bucket, err)
+				}
 			}
 		}
 	}

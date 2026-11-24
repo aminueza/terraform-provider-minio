@@ -14,6 +14,11 @@ updates:
     commit-message:
       prefix: "ci(deps):"
     open-pull-requests-limit: 10
+    ignore:
+      # The v2.6.0 image index points to a manifest ghcr.io returns 404 for.
+      # Drop this once a newer release pulls cleanly.
+      - dependency-name: "ossf/scorecard-action"
+        versions: ["2.6.0"]
 
   # Enable version updates for Go modules
   - package-ecosystem: "gomod"

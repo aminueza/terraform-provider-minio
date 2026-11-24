@@ -57,6 +57,12 @@ History older than 3.39.0 lives in the
   `object_locking = false` (matching the live bucket) or the bucket is
   recreated with `object_locking = true`
   ([#1387](https://github.com/aminueza/terraform-provider-minio/issues/1387)).
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: resource `id` now stores
+  `<dn>/<policy>` instead of `<policy>/<dn>` to match their documented import
+  format. Existing states migrate to the new ID on the next refresh with an
+  empty plan and no replacement
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `minio_iam_group_membership`: `id` now stores the `group` name instead of
   the Terraform-only `name` label, and `name` is no longer `ForceNew`. Existing
   states created before this change migrate `id` from `name` to `group` on the
@@ -88,6 +94,12 @@ History older than 3.39.0 lives in the
   stale claim that Object Lock can be added to existing buckets on
   `RELEASE.2025-05-20T20-30-00Z+`
   ([#1387](https://github.com/aminueza/terraform-provider-minio/issues/1387)).
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: importer format errors now name
+  `<dn>/<policy-name>`, IDs still in the old `<policy>/<dn>` order are
+  rejected with that message instead of importing into a resource that Read
+  immediately drops, and the LDAP group read error no longer mentions a user
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema
   attributes (which dropped both fields and panicked under `TF_ACC`), and

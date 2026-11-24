@@ -51,7 +51,7 @@ output "minio_group" {
 
 ## Import
 
-Import is supported using the following syntax:
+Import is supported using the following syntax (matching the resource `id` format `<group-name>/<user-name>`):
 
 ```shell
 # IAM group user attachments can be imported using the format: group-name/user-name

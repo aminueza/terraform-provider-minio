@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 )
@@ -67,7 +66,7 @@ func minioCreateUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 		}
 	}
 
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
+	d.SetId(fmt.Sprintf("%s/%s", userName, policyName))
 
 	return doMinioReadUserPolicyAttachment(ctx, d, meta, userName, policyName)
 }
@@ -94,9 +93,13 @@ func doMinioReadUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 		return nil
 	}
 
+	if err := d.Set("user_name", userName); err != nil {
+		return NewResourceError("setting user_name", d.Id(), err)
+	}
 	if err := d.Set("policy_name", policyName); err != nil {
 		return NewResourceError("setting policy_name", d.Id(), err)
 	}
+	d.SetId(fmt.Sprintf("%s/%s", userName, policyName))
 
 	return nil
 }
@@ -139,6 +142,9 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 
 	userName := idParts[0]
 	policyName := idParts[1]
+	if _, errs := validateIAMNamePolicy(policyName, "policy_name"); len(errs) > 0 {
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy_name>: %v", d.Id(), errs[0])
+	}
 
 	err := d.Set("user_name", userName)
 	if err != nil {
@@ -148,7 +154,7 @@ func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 	if err != nil {
 		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
 	}
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", userName)))
+	d.SetId(fmt.Sprintf("%s/%s", userName, policyName))
 	return []*schema.ResourceData{d}, nil
 }
 

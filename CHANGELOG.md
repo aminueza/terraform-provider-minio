@@ -47,6 +47,14 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_user_policy_attachment`, `minio_iam_group_policy_attachment` and
+  `minio_iam_group_user_attachment` now store their import format as `id`
+  (`<user_name>/<policy_name>`, `<group_name>/<policy_name>` and
+  `<group_name>/<user_name>`) instead of a random `id.PrefixedUniqueId`, so
+  stored IDs can be fed directly back into `terraform import` and `import`
+  blocks. Existing states migrate to the new ID in place on the next refresh
+  with an empty plan and no replacement
+  ([#1359](https://github.com/aminueza/terraform-provider-minio/issues/1359)).
 - `minio_s3_bucket`: `object_locking` changes on an existing bucket (`false` to
   `true` or `true` to `false`) are now rejected during plan instead of being
   silently ignored in `Update` or forcing destructive replacement via

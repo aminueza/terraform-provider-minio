@@ -23,7 +23,8 @@ import (
 // get-config-kv keeps serving the running config until restart() is called.
 // Like Config.SetKVS it fills the subsystem defaults for keys never sent, and
 // like SubsysInfo.WriteTo the served line omits empty values and enable=on.
-// Unlike the real server it does not omit secret keys, and no test sets one.
+// Unlike the real server it does not omit secret keys; tests that set one only
+// assert on non-secret keys.
 // See issue #1299.
 type notifyStaleConfigStub struct {
 	mu        sync.Mutex

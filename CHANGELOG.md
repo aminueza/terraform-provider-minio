@@ -129,6 +129,16 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- Removing optional notification fields now clears them on the server:
+  `minio_notify_webhook`, `minio_logger_webhook`, `minio_notify_nats`,
+  `minio_notify_kafka`, `minio_audit_kafka`, `minio_notify_mqtt`,
+  `minio_notify_elasticsearch`, `minio_notify_redis` and `minio_notify_amqp`
+  send explicit empty values for removed credentials, certificates and plain
+  options instead of leaving the old server value in place; removing the
+  readable half of a certificate or credential pair also clears the paired
+  secret, including after import when the secret is not in state; and values
+  cleared outside Terraform are now picked up by refresh
+  ([#1353](https://github.com/aminueza/terraform-provider-minio/issues/1353)).
 - `minio_iam_group_policy` now attaches the created canned policy to `group`,
   detaches it on delete without disturbing other policies attached to the
   group, drops state when the policy is detached outside Terraform so the next

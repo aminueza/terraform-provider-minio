@@ -116,10 +116,10 @@ func notifyTargetConfigParams(response, configKey string) (cfgMap map[string]str
 // subsystem defaults into every target (Config.SetKVS), and a default the
 // provider never sent, such as sasl_mechanism=plain, is not the provider's to
 // converge on. Keys missing from the response are treated as stale only where
-// the stored value is always printed: a cleared comment or queue_dir must come
-// back empty, and enable=off must come back as off, because the server prints
-// enable only when it is off. Secret keys are absent from the response and are
-// never compared. See issue #1299.
+// the stored value is always printed: a cleared key listed by
+// isClearableNotifyConfigKey must come back empty, and enable=off must come
+// back as off, because the server prints enable only when it is off. Secret
+// keys are absent from the response and are never compared. See issue #1299.
 func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string]string, d *schema.ResourceData, meta interface{}) bool {
 	intended := parseConfigParams(nrc.buildCfg(d, meta))
 	for key, serverValue := range cfgMap {
@@ -353,6 +353,10 @@ func notifyBuildCfgClearablePair(parts *[]string, d *schema.ResourceData, readab
 	notifyBuildCfgAddParam(parts, secretKey, secretVal)
 }
 
+// isClearableNotifyConfigKey lists the non-secret keys the builders can clear
+// with notifyBuildCfgClearableParam. Every such key must be listed here too,
+// otherwise a cleared value that has not reached the server yet (pending
+// restart) is not recognized as stale by notifyRunningConfigMatchesState.
 func isClearableNotifyConfigKey(key string) bool {
 	switch key {
 	case "comment", "queue_dir",

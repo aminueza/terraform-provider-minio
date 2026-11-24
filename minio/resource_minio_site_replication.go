@@ -55,14 +55,34 @@ func sitesDiffer(oldSite, newSite madmin.PeerSite) bool {
 		oldSite.SecretKey != newSite.SecretKey
 }
 
-func isSiteReplicationError(err error) bool {
+// isSiteReplicationNotConfiguredError reports whether err represents a definitive
+// "site replication not configured / not enabled" response from MinIO.
+// Transient peer reachability errors (such as XMinioSiteReplicationPeerResp or
+// "Unable to fetch server info") must return false so Terraform preserves state.
+func isSiteReplicationNotConfiguredError(err error) bool {
 	if err == nil {
 		return false
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "site replication not configured") ||
-		strings.Contains(errStr, "Global deployment ID mismatch") ||
-		strings.Contains(errStr, "Unable to fetch server info")
+
+	if errResp := madmin.ToErrorResponse(err); errResp.Code != "" {
+		switch errResp.Code {
+		case "XMinioSiteReplicationConfigMissingError":
+			return true
+		case "XMinioSiteReplicationInvalidRequest":
+			return isSiteReplicationNotConfiguredMessage(errResp.Message)
+		default:
+			return false
+		}
+	}
+
+	return isSiteReplicationNotConfiguredMessage(err.Error())
+}
+
+func isSiteReplicationNotConfiguredMessage(msg string) bool {
+	lower := strings.ToLower(msg)
+	return strings.Contains(lower, "site replication not configured") ||
+		strings.Contains(lower, "site replication is not enabled") ||
+		strings.Contains(lower, "unable to find site replication configuration")
 }
 
 func resourceMinioSiteReplication() *schema.Resource {
@@ -173,7 +193,7 @@ func minioReadSiteReplication(ctx context.Context, d *schema.ResourceData, meta 
 
 	info, err := client.SiteReplicationInfo(ctx)
 	if err != nil {
-		if isSiteReplicationError(err) {
+		if isSiteReplicationNotConfiguredError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Site replication not configured or disabled, removing from state: %v", err))
 			d.SetId("")
 			return nil
@@ -285,7 +305,7 @@ func minioDeleteSiteReplication(ctx context.Context, d *schema.ResourceData, met
 		RemoveAll: true,
 	})
 	if err != nil {
-		if isSiteReplicationError(err) {
+		if isSiteReplicationNotConfiguredError(err) {
 			tflog.Info(ctx, fmt.Sprintf("Site replication already removed or not configured: %v", err))
 			return nil
 		}

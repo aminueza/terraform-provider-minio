@@ -16,6 +16,9 @@ import (
 )
 
 func TestDataSourceDSetHelpers(t *testing.T) {
+	// TestResourceDataRaw panics on d.Set errors when TF_ACC is set; clear it so
+	// setResourceField's error path is exercised cleanly under TF_ACC=1 CI runs.
+	t.Setenv("TF_ACC", "")
 	d := schema.TestResourceDataRaw(t, dataSourceMinioS3BucketVersioning().Schema, map[string]interface{}{"bucket": "test-bucket"})
 	if diags := setResourceField(d, "enabled", true, "test-bucket"); diags.HasError() {
 		t.Fatalf("expected nil diags for valid data source field, got %v", diags)

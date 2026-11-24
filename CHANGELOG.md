@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: resource `id` now stores
+  `<dn>/<policy>` instead of `<policy>/<dn>` to match their documented import
+  format. Existing states migrate to the new ID on the next refresh with an
+  empty plan and no replacement
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `minio_iam_users` data source now returns `users` sorted by `name` and
   derives a deterministic `id` from `status` and `name_prefix` instead of
   generating a new Unix timestamp on every read
@@ -76,6 +82,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_ldap_user_policy_attachment` and
+  `minio_iam_ldap_group_policy_attachment`: importer format errors now name
+  `<dn>/<policy-name>`, IDs still in the old `<policy>/<dn>` order are
+  rejected with that message instead of importing into a resource that Read
+  immediately drops, and the LDAP group read error no longer mentions a user
+  ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `minio_iam_users` data source now populates `policy_names` and
   `member_of_groups` from `ListUsers`, and documents that service accounts
   are omitted and LDAP policy-mapped users appear under their DN

@@ -84,15 +84,11 @@ func bucketReplicationRuleResource() *schema.Resource {
 				Default:     true,
 			},
 			"priority": {
-				Type:         schema.TypeInt,
-				Description:  "Rule priority. If omitted, the inverted index will be used as priority. This means that the first rule definition will have the higher priority",
-				Optional:     true,
-				ValidateFunc: validation.IntAtLeast(1),
-				DiffSuppressFunc: func(k, oldValue, newValue string, d *schema.ResourceData) bool {
-					oldVal, _ := strconv.Atoi(oldValue)
-					newVal, _ := strconv.Atoi(newValue)
-					return oldVal == 0 && newVal == 0 || oldVal == newVal
-				},
+				Type:             schema.TypeInt,
+				Description:      "Rule priority. If omitted, the inverted index will be used as priority. This means that the first rule definition will have the higher priority",
+				Optional:         true,
+				ValidateFunc:     validation.IntAtLeast(1),
+				DiffSuppressFunc: suppressPriorityDiff,
 			},
 			"prefix": {
 				Type:        schema.TypeString,
@@ -1343,4 +1339,23 @@ func formatBucketTargetForLog(t *madmin.BucketTarget) string {
 		t.DisableProxy,
 		t.HealthCheckDuration,
 	)
+}
+
+func parseOptionalInt(raw string) (int, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	return strconv.Atoi(raw)
+}
+
+func suppressPriorityDiff(_, oldValue, newValue string, _ *schema.ResourceData) bool {
+	oldVal, err := parseOptionalInt(oldValue)
+	if err != nil {
+		return false
+	}
+	newVal, err := parseOptionalInt(newValue)
+	if err != nil {
+		return false
+	}
+	return oldVal == 0 && newVal == 0 || oldVal == newVal
 }

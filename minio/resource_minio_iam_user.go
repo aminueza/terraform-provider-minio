@@ -173,8 +173,11 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		wantedStatus = madmin.AccountDisabled
 	}
 
-	userServerInfo, _ := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
-	if userServerInfo.Status != wantedStatus {
+	userServerInfo, err := iamUserConfig.MinioAdmin.GetUserInfo(ctx, iamUserConfig.MinioIAMName)
+	if err != nil {
+		tflog.Debug(ctx, fmt.Sprintf("Failed to read current IAM user status for %q before update: %v", iamUserConfig.MinioIAMName, err))
+	}
+	if err != nil || userServerInfo.Status != wantedStatus {
 		err := iamUserConfig.MinioAdmin.SetUserStatus(ctx, iamUserConfig.MinioIAMName, wantedStatus)
 		if err != nil {
 			return NewResourceError("disabling IAM user", d.Id(), err)

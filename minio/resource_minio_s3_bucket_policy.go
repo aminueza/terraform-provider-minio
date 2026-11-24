@@ -90,13 +90,19 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	// MinIO multi-drive deployments can lose bucket versioning when a policy
 	// is set immediately after versioning. Capture versioning before and
 	// restore it if SetBucketPolicy destroyed it.
-	versioningBefore, _ := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
-	if versioningBefore.Status != "" {
+	versioningBefore, beforeErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
+	if beforeErr != nil {
+		tflog.Debug(ctx, fmt.Sprintf("Skipping pre-policy versioning snapshot for bucket %s: %v", bucketPolicyConfig.MinioBucket, beforeErr))
+	} else if versioningBefore.Status != "" {
 		time.Sleep(500 * time.Millisecond)
-		versioningAfter, _ := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
-		if versioningAfter.Status == "" {
+		versioningAfter, afterErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
+		if afterErr != nil {
+			tflog.Debug(ctx, fmt.Sprintf("Failed to verify bucket %s versioning after SetBucketPolicy: %v", bucketPolicyConfig.MinioBucket, afterErr))
+		} else if versioningAfter.Status == "" {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket))
-			_ = bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore)
+			if restoreErr := bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore); restoreErr != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Failed to restore bucket %s versioning after SetBucketPolicy: %v", bucketPolicyConfig.MinioBucket, restoreErr))
+			}
 		}
 	}
 

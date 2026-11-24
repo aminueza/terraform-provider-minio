@@ -457,3 +457,27 @@ func TestBucketReplicationConfigDoesNotDuplicateSecureWarning(t *testing.T) {
 		t.Fatalf("expected no duplicate warning from BucketReplicationConfig for secure=false, got %v", diags)
 	}
 }
+
+func TestSuppressPriorityDiff(t *testing.T) {
+	cases := []struct {
+		name     string
+		oldValue string
+		newValue string
+		want     bool
+	}{
+		{name: "both unset", oldValue: "", newValue: "", want: true},
+		{name: "unset and zero", oldValue: "", newValue: "0", want: true},
+		{name: "equal priorities", oldValue: "2", newValue: "2", want: true},
+		{name: "changed priority", oldValue: "1", newValue: "2", want: false},
+		{name: "invalid old value", oldValue: "abc", newValue: "0", want: false},
+		{name: "invalid new value", oldValue: "0", newValue: "abc", want: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := suppressPriorityDiff("priority", tc.oldValue, tc.newValue, nil); got != tc.want {
+				t.Errorf("suppressPriorityDiff(%q, %q) = %v, want %v", tc.oldValue, tc.newValue, got, tc.want)
+			}
+		})
+	}
+}

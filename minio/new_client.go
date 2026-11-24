@@ -253,8 +253,8 @@ func (config *S3MinioConfig) configureCACert(tlsConfig *tls.Config) error {
 		return fmt.Errorf("invalid CA certificate: not a valid x509 certificate")
 	}
 
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
+	rootCAs, err := x509.SystemCertPool()
+	if err != nil || rootCAs == nil {
 		// Some systems don't support system cert pool
 		rootCAs = x509.NewCertPool()
 	}

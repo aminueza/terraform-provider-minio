@@ -117,13 +117,19 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 	// MinIO multi-drive deployments can lose the bucket policy when versioning
 	// is set immediately after a policy write. Capture the policy before and
 	// restore it if SetBucketVersioning destroyed it.
-	policyBefore, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
-	if strings.TrimSpace(policyBefore) != "" && strings.TrimSpace(policyBefore) != "{}" {
+	policyBefore, beforeErr := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+	if beforeErr != nil {
+		tflog.Debug(ctx, fmt.Sprintf("Skipping pre-versioning policy snapshot for bucket %s: %v", bucketVersioningConfig.MinioBucket, beforeErr))
+	} else if strings.TrimSpace(policyBefore) != "" && strings.TrimSpace(policyBefore) != "{}" {
 		time.Sleep(500 * time.Millisecond)
-		policyAfter, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
-		if strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
+		policyAfter, afterErr := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+		if afterErr != nil {
+			tflog.Debug(ctx, fmt.Sprintf("Failed to verify bucket %s policy after SetBucketVersioning: %v", bucketVersioningConfig.MinioBucket, afterErr))
+		} else if strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s policy was lost after SetBucketVersioning, restoring", bucketVersioningConfig.MinioBucket))
-			_ = bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore)
+			if restoreErr := bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore); restoreErr != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Failed to restore bucket %s policy after SetBucketVersioning: %v", bucketVersioningConfig.MinioBucket, restoreErr))
+			}
 		}
 	}
 

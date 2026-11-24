@@ -25,17 +25,13 @@ linters:
       - path: check_config\.go
         linters:
           - errcheck
-      - path: import_.*\.go
-        linters:
-          - errcheck
 
 
   settings:
     errcheck:
       check-type-assertions: false
-      check-blank: false
+      check-blank: true
       exclude-functions:
-        - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Set
         - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).Get
         - (*github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema.ResourceData).GetOk
 

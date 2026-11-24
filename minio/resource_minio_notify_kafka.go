@@ -1,10 +1,13 @@
 package minio
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
 )
 
 func resourceMinioNotifyKafka() *schema.Resource {
@@ -20,7 +23,7 @@ func resourceMinioNotifyKafka() *schema.Resource {
 		ReadContext:   notifyRead(nrc),
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
-		CustomizeDiff: customizeDiffKafkaSasl,
+		CustomizeDiff: customizeDiffKafka,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -100,6 +103,31 @@ func resourceMinioNotifyKafka() *schema.Resource {
 				Computed:    true,
 				Description: "Number of messages to batch before sending to Kafka.",
 			},
+			"compression_codec": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"none", "snappy", "gzip", "lz4", "zstd"}, false),
+				Description:  "Producer compression codec: `none`, `snappy`, `gzip`, `lz4` or `zstd`. First available in MinIO RELEASE.2023-12-02T10-51-33Z. Set `compression_level` with it: a codec without a level means level 0, which for gzip is no compression.",
+			},
+			"compression_level": {
+				Type:         schema.TypeInt,
+				Optional:     true,
+				RequiredWith: []string{"compression_codec"},
+				Description:  "Compression level for `compression_codec`. MinIO turns a value it cannot parse into 0. First available in MinIO RELEASE.2023-12-02T10-51-33Z.",
+			},
+			"batch_commit_timeout": {
+				Type:     schema.TypeString,
+				Optional: true,
+				Computed: true,
+				ValidateFunc: func(val interface{}, key string) (warns []string, errs []error) {
+					v := val.(string)
+					if dur, err := time.ParseDuration(v); err != nil || dur < 0 {
+						errs = append(errs, fmt.Errorf("%q must be a non-negative golang duration like '10s' or '0s', got %q", key, v))
+					}
+					return
+				},
+				Description: "How long a partly filled batch waits before it is committed; `0s` means 30s. Only used when `queue_dir` is set and `batch_size` is above 1; the plan rejects a value above `0s` without `queue_dir` or with `batch_size` of 1 or less. First available in MinIO RELEASE.2024-09-09T16-59-28Z.",
+			},
 		}),
 	}
 }
@@ -118,6 +146,9 @@ func buildNotifyKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgClearablePair(&parts, d, "client_tls_cert", "client_tls_key")
 	notifyBuildCfgClearableParam(&parts, d, "version")
 	notifyBuildCfgAddInt(&parts, "batch_size", getOptionalField(d, "batch_size", 0).(int))
+	notifyBuildCfgClearableParam(&parts, d, "compression_codec")
+	notifyBuildCfgClearableIntParam(&parts, d, "compression_level")
+	notifyBuildCfgClearableComputedString(&parts, d, "batch_commit_timeout", "0s")
 
 	notifyBuildCommonCfg(&parts, d, meta)
 	return strings.Join(parts, " ")
@@ -137,6 +168,18 @@ func readNotifyKafkaFields(cfgMap map[string]string, d *schema.ResourceData) dia
 		return diags
 	}
 	if diags := notifySetInt(d, cfgMap, "batch_size", "batch_size"); diags != nil {
+		return diags
+	}
+	if diags := notifySetPresentStrings(d, cfgMap, "compression_codec", "batch_commit_timeout"); diags != nil {
+		return diags
+	}
+	if v, ok := cfgMap["compression_level"]; ok && v == "" {
+		// A cleared level is printed empty and MinIO parses it as 0;
+		// notifySetInt would skip it and leave a stale level in state.
+		if diags := setResourceField(d, "compression_level", 0, d.Id()); diags != nil {
+			return diags
+		}
+	} else if diags := notifySetInt(d, cfgMap, "compression_level", "compression_level"); diags != nil {
 		return diags
 	}
 	return notifyReadCommonFields(cfgMap, d)

@@ -10,6 +10,18 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_notify_kafka` and its data source expose `compression_codec`,
+  `compression_level` and `batch_commit_timeout`, the Kafka producer
+  compression and batch commit keys MinIO added in RELEASE.2023-12-02 and
+  RELEASE.2024-09-09. The plan rejects a `batch_commit_timeout` above `0s`
+  without `queue_dir` or with a `batch_size` of 1 or less, and
+  `compression_level` without `compression_codec`: an enabled target
+  refuses those combinations and a disabled one stores them without ever
+  acting on them
+  ([#1369](https://github.com/aminueza/terraform-provider-minio/issues/1369))
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

@@ -104,55 +104,17 @@ func buildNotifyAmqpCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyAmqpFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["url"]; ok {
-		if err := d.Set("url", v); err != nil {
-			return NewResourceError("setting url", d.Id(), err)
-		}
+	if diags := notifySetPresentStrings(d, cfgMap, "url", "exchange", "exchange_type", "routing_key"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["exchange"]; ok {
-		_ = d.Set("exchange", v)
+	if diags := notifySetOnBools(d, cfgMap, "mandatory", "durable", "no_wait", "internal", "auto_deleted"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["exchange_type"]; ok {
-		_ = d.Set("exchange_type", v)
+	if diags := notifySetInt(d, cfgMap, "delivery_mode", "delivery_mode"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["routing_key"]; ok {
-		_ = d.Set("routing_key", v)
+	if diags := notifySetOnBools(d, cfgMap, "publisher_confirms"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["mandatory"]; ok {
-		_ = d.Set("mandatory", v == "on")
-	} else {
-		_ = d.Set("mandatory", false)
-	}
-	if v, ok := cfgMap["durable"]; ok {
-		_ = d.Set("durable", v == "on")
-	} else {
-		_ = d.Set("durable", false)
-	}
-	if v, ok := cfgMap["no_wait"]; ok {
-		_ = d.Set("no_wait", v == "on")
-	} else {
-		_ = d.Set("no_wait", false)
-	}
-	if v, ok := cfgMap["internal"]; ok {
-		_ = d.Set("internal", v == "on")
-	} else {
-		_ = d.Set("internal", false)
-	}
-	if v, ok := cfgMap["auto_deleted"]; ok {
-		_ = d.Set("auto_deleted", v == "on")
-	} else {
-		_ = d.Set("auto_deleted", false)
-	}
-	if v, ok := cfgMap["delivery_mode"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("delivery_mode", n)
-		}
-	}
-	if err := d.Set("publisher_confirms", cfgMap["publisher_confirms"] == "on"); err != nil {
-		return NewResourceError("setting publisher_confirms", d.Id(), err)
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

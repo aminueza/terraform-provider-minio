@@ -77,26 +77,14 @@ func buildLoggerWebhookCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["endpoint"]; ok {
-		_ = d.Set("endpoint", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "endpoint", "client_cert", "client_key", "proxy"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["client_cert"]; ok {
-		_ = d.Set("client_cert", v)
+	if diags := notifySetInt(d, cfgMap, "batch_size", "batch_size"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["client_key"]; ok {
-		if setErr := d.Set("client_key", v); setErr != nil {
-			return NewResourceError("setting client_key", d.Id(), setErr)
-		}
+	if diags := notifyReadQueueSize(cfgMap, d); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["proxy"]; ok {
-		_ = d.Set("proxy", v)
-	}
-	if v, ok := cfgMap["batch_size"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("batch_size", n)
-		}
-	}
-	notifyReadQueueSize(cfgMap, d)
-	notifyReadCommonFields(cfgMap, d)
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

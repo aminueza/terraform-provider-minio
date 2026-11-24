@@ -65,17 +65,8 @@ func buildNotifyWebhookCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyWebhookFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["endpoint"]; ok {
-		_ = d.Set("endpoint", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "endpoint", "client_cert", "client_key"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["client_cert"]; ok {
-		_ = d.Set("client_cert", v)
-	}
-	if v, ok := cfgMap["client_key"]; ok {
-		if setErr := d.Set("client_key", v); setErr != nil {
-			return NewResourceError("setting client_key", d.Id(), setErr)
-		}
-	}
-	notifyReadCommonFields(cfgMap, d)
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

@@ -66,21 +66,15 @@ func buildNotifyMysqlCfg(d *schema.ResourceData, meta interface{}) string {
 
 func readNotifyMysqlFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
 	if v, ok := cfgMap["dsn_string"]; ok {
-		_ = d.Set("connection_string", v)
-	}
-	if v, ok := cfgMap["table"]; ok {
-		_ = d.Set("table", v)
-	}
-	if v, ok := cfgMap["format"]; ok {
-		_ = d.Set("format", v)
-	}
-	if v, ok := cfgMap["max_open_connections"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("max_open_connections", n)
+		if diags := setResourceField(d, "connection_string", v, d.Id()); diags != nil {
+			return diags
 		}
 	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	if diags := notifySetPresentStrings(d, cfgMap, "table", "format"); diags != nil {
+		return diags
+	}
+	if diags := notifySetInt(d, cfgMap, "max_open_connections", "max_open_connections"); diags != nil {
+		return diags
+	}
+	return notifyReadCommonFields(cfgMap, d)
 }

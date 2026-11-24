@@ -150,64 +150,23 @@ func buildNotifyNatsCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyNatsFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["address"]; ok {
-		_ = d.Set("address", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "address", "subject", "username"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["subject"]; ok {
-		_ = d.Set("subject", v)
+	if diags := notifySetOnBools(d, cfgMap, "tls", "tls_skip_verify"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["username"]; ok {
-		_ = d.Set("username", v)
+	if diags := notifySetNonEmptyStrings(d, cfgMap, "ping_interval"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["tls"]; ok {
-		_ = d.Set("tls", v == "on")
-	} else {
-		_ = d.Set("tls", false)
+	if diags := notifySetOnBools(d, cfgMap, "jetstream", "streaming", "streaming_async"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["tls_skip_verify"]; ok {
-		_ = d.Set("tls_skip_verify", v == "on")
-	} else {
-		_ = d.Set("tls_skip_verify", false)
+	if diags := notifySetInt(d, cfgMap, "streaming_max_pub_acks_in_flight", "streaming_max_pub_acks_in_flight"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["ping_interval"]; ok && v != "" {
-		_ = d.Set("ping_interval", v)
+	if diags := notifySetPresentStrings(d, cfgMap, "streaming_cluster_id", "cert_authority", "client_cert", "client_key"); diags != nil {
+		return diags
 	}
-	if v, ok := cfgMap["jetstream"]; ok {
-		_ = d.Set("jetstream", v == "on")
-	} else {
-		_ = d.Set("jetstream", false)
-	}
-	if v, ok := cfgMap["streaming"]; ok {
-		_ = d.Set("streaming", v == "on")
-	} else {
-		_ = d.Set("streaming", false)
-	}
-	if v, ok := cfgMap["streaming_async"]; ok {
-		_ = d.Set("streaming_async", v == "on")
-	} else {
-		_ = d.Set("streaming_async", false)
-	}
-	if v, ok := cfgMap["streaming_max_pub_acks_in_flight"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("streaming_max_pub_acks_in_flight", n)
-		}
-	}
-	if v, ok := cfgMap["streaming_cluster_id"]; ok {
-		_ = d.Set("streaming_cluster_id", v)
-	}
-	if v, ok := cfgMap["cert_authority"]; ok {
-		_ = d.Set("cert_authority", v)
-	}
-	if v, ok := cfgMap["client_cert"]; ok {
-		_ = d.Set("client_cert", v)
-	}
-	if v, ok := cfgMap["client_key"]; ok {
-		if setErr := d.Set("client_key", v); setErr != nil {
-			return NewResourceError("setting client_key", d.Id(), setErr)
-		}
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

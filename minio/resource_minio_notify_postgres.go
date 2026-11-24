@@ -63,27 +63,14 @@ func buildNotifyPostgresCfg(d *schema.ResourceData, meta interface{}) string {
 }
 
 func readNotifyPostgresFields(cfgMap map[string]string, d *schema.ResourceData) diag.Diagnostics {
-	if v, ok := cfgMap["connection_string"]; ok {
-		if err := d.Set("connection_string", v); err != nil {
-			return NewResourceError("setting connection_string", d.Id(), err)
-		}
+	if diags := notifySetPresentStrings(d, cfgMap, "connection_string"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["table"]; ok && v != "" {
-		_ = d.Set("table", v)
+	if diags := notifySetNonEmptyStrings(d, cfgMap, "table", "format"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["format"]; ok && v != "" {
-		_ = d.Set("format", v)
+	if diags := notifySetInt(d, cfgMap, "max_open_connections", "max_open_connections"); diags != nil {
+		return diags
 	}
-
-	if v, ok := cfgMap["max_open_connections"]; ok {
-		if n, err := parseInt(v); err == nil {
-			_ = d.Set("max_open_connections", n)
-		}
-	}
-
-	notifyReadCommonFields(cfgMap, d)
-
-	return nil
+	return notifyReadCommonFields(cfgMap, d)
 }

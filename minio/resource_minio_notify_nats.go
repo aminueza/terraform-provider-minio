@@ -122,9 +122,8 @@ func buildNotifyNatsCfg(d *schema.ResourceData, meta interface{}) string {
 
 	notifyBuildCfgAddParam(&parts, "address", d.Get("address").(string))
 	notifyBuildCfgAddParam(&parts, "subject", d.Get("subject").(string))
-	notifyBuildCfgAddParam(&parts, "username", getOptionalField(d, "username", "").(string))
-	notifyBuildCfgAddParam(&parts, "password", getOptionalField(d, "password", "").(string))
-	notifyBuildCfgAddParam(&parts, "token", getOptionalField(d, "token", "").(string))
+	notifyBuildCfgClearablePair(&parts, d, "username", "password")
+	notifyBuildCfgClearableParam(&parts, d, "token")
 	// user_credentials is not sent: notify_nats has no such key, and MinIO
 	// glues an unknown key onto the value written before it, which corrupted
 	// the subject, the password or the token.
@@ -135,10 +134,9 @@ func buildNotifyNatsCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddBool(&parts, "streaming", getOptionalField(d, "streaming", false).(bool))
 	notifyBuildCfgAddBool(&parts, "streaming_async", getOptionalField(d, "streaming_async", false).(bool))
 	notifyBuildCfgAddInt(&parts, "streaming_max_pub_acks_in_flight", getOptionalField(d, "streaming_max_pub_acks_in_flight", 0).(int))
-	notifyBuildCfgAddParam(&parts, "streaming_cluster_id", getOptionalField(d, "streaming_cluster_id", "").(string))
-	notifyBuildCfgAddParam(&parts, "cert_authority", getOptionalField(d, "cert_authority", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_cert", getOptionalField(d, "client_cert", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_key", getOptionalField(d, "client_key", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "streaming_cluster_id")
+	notifyBuildCfgClearableParam(&parts, d, "cert_authority")
+	notifyBuildCfgClearablePair(&parts, d, "client_cert", "client_key")
 
 	notifyBuildCommonCfg(&parts, d, meta)
 
@@ -152,7 +150,7 @@ func readNotifyNatsFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["subject"]; ok {
 		_ = d.Set("subject", v)
 	}
-	if v, ok := cfgMap["username"]; ok && v != "" {
+	if v, ok := cfgMap["username"]; ok {
 		_ = d.Set("username", v)
 	}
 	if v, ok := cfgMap["tls"]; ok {
@@ -188,13 +186,13 @@ func readNotifyNatsFields(cfgMap map[string]string, d *schema.ResourceData) diag
 			_ = d.Set("streaming_max_pub_acks_in_flight", n)
 		}
 	}
-	if v, ok := cfgMap["streaming_cluster_id"]; ok && v != "" {
+	if v, ok := cfgMap["streaming_cluster_id"]; ok {
 		_ = d.Set("streaming_cluster_id", v)
 	}
-	if v, ok := cfgMap["cert_authority"]; ok && v != "" {
+	if v, ok := cfgMap["cert_authority"]; ok {
 		_ = d.Set("cert_authority", v)
 	}
-	if v, ok := cfgMap["client_cert"]; ok && v != "" {
+	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
 	}
 

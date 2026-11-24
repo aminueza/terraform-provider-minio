@@ -125,7 +125,7 @@ func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string
 	for key, serverValue := range cfgMap {
 		want, sent := intended[key]
 		if !sent {
-			if key == "comment" || key == "queue_dir" {
+			if isClearableNotifyConfigKey(key) {
 				if serverValue != "" {
 					return false
 				}
@@ -337,6 +337,32 @@ func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key s
 		return
 	}
 	notifyBuildCfgAddParam(parts, key, val)
+}
+
+// notifyBuildCfgClearablePair adds readableKey and secretKey via
+// notifyBuildCfgClearableParam, and also clears secretKey when readableKey was
+// removed while secretKey is not in state (for example after import, when MinIO
+// validates both keys as a pair on enabled targets).
+func notifyBuildCfgClearablePair(parts *[]string, d *schema.ResourceData, readableKey, secretKey string) {
+	notifyBuildCfgClearableParam(parts, d, readableKey)
+	secretVal := getOptionalField(d, secretKey, "").(string)
+	if secretVal == "" && (d.HasChange(secretKey) || (d.HasChange(readableKey) && getOptionalField(d, readableKey, "").(string) == "")) {
+		*parts = append(*parts, secretKey+"=")
+		return
+	}
+	notifyBuildCfgAddParam(parts, secretKey, secretVal)
+}
+
+func isClearableNotifyConfigKey(key string) bool {
+	switch key {
+	case "comment", "queue_dir",
+		"client_cert", "proxy", "username", "streaming_cluster_id",
+		"cert_authority", "sasl_username", "client_tls_cert", "version",
+		"user", "exchange", "exchange_type", "routing_key":
+		return true
+	default:
+		return false
+	}
 }
 
 // notifyWithQueueSize replaces queue_limit for logger_webhook and

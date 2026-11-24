@@ -59,8 +59,8 @@ func buildNotifyRedisCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgAddParam(&parts, "address", d.Get("address").(string))
 	notifyBuildCfgAddParam(&parts, "key", d.Get("key").(string))
 	notifyBuildCfgAddParam(&parts, "format", d.Get("format").(string))
-	notifyBuildCfgAddParam(&parts, "password", getOptionalField(d, "password", "").(string))
-	notifyBuildCfgAddParam(&parts, "user", getOptionalField(d, "user", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "password")
+	notifyBuildCfgClearableParam(&parts, d, "user")
 
 	notifyBuildCommonCfg(&parts, d, meta)
 
@@ -81,7 +81,7 @@ func readNotifyRedisFields(cfgMap map[string]string, d *schema.ResourceData) dia
 		_ = d.Set("format", v)
 	}
 
-	if v, ok := cfgMap["user"]; ok && v != "" {
+	if v, ok := cfgMap["user"]; ok {
 		_ = d.Set("user", v)
 	}
 

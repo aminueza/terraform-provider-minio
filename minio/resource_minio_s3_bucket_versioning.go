@@ -117,13 +117,20 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 	// MinIO multi-drive deployments can lose the bucket policy when versioning
 	// is set immediately after a policy write. Capture the policy before and
 	// restore it if SetBucketVersioning destroyed it.
-	policyBefore, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
-	if strings.TrimSpace(policyBefore) != "" && strings.TrimSpace(policyBefore) != "{}" {
+	policyBefore, beforeErr := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+	if beforeErr != nil {
+		tflog.Debug(ctx, fmt.Sprintf("Skipping policy-loss check for bucket %s: %v", bucketVersioningConfig.MinioBucket, beforeErr))
+	} else if strings.TrimSpace(policyBefore) != "" && strings.TrimSpace(policyBefore) != "{}" {
 		time.Sleep(500 * time.Millisecond)
-		policyAfter, _ := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
-		if strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
+		policyAfter, afterErr := bucketVersioningConfig.MinioClient.GetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket)
+		// A failed verification read counts as lost: re-applying the captured
+		// policy is idempotent, and skipping the restore would silently drop
+		// the protection this workaround exists for.
+		if afterErr != nil || strings.TrimSpace(policyAfter) == "" || strings.TrimSpace(policyAfter) == "{}" {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s policy was lost after SetBucketVersioning, restoring", bucketVersioningConfig.MinioBucket))
-			_ = bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore)
+			if restoreErr := bucketVersioningConfig.MinioClient.SetBucketPolicy(ctx, bucketVersioningConfig.MinioBucket, policyBefore); restoreErr != nil {
+				tflog.Warn(ctx, fmt.Sprintf("Failed to restore bucket %s policy after SetBucketVersioning: %v", bucketVersioningConfig.MinioBucket, restoreErr))
+			}
 		}
 	}
 

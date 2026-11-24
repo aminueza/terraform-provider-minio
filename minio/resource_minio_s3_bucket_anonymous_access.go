@@ -432,32 +432,18 @@ func confirmConfiguredAccessType(d *schema.ResourceData, policy string, bucketNa
 // and `public-read-write` writes the same one as `public`, so a policy written by either is
 // reported as `public`; callers that know which access type is configured confirm that first.
 func getAccessTypeFromPolicy(policy string, bucketName string) (string, error) {
-	publicPolicy, _ := marshalPolicy(PublicPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-	readOnlyPolicy, _ := marshalPolicy(ReadOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-	writeOnlyPolicy, _ := marshalPolicy(WriteOnlyPolicy(&S3MinioBucket{MinioBucket: bucketName}))
-
-	equivalent, err := awspolicy.PoliciesAreEquivalent(policy, readOnlyPolicy)
-	if err != nil {
-		return "", err
-	}
-	if equivalent {
-		return "public-read", nil
-	}
-
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, publicPolicy)
-	if err != nil {
-		return "", err
-	}
-	if equivalent {
-		return "public", nil
-	}
-
-	equivalent, err = awspolicy.PoliciesAreEquivalent(policy, writeOnlyPolicy)
-	if err != nil {
-		return "", err
-	}
-	if equivalent {
-		return "public-write", nil
+	for _, accessType := range []string{"public-read", "public", "public-write"} {
+		canonical, err := canonicalPolicyForAccessType(accessType, bucketName)
+		if err != nil {
+			return "", err
+		}
+		equivalent, err := awspolicy.PoliciesAreEquivalent(policy, canonical)
+		if err != nil {
+			return "", err
+		}
+		if equivalent {
+			return accessType, nil
+		}
 	}
 
 	return "", nil

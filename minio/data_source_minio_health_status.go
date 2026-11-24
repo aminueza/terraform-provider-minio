@@ -72,27 +72,27 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 		Timeout: timeout,
 	}
 
-	live, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/live")
+	live, err := checkEndpointStatus(ctx, client, baseURL, "/minio/health/live", http.StatusServiceUnavailable)
 	if err != nil {
 		return NewResourceError("checking liveness", baseURL, err)
 	}
 
-	ready, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/ready")
+	ready, err := checkEndpointStatus(ctx, client, baseURL, "/minio/health/ready", http.StatusServiceUnavailable)
 	if err != nil {
 		return NewResourceError("checking readiness", baseURL, err)
 	}
 
-	writeQuorum, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/cluster")
+	writeQuorum, err := checkEndpointStatus(ctx, client, baseURL, "/minio/health/cluster", http.StatusServiceUnavailable)
 	if err != nil {
 		return NewResourceError("checking write quorum", baseURL, err)
 	}
 
-	readQuorum, err := checkHealthEndpoint(ctx, client, baseURL, "/minio/health/cluster/read")
+	readQuorum, err := checkEndpointStatus(ctx, client, baseURL, "/minio/health/cluster/read", http.StatusServiceUnavailable)
 	if err != nil {
 		return NewResourceError("checking read quorum", baseURL, err)
 	}
 
-	safeForMaintenance, err := checkMaintenanceEndpoint(ctx, client, baseURL, "/minio/health/cluster?maintenance=true")
+	safeForMaintenance, err := checkEndpointStatus(ctx, client, baseURL, "/minio/health/cluster?maintenance=true", http.StatusPreconditionFailed)
 	if err != nil {
 		return NewResourceError("checking maintenance safety", baseURL, err)
 	}
@@ -125,8 +125,8 @@ func dataSourceMinioHealthStatusRead(ctx context.Context, d *schema.ResourceData
 	return nil
 }
 
-// Checks health endpoint. Returns true for 200, false for 503.
-func checkHealthEndpoint(ctx context.Context, client *http.Client, baseURL, path string) (bool, error) {
+// Checks a MinIO probe endpoint. Returns true for 200 and false for falseStatus.
+func checkEndpointStatus(ctx context.Context, client *http.Client, baseURL, path string, falseStatus int) (bool, error) {
 	url := baseURL + path
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -138,37 +138,16 @@ func checkHealthEndpoint(ctx context.Context, client *http.Client, baseURL, path
 	if err != nil {
 		return false, fmt.Errorf("failed to make request to %s: %w", url, err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			tflog.Debug(ctx, fmt.Sprintf("Failed to close response body for %s: %v", url, closeErr))
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
 		return true, nil
-	case http.StatusServiceUnavailable:
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, url)
-	}
-}
-
-// Checks maintenance endpoint. Returns true for 200 (safe), false for 412 (would lose quorum).
-func checkMaintenanceEndpoint(ctx context.Context, client *http.Client, baseURL, path string) (bool, error) {
-	url := baseURL + path
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return false, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("failed to make request to %s: %w", url, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return true, nil
-	case http.StatusPreconditionFailed:
+	case falseStatus:
 		return false, nil
 	default:
 		return false, fmt.Errorf("unexpected status code %d from %s", resp.StatusCode, url)

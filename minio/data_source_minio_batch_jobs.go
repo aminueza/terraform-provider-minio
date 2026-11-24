@@ -105,7 +105,9 @@ func dataSourceMinioBatchJobsRead(ctx context.Context, d *schema.ResourceData, m
 			return nil
 		})
 	}
-	_ = g.Wait()
+	if err := g.Wait(); err != nil {
+		return NewResourceError("waiting for batch job statuses", jobType, err)
+	}
 
 	statusFilter := d.Get("status").(string)
 	var filteredJobs []map[string]interface{}

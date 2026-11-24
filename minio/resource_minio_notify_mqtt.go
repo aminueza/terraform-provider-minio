@@ -71,8 +71,7 @@ func buildNotifyMqttCfg(d *schema.ResourceData, meta interface{}) string {
 
 	notifyBuildCfgAddParam(&parts, "broker", d.Get("broker").(string))
 	notifyBuildCfgAddParam(&parts, "topic", d.Get("topic").(string))
-	notifyBuildCfgClearableParam(&parts, d, "username")
-	notifyBuildCfgClearableParam(&parts, d, "password")
+	notifyBuildCfgClearablePair(&parts, d, "username", "password")
 	notifyBuildCfgAddInt(&parts, "qos", getOptionalField(d, "qos", 0).(int))
 	notifyBuildCfgAddParam(&parts, "keep_alive_interval", getOptionalField(d, "keep_alive_interval", "").(string))
 	notifyBuildCfgAddParam(&parts, "reconnect_interval", getOptionalField(d, "reconnect_interval", "").(string))

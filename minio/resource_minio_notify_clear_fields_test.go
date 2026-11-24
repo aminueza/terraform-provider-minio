@@ -593,6 +593,222 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 				"format": "namespace",
 			},
 		},
+		{
+			name:     "notify_kafka sasl pair",
+			stubKey:  "notify_kafka:primary",
+			resource: resourceMinioNotifyKafka,
+			serverInitial: map[string]string{
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            "on",
+				"sasl_username":   "kafkauser",
+				"sasl_password":   "kafkapass",
+				"tls":             "on",
+				"client_tls_cert": "/certs/client.crt",
+				"client_tls_key":  "/certs/client.key",
+			},
+			readableKey: "sasl_username",
+			secretKey:   "sasl_password",
+			rotatedVal:  "otheruser",
+			keepConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+				"comment":         "unrelated",
+			},
+			rotateConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            true,
+				"sasl_username":   "otheruser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+			},
+			removeConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            true,
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+			},
+			keepHiddenKeys: map[string]string{"client_tls_key": "/certs/client.key"},
+		},
+		{
+			name:     "notify_kafka client_tls_cert pair",
+			stubKey:  "notify_kafka:primary",
+			resource: resourceMinioNotifyKafka,
+			serverInitial: map[string]string{
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            "on",
+				"sasl_username":   "kafkauser",
+				"sasl_password":   "kafkapass",
+				"tls":             "on",
+				"client_tls_cert": "/certs/client.crt",
+				"client_tls_key":  "/certs/client.key",
+			},
+			readableKey: "client_tls_cert",
+			secretKey:   "client_tls_key",
+			rotatedVal:  "/certs/rotated.crt",
+			keepConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+				"comment":         "unrelated",
+			},
+			rotateConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "events",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/rotated.crt",
+			},
+			removeConfig: map[string]interface{}{
+				"name":          "primary",
+				"brokers":       "kafka:9092",
+				"topic":         "events",
+				"sasl":          true,
+				"sasl_username": "kafkauser",
+				"tls":           true,
+			},
+			keepHiddenKeys: map[string]string{"sasl_password": "kafkapass"},
+		},
+		{
+			name:     "audit_kafka sasl pair",
+			stubKey:  "audit_kafka:primary",
+			resource: resourceMinioAuditKafka,
+			serverInitial: map[string]string{
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            "on",
+				"sasl_username":   "kafkauser",
+				"sasl_password":   "kafkapass",
+				"tls":             "on",
+				"client_tls_cert": "/certs/client.crt",
+				"client_tls_key":  "/certs/client.key",
+			},
+			readableKey: "sasl_username",
+			secretKey:   "sasl_password",
+			rotatedVal:  "otheruser",
+			keepConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+				"comment":         "unrelated",
+			},
+			rotateConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            true,
+				"sasl_username":   "otheruser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+			},
+			removeConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            true,
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+			},
+			keepHiddenKeys: map[string]string{"client_tls_key": "/certs/client.key"},
+		},
+		{
+			name:     "audit_kafka client_tls_cert pair",
+			stubKey:  "audit_kafka:primary",
+			resource: resourceMinioAuditKafka,
+			serverInitial: map[string]string{
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            "on",
+				"sasl_username":   "kafkauser",
+				"sasl_password":   "kafkapass",
+				"tls":             "on",
+				"client_tls_cert": "/certs/client.crt",
+				"client_tls_key":  "/certs/client.key",
+			},
+			readableKey: "client_tls_cert",
+			secretKey:   "client_tls_key",
+			rotatedVal:  "/certs/rotated.crt",
+			keepConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/client.crt",
+				"comment":         "unrelated",
+			},
+			rotateConfig: map[string]interface{}{
+				"name":            "primary",
+				"brokers":         "kafka:9092",
+				"topic":           "audit",
+				"sasl":            true,
+				"sasl_username":   "kafkauser",
+				"tls":             true,
+				"client_tls_cert": "/certs/rotated.crt",
+			},
+			removeConfig: map[string]interface{}{
+				"name":          "primary",
+				"brokers":       "kafka:9092",
+				"topic":         "audit",
+				"sasl":          true,
+				"sasl_username": "kafkauser",
+				"tls":           true,
+			},
+			keepHiddenKeys: map[string]string{"sasl_password": "kafkapass"},
+		},
+		{
+			name:     "notify_mqtt username password pair",
+			stubKey:  "notify_mqtt:primary",
+			resource: resourceMinioNotifyMqtt,
+			serverInitial: map[string]string{
+				"broker":   "tcp://mqtt:1883",
+				"topic":    "events",
+				"username": "mqttuser",
+				"password": "mqttpass",
+			},
+			readableKey: "username",
+			secretKey:   "password",
+			rotatedVal:  "otheruser",
+			keepConfig: map[string]interface{}{
+				"name":     "primary",
+				"broker":   "tcp://mqtt:1883",
+				"topic":    "events",
+				"username": "mqttuser",
+				"comment":  "unrelated",
+			},
+			rotateConfig: map[string]interface{}{
+				"name":     "primary",
+				"broker":   "tcp://mqtt:1883",
+				"topic":    "events",
+				"username": "otheruser",
+			},
+			removeConfig: map[string]interface{}{
+				"name":   "primary",
+				"broker": "tcp://mqtt:1883",
+				"topic":  "events",
+			},
+		},
 	}
 
 	importState := func(t *testing.T, tcStubKey string, resourceFn func() *schema.Resource, serverInitial map[string]string) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
@@ -669,6 +885,51 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestNotifyRedisUserRemovalKeepsPasswordAfterImport(t *testing.T) {
+	// Redis authenticates with `AUTH <password>` when no user is set, so a
+	// password is valid on its own and `user` is not the readable half of a
+	// pair: removing `user` after an import must clear only `user` and leave
+	// the server's password in place.
+	stub, client := newNotifyConfigStub(t, "notify_redis:primary")
+	stub.kvs["address"] = "redis:6379"
+	stub.kvs["key"] = "events"
+	stub.kvs["format"] = "namespace"
+	stub.kvs["user"] = "redisuser"
+	stub.kvs["password"] = "redispass"
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioNotifyRedis()
+	ctx := context.Background()
+
+	state, diags := res.RefreshWithoutUpgrade(ctx, &terraform.InstanceState{
+		ID:         "primary",
+		Attributes: map[string]string{"id": "primary"},
+	}, meta)
+	if diags.HasError() {
+		t.Fatalf("import: %v", diags)
+	}
+
+	raw := map[string]interface{}{
+		"name":    "primary",
+		"address": "redis:6379",
+		"key":     "events",
+		"format":  "namespace",
+	}
+	diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	if _, diags := res.Apply(ctx, state, diff, meta); diags.HasError() {
+		t.Fatalf("apply: %v", diags)
+	}
+
+	if got := stub.kvs["user"]; got != "" {
+		t.Errorf("server user after removing it = %q, want empty; last set-config-kv: %q", got, stub.sets[len(stub.sets)-1])
+	}
+	if got := stub.kvs["password"]; got != "redispass" {
+		t.Errorf("server password after removing user = %q, want it kept; last set-config-kv: %q", got, stub.sets[len(stub.sets)-1])
 	}
 }
 

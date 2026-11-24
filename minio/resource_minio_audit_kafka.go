@@ -89,11 +89,9 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	var parts []string
 	notifyBuildCfgAddParam(&parts, "brokers", d.Get("brokers").(string))
 	notifyBuildCfgAddParam(&parts, "topic", d.Get("topic").(string))
-	notifyBuildCfgClearableParam(&parts, d, "sasl_username")
-	notifyBuildCfgClearableParam(&parts, d, "sasl_password")
+	notifyBuildCfgClearablePair(&parts, d, "sasl_username", "sasl_password")
 	notifyBuildCfgAddParam(&parts, "sasl_mechanism", getOptionalField(d, "sasl_mechanism", "").(string))
-	notifyBuildCfgClearableParam(&parts, d, "client_tls_cert")
-	notifyBuildCfgClearableParam(&parts, d, "client_tls_key")
+	notifyBuildCfgClearablePair(&parts, d, "client_tls_cert", "client_tls_key")
 	notifyBuildCfgClearableParam(&parts, d, "version")
 	// d.Get, not GetOk: GetOk reads false as unset, so a target written
 	// with tls=on kept tls=on on the server after the configuration

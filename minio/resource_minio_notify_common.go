@@ -341,8 +341,8 @@ func notifyBuildCfgClearableParam(parts *[]string, d *schema.ResourceData, key s
 
 // notifyBuildCfgClearablePair adds readableKey and secretKey via
 // notifyBuildCfgClearableParam, and also clears secretKey when readableKey was
-// removed while secretKey is not in state (for example after import, when MinIO
-// validates both keys as a pair on enabled targets).
+// removed while secretKey is not in state (for example after import, where a
+// leftover secret would fail target pair validation or linger stale on MinIO).
 func notifyBuildCfgClearablePair(parts *[]string, d *schema.ResourceData, readableKey, secretKey string) {
 	notifyBuildCfgClearableParam(parts, d, readableKey)
 	secretVal := getOptionalField(d, secretKey, "").(string)

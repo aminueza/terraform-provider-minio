@@ -25,4 +25,4 @@ Import is supported using the target name:
 terraform import {{.Name}}.example target-name
 ```
 
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.
+Note: `password` and `token` are not returned by the MinIO API. After import, these values will be empty in state until the next apply.

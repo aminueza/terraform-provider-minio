@@ -118,8 +118,10 @@ func notifyTargetConfigParams(response, configKey string) (cfgMap map[string]str
 // converge on. Keys missing from the response are treated as stale only where
 // the stored value is always printed: a cleared key listed by
 // isClearableNotifyConfigKey must come back empty, and enable=off must come
-// back as off, because the server prints enable only when it is off. Secret
-// keys are absent from the response and are never compared. See issue #1299.
+// back as off, because the server prints enable only when it is off. Key paths
+// marked Sensitive (such as client_key and client_tls_key) are returned when
+// set and compared normally; secret keys (passwords, tokens) are absent from
+// the response and are never compared. See issue #1299.
 func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string]string, d *schema.ResourceData, meta interface{}) bool {
 	intended := parseConfigParams(nrc.buildCfg(d, meta))
 	for key, serverValue := range cfgMap {
@@ -360,8 +362,8 @@ func notifyBuildCfgClearablePair(parts *[]string, d *schema.ResourceData, readab
 func isClearableNotifyConfigKey(key string) bool {
 	switch key {
 	case "comment", "queue_dir",
-		"client_cert", "proxy", "username", "streaming_cluster_id",
-		"cert_authority", "sasl_username", "client_tls_cert", "version",
+		"client_cert", "client_key", "proxy", "username", "streaming_cluster_id",
+		"cert_authority", "sasl_username", "client_tls_cert", "client_tls_key", "version",
 		"user", "exchange", "exchange_type", "routing_key":
 		return true
 	default:

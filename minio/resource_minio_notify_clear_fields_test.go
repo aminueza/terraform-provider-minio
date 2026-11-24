@@ -22,15 +22,19 @@ import (
 // notifyConfigStub keeps one target's settings and merges every set-config-kv
 // into them, as MinIO's Config.SetKVS does.
 type notifyConfigStub struct {
-	mu   sync.Mutex
-	key  string
-	kvs  map[string]string
-	sets []string
+	mu         sync.Mutex
+	key        string
+	kvs        map[string]string
+	hideOnRead map[string]bool
+	sets       []string
 }
 
 func (s *notifyConfigStub) line() string {
 	keys := make([]string, 0, len(s.kvs))
 	for k := range s.kvs {
+		if s.hideOnRead[k] {
+			continue
+		}
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
@@ -43,7 +47,11 @@ func (s *notifyConfigStub) line() string {
 
 func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.AdminClient) {
 	t.Helper()
-	stub := &notifyConfigStub{key: key, kvs: map[string]string{}}
+	stub := &notifyConfigStub{
+		key:        key,
+		kvs:        map[string]string{},
+		hideOnRead: map[string]bool{},
+	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		stub.mu.Lock()
@@ -811,11 +819,14 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 		},
 	}
 
-	importState := func(t *testing.T, tcStubKey string, resourceFn func() *schema.Resource, serverInitial map[string]string) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
+	importState := func(t *testing.T, tcStubKey string, resourceFn func() *schema.Resource, serverInitial map[string]string, hideKeys ...string) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
 		t.Helper()
 		stub, client := newNotifyConfigStub(t, tcStubKey)
 		for k, v := range serverInitial {
 			stub.kvs[k] = v
+		}
+		for _, k := range hideKeys {
+			stub.hideOnRead[k] = true
 		}
 		meta := &S3MinioClient{S3Admin: client}
 		res := resourceFn()
@@ -842,8 +853,13 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 	}
 
 	for _, tc := range cases {
+		hideKeys := []string{tc.secretKey}
+		for k := range tc.keepHiddenKeys {
+			hideKeys = append(hideKeys, k)
+		}
+
 		t.Run(tc.name+"/unrelated update keeps hidden secrets", func(t *testing.T) {
-			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial)
+			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial, hideKeys...)
 			applyRaw(t, res, meta, state, tc.keepConfig)
 
 			wantSecret := tc.serverInitial[tc.secretKey]
@@ -858,7 +874,7 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 		})
 
 		t.Run(tc.name+"/changing readable field keeps hidden half", func(t *testing.T) {
-			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial)
+			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial, hideKeys...)
 			applyRaw(t, res, meta, state, tc.rotateConfig)
 
 			if got := stub.kvs[tc.readableKey]; got != tc.rotatedVal {
@@ -871,7 +887,7 @@ func TestNotifyUpdatePairSecretsAfterImport(t *testing.T) {
 		})
 
 		t.Run(tc.name+"/removing readable field clears hidden half", func(t *testing.T) {
-			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial)
+			stub, res, meta, state := importState(t, tc.stubKey, tc.resource, tc.serverInitial, hideKeys...)
 			applyRaw(t, res, meta, state, tc.removeConfig)
 
 			for _, key := range []string{tc.readableKey, tc.secretKey} {

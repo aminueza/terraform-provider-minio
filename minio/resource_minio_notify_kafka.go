@@ -81,7 +81,7 @@ func resourceMinioNotifyKafka() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Path to the client TLS private key. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "Path to the client TLS private key.",
 			},
 			"version": {
 				Type:        schema.TypeString,
@@ -150,6 +150,9 @@ func readNotifyKafkaFields(cfgMap map[string]string, d *schema.ResourceData) dia
 	}
 	if v, ok := cfgMap["client_tls_cert"]; ok {
 		_ = d.Set("client_tls_cert", v)
+	}
+	if v, ok := cfgMap["client_tls_key"]; ok {
+		_ = d.Set("client_tls_key", v)
 	}
 	if v, ok := cfgMap["version"]; ok {
 		_ = d.Set("version", v)

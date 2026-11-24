@@ -31,4 +31,4 @@ Import is supported using the target name:
 terraform import minio_notify_webhook.primary primary
 ```
 
-Note: Sensitive fields (`auth_token`, `client_key`) are not returned by the MinIO API. After import, these values will be empty in state until the next apply sets them from your configuration.
+Note: `auth_token` is not returned by the MinIO API. After import, this value will be empty in state until the next apply sets it from your configuration.

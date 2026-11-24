@@ -111,7 +111,7 @@ func resourceMinioNotifyNats() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Path to the client private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "Path to the client private key for mTLS authentication.",
 			},
 		}),
 	}
@@ -194,6 +194,9 @@ func readNotifyNatsFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	}
 	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
+	}
+	if v, ok := cfgMap["client_key"]; ok {
+		_ = d.Set("client_key", v)
 	}
 
 	notifyReadCommonFields(cfgMap, d)

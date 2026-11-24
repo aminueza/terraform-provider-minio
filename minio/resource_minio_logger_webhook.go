@@ -77,6 +77,9 @@ func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
 	}
+	if v, ok := cfgMap["client_key"]; ok {
+		_ = d.Set("client_key", v)
+	}
 	if v, ok := cfgMap["proxy"]; ok {
 		_ = d.Set("proxy", v)
 	}

@@ -33,7 +33,7 @@ output "nats_subject" {
 - `address` (String) NATS server address (e.g., 'nats://localhost:4222').
 - `cert_authority` (String) Path to the certificate authority file for TLS verification.
 - `client_cert` (String) Path to the client certificate for mTLS authentication.
-- `client_key` (String, Sensitive) Path to the client private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_key` (String, Sensitive) Path to the client private key for mTLS authentication.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `id` (String) The ID of this resource.

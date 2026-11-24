@@ -61,7 +61,7 @@ resource "minio_s3_bucket_notification" "events" {
 
 - `auth_token` (String, Sensitive) Authentication token for the webhook endpoint. MinIO does not return this value on read.
 - `client_cert` (String) Path to the X.509 client certificate for mTLS authentication.
-- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.
+- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
@@ -80,4 +80,4 @@ Import is supported using the target name:
 terraform import minio_notify_webhook.primary primary
 ```
 
-Note: Sensitive fields (`auth_token`, `client_key`) are not returned by the MinIO API. After import, these values will be empty in state until the next apply sets them from your configuration.
+Note: `auth_token` is not returned by the MinIO API. After import, this value will be empty in state until the next apply sets it from your configuration.

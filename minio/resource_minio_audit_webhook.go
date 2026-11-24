@@ -70,7 +70,7 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Optional:     true,
 				Sensitive:    true,
 				ValidateFunc: validateConfigValue,
-				Description:  "Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description:  "Path to the X.509 private key for mTLS authentication with the webhook endpoint.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
@@ -186,6 +186,12 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	if v, ok := cfgMap["client_key"]; ok {
+		if setErr := d.Set("client_key", v); setErr != nil {
+			return NewResourceError("setting client_key", name, setErr)
+		}
+	}
+
 	return nil
 }
 
@@ -248,9 +254,9 @@ func auditWebhookClearedKeys(d *schema.ResourceData) []string {
 			keys = append(keys, key)
 		}
 	}
-	// MinIO only accepts client_cert and client_key as a pair, and Read does
-	// not store client_key, so an imported key is not in the state: removing
-	// the certificate clears the key with it.
+	// MinIO only accepts client_cert and client_key as a pair; older servers may
+	// omit client_key on read so it stays empty in imported state, in which case
+	// removing the certificate clears the key with it.
 	if Contains(keys, "client_cert") && !Contains(keys, "client_key") && d.Get("client_key").(string) == "" {
 		keys = append(keys, "client_key")
 	}

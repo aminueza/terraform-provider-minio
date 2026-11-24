@@ -40,7 +40,7 @@ resource "minio_notify_kafka" "events" {
 
 - `batch_size` (Number) Number of messages to batch before sending to Kafka.
 - `client_tls_cert` (String) Path to the client TLS certificate for mTLS authentication.
-- `client_tls_key` (String, Sensitive) Path to the client TLS private key. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_tls_key` (String, Sensitive) Path to the client TLS private key.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
@@ -67,4 +67,4 @@ Import is supported using the target name:
 terraform import minio_notify_kafka.example target-name
 ```
 
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.
+Note: `sasl_password` is not returned by the MinIO API. After import, this value will be empty in state until the next apply.

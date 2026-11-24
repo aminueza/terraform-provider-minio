@@ -42,7 +42,7 @@ func resourceMinioNotifyWebhook() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.",
+				Description: "Path to the X.509 private key for mTLS authentication.",
 			},
 		}),
 	}
@@ -63,6 +63,9 @@ func readNotifyWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	}
 	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
+	}
+	if v, ok := cfgMap["client_key"]; ok {
+		_ = d.Set("client_key", v)
 	}
 	notifyReadCommonFields(cfgMap, d)
 	return nil

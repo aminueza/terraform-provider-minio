@@ -122,6 +122,9 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["client_tls_cert"]; ok {
 		_ = d.Set("client_tls_cert", v)
 	}
+	if v, ok := cfgMap["client_tls_key"]; ok {
+		_ = d.Set("client_tls_key", v)
+	}
 	if v, ok := cfgMap["version"]; ok {
 		_ = d.Set("version", v)
 	}

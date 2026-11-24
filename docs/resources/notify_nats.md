@@ -38,7 +38,7 @@ resource "minio_notify_nats" "events" {
 
 - `cert_authority` (String) Path to the certificate authority file for TLS verification.
 - `client_cert` (String) Path to the client certificate for mTLS authentication.
-- `client_key` (String, Sensitive) Path to the client private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_key` (String, Sensitive) Path to the client private key for mTLS authentication.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `jetstream` (Boolean) Whether to enable JetStream support for NATS.
@@ -69,4 +69,4 @@ Import is supported using the target name:
 terraform import minio_notify_nats.example target-name
 ```
 
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.
+Note: `password` and `token` are not returned by the MinIO API. After import, these values will be empty in state until the next apply.

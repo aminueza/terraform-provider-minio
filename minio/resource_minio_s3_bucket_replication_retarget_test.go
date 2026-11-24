@@ -373,8 +373,9 @@ func TestBucketReplicationWarningsAndLegacyBandwidthRoundTrip(t *testing.T) {
 	if putDiags.HasError() {
 		t.Fatalf("minioPutBucketReplication unexpected error: %v", putDiags)
 	}
-	wantWarn := "rule[0].target.secure is false. It is unsafe to use bucket replication over HTTP"
-	assertHasReplicationWarning(t, "minioPutBucketReplication", putDiags, wantWarn)
+	// The secure = false warning belongs to the schema validation
+	// (validateReplicationTargetSecure); Put and Read must not repeat it.
+	assertNoReplicationSecureWarning(t, "minioPutBucketReplication", putDiags)
 	if len(f.targets) != 1 || f.targets[0].BandwidthLimit != 200000000 {
 		t.Fatalf("remote targets = %+v, want BandwidthLimit=200000000", f.targets)
 	}
@@ -386,7 +387,7 @@ func TestBucketReplicationWarningsAndLegacyBandwidthRoundTrip(t *testing.T) {
 	if readDiags.HasError() {
 		t.Fatalf("minioReadBucketReplication unexpected error: %v", readDiags)
 	}
-	assertHasReplicationWarning(t, "minioReadBucketReplication", readDiags, wantWarn)
+	assertNoReplicationSecureWarning(t, "minioReadBucketReplication", readDiags)
 
 	rules := d.Get("rule").([]interface{})
 	target := rules[0].(map[string]interface{})["target"].([]interface{})[0].(map[string]interface{})
@@ -401,12 +402,11 @@ func TestBucketReplicationWarningsAndLegacyBandwidthRoundTrip(t *testing.T) {
 	}
 }
 
-func assertHasReplicationWarning(t *testing.T, op string, diags diag.Diagnostics, wantSummary string) {
+func assertNoReplicationSecureWarning(t *testing.T, op string, diags diag.Diagnostics) {
 	t.Helper()
 	for _, d := range diags {
-		if d.Severity == diag.Warning && d.Summary == wantSummary {
-			return
+		if d.Severity == diag.Warning && strings.Contains(d.Summary, "secure is false") {
+			t.Fatalf("%s repeated the schema secure warning: %v", op, diags)
 		}
 	}
-	t.Fatalf("%s diags = %v, want warning %q", op, diags, wantSummary)
 }

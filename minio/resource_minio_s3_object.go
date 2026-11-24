@@ -376,13 +376,19 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	if v := objInfo.Metadata.Get("Cache-Control"); v != "" {
-		_ = d.Set("cache_control", v)
+		if diags := setResourceField(d, "cache_control", v, d.Id()); diags != nil {
+			return diags
+		}
 	}
 	if v := objInfo.Metadata.Get("Content-Disposition"); v != "" {
-		_ = d.Set("content_disposition", v)
+		if diags := setResourceField(d, "content_disposition", v, d.Id()); diags != nil {
+			return diags
+		}
 	}
 	if !objInfo.Expires.IsZero() {
-		_ = d.Set("expires", objInfo.Expires.Format(time.RFC3339))
+		if diags := setResourceField(d, "expires", objInfo.Expires.Format(time.RFC3339), d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	userMeta := make(map[string]string)
@@ -394,7 +400,9 @@ func minioReadObject(ctx context.Context, d *schema.ResourceData, meta interface
 		userMeta[lower] = v
 	}
 	if len(userMeta) > 0 {
-		_ = d.Set("metadata", userMeta)
+		if diags := setResourceField(d, "metadata", userMeta, d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	return nil
@@ -416,9 +424,14 @@ func minioImportObject(ctx context.Context, d *schema.ResourceData, meta interfa
 		return nil, fmt.Errorf("unexpected import ID format (%q), expected bucket_name/object_name", d.Id())
 	}
 
-	_ = d.Set("bucket_name", parts[0])
-	_ = d.Set("object_name", parts[1])
-	d.SetId(s3ObjectID(parts[0], parts[1]))
+	objectID := s3ObjectID(parts[0], parts[1])
+	if err := d.Set("bucket_name", parts[0]); err != nil {
+		return nil, errors.New(NewResourceErrorStr("setting bucket_name", objectID, err))
+	}
+	if err := d.Set("object_name", parts[1]); err != nil {
+		return nil, errors.New(NewResourceErrorStr("setting object_name", objectID, err))
+	}
+	d.SetId(objectID)
 
 	return []*schema.ResourceData{d}, nil
 }

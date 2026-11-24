@@ -123,7 +123,9 @@ func minioReadObjectTags(ctx context.Context, d *schema.ResourceData, meta inter
 			if err := d.Set("key", objectKey); err != nil {
 				return NewResourceError("setting key", fmt.Sprintf("%s/%s", bucket, objectKey), err)
 			}
-			_ = d.Set("tags", map[string]string{})
+			if diags := setResourceField(d, "tags", map[string]string{}, fmt.Sprintf("%s/%s", bucket, objectKey)); diags != nil {
+				return diags
+			}
 			return nil
 		}
 		return NewResourceError("reading object tags", fmt.Sprintf("%s/%s", bucket, objectKey), err)

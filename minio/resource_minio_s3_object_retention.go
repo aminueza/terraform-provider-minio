@@ -128,16 +128,27 @@ func minioReadObjectRetention(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("reading object retention", fmt.Sprintf("%s/%s", bucket, key), objectVersionImportHint(err, parsedFromID))
 	}
 
-	_ = d.Set("bucket", bucket)
-	_ = d.Set("key", key)
+	resourceID := fmt.Sprintf("%s/%s", bucket, key)
+	if diags := setResourceField(d, "bucket", bucket, resourceID); diags != nil {
+		return diags
+	}
+	if diags := setResourceField(d, "key", key, resourceID); diags != nil {
+		return diags
+	}
 	if versionID != "" {
-		_ = d.Set("version_id", versionID)
+		if diags := setResourceField(d, "version_id", versionID, resourceID); diags != nil {
+			return diags
+		}
 	}
 	if mode != nil {
-		_ = d.Set("mode", string(*mode))
+		if diags := setResourceField(d, "mode", string(*mode), resourceID); diags != nil {
+			return diags
+		}
 	}
 	if retainUntil != nil {
-		_ = d.Set("retain_until_date", retainUntil.Format(time.RFC3339))
+		if diags := setResourceField(d, "retain_until_date", retainUntil.Format(time.RFC3339), resourceID); diags != nil {
+			return diags
+		}
 	}
 
 	return nil

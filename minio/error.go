@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
 )
@@ -65,6 +66,14 @@ func NewResourceErrorStr(msg string, resource string, err interface{}) string {
 	}
 
 	return strings.Join(strs, ", ")
+}
+
+// setResourceField writes key to d and returns a fatal diagnostic if schema assignment fails.
+func setResourceField(d *schema.ResourceData, key string, val interface{}, resourceID string) diag.Diagnostics {
+	if err := d.Set(key, val); err != nil {
+		return NewResourceError("setting "+key, resourceID, err)
+	}
+	return nil
 }
 
 func extractErrorDetail(err error) string {

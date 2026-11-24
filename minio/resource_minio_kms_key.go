@@ -48,7 +48,9 @@ func minioCreateKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	d.SetId(keyID)
-	_ = d.Set("key_id", d.Id())
+	if diags := setResourceField(d, "key_id", d.Id(), keyID); diags != nil {
+		return diags
+	}
 
 	return minioReadKMSKey(ctx, d, meta)
 }
@@ -80,9 +82,7 @@ func minioReadKMSKey(ctx context.Context, d *schema.ResourceData, meta interface
 		return NewResourceError("KMS key has decryption error", keyConfig.MinioKMSKeyID, status.DecryptionErr)
 	}
 
-	_ = d.Set("key_id", d.Id())
-
-	return nil
+	return setResourceField(d, "key_id", d.Id(), keyConfig.MinioKMSKeyID)
 }
 
 func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -99,7 +99,9 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 			strings.Contains(errStr, "not supported") ||
 			strings.Contains(errStr, "not implemented") {
 			tflog.Debug(ctx, fmt.Sprintf("DeleteKey not supported for KMS key [%s] (external KMS backend): %v", d.Id(), err))
-			_ = d.Set("key_id", "")
+			// No key_id write here: the SDK discards the resource state after a
+			// successful delete, and a failing write would report a failed
+			// delete for a key that is already gone.
 			d.SetId("")
 			return nil
 		}
@@ -108,8 +110,6 @@ func minioDeleteKMSKey(ctx context.Context, d *schema.ResourceData, meta interfa
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Deleted KMS key: [%s]", d.Id()))
-
-	_ = d.Set("key_id", "")
 
 	return nil
 }

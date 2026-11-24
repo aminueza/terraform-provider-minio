@@ -191,10 +191,15 @@ func minioReadSiteReplication(ctx context.Context, d *schema.ResourceData, meta 
 	if name == "" {
 		name = d.Id()
 	}
-	_ = d.Set("name", name)
-
-	_ = d.Set("enabled", info.Enabled)
-	_ = d.Set("site", flattenSitesWithState(d, info.Sites))
+	if diags := setResourceField(d, "name", name, name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "enabled", info.Enabled, name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "site", flattenSitesWithState(d, info.Sites), name); diags.HasError() {
+		return diags
+	}
 
 	return nil
 }

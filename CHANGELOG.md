@@ -53,7 +53,9 @@ History older than 3.39.0 lives in the
   `<group_name>/<user_name>`) instead of a random `id.PrefixedUniqueId`, so
   stored IDs can be fed directly back into `terraform import` and `import`
   blocks. Existing states migrate to the new ID in place on the next refresh
-  with an empty plan and no replacement
+  with an empty plan and no replacement. The attachment's own plan stays empty,
+  but anything that reads the attachment's `.id` (outputs, `null_resource`
+  triggers, tags built from it) will see the new value after the first refresh
   ([#1359](https://github.com/aminueza/terraform-provider-minio/issues/1359)).
 - `minio_s3_bucket`: `object_locking` changes on an existing bucket (`false` to
   `true` or `true` to `false`) are now rejected during plan instead of being

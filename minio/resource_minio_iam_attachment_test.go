@@ -478,7 +478,8 @@ func TestAccMinioIAMUserPolicyAttachment_upgradeFromOldID(t *testing.T) {
 	cfg := testAccIAMUserPolicyAttachmentConfig(userName, policyName)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				ExternalProviders: map[string]resource.ExternalProvider{
@@ -517,7 +518,8 @@ func TestAccMinioIAMGroupPolicyAttachment_upgradeFromOldID(t *testing.T) {
 	cfg := testAccIAMGroupPolicyAttachmentConfig(groupName, policyName)
 
 	resource.ParallelTest(t, resource.TestCase{
-		PreCheck: func() { testAccPreCheck(t) },
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
 		Steps: []resource.TestStep{
 			{
 				ExternalProviders: map[string]resource.ExternalProvider{
@@ -567,7 +569,7 @@ func TestAccMinioIAMGroupUserAttachment_upgradeFromOldID(t *testing.T) {
 				},
 				Config: cfg,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestMatchResourceAttr(resourceName, "id", regexp.MustCompile("^"+regexp.QuoteMeta(expectedID)+"[0-9]+$")),
+					resource.TestMatchResourceAttr(resourceName, "id", regexp.MustCompile("^"+regexp.QuoteMeta(expectedID)+"[0-9a-f]+$")),
 				),
 			},
 			{

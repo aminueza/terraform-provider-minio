@@ -137,13 +137,13 @@ func minioDeleteUserPolicyAttachment(ctx context.Context, d *schema.ResourceData
 func minioImportUserPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.SplitN(d.Id(), "/", 2)
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy_name>", d.Id())
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy-name>", d.Id())
 	}
 
 	userName := idParts[0]
 	policyName := idParts[1]
 	if _, errs := validateIAMNamePolicy(policyName, "policy_name"); len(errs) > 0 {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy_name>: %v", d.Id(), errs[0])
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <user-name>/<policy-name>: %v", d.Id(), errs[0])
 	}
 
 	err := d.Set("user_name", userName)

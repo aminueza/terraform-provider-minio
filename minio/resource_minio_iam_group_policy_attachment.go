@@ -149,13 +149,13 @@ func minioDeleteGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceData, meta interface{}) ([]*schema.ResourceData, error) {
 	idParts := strings.SplitN(d.Id(), "/", 2)
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy_name>", d.Id())
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy-name>", d.Id())
 	}
 
 	groupName := idParts[0]
 	policyName := idParts[1]
 	if _, errs := validateIAMNamePolicy(policyName, "policy_name"); len(errs) > 0 {
-		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy_name>: %v", d.Id(), errs[0])
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy-name>: %v", d.Id(), errs[0])
 	}
 
 	err := d.Set("group_name", groupName)

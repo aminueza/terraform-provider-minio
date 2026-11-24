@@ -34,11 +34,15 @@ func TestIAMAttachmentIDsCreateReadImportAndMigrate(t *testing.T) {
 
 	t.Run("user policy attachment create read migrate missing import", func(t *testing.T) {
 		attached := false
+		userGone := false
 		meta := newIAMAttachmentStubClient(t, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch {
 			case strings.HasSuffix(r.URL.Path, "/user-info"):
-				if attached {
+				if userGone {
+					w.WriteHeader(http.StatusNotFound)
+					_, _ = fmt.Fprint(w, `{"Code":"XMinioAdminNoSuchUser","Message":"The user specified does not exist"}`)
+				} else if attached {
 					_, _ = fmt.Fprint(w, `{"status":"enabled","policyName":"readwrite","memberOf":[]}`)
 				} else {
 					_, _ = fmt.Fprint(w, `{"status":"enabled","policyName":"","memberOf":[]}`)
@@ -101,7 +105,18 @@ func TestIAMAttachmentIDsCreateReadImportAndMigrate(t *testing.T) {
 			t.Fatalf("expected resource removal when detached, got state %q", gone.ID)
 		}
 
-		// Importer stores import format directly.
+		// Deleted user also clears state: minioReadUserPolicies maps
+		// XMinioAdminNoSuchUser to "no policies" and Read drops the resource.
+		userGone = true
+		goneUser, diags := res.RefreshWithoutUpgrade(ctx, refreshed, meta)
+		if diags.HasError() {
+			t.Fatalf("refresh when user deleted failed: %v", diags)
+		}
+		if goneUser != nil && goneUser.ID != "" {
+			t.Fatalf("expected resource removal when user deleted, got state %q", goneUser.ID)
+		}
+		userGone = false
+
 		imp := res.Data(nil)
 		imp.SetId("alice/readwrite")
 		imported, err := res.Importer.StateContext(ctx, imp, meta)
@@ -194,7 +209,6 @@ func TestIAMAttachmentIDsCreateReadImportAndMigrate(t *testing.T) {
 		if diags.HasError() || (gone != nil && gone.ID != "") {
 			t.Fatalf("expected removal when detached, got state=%v diags=%v", gone, diags)
 		}
-		// Missing group also clears ID cleanly.
 		attached = true
 		groupExists = false
 		goneGroup, diags := res.RefreshWithoutUpgrade(ctx, refreshed, meta)

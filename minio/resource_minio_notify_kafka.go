@@ -159,7 +159,7 @@ func readNotifyKafkaFields(cfgMap map[string]string, d *schema.ResourceData) dia
 	}
 	if v, ok := cfgMap["client_tls_key"]; ok {
 		if setErr := d.Set("client_tls_key", v); setErr != nil {
-			return diag.FromErr(setErr)
+			return NewResourceError("setting client_tls_key", d.Id(), setErr)
 		}
 	}
 	if v, ok := cfgMap["version"]; ok {

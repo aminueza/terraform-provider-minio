@@ -152,7 +152,7 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 	}
 	if v, ok := cfgMap["client_cert_key"]; ok {
 		if setErr := d.Set("client_cert_key", v); setErr != nil {
-			return diag.FromErr(setErr)
+			return NewResourceError("setting client_cert_key", d.Id(), setErr)
 		}
 	}
 	if v, ok := cfgMap["comment"]; ok && v != "" {

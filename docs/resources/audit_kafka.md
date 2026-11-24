@@ -16,6 +16,7 @@ resource "minio_audit_kafka" "compliance" {
   name           = "compliance"
   brokers        = "kafka1:9092,kafka2:9092"
   topic          = "minio-audit"
+  sasl           = true
   sasl_username  = "minio"
   sasl_password  = var.kafka_password
   sasl_mechanism = "plain"
@@ -41,9 +42,10 @@ resource "minio_audit_kafka" "compliance" {
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number, Deprecated) Deprecated: use 'queue_size' instead.
 - `queue_size` (Number) Maximum number of undelivered events to queue.
-- `sasl_mechanism` (String) SASL mechanism (plain, scram-sha-256, scram-sha-512).
-- `sasl_password` (String, Sensitive) SASL password for Kafka authentication.
-- `sasl_username` (String) SASL username for Kafka authentication.
+- `sasl` (Boolean) Enable SASL authentication for Kafka connections.
+- `sasl_mechanism` (String) SASL mechanism (plain, scram-sha-256, scram-sha-512). Only used when `sasl` is `true`.
+- `sasl_password` (String, Sensitive) SASL password for Kafka authentication. Only used when `sasl` is `true`.
+- `sasl_username` (String) SASL username for Kafka authentication. Only used when `sasl` is `true`.
 - `tls` (Boolean) Enable TLS for Kafka connections.
 - `tls_skip_verify` (Boolean) Skip TLS certificate verification.
 - `version` (String) Kafka protocol version.

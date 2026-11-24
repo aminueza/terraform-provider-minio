@@ -19,6 +19,7 @@ resource "minio_notify_kafka" "events" {
   brokers = "kafka1:9092,kafka2:9092,kafka3:9092"
   topic   = "minio-bucket-events"
 
+  sasl           = true
   sasl_username  = "minio"
   sasl_password  = var.kafka_password
   sasl_mechanism = "plain"
@@ -44,9 +45,10 @@ resource "minio_notify_kafka" "events" {
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.
-- `sasl_mechanism` (String) SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'.
-- `sasl_password` (String, Sensitive) SASL password for Kafka authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
-- `sasl_username` (String) SASL username for Kafka authentication.
+- `sasl` (Boolean) Whether to enable SASL authentication for the Kafka connection.
+- `sasl_mechanism` (String) SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'. Only used when `sasl` is `true`.
+- `sasl_password` (String, Sensitive) SASL password for Kafka authentication. Only used when `sasl` is `true`. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `sasl_username` (String) SASL username for Kafka authentication. Only used when `sasl` is `true`.
 - `tls` (Boolean) Whether to enable TLS for the Kafka connection.
 - `tls_client_auth` (Number) TLS client authentication type (0=NoClientCert, 1=RequestClientCert, etc.).
 - `tls_skip_verify` (Boolean) Whether to skip TLS certificate verification.

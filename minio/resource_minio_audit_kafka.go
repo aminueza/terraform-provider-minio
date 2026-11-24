@@ -20,6 +20,7 @@ func resourceMinioAuditKafka() *schema.Resource {
 		ReadContext:   notifyRead(nrc),
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
+		CustomizeDiff: customizeDiffKafkaSasl,
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
 		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(map[string]*schema.Schema{
 			"brokers": {
@@ -32,22 +33,27 @@ func resourceMinioAuditKafka() *schema.Resource {
 				Required:    true,
 				Description: "Kafka topic for audit events.",
 			},
+			"sasl": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Enable SASL authentication for Kafka connections.",
+			},
 			"sasl_username": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "SASL username for Kafka authentication.",
+				Description: "SASL username for Kafka authentication. Only used when `sasl` is `true`.",
 			},
 			"sasl_password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "SASL password for Kafka authentication.",
+				Description: "SASL password for Kafka authentication. Only used when `sasl` is `true`.",
 			},
 			"sasl_mechanism": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				Description: "SASL mechanism (plain, scram-sha-256, scram-sha-512).",
+				Description: "SASL mechanism (plain, scram-sha-256, scram-sha-512). Only used when `sasl` is `true`.",
 			},
 			"tls": {
 				Type:        schema.TypeBool,
@@ -92,6 +98,7 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	// d.Get, not GetOk: GetOk reads false as unset, so a target written
 	// with tls=on kept tls=on on the server after the configuration
 	// turned it off. See issue #1331.
+	notifyBuildCfgAddBool(&parts, "sasl", d.Get("sasl").(bool))
 	notifyBuildCfgAddBool(&parts, "tls", d.Get("tls").(bool))
 	notifyBuildCfgAddBool(&parts, "tls_skip_verify", d.Get("tls_skip_verify").(bool))
 	notifyBuildQueueSizeCommonCfg(&parts, d)
@@ -110,6 +117,9 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	}
 	if v, ok := cfgMap["sasl_mechanism"]; ok {
 		_ = d.Set("sasl_mechanism", v)
+	}
+	if err := d.Set("sasl", cfgMap["sasl"] == "on"); err != nil {
+		return NewResourceError("setting sasl", d.Id(), err)
 	}
 	if v, ok := cfgMap["client_tls_cert"]; ok && v != "" {
 		_ = d.Set("client_tls_cert", v)

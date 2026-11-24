@@ -3,6 +3,7 @@ resource "minio_notify_kafka" "events" {
   brokers = "kafka1:9092,kafka2:9092,kafka3:9092"
   topic   = "minio-bucket-events"
 
+  sasl           = true
   sasl_username  = "minio"
   sasl_password  = var.kafka_password
   sasl_mechanism = "plain"

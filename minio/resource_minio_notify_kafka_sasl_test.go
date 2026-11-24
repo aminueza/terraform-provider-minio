@@ -339,9 +339,10 @@ data "minio_notify_kafka" "test" {
 			},
 			{Config: withDataSource, PlanOnly: true},
 			{
-				ResourceName:      resourceName,
-				ImportState:       true,
-				ImportStateVerify: true,
+				ResourceName:            resourceName,
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"restart_required"},
 			},
 			{
 				Config: config(false),

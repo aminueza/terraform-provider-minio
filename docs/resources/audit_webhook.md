@@ -48,7 +48,7 @@ resource "minio_audit_webhook" "backup" {
 - `auth_token` (String, Sensitive) Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.
 - `batch_size` (Number) Number of audit events to send in a single batch to the endpoint.
 - `client_cert` (String) Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.
-- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication with the webhook endpoint.
 - `enable` (Boolean) Whether this audit webhook target is enabled.
 - `queue_size` (Number) Maximum number of audit events to queue before dropping. Defaults to MinIO server default if not set.
 
@@ -65,4 +65,4 @@ Import is supported using the target name:
 terraform import minio_audit_webhook.splunk splunk
 ```
 
-Note: Sensitive fields (`auth_token`, `client_key`) are not returned by the MinIO API. After import, these values will be empty in state until the next apply sets them from your configuration.
+Note: `auth_token` is not returned by the MinIO API. After import, this value will be empty in state until the next apply sets it from your configuration.

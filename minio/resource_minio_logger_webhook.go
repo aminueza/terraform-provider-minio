@@ -39,10 +39,16 @@ func resourceMinioLoggerWebhook() *schema.Resource {
 				Computed:    true,
 				Description: "Number of log events per batch.",
 			},
+			// RequiredWith keeps a cert-only configuration out of the plan: the
+			// readback would put the server's key path into state and the empty
+			// config value would then clear it, which MinIO rejects as a broken
+			// pair. The key alone stays allowed: removing the certificate while
+			// the key remains is how the pair gets cleared.
 			"client_cert": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Path to X.509 client certificate for mTLS.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"client_key"},
+				Description:  "Path to X.509 client certificate for mTLS.",
 			},
 			"client_key": {
 				Type:        schema.TypeString,
@@ -76,6 +82,11 @@ func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	}
 	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
+	}
+	if v, ok := cfgMap["client_key"]; ok {
+		if setErr := d.Set("client_key", v); setErr != nil {
+			return NewResourceError("setting client_key", d.Id(), setErr)
+		}
 	}
 	if v, ok := cfgMap["proxy"]; ok {
 		_ = d.Set("proxy", v)

@@ -47,6 +47,15 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_notify_webhook`, `minio_notify_nats`, `minio_notify_kafka`,
+  `minio_logger_webhook`, `minio_audit_webhook`, `minio_audit_kafka`, and
+  `minio_server_config_etcd` now require the private key path (`client_key`,
+  `client_tls_key`, `client_cert_key`) whenever the matching certificate path
+  is set: MinIO only accepts the pair together, and a certificate-only
+  configuration would plan to clear the key the server holds. Configurations
+  that manage an imported target holding both and declare only the certificate
+  now fail at plan time, so declare the key path next to the certificate
+  ([#1355](https://github.com/aminueza/terraform-provider-minio/issues/1355)).
 - `minio_iam_group`, `minio_iam_policy`, `minio_iam_group_policy`, and
   `minio_s3_bucket` now fail to create when an object with that name already
   exists instead of taking over or overwriting the existing object. Import
@@ -141,6 +150,14 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_notify_webhook`, `minio_logger_webhook`, `minio_notify_nats`,
+  `minio_notify_kafka`, `minio_audit_kafka`, `minio_audit_webhook`,
+  `minio_server_config_etcd`, and the `minio_notify_webhook`,
+  `minio_notify_kafka`, and `minio_notify_nats` data sources now read
+  `client_key`, `client_tls_key`, and `client_cert_key` back from MinIO when
+  the server returns them, populating them on `terraform import` and detecting
+  out-of-band key path drift while keeping those attributes sensitive
+  ([#1355](https://github.com/aminueza/terraform-provider-minio/issues/1355)).
 - `minio_s3_bucket_replication` no longer crashes the provider when a rule
   carries an invalid `health_check_period` or `bandwidth_limt`: both fields
   are now validated at plan time, the duration check uses Go duration syntax

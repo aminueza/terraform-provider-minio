@@ -33,7 +33,7 @@ output "kafka_brokers" {
 - `batch_size` (Number) Number of messages to batch before sending to Kafka.
 - `brokers` (String) Comma-separated list of Kafka broker addresses (e.g., 'host1:9092,host2:9092').
 - `client_tls_cert` (String) Path to the client TLS certificate for mTLS authentication.
-- `client_tls_key` (String, Sensitive) Path to the client TLS private key. MinIO does not return this value on read; Terraform keeps the value from your configuration.
+- `client_tls_key` (String, Sensitive) Path to the client TLS private key.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `id` (String) The ID of this resource.

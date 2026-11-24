@@ -51,5 +51,3 @@ Import is supported using the target name:
 ```shell
 terraform import minio_notify_nsq.example target-name
 ```
-
-Note: Sensitive fields are not returned by the MinIO API. After import, these values will be empty in state until the next apply.

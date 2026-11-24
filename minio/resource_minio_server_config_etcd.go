@@ -39,10 +39,17 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 				ValidateFunc: validateConfigValue,
 				Description:  "CoreDNS path for bucket DNS registration (default: \"/skydns\").",
 			},
+			// RequiredWith keeps a cert-only configuration out of the plan: the
+			// readback would put the server's key path into state and the empty
+			// config value would then clear it, and the etcd builder omits empty
+			// params, so the pair could never converge. See issue #1439. The
+			// key alone stays allowed: removing the certificate while the key
+			// remains is how the pair gets cleared.
 			"client_cert": {
 				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validateConfigValue,
+				RequiredWith: []string{"client_cert_key"},
 				Description:  "Path to client TLS certificate for etcd mTLS.",
 			},
 			"client_cert_key": {
@@ -142,6 +149,11 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 	}
 	if v, ok := cfgMap["client_cert"]; ok && v != "" {
 		_ = d.Set("client_cert", v)
+	}
+	if v, ok := cfgMap["client_cert_key"]; ok {
+		if setErr := d.Set("client_cert_key", v); setErr != nil {
+			return NewResourceError("setting client_cert_key", d.Id(), setErr)
+		}
 	}
 	if v, ok := cfgMap["comment"]; ok && v != "" {
 		_ = d.Set("comment", v)

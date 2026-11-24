@@ -65,10 +65,11 @@ func TestAuditWebhookUpdateClearsRemovedFields(t *testing.T) {
 	}
 }
 
-// Read does not store auth_token or client_key, so after an import they are
-// only on the server and an unrelated update must leave them there.
+// auth_token is never returned on read, and older servers may omit client_key;
+// an unrelated update when those fields are omitted on read keeps both on the
+// server.
 func TestAuditWebhookUpdateKeepsImportedSecrets(t *testing.T) {
-	stub, res, meta, state := importAuditWebhookFromStub(t)
+	stub, res, meta, state := importAuditWebhookFromStub(t, "auth_token", "client_key")
 
 	applyAuditWebhook(t, res, meta, state, map[string]interface{}{
 		"name":        "splunk",
@@ -86,7 +87,7 @@ func TestAuditWebhookUpdateKeepsImportedSecrets(t *testing.T) {
 }
 
 func TestAuditWebhookUpdateKeepsImportedClientKeyWhenTheCertChanges(t *testing.T) {
-	stub, res, meta, state := importAuditWebhookFromStub(t)
+	stub, res, meta, state := importAuditWebhookFromStub(t, "auth_token", "client_key")
 
 	applyAuditWebhook(t, res, meta, state, map[string]interface{}{
 		"name":        "splunk",
@@ -103,7 +104,7 @@ func TestAuditWebhookUpdateKeepsImportedClientKeyWhenTheCertChanges(t *testing.T
 }
 
 func TestAuditWebhookUpdateClearsImportedClientKeyWithTheCert(t *testing.T) {
-	stub, res, meta, state := importAuditWebhookFromStub(t)
+	stub, res, meta, state := importAuditWebhookFromStub(t, "auth_token")
 
 	applyAuditWebhook(t, res, meta, state, map[string]interface{}{
 		"name":     "splunk",
@@ -120,7 +121,7 @@ func TestAuditWebhookUpdateClearsImportedClientKeyWithTheCert(t *testing.T) {
 	}
 }
 
-func importAuditWebhookFromStub(t *testing.T) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
+func importAuditWebhookFromStub(t *testing.T, hideKeys ...string) (*notifyConfigStub, *schema.Resource, *S3MinioClient, *terraform.InstanceState) {
 	t.Helper()
 	stub, client := newNotifyConfigStub(t, "audit_webhook:splunk")
 	stub.kvs = map[string]string{
@@ -128,6 +129,9 @@ func importAuditWebhookFromStub(t *testing.T) (*notifyConfigStub, *schema.Resour
 		"auth_token":  "Bearer abc",
 		"client_cert": "/certs/client.crt",
 		"client_key":  "/certs/client.key",
+	}
+	for _, k := range hideKeys {
+		stub.hideOnRead[k] = true
 	}
 	meta := &S3MinioClient{S3Admin: client}
 	res := resourceMinioAuditWebhook()

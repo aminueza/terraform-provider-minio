@@ -33,16 +33,23 @@ func resourceMinioNotifyWebhook() *schema.Resource {
 				Sensitive:   true,
 				Description: "Authentication token for the webhook endpoint. MinIO does not return this value on read.",
 			},
+			// RequiredWith keeps a cert-only configuration out of the plan: the
+			// readback would put the server's key path into state and the empty
+			// config value would then clear it, which MinIO rejects as a broken
+			// pair on enabled targets and resolves to a cert without its key
+			// on disabled ones. The key alone stays allowed: removing the
+			// certificate while the key remains is how the pair gets cleared.
 			"client_cert": {
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Path to the X.509 client certificate for mTLS authentication.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"client_key"},
+				Description:  "Path to the X.509 client certificate for mTLS authentication.",
 			},
 			"client_key": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Path to the X.509 private key for mTLS authentication. MinIO does not return this value on read.",
+				Description: "Path to the X.509 private key for mTLS authentication.",
 			},
 		}),
 	}
@@ -63,6 +70,11 @@ func readNotifyWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	}
 	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
+	}
+	if v, ok := cfgMap["client_key"]; ok {
+		if setErr := d.Set("client_key", v); setErr != nil {
+			return NewResourceError("setting client_key", d.Id(), setErr)
+		}
 	}
 	notifyReadCommonFields(cfgMap, d)
 	return nil

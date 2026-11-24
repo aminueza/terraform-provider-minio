@@ -10,6 +10,23 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Changed
+
+- `minio_s3_bucket_policy` and `minio_s3_bucket_versioning` now read the setting they
+  protect (versioning and policy respectively) before writing, so the credentials need
+  `s3:GetBucketVersioning` and `s3:GetBucketPolicy` on the bucket. A read that fails
+  aborts the write instead of proceeding unprotected; backends that do not implement
+  those APIs are skipped when `s3_compat_mode` is on.
+
+### Fixed
+
+- The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
+  now captures the setting it protects before the write, so a versioning or policy loss
+  caused by the write itself can be restored; the snapshot used to be taken after the
+  write and could never catch that case. A failed snapshot read now aborts the write
+  instead of silently skipping the protection, and a failed restore is reported as an
+  error instead of only logged. ([#1389](https://github.com/aminueza/terraform-provider-minio/issues/1389))
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

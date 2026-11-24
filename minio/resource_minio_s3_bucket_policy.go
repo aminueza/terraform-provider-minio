@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/retry"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/structure"
+	minio "github.com/minio/minio-go/v7"
 )
 
 func resourceMinioBucketPolicy() *schema.Resource {
@@ -70,6 +71,35 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("waiting for bucket to be ready", bucketPolicyConfig.MinioBucket, err)
 	}
 
+	// MinIO multi-drive deployments can lose bucket versioning when a policy
+	// is set immediately after it. Capture versioning before the write so a
+	// loss caused by SetBucketPolicy can be restored (issue #1389). The read
+	// retries NoSuchBucket like the write below: with a configured region
+	// GetBucketLocation is answered locally and does not prove the bucket is
+	// visible yet.
+	var versioningBefore minio.BucketVersioningConfiguration
+	beforeErr := retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
+		cfg, err := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
+		if err != nil {
+			if isNoSuchBucketError(err) {
+				tflog.Debug(ctx, fmt.Sprintf("Bucket %q not yet available for the versioning snapshot, retrying...", bucketPolicyConfig.MinioBucket))
+				return retry.RetryableError(err)
+			}
+			return retry.NonRetryableError(err)
+		}
+		versioningBefore = cfg
+		return nil
+	})
+	if beforeErr != nil {
+		// A backend without the versioning API cannot lose versioning on a
+		// policy write, so s3_compat_mode skips the check; any other failure
+		// aborts before the write instead of running unprotected.
+		if !isS3CompatNotSupported(meta.(*S3MinioClient), s3Compat405IsMissingFeature, beforeErr) {
+			return NewResourceError("reading bucket versioning before setting policy", bucketPolicyConfig.MinioBucket, beforeErr)
+		}
+		tflog.Warn(ctx, fmt.Sprintf("Bucket %s: cannot read versioning before setting the policy, skipping the versioning-loss check: %v", bucketPolicyConfig.MinioBucket, beforeErr))
+	}
+
 	// Retry SetBucketPolicy for transient NoSuchBucket errors
 	err = retry.RetryContext(ctx, waitTimeout, func() *retry.RetryError {
 		err := bucketPolicyConfig.MinioClient.SetBucketPolicy(ctx, bucketPolicyConfig.MinioBucket, policy)
@@ -87,22 +117,16 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 		return NewResourceError("putting bucket policy", policy, s3CompatWriteError(meta.(*S3MinioClient), "bucket policy", err))
 	}
 
-	// MinIO multi-drive deployments can lose bucket versioning when a policy
-	// is set immediately after versioning. Capture versioning before and
-	// restore it if SetBucketPolicy destroyed it.
-	versioningBefore, beforeErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
-	if beforeErr != nil {
-		tflog.Debug(ctx, fmt.Sprintf("Skipping versioning-loss check for bucket %s: %v", bucketPolicyConfig.MinioBucket, beforeErr))
-	} else if versioningBefore.Status != "" {
+	// A failed verification read counts as lost: re-applying the captured
+	// configuration is idempotent, and skipping the restore would silently
+	// drop the protection this workaround exists for.
+	if versioningBefore.Status != "" {
 		time.Sleep(500 * time.Millisecond)
 		versioningAfter, afterErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
-		// A failed verification read counts as lost: re-applying the captured
-		// configuration is idempotent, and skipping the restore would silently
-		// drop the protection this workaround exists for.
 		if afterErr != nil || versioningAfter.Status == "" {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket))
 			if restoreErr := bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore); restoreErr != nil {
-				tflog.Warn(ctx, fmt.Sprintf("Failed to restore bucket %s versioning after SetBucketPolicy: %v", bucketPolicyConfig.MinioBucket, restoreErr))
+				return NewResourceError("restoring bucket versioning after setting policy", bucketPolicyConfig.MinioBucket, restoreErr)
 			}
 		}
 	}

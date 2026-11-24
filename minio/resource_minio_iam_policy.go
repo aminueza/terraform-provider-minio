@@ -157,7 +157,9 @@ func minioDeletePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("unable to delete policy", d.Id(), err)
 	}
 
-	return setResourceField(d, "policy", "", d.Id())
+	// The SDK discards state after a successful delete, so writing here could
+	// only turn an already-completed server-side delete into a reported failure.
+	return nil
 }
 
 const (

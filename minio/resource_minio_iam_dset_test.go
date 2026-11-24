@@ -52,6 +52,8 @@ func newIAMStubClient(t *testing.T, serviceAccountJSON, userInfoJSON string) *S3
 }
 
 func TestIAMResourcesSetResourceFieldReportsSchemaErrors(t *testing.T) {
+	// TestResourceDataRaw panics on d.Set errors when TF_ACC is set; clear it so
+	// setResourceField's error path is exercised cleanly under TF_ACC=1 CI runs.
 	t.Setenv("TF_ACC", "")
 
 	resources := []struct {
@@ -124,7 +126,7 @@ func TestIAMReadAndDeleteDSetAgainstStubAdmin(t *testing.T) {
 
 		d := schema.TestResourceDataRaw(t, resourceMinioAccessKey().Schema, map[string]interface{}{
 			"user":   "alice",
-			"policy": policyJSON,
+			"policy": `{"Version":"2012-10-17","Statement":[]}`,
 		})
 		d.SetId("AKIA12345678")
 		if diags := minioReadAccessKey(ctx, d, client); diags.HasError() {
@@ -138,6 +140,9 @@ func TestIAMReadAndDeleteDSetAgainstStubAdmin(t *testing.T) {
 		}
 		if got := d.Get("description").(string); got != "ci access key" {
 			t.Fatalf("description = %q, want %q", got, "ci access key")
+		}
+		if got := d.Get("policy").(string); !strings.Contains(got, "s3:GetObject") {
+			t.Fatalf("policy = %q, want the server policy to overwrite the stale state value", got)
 		}
 
 		impliedClient := newIAMStubClient(t, `{
@@ -159,6 +164,26 @@ func TestIAMReadAndDeleteDSetAgainstStubAdmin(t *testing.T) {
 		}
 		if got := dImplied.Get("policy").(string); got != "" {
 			t.Fatalf("implied policy = %q, want empty", got)
+		}
+	})
+
+	t.Run("accesskey_read_empty_policy_clears_state", func(t *testing.T) {
+		client := newIAMStubClient(t, `{
+			"parentUser": "alice",
+			"accountStatus": "on",
+			"impliedPolicy": false,
+			"policy": "{}"
+		}`, "")
+		d := schema.TestResourceDataRaw(t, resourceMinioAccessKey().Schema, map[string]interface{}{
+			"user":   "alice",
+			"policy": `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::bucket/*"]}]}`,
+		})
+		d.SetId("AKIA55555555")
+		if diags := minioReadAccessKey(ctx, d, client); diags.HasError() {
+			t.Fatalf("minioReadAccessKey failed: %v", diags)
+		}
+		if got := d.Get("policy").(string); got != "" {
+			t.Fatalf("policy = %q, want empty for an empty server policy", got)
 		}
 	})
 
@@ -192,9 +217,9 @@ func TestIAMReadAndDeleteDSetAgainstStubAdmin(t *testing.T) {
 
 	t.Run("iam_user_read_and_policy_delete", func(t *testing.T) {
 		client := newIAMStubClient(t, "", `{"status":"enabled"}`)
-		dUser := schema.TestResourceDataRaw(t, resourceMinioIAMUser().Schema, map[string]interface{}{
-			"name": "carol",
-		})
+		// No "name" in the raw config on purpose: the read must populate it
+		// from the resource id.
+		dUser := schema.TestResourceDataRaw(t, resourceMinioIAMUser().Schema, map[string]interface{}{})
 		dUser.SetId("carol")
 		if diags := minioReadUser(ctx, dUser, client); diags.HasError() {
 			t.Fatalf("minioReadUser failed: %v", diags)
@@ -213,9 +238,6 @@ func TestIAMReadAndDeleteDSetAgainstStubAdmin(t *testing.T) {
 		dPolicy.SetId("readonly")
 		if diags := minioDeletePolicy(ctx, dPolicy, client); diags.HasError() {
 			t.Fatalf("minioDeletePolicy failed: %v", diags)
-		}
-		if got := dPolicy.Get("policy").(string); got != "" {
-			t.Fatalf("policy after delete = %q, want empty", got)
 		}
 	})
 }

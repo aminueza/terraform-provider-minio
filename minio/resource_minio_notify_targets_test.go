@@ -104,6 +104,7 @@ func TestNotifyResourceSchemaFieldTypes(t *testing.T) {
 				{field: "name", wantType: schema.TypeString, wantRequired: true, wantForceNew: true},
 				{field: "brokers", wantType: schema.TypeString, wantRequired: true},
 				{field: "topic", wantType: schema.TypeString, wantRequired: true},
+				{field: "sasl", wantType: schema.TypeBool, wantOptional: true},
 				{field: "sasl_password", wantType: schema.TypeString, wantOptional: true, wantSensitive: true},
 				{field: "client_tls_key", wantType: schema.TypeString, wantOptional: true, wantSensitive: true},
 				{field: "tls", wantType: schema.TypeBool, wantOptional: true},

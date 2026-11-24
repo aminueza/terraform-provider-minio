@@ -47,6 +47,12 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_notify_kafka`, `minio_audit_kafka`, and `data.minio_notify_kafka` now
+  expose `sasl` (`on` / `off`, defaulting to `false`). Configurations that set
+  `sasl_username` or `sasl_password` without `sasl = true` now fail at plan
+  time instead of writing `sasl=off` to MinIO, so add `sasl = true` where SASL
+  authentication is intended
+  ([#1358](https://github.com/aminueza/terraform-provider-minio/issues/1358)).
 - `minio_iam_user_policy_attachment`, `minio_iam_group_policy_attachment` and
   `minio_iam_group_user_attachment` now store their import format as `id`
   (`<user_name>/<policy_name>`, `<group_name>/<policy_name>` and

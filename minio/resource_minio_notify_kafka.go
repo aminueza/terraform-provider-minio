@@ -20,6 +20,7 @@ func resourceMinioNotifyKafka() *schema.Resource {
 		ReadContext:   notifyRead(nrc),
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
+		CustomizeDiff: customizeDiffKafkaSasl,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -34,22 +35,27 @@ func resourceMinioNotifyKafka() *schema.Resource {
 				Required:    true,
 				Description: "Kafka topic to publish event notifications to.",
 			},
+			"sasl": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Description: "Whether to enable SASL authentication for the Kafka connection.",
+			},
 			"sasl_username": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "SASL username for Kafka authentication.",
+				Description: "SASL username for Kafka authentication. Only used when `sasl` is `true`.",
 			},
 			"sasl_password": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Sensitive:   true,
-				Description: "SASL password for Kafka authentication. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Description: "SASL password for Kafka authentication. Only used when `sasl` is `true`. MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"sasl_mechanism": {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
-				Description: "SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'.",
+				Description: "SASL authentication mechanism: 'plain', 'scram-sha-256', or 'scram-sha-512'. Only used when `sasl` is `true`.",
 			},
 			"tls": {
 				Type:        schema.TypeBool,
@@ -97,6 +103,7 @@ func buildNotifyKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 
 	notifyBuildCfgAddParam(&parts, "brokers", d.Get("brokers").(string))
 	notifyBuildCfgAddParam(&parts, "topic", d.Get("topic").(string))
+	notifyBuildCfgAddBool(&parts, "sasl", d.Get("sasl").(bool))
 	notifyBuildCfgAddParam(&parts, "sasl_username", getOptionalField(d, "sasl_username", "").(string))
 	notifyBuildCfgAddParam(&parts, "sasl_password", getOptionalField(d, "sasl_password", "").(string))
 	notifyBuildCfgAddParam(&parts, "sasl_mechanism", getOptionalField(d, "sasl_mechanism", "").(string))
@@ -124,6 +131,9 @@ func readNotifyKafkaFields(cfgMap map[string]string, d *schema.ResourceData) dia
 	}
 	if v, ok := cfgMap["sasl_mechanism"]; ok {
 		_ = d.Set("sasl_mechanism", v)
+	}
+	if err := d.Set("sasl", cfgMap["sasl"] == "on"); err != nil {
+		return NewResourceError("setting sasl", d.Id(), err)
 	}
 	if v, ok := cfgMap["tls"]; ok {
 		_ = d.Set("tls", v == "on")

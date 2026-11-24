@@ -419,3 +419,13 @@ func parseInt(s string) (int, error) {
 	_, err := fmt.Sscanf(s, "%d", &n)
 	return n, err
 }
+
+func customizeDiffKafkaSasl(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	if !d.NewValueKnown("sasl") || d.Get("sasl").(bool) {
+		return nil
+	}
+	if d.Get("sasl_username").(string) != "" || d.Get("sasl_password").(string) != "" {
+		return fmt.Errorf("sasl_username and sasl_password are ignored by MinIO when sasl is false; add sasl = true to enable SASL authentication")
+	}
+	return nil
+}

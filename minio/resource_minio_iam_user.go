@@ -146,10 +146,12 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	d.SetId(accessKey)
+	storedSecret := secretKey
 	if hasSecretWO {
-		_ = d.Set("secret", "")
-	} else {
-		_ = d.Set("secret", secretKey)
+		storedSecret = ""
+	}
+	if diags := setResourceField(d, "secret", storedSecret, accessKey); diags != nil {
+		return diags
 	}
 
 	if iamUserConfig.MinioDisableUser {
@@ -206,10 +208,12 @@ func minioUpdateUser(ctx context.Context, d *schema.ResourceData, meta interface
 		if err != nil {
 			return NewResourceError("updating IAM user key", d.Id(), err)
 		}
+		storedSecret := wantedSecret
 		if hasSecretWO {
-			_ = d.Set("secret", "")
-		} else {
-			_ = d.Set("secret", wantedSecret)
+			storedSecret = ""
+		}
+		if diags := setResourceField(d, "secret", storedSecret, d.Id()); diags != nil {
+			return diags
 		}
 	}
 
@@ -239,7 +243,9 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 	tflog.Warn(ctx, fmt.Sprintf("(%v)", output))
 
 	if _, ok := d.GetOk("name"); !ok {
-		_ = d.Set("name", d.Id())
+		if diags := setResourceField(d, "name", d.Id(), d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	if err := d.Set("status", string(output.Status)); err != nil {

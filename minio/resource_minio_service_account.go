@@ -156,15 +156,19 @@ func minioCreateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 	secretKey := serviceAccount.SecretKey
 
 	d.SetId(accessKey)
-	_ = d.Set("access_key", accessKey)
+	if diags := setResourceField(d, "access_key", accessKey, accessKey); diags != nil {
+		return diags
+	}
+	storedSecret := secretKey
 	if hasSecretWO {
 		err = serviceAccountConfig.MinioAdmin.UpdateServiceAccount(ctx, accessKey, madmin.UpdateServiceAccountReq{NewSecretKey: secretWO})
 		if err != nil {
 			return NewResourceError("updating service account secret", accessKey, err)
 		}
-		_ = d.Set("secret_key", "")
-	} else {
-		_ = d.Set("secret_key", secretKey)
+		storedSecret = ""
+	}
+	if diags := setResourceField(d, "secret_key", storedSecret, accessKey); diags != nil {
+		return diags
 	}
 
 	if serviceAccountConfig.MinioDisableUser {
@@ -234,10 +238,12 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("updating service account key", d.Id(), err)
 		}
 
+		storedSecret := wantedSecret
 		if hasSecretWO {
-			_ = d.Set("secret_key", "")
-		} else {
-			_ = d.Set("secret_key", wantedSecret)
+			storedSecret = ""
+		}
+		if diags := setResourceField(d, "secret_key", storedSecret, d.Id()); diags != nil {
+			return diags
 		}
 	}
 
@@ -249,7 +255,9 @@ func minioUpdateServiceAccount(ctx context.Context, d *schema.ResourceData, meta
 			return NewResourceError("updating service account policy", d.Id(), err)
 		}
 
-		_ = d.Set("policy", policy)
+		if diags := setResourceField(d, "policy", policy, d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	if d.HasChange("name") {
@@ -314,14 +322,18 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	tflog.Debug(ctx, fmt.Sprintf("(%v)", output))
 
 	if _, ok := d.GetOk("access_key"); !ok {
-		_ = d.Set("access_key", d.Id())
+		if diags := setResourceField(d, "access_key", d.Id(), d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	if err := d.Set("status", output.AccountStatus); err != nil {
 		return NewResourceError("reading service account", d.Id(), err)
 	}
 
-	_ = d.Set("disable_user", output.AccountStatus == "off")
+	if diags := setResourceField(d, "disable_user", output.AccountStatus == "off", d.Id()); diags != nil {
+		return diags
+	}
 
 	targetUser := parseUserFromParentUser(output.ParentUser)
 	if err := d.Set("target_user", targetUser); err != nil {
@@ -329,7 +341,9 @@ func minioReadServiceAccount(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	if !output.ImpliedPolicy {
-		_ = d.Set("policy", output.Policy)
+		if diags := setResourceField(d, "policy", output.Policy, d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	if err := d.Set("name", output.Name); err != nil {

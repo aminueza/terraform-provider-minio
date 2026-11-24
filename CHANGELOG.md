@@ -79,10 +79,10 @@ History older than 3.39.0 lives in the
 ### Fixed
 
 - `minio_iam_ldap_user_policy_attachment` and
-  `minio_iam_ldap_group_policy_attachment`: Create and import now record
-  `<dn>/<policy>` as the resource ID so stored IDs work directly with
-  `terraform import`, importer format errors name `<dn>/<policy-name>`, and
-  the LDAP group read error no longer mentions a user
+  `minio_iam_ldap_group_policy_attachment`: importer format errors now name
+  `<dn>/<policy-name>`, IDs still in the old `<policy>/<dn>` order are
+  rejected with that message instead of importing into a resource that Read
+  immediately drops, and the LDAP group read error no longer mentions a user
   ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema

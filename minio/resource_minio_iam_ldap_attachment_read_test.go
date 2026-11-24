@@ -312,7 +312,9 @@ func TestLDAPPolicyAttachmentIDAndMessages(t *testing.T) {
 					}
 				}
 
-				for _, badID := range []string{"", "readonly", tc.dn + "/", "/readonly"} {
+				// "readonly/<dn>" is the pre-#1354 ID order; the comma in the DN
+				// makes the policy validator reject it with the format message.
+				for _, badID := range []string{"", "readonly", tc.dn + "/", "/readonly", "readonly/" + tc.dn} {
 					d := res.TestResourceData()
 					d.SetId(badID)
 					_, err := res.Importer.StateContext(ctx, d, &S3MinioClient{})

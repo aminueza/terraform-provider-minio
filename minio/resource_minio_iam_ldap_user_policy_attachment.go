@@ -150,6 +150,12 @@ func minioImportLDAPUserPolicyAttachment(ctx context.Context, d *schema.Resource
 	if len(idParts) != 2 || idParts[0] == "" || idParts[1] == "" {
 		return nil, fmt.Errorf("unexpected format of ID (%q), expected <dn>/<policy-name>", d.Id())
 	}
+	// DNs contain commas and policy names cannot, so this also rejects the
+	// pre-#1354 <policy>/<dn> order with the format message instead of a
+	// confusing "Cannot import non-existent remote object" later.
+	if _, errs := validateIAMNamePolicy(idParts[1], "policy_name"); len(errs) > 0 {
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <dn>/<policy-name>: %v", d.Id(), errs[0])
+	}
 
 	userDN := idParts[0]
 	policyName := idParts[1]

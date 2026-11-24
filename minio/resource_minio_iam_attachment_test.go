@@ -8,13 +8,13 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioIAMGroupPolicyAttachment_basic(t *testing.T) {
 	groupName := "tfacc-grp-pol-" + acctest.RandString(6)
 	policyName := "tfacc-pol-" + acctest.RandString(6)
 	resourceName := "minio_iam_group_policy_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", groupName, policyName)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -23,6 +23,7 @@ func TestAccMinioIAMGroupPolicyAttachment_basic(t *testing.T) {
 			{
 				Config: testAccIAMGroupPolicyAttachmentConfig(groupName, policyName),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
 					resource.TestCheckResourceAttr(resourceName, "group_name", groupName),
 					resource.TestCheckResourceAttr(resourceName, "policy_name", policyName),
 				),
@@ -30,21 +31,7 @@ func TestAccMinioIAMGroupPolicyAttachment_basic(t *testing.T) {
 			{
 				ResourceName:      resourceName,
 				ImportState:       true,
-				ImportStateId:     fmt.Sprintf("%s/%s", groupName, policyName),
-				ImportStateVerify: false,
-				ImportStateCheck: func(states []*terraform.InstanceState) error {
-					if len(states) != 1 {
-						return fmt.Errorf("expected 1 state, got %d", len(states))
-					}
-					s := states[0]
-					if s.Attributes["group_name"] != groupName {
-						return fmt.Errorf("expected group_name %q, got %q", groupName, s.Attributes["group_name"])
-					}
-					if s.Attributes["policy_name"] != policyName {
-						return fmt.Errorf("expected policy_name %q, got %q", policyName, s.Attributes["policy_name"])
-					}
-					return nil
-				},
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -54,6 +41,7 @@ func TestAccMinioIAMUserPolicyAttachment_basic(t *testing.T) {
 	userName := "tfacc-usr-pol-" + acctest.RandString(6)
 	policyName := "tfacc-pol-" + acctest.RandString(6)
 	resourceName := "minio_iam_user_policy_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", userName, policyName)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -62,6 +50,7 @@ func TestAccMinioIAMUserPolicyAttachment_basic(t *testing.T) {
 			{
 				Config: testAccIAMUserPolicyAttachmentConfig(userName, policyName),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
 					resource.TestCheckResourceAttr(resourceName, "user_name", userName),
 					resource.TestCheckResourceAttr(resourceName, "policy_name", policyName),
 				),
@@ -69,21 +58,7 @@ func TestAccMinioIAMUserPolicyAttachment_basic(t *testing.T) {
 			{
 				ResourceName:      resourceName,
 				ImportState:       true,
-				ImportStateId:     fmt.Sprintf("%s/%s", userName, policyName),
-				ImportStateVerify: false,
-				ImportStateCheck: func(states []*terraform.InstanceState) error {
-					if len(states) != 1 {
-						return fmt.Errorf("expected 1 state, got %d", len(states))
-					}
-					s := states[0]
-					if s.Attributes["user_name"] != userName {
-						return fmt.Errorf("expected user_name %q, got %q", userName, s.Attributes["user_name"])
-					}
-					if s.Attributes["policy_name"] != policyName {
-						return fmt.Errorf("expected policy_name %q, got %q", policyName, s.Attributes["policy_name"])
-					}
-					return nil
-				},
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -93,6 +68,7 @@ func TestAccMinioIAMGroupUserAttachment_basic(t *testing.T) {
 	groupName := "tfacc-grp-usr-" + acctest.RandString(6)
 	userName := "tfacc-usr-att-" + acctest.RandString(6)
 	resourceName := "minio_iam_group_user_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", groupName, userName)
 
 	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
@@ -101,6 +77,7 @@ func TestAccMinioIAMGroupUserAttachment_basic(t *testing.T) {
 			{
 				Config: testAccIAMGroupUserAttachmentConfig(groupName, userName),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
 					resource.TestCheckResourceAttr(resourceName, "group_name", groupName),
 					resource.TestCheckResourceAttr(resourceName, "user_name", userName),
 				),
@@ -108,21 +85,7 @@ func TestAccMinioIAMGroupUserAttachment_basic(t *testing.T) {
 			{
 				ResourceName:      resourceName,
 				ImportState:       true,
-				ImportStateId:     fmt.Sprintf("%s/%s", groupName, userName),
-				ImportStateVerify: false,
-				ImportStateCheck: func(states []*terraform.InstanceState) error {
-					if len(states) != 1 {
-						return fmt.Errorf("expected 1 state, got %d", len(states))
-					}
-					s := states[0]
-					if s.Attributes["group_name"] != groupName {
-						return fmt.Errorf("expected group_name %q, got %q", groupName, s.Attributes["group_name"])
-					}
-					if s.Attributes["user_name"] != userName {
-						return fmt.Errorf("expected user_name %q, got %q", userName, s.Attributes["user_name"])
-					}
-					return nil
-				},
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -501,6 +464,125 @@ func TestAccMinioIAMGroupPolicyAttachment_groupDeletedOutsideTerraform(t *testin
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("minio_iam_group_policy_attachment.test", "group_name", groupName),
 					testAccCheckMinioGroupPolicyAttached(groupName, policyName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMUserPolicyAttachment_upgradeFromOldID(t *testing.T) {
+	userName := "tfacc-usr-upg-" + acctest.RandString(6)
+	policyName := "tfacc-pol-upg-" + acctest.RandString(6)
+	resourceName := "minio_iam_user_policy_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", userName, policyName)
+	cfg := testAccIAMUserPolicyAttachmentConfig(userName, policyName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "id", regexp.MustCompile("^"+regexp.QuoteMeta(userName)+"-")),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             cfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicyAttachment_upgradeFromOldID(t *testing.T) {
+	groupName := "tfacc-grp-upg-" + acctest.RandString(6)
+	policyName := "tfacc-pol-upg-" + acctest.RandString(6)
+	resourceName := "minio_iam_group_policy_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", groupName, policyName)
+	cfg := testAccIAMGroupPolicyAttachmentConfig(groupName, policyName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		CheckDestroy: testAccCheckMinioIAMPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "id", regexp.MustCompile("^"+regexp.QuoteMeta(groupName)+"-")),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             cfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupUserAttachment_upgradeFromOldID(t *testing.T) {
+	groupName := "tfacc-grp-upg-" + acctest.RandString(6)
+	userName := "tfacc-usr-upg-" + acctest.RandString(6)
+	resourceName := "minio_iam_group_user_attachment.test"
+	expectedID := fmt.Sprintf("%s/%s", groupName, userName)
+	cfg := testAccIAMGroupUserAttachmentConfig(groupName, userName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck: func() { testAccPreCheck(t) },
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestMatchResourceAttr(resourceName, "id", regexp.MustCompile("^"+regexp.QuoteMeta(expectedID)+"[0-9a-f]+$")),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             cfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            cfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", expectedID),
 				),
 			},
 		},

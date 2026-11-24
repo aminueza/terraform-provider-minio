@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 )
@@ -67,7 +66,7 @@ func minioCreateGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		}
 	}
 
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
+	d.SetId(fmt.Sprintf("%s/%s", groupName, policyName))
 
 	return doMinioReadGroupPolicyAttachment(ctx, d, meta, groupName, policyName)
 }
@@ -98,9 +97,13 @@ func doMinioReadGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 		return nil
 	}
 
-	if err := d.Set("policy_name", policyName); err != nil {
-		return NewResourceError("failed to load group infos", groupName, err)
+	if err := d.Set("group_name", groupName); err != nil {
+		return NewResourceError("setting group_name", d.Id(), err)
 	}
+	if err := d.Set("policy_name", policyName); err != nil {
+		return NewResourceError("setting policy_name", d.Id(), err)
+	}
+	d.SetId(fmt.Sprintf("%s/%s", groupName, policyName))
 
 	return nil
 }
@@ -151,6 +154,9 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 
 	groupName := idParts[0]
 	policyName := idParts[1]
+	if _, errs := validateIAMNamePolicy(policyName, "policy_name"); len(errs) > 0 {
+		return nil, fmt.Errorf("unexpected format of ID (%q), expected <group-name>/<policy-name>: %v", d.Id(), errs[0])
+	}
 
 	err := d.Set("group_name", groupName)
 	if err != nil {
@@ -160,7 +166,7 @@ func minioImportGroupPolicyAttachment(ctx context.Context, d *schema.ResourceDat
 	if err != nil {
 		return nil, errors.New(NewResourceErrorStr("unable to import group policy", groupName, err))
 	}
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s-", groupName)))
+	d.SetId(fmt.Sprintf("%s/%s", groupName, policyName))
 	return []*schema.ResourceData{d}, nil
 }
 

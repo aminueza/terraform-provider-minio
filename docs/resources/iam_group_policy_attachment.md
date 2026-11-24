@@ -66,7 +66,7 @@ output "minio_group" {
 
 ## Import
 
-Import is supported using the following syntax:
+Import is supported using the following syntax (matching the resource `id` format `<group-name>/<policy-name>`):
 
 ```shell
 # IAM group policy attachments can be imported using the format: group-name/policy-name

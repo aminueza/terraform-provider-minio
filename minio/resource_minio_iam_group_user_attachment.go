@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 )
@@ -55,7 +54,7 @@ func minioCreateGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 		return NewResourceError("adding user to group", iamGroupMembershipConfig.MinioIAMGroup, err)
 	}
 
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser)))
+	d.SetId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser))
 
 	return minioReadGroupUserAttachment(ctx, d, meta)
 }
@@ -77,7 +76,16 @@ func minioReadGroupUserAttachment(ctx context.Context, d *schema.ResourceData, m
 		tflog.Warn(ctx, fmt.Sprintf("No such User by name (%s) in Group (%s) found, removing from state", iamGroupMembershipConfig.MinioIAMUser,
 			iamGroupMembershipConfig.MinioIAMGroup))
 		d.SetId("")
+		return nil
 	}
+
+	if err := d.Set("group_name", iamGroupMembershipConfig.MinioIAMGroup); err != nil {
+		return NewResourceError("setting group_name", d.Id(), err)
+	}
+	if err := d.Set("user_name", iamGroupMembershipConfig.MinioIAMUser); err != nil {
+		return NewResourceError("setting user_name", d.Id(), err)
+	}
+	d.SetId(fmt.Sprintf("%s/%s", iamGroupMembershipConfig.MinioIAMGroup, iamGroupMembershipConfig.MinioIAMUser))
 	return nil
 }
 
@@ -114,12 +122,12 @@ func minioImportGroupUserAttachment(ctx context.Context, d *schema.ResourceData,
 
 	err := d.Set("user_name", userName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import group user attachment", userName, err))
 	}
 	err = d.Set("group_name", groupName)
 	if err != nil {
-		return nil, errors.New(NewResourceErrorStr("unable to import user policy", userName, err))
+		return nil, errors.New(NewResourceErrorStr("unable to import group user attachment", groupName, err))
 	}
-	d.SetId(id.PrefixedUniqueId(fmt.Sprintf("%s/%s", groupName, userName)))
+	d.SetId(fmt.Sprintf("%s/%s", groupName, userName))
 	return []*schema.ResourceData{d}, nil
 }

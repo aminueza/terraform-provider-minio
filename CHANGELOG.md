@@ -47,6 +47,16 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_user_policy_attachment`, `minio_iam_group_policy_attachment` and
+  `minio_iam_group_user_attachment` now store their import format as `id`
+  (`<user_name>/<policy_name>`, `<group_name>/<policy_name>` and
+  `<group_name>/<user_name>`) instead of a random `id.PrefixedUniqueId`, so
+  stored IDs can be fed directly back into `terraform import` and `import`
+  blocks. Existing states migrate to the new ID in place on the next refresh
+  with an empty plan and no replacement. The attachment's own plan stays empty,
+  but anything that reads the attachment's `.id` (outputs, `null_resource`
+  triggers, tags built from it) will see the new value after the first refresh
+  ([#1359](https://github.com/aminueza/terraform-provider-minio/issues/1359)).
 - `minio_iam_group_policy` now validates `group` against the static group name
   pattern only (LDAP Distinguished Names, which can contain `:`, are rejected
   at plan time) and actually attaches its canned policy to `group` on create

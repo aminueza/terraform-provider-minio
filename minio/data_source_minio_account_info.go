@@ -43,8 +43,12 @@ func dataSourceMinioAccountInfoRead(ctx context.Context, d *schema.ResourceData,
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("account_name", info.AccountName)
-	_ = d.Set("bucket_count", len(info.Buckets))
+	if diags := setResourceField(d, "account_name", info.AccountName, "account_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "bucket_count", len(info.Buckets), "account_info"); diags.HasError() {
+		return diags
+	}
 
 	var totalSize uint64
 	var totalObjects uint64
@@ -59,9 +63,15 @@ func dataSourceMinioAccountInfoRead(ctx context.Context, d *schema.ResourceData,
 		})
 	}
 
-	_ = d.Set("total_size", strconv.FormatUint(totalSize, 10))
-	_ = d.Set("total_objects", strconv.FormatUint(totalObjects, 10))
-	_ = d.Set("buckets", buckets)
+	if diags := setResourceField(d, "total_size", strconv.FormatUint(totalSize, 10), "account_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "total_objects", strconv.FormatUint(totalObjects, 10), "account_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "buckets", buckets, "account_info"); diags.HasError() {
+		return diags
+	}
 
 	return nil
 }

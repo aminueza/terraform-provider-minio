@@ -49,14 +49,17 @@ func dataSourceMinioS3BucketObjectLockConfigurationRead(ctx context.Context, d *
 	objectLockStatus, mode, validity, unit, err := client.GetObjectLockConfig(ctx, bucket)
 	if err != nil {
 		if strings.Contains(err.Error(), "Object Lock configuration does not exist") {
-			_ = d.Set("object_lock_enabled", "")
-			_ = d.Set("rule", []interface{}{})
-			return nil
+			if diags := setResourceField(d, "object_lock_enabled", "", bucket); diags.HasError() {
+				return diags
+			}
+			return setResourceField(d, "rule", []interface{}{}, bucket)
 		}
 		return NewResourceError("reading bucket object lock configuration", bucket, err)
 	}
 
-	_ = d.Set("object_lock_enabled", objectLockStatus)
+	if diags := setResourceField(d, "object_lock_enabled", objectLockStatus, bucket); diags.HasError() {
+		return diags
+	}
 
 	if mode != nil && validity != nil && unit != nil {
 		defaultRetention := map[string]interface{}{
@@ -75,14 +78,11 @@ func dataSourceMinioS3BucketObjectLockConfigurationRead(ctx context.Context, d *
 			defaultRetention["years"] = validityInt
 		}
 
-		_ = d.Set("rule", []interface{}{
+		return setResourceField(d, "rule", []interface{}{
 			map[string]interface{}{
 				"default_retention": []interface{}{defaultRetention},
 			},
-		})
-	} else {
-		_ = d.Set("rule", []interface{}{})
+		}, bucket)
 	}
-
-	return nil
+	return setResourceField(d, "rule", []interface{}{}, bucket)
 }

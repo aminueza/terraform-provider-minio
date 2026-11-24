@@ -58,7 +58,9 @@ func dataSourceIAMUserPoliciesRead(ctx context.Context, d *schema.ResourceData, 
 			directPolicies = append(directPolicies, strings.TrimSpace(p))
 		}
 	}
-	_ = d.Set("direct_policies", directPolicies)
+	if diags := setResourceField(d, "direct_policies", directPolicies, name); diags.HasError() {
+		return diags
+	}
 
 	seen := map[string]bool{}
 	for _, p := range directPolicies {
@@ -82,13 +84,13 @@ func dataSourceIAMUserPoliciesRead(ctx context.Context, d *schema.ResourceData, 
 			}
 		}
 	}
-	_ = d.Set("group_policies", groupPolicies)
+	if diags := setResourceField(d, "group_policies", groupPolicies, name); diags.HasError() {
+		return diags
+	}
 
 	var allPolicies []string
 	for p := range seen {
 		allPolicies = append(allPolicies, p)
 	}
-	_ = d.Set("all_policies", allPolicies)
-
-	return nil
+	return setResourceField(d, "all_policies", allPolicies, name)
 }

@@ -75,13 +75,23 @@ func dataSourceMinioStorageInfoRead(ctx context.Context, d *schema.ResourceData,
 		})
 	}
 
-	_ = d.Set("disk_count", len(info.Disks))
-	_ = d.Set("online_disks", online)
-	_ = d.Set("offline_disks", offline)
-	_ = d.Set("total_space", strconv.FormatUint(totalSpace, 10))
-	_ = d.Set("used_space", strconv.FormatUint(usedSpace, 10))
-	_ = d.Set("available_space", strconv.FormatUint(availSpace, 10))
-	_ = d.Set("disks", disks)
-
-	return nil
+	if diags := setResourceField(d, "disk_count", len(info.Disks), "storage_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "online_disks", online, "storage_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "offline_disks", offline, "storage_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "total_space", strconv.FormatUint(totalSpace, 10), "storage_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "used_space", strconv.FormatUint(usedSpace, 10), "storage_info"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "available_space", strconv.FormatUint(availSpace, 10), "storage_info"); diags.HasError() {
+		return diags
+	}
+	return setResourceField(d, "disks", disks, "storage_info")
 }

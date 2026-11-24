@@ -34,12 +34,12 @@ func dataSourceMinioS3BucketsRead(ctx context.Context, d *schema.ResourceData, m
 	client := meta.(*S3MinioClient).S3Client
 
 	prefix := strings.TrimSpace(d.Get("name_prefix").(string))
+	resource := "s3_buckets"
+	if prefix != "" {
+		resource = prefix
+	}
 	buckets, err := client.ListBuckets(ctx)
 	if err != nil {
-		resource := "s3_buckets"
-		if prefix != "" {
-			resource = prefix
-		}
 		return NewResourceError("listing S3 buckets", resource, err)
 	}
 
@@ -55,6 +55,5 @@ func dataSourceMinioS3BucketsRead(ctx context.Context, d *schema.ResourceData, m
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("buckets", out)
-	return nil
+	return setResourceField(d, "buckets", out, resource)
 }

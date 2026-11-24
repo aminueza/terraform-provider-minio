@@ -46,14 +46,18 @@ func dataSourceMinioS3BucketReplicationStatusRead(ctx context.Context, d *schema
 	case isS3CompatNotSupported(client, s3Compat405IsMissingFeature, err):
 		diags = append(diags, dataSourceS3CompatGap(bucket, "rule_count", "bucket replication status"))
 		d.SetId(bucket)
-		_ = d.Set("rule_count", 0)
+		if errDiags := setResourceField(d, "rule_count", 0, bucket); errDiags.HasError() {
+			return append(diags, errDiags...)
+		}
 		return diags
 	default:
 		return NewResourceError("reading bucket replication status", bucket, err)
 	}
 
 	d.SetId(bucket)
-	_ = d.Set("rule_count", len(cfg.Rules))
+	if errDiags := setResourceField(d, "rule_count", len(cfg.Rules), bucket); errDiags.HasError() {
+		return errDiags
+	}
 
 	rules := make([]map[string]interface{}, 0, len(cfg.Rules))
 	for _, r := range cfg.Rules {
@@ -64,15 +68,25 @@ func dataSourceMinioS3BucketReplicationStatusRead(ctx context.Context, d *schema
 			"target":   r.Destination.Bucket,
 		})
 	}
-	_ = d.Set("rules", rules)
+	if errDiags := setResourceField(d, "rules", rules, bucket); errDiags.HasError() {
+		return errDiags
+	}
 
 	metrics, err := client.S3Client.GetBucketReplicationMetrics(ctx, bucket)
 	switch {
 	case err == nil:
-		_ = d.Set("replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10))
-		_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
-		_ = d.Set("replicated_count", int(metrics.ReplicatedCount))
-		_ = d.Set("replica_count", int(metrics.ReplicaCount))
+		if errDiags := setResourceField(d, "replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replica_size", strconv.FormatUint(metrics.ReplicaSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replicated_count", int(metrics.ReplicatedCount), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replica_count", int(metrics.ReplicaCount), bucket); errDiags.HasError() {
+			return errDiags
+		}
 	case isReplicationConfigNotFoundError(err):
 		// An unconfigured bucket returns ReplicationConfigurationNotFoundError on metrics too.
 	case isS3CompatJSONEndpointNotSupported(client, err):

@@ -37,16 +37,26 @@ func dataSourceMinioDataUsageRead(ctx context.Context, d *schema.ResourceData, m
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("last_update", info.LastUpdate.Format(time.RFC3339))
-	_ = d.Set("total_objects", strconv.FormatUint(info.ObjectsTotalCount, 10))
-	_ = d.Set("total_size", strconv.FormatUint(info.ObjectsTotalSize, 10))
-	_ = d.Set("buckets_count", len(info.BucketsUsage))
+	if diags := setResourceField(d, "last_update", info.LastUpdate.Format(time.RFC3339), "data_usage"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "total_objects", strconv.FormatUint(info.ObjectsTotalCount, 10), "data_usage"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "total_size", strconv.FormatUint(info.ObjectsTotalSize, 10), "data_usage"); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "buckets_count", len(info.BucketsUsage), "data_usage"); diags.HasError() {
+		return diags
+	}
 
 	bucketsUsage := make(map[string]string)
 	for name, usage := range info.BucketsUsage {
 		bucketsUsage[name] = strconv.FormatUint(usage.Size, 10)
 	}
-	_ = d.Set("buckets_usage", bucketsUsage)
+	if diags := setResourceField(d, "buckets_usage", bucketsUsage, "data_usage"); diags.HasError() {
+		return diags
+	}
 
 	return nil
 }

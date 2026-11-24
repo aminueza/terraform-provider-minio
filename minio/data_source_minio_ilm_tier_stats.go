@@ -52,6 +52,5 @@ func dataSourceMinioILMTierStatsRead(ctx context.Context, d *schema.ResourceData
 		})
 	}
 
-	_ = d.Set("tiers", tiers)
-	return nil
+	return setResourceField(d, "tiers", tiers, "ilm_tier_stats")
 }

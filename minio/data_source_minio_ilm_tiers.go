@@ -53,6 +53,5 @@ func dataSourceMinioILMTiersRead(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("tiers", out)
-	return nil
+	return setResourceField(d, "tiers", out, "ilm_tiers")
 }

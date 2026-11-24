@@ -29,7 +29,8 @@ func dataSourceMinioS3BucketVersioningRead(ctx context.Context, d *schema.Resour
 	}
 
 	d.SetId(bucket)
-	_ = d.Set("enabled", cfg.Enabled())
-	_ = d.Set("suspended", cfg.Suspended())
-	return nil
+	if diags := setResourceField(d, "enabled", cfg.Enabled(), bucket); diags.HasError() {
+		return diags
+	}
+	return setResourceField(d, "suspended", cfg.Suspended(), bucket)
 }

@@ -256,7 +256,9 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 	}
 	jsonString := string(jsonDoc)
 
-	_ = d.Set("json", jsonString)
+	if diags := setResourceField(d, "json", jsonString, docID); diags.HasError() {
+		return diags
+	}
 	d.SetId(strconv.Itoa(HashcodeString(jsonString)))
 
 	return nil

@@ -40,15 +40,23 @@ func dataSourceIAMUserRead(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	d.SetId(name)
-	_ = d.Set("name", name)
-	_ = d.Set("status", strings.ToLower(string(info.Status)))
+	if diags := setResourceField(d, "name", name, name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "status", strings.ToLower(string(info.Status)), name); diags.HasError() {
+		return diags
+	}
 
 	var policies []string
 	if info.PolicyName != "" {
 		policies = strings.Split(info.PolicyName, ",")
 	}
-	_ = d.Set("policy_names", policies)
-	_ = d.Set("member_of_groups", info.MemberOf)
+	if diags := setResourceField(d, "policy_names", policies, name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "member_of_groups", info.MemberOf, name); diags.HasError() {
+		return diags
+	}
 
 	return nil
 }

@@ -217,7 +217,9 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
-	_ = d.Set("bucket", bucket)
+	if diags := setResourceField(d, "bucket", bucket, bucket); diags != nil {
+		return diags
+	}
 	d.SetId(bucket)
 
 	timeout := d.Timeout(schema.TimeoutCreate)
@@ -324,13 +326,19 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] exists!", d.Id()))
 
 	if _, ok := d.GetOk("bucket"); !ok {
-		_ = d.Set("bucket", d.Id())
+		if diags := setResourceField(d, "bucket", d.Id(), d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	bucketURL := bucketConfig.MinioClient.EndpointURL()
 
-	_ = d.Set("arn", bucketArn(d.Id()))
-	_ = d.Set("bucket_domain_name", bucketDomainName(d.Id(), bucketURL))
+	if diags := setResourceField(d, "arn", bucketArn(d.Id()), d.Id()); diags != nil {
+		return diags
+	}
+	if diags := setResourceField(d, "bucket_domain_name", bucketDomainName(d.Id(), bucketURL), d.Id()); diags != nil {
+		return diags
+	}
 
 	// Read the bucket policy back and derive acl from it, so a policy removed
 	// or changed outside Terraform shows up as an acl diff instead of an empty plan.
@@ -395,7 +403,9 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	}
 
 	if shouldSkipBucketTagging(bucketConfig) {
-		preserveBucketTagsState(d)
+		if err := preserveBucketTagsState(d); err != nil {
+			return NewResourceError("setting tags", d.Id(), err)
+		}
 		return nil
 	}
 
@@ -403,15 +413,21 @@ func minioReadBucket(ctx context.Context, d *schema.ResourceData, meta interface
 	if err != nil {
 		var minioErr minio.ErrorResponse
 		if errors.As(err, &minioErr) && minioErr.Code == "NoSuchTagSet" {
-			_ = d.Set("tags", map[string]string{})
+			if diags := setResourceField(d, "tags", map[string]string{}, d.Id()); diags != nil {
+				return diags
+			}
 		} else if IsS3TaggingNotImplemented(err) {
 			tflog.Info(ctx, "Bucket tagging is not supported by backend; preserving state")
-			preserveBucketTagsState(d)
+			if err := preserveBucketTagsState(d); err != nil {
+				return NewResourceError("setting tags", d.Id(), err)
+			}
 		} else {
 			return NewResourceError("error reading bucket tags", d.Id(), err)
 		}
 	} else {
-		_ = d.Set("tags", bucketTags.ToMap())
+		if diags := setResourceField(d, "tags", bucketTags.ToMap(), d.Id()); diags != nil {
+			return diags
+		}
 	}
 
 	return nil
@@ -481,7 +497,9 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		}
 
 		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] updated!", bucketConfig.MinioBucket))
-		_ = d.Set("acl", bucketConfig.MinioACL)
+		if diags := setResourceField(d, "acl", bucketConfig.MinioACL, bucketConfig.MinioBucket); diags != nil {
+			return diags
+		}
 	}
 
 	if d.HasChange("tags") && !shouldSkipBucketTagging(bucketConfig) {
@@ -521,7 +539,13 @@ func minioUpdateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		}
 
 		tflog.Debug(ctx, fmt.Sprintf("Bucket [%s] updated!", bucketConfig.MinioBucket))
-		_ = d.Set("quota", bucketQuota.Size)
+		quotaVal, ok := SafeUint64ToInt64(bucketQuota.Size)
+		if !ok {
+			return NewResourceError("setting bucket quota", bucketConfig.MinioBucket, fmt.Errorf("quota value overflows int64: %d", bucketQuota.Size))
+		}
+		if diags := setResourceField(d, "quota", int(quotaVal), bucketConfig.MinioBucket); diags != nil {
+			return diags
+		}
 	}
 
 	return minioReadBucket(ctx, d, meta)
@@ -561,9 +585,7 @@ func minioDeleteBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 
 	tflog.Debug(ctx, fmt.Sprintf("Deleted bucket: [%s] in region: [%s]", bucketName, bucketConfig.MinioRegion))
 
-	_ = d.Set("bucket_domain_name", "")
-
-	return nil
+	return setResourceField(d, "bucket_domain_name", "", bucketName)
 }
 
 // forceDestroyBucketObjects deletes all object versions and delete markers from

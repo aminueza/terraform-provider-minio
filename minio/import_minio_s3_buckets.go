@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -53,11 +54,15 @@ func resourceMinioS3BucketImportState(
 	}
 
 	if pol == "" {
-		_ = d.Set("acl", "private")
+		if err := d.Set("acl", "private"); err != nil {
+			return nil, errors.New(NewResourceErrorStr("setting acl", d.Id(), err))
+		}
 		return []*schema.ResourceData{d}, nil
 	}
 
-	_ = d.Set("acl", policyToACLName(ctx, bucketConfig, pol))
+	if err := d.Set("acl", policyToACLName(ctx, bucketConfig, pol)); err != nil {
+		return nil, errors.New(NewResourceErrorStr("setting acl", d.Id(), err))
+	}
 
 	return []*schema.ResourceData{d}, nil
 }

@@ -35,9 +35,15 @@ func dataSourceIAMGroupRead(ctx context.Context, d *schema.ResourceData, meta in
 	}
 
 	d.SetId(name)
-	_ = d.Set("status", strings.ToLower(desc.Status))
-	_ = d.Set("policy", desc.Policy)
-	_ = d.Set("members", desc.Members)
+	if diags := setResourceField(d, "status", strings.ToLower(desc.Status), name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "policy", desc.Policy, name); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "members", desc.Members, name); diags.HasError() {
+		return diags
+	}
 
 	return nil
 }

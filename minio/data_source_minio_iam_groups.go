@@ -66,6 +66,5 @@ func dataSourceIAMGroupsRead(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("groups", out)
-	return nil
+	return setResourceField(d, "groups", out, "iam_groups")
 }

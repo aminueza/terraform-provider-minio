@@ -150,8 +150,12 @@ func dataSourceMinioServerInfoRead(ctx context.Context, d *schema.ResourceData, 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 
 	if len(info.Servers) > 0 {
-		_ = d.Set("version", info.Servers[0].Version)
-		_ = d.Set("commit", info.Servers[0].CommitID)
+		if diags := setResourceField(d, "version", info.Servers[0].Version, "server_info"); diags.HasError() {
+			return diags
+		}
+		if diags := setResourceField(d, "commit", info.Servers[0].CommitID, "server_info"); diags.HasError() {
+			return diags
+		}
 	}
 
 	edition := m.Edition
@@ -163,21 +167,31 @@ func dataSourceMinioServerInfoRead(ctx context.Context, d *schema.ResourceData, 
 			}
 		}
 	}
-	_ = d.Set("edition", normalizeEdition(edition))
+	if diags := setResourceField(d, "edition", normalizeEdition(edition), "server_info"); diags.HasError() {
+		return diags
+	}
 
 	region := info.Region
 	if region == "" {
 		region = "us-east-1"
 	}
-	_ = d.Set("region", region)
-
-	if info.SQSARN != nil {
-		_ = d.Set("sqsarn", info.SQSARN)
-	} else {
-		_ = d.Set("sqsarn", []string{})
+	if diags := setResourceField(d, "region", region, "server_info"); diags.HasError() {
+		return diags
 	}
 
-	_ = d.Set("deployment_id", info.DeploymentID)
+	if info.SQSARN != nil {
+		if diags := setResourceField(d, "sqsarn", info.SQSARN, "server_info"); diags.HasError() {
+			return diags
+		}
+	} else {
+		if diags := setResourceField(d, "sqsarn", []string{}, "server_info"); diags.HasError() {
+			return diags
+		}
+	}
+
+	if diags := setResourceField(d, "deployment_id", info.DeploymentID, "server_info"); diags.HasError() {
+		return diags
+	}
 
 	servers := make([]map[string]interface{}, 0, len(info.Servers))
 	for _, server := range info.Servers {
@@ -212,7 +226,5 @@ func dataSourceMinioServerInfoRead(ctx context.Context, d *schema.ResourceData, 
 			"drives":    drives,
 		})
 	}
-	_ = d.Set("servers", servers)
-
-	return nil
+	return setResourceField(d, "servers", servers, "server_info")
 }

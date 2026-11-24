@@ -28,8 +28,5 @@ func dataSourceIAMPolicyRead(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	d.SetId(name)
-
-	_ = d.Set("policy", string(info.Policy))
-
-	return nil
+	return setResourceField(d, "policy", string(info.Policy), name)
 }

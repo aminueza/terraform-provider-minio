@@ -29,18 +29,24 @@ func dataSourceMinioS3BucketRetentionRead(ctx context.Context, d *schema.Resourc
 
 	mode, validity, unit, err := client.GetBucketObjectLockConfig(ctx, bucket)
 	if err != nil || mode == nil || validity == nil || unit == nil {
-		_ = d.Set("mode", "")
-		_ = d.Set("unit", "")
-		_ = d.Set("validity_period", 0)
-		return nil
+		if diags := setResourceField(d, "mode", "", bucket); diags.HasError() {
+			return diags
+		}
+		if diags := setResourceField(d, "unit", "", bucket); diags.HasError() {
+			return diags
+		}
+		return setResourceField(d, "validity_period", 0, bucket)
 	}
 
-	_ = d.Set("mode", mode.String())
-	_ = d.Set("unit", unit.String())
+	if diags := setResourceField(d, "mode", mode.String(), bucket); diags.HasError() {
+		return diags
+	}
+	if diags := setResourceField(d, "unit", unit.String(), bucket); diags.HasError() {
+		return diags
+	}
 	validityInt := math.MaxInt
 	if *validity <= uint(math.MaxInt) {
 		validityInt = int(*validity)
 	}
-	_ = d.Set("validity_period", validityInt)
-	return nil
+	return setResourceField(d, "validity_period", validityInt, bucket)
 }

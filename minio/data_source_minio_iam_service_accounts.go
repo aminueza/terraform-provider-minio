@@ -45,6 +45,5 @@ func dataSourceIAMServiceAccountsRead(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
-	_ = d.Set("service_accounts", out)
-	return nil
+	return setResourceField(d, "service_accounts", out, user)
 }

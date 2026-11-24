@@ -39,20 +39,44 @@ func dataSourceMinioS3BucketReplicationMetricsRead(ctx context.Context, d *schem
 	case err == nil:
 		metrics := m.CurrentStats
 
-		_ = d.Set("pending_size", strconv.FormatUint(metrics.PendingSize, 10))
-		_ = d.Set("pending_count", strconv.FormatUint(metrics.PendingCount, 10))
-		_ = d.Set("failed_size", strconv.FormatUint(metrics.FailedSize, 10))
-		_ = d.Set("failed_count", strconv.FormatUint(metrics.FailedCount, 10))
-		_ = d.Set("replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10))
-		_ = d.Set("replicated_count", strconv.FormatInt(metrics.ReplicatedCount, 10))
-		_ = d.Set("replica_size", strconv.FormatUint(metrics.ReplicaSize, 10))
-		_ = d.Set("replica_count", strconv.FormatInt(metrics.ReplicaCount, 10))
-		_ = d.Set("queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64))
-		_ = d.Set("queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64))
+		if errDiags := setResourceField(d, "pending_size", strconv.FormatUint(metrics.PendingSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "pending_count", strconv.FormatUint(metrics.PendingCount, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "failed_size", strconv.FormatUint(metrics.FailedSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "failed_count", strconv.FormatUint(metrics.FailedCount, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replicated_size", strconv.FormatUint(metrics.ReplicatedSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replicated_count", strconv.FormatInt(metrics.ReplicatedCount, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replica_size", strconv.FormatUint(metrics.ReplicaSize, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "replica_count", strconv.FormatInt(metrics.ReplicaCount, 10), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "queued_size", strconv.FormatFloat(metrics.QStats.Curr.Bytes, 'f', 0, 64), bucket); errDiags.HasError() {
+			return errDiags
+		}
+		if errDiags := setResourceField(d, "queued_count", strconv.FormatFloat(metrics.QStats.Curr.Count, 'f', 0, 64), bucket); errDiags.HasError() {
+			return errDiags
+		}
 	case isReplicationConfigNotFoundError(err):
-		setBucketReplicationMetricsZero(d)
+		if errDiags := setBucketReplicationMetricsZero(d, bucket); errDiags.HasError() {
+			return errDiags
+		}
 	case isS3CompatJSONEndpointNotSupported(client, err):
-		setBucketReplicationMetricsZero(d)
+		if errDiags := setBucketReplicationMetricsZero(d, bucket); errDiags.HasError() {
+			return errDiags
+		}
 		diags = append(diags, dataSourceS3CompatGap(bucket, "pending_size", "bucket replication metrics"))
 	default:
 		return NewResourceError("reading bucket replication metrics", bucket, err)
@@ -66,7 +90,7 @@ func isReplicationConfigNotFoundError(err error) bool {
 	return err != nil && minio.ToErrorResponse(err).Code == "ReplicationConfigurationNotFoundError"
 }
 
-func setBucketReplicationMetricsZero(d *schema.ResourceData) {
+func setBucketReplicationMetricsZero(d *schema.ResourceData, bucket string) diag.Diagnostics {
 	for _, k := range []string{
 		"pending_size", "pending_count",
 		"failed_size", "failed_count",
@@ -74,6 +98,9 @@ func setBucketReplicationMetricsZero(d *schema.ResourceData) {
 		"replica_size", "replica_count",
 		"queued_size", "queued_count",
 	} {
-		_ = d.Set(k, "0")
+		if diags := setResourceField(d, k, "0", bucket); diags.HasError() {
+			return diags
+		}
 	}
+	return nil
 }

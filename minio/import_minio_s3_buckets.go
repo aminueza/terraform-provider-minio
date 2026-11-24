@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	awspolicy "github.com/hashicorp/awspolicyequivalence"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/minio-go/v7"
 )
@@ -17,8 +18,17 @@ func resourceMinioS3BucketImportState(
 
 	bucket := d.Id()
 
-	if diag := minioReadBucket(ctx, d, meta); diag.HasError() {
-		return nil, fmt.Errorf("could not read minio bucket")
+	if diags := minioReadBucket(ctx, d, meta); diags.HasError() {
+		// Name the failing read: "could not read minio bucket" alone hides
+		// which call broke, and Read now covers several.
+		summary := "the read failed"
+		for _, dg := range diags {
+			if dg.Severity == diag.Error {
+				summary = dg.Summary
+				break
+			}
+		}
+		return nil, fmt.Errorf("could not read minio bucket: %s", summary)
 	}
 
 	// minioReadBucket clears the id instead of failing when the bucket is gone, which

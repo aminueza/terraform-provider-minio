@@ -80,12 +80,12 @@ func TestMinioReadBucket_objectLocking(t *testing.T) {
 			wantLock:    false,
 		},
 		{
-			name:        "501 NotImplemented fails when s3_compat_mode is false",
+			name:        "501 NotImplemented keeps state even when s3_compat_mode is false",
 			initialLock: false,
 			compatMode:  false,
 			lockStatus:  http.StatusNotImplemented,
 			lockBody:    `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NotImplemented</Code><Message>Not Implemented.</Message></Error>`,
-			wantErr:     true,
+			wantLock:    false,
 		},
 		{
 			name:        "403 AccessDenied keeps state value",
@@ -266,5 +266,7 @@ func TestImportMinioS3Bucket_objectLockingErrorNotSwallowed(t *testing.T) {
 
 	if _, err := resourceMinioS3BucketImportState(context.Background(), d, &S3MinioClient{S3Client: s3Client}); err == nil {
 		t.Fatal("expected import to fail on 500 GetObjectLockConfig instead of silently setting false")
+	} else if !strings.Contains(err.Error(), "object lock") {
+		t.Fatalf("expected import error to name the object lock read failure, got %q", err.Error())
 	}
 }

@@ -128,12 +128,15 @@ func customizeBucketDiff(ctx context.Context, d *schema.ResourceDiff, meta inter
 		return nil
 	}
 
-	if d.HasChange("object_locking") {
+	// A changed bucket or bucket_prefix plans a replacement anyway, and the new
+	// bucket is created with the new object_locking. Note that -replace cannot
+	// be detected here: CustomizeDiff runs against the prior state for it too.
+	if d.HasChange("object_locking") && !d.HasChange("bucket") && !d.HasChange("bucket_prefix") {
 		oldLock, newLock := d.GetChange("object_locking")
 		oldEnabled, _ := oldLock.(bool)
 		newEnabled, _ := newLock.(bool)
 		if !oldEnabled && newEnabled {
-			return fmt.Errorf("object_locking cannot be enabled on existing bucket %q: the bucket must be recreated with object_locking = true (destroy or replace it carefully, or set object_locking = false if object locking is not enabled)", d.Id())
+			return fmt.Errorf("object_locking cannot be enabled on existing bucket %q: object lock is set only when the bucket is created, so the bucket must be recreated with object_locking = true (destroy it and apply again), or set object_locking = false if the bucket does not have Object Lock", d.Id())
 		}
 		if oldEnabled && !newEnabled {
 			return fmt.Errorf("object_locking can't be disabled on existing bucket %q: object locking is permanent for the lifetime of the bucket and requires recreating the bucket", d.Id())
@@ -1010,6 +1013,15 @@ func readBucketObjectLocking(ctx context.Context, client *S3MinioClient, d *sche
 		if setErr := d.Set("object_locking", false); setErr != nil {
 			return NewResourceError("setting bucket object_locking", d.Id(), setErr)
 		}
+		return nil
+	}
+
+	// Unlike the opt-in policy and quota reads, this read runs on every bucket,
+	// so a backend answering 501 must not fail every refresh even with
+	// s3_compat_mode off. Same tolerance as the tags read
+	// (IsS3TaggingNotImplemented); see issue #1206.
+	if errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented {
+		tflog.Warn(ctx, fmt.Sprintf("Backend does not implement object lock configuration for bucket %q; retaining existing object_locking state: %v", d.Id(), err))
 		return nil
 	}
 

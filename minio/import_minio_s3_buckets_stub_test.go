@@ -71,14 +71,10 @@ func TestBucketImportStateAgainstStubBackend(t *testing.T) {
 					}
 					w.WriteHeader(tc.policyStatus)
 					_, _ = fmt.Fprint(w, tc.policyBody)
-				case query.Has("tagging"):
+				case query.Has("tagging"), query.Has("object-lock"):
 					w.Header().Set("Content-Type", "application/xml")
 					w.WriteHeader(http.StatusNotImplemented)
 					_, _ = fmt.Fprint(w, importStubNotImplemented)
-				case query.Has("object-lock"):
-					w.Header().Set("Content-Type", "application/xml")
-					w.WriteHeader(http.StatusNotFound)
-					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>ObjectLockConfigurationNotFoundError</Code><Message>Object Lock configuration does not exist for this bucket</Message></Error>`)
 				default:
 					w.WriteHeader(http.StatusOK)
 				}

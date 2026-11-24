@@ -53,7 +53,7 @@ func dataSourceMinioS3BucketObjectLockConfigurationRead(ctx context.Context, d *
 			_ = d.Set("rule", []interface{}{})
 			return nil
 		}
-		return diag.FromErr(err)
+		return NewResourceError("reading bucket object lock configuration", bucket, err)
 	}
 
 	_ = d.Set("object_lock_enabled", objectLockStatus)

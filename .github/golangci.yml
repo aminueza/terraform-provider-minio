@@ -15,6 +15,7 @@ linters:
     - bodyclose
     - noctx
     - unconvert
+    - forbidigo
 
   exclusions:
     rules:
@@ -43,6 +44,13 @@ linters:
       disable:
         - fieldalignment
         - shadow
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^diag\.FromErr$
+          pkg: ^github\.com/hashicorp/terraform-plugin-sdk/v2/diag$
+          msg: use NewResourceError from minio/error.go
 
 formatters:
   enable:

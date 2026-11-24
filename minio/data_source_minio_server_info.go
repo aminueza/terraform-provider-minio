@@ -144,7 +144,7 @@ func dataSourceMinioServerInfoRead(ctx context.Context, d *schema.ResourceData, 
 
 	info, err := admin.ServerInfo(ctx)
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("reading server info", "server_info", err)
 	}
 
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))

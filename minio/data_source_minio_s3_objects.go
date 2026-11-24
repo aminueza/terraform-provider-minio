@@ -73,7 +73,7 @@ func dataSourceMinioS3ObjectsRead(ctx context.Context, d *schema.ResourceData, m
 
 	for obj := range client.ListObjects(ctx, bucket, opts) {
 		if obj.Err != nil {
-			return diag.FromErr(obj.Err)
+			return NewResourceError("listing S3 objects", bucket, obj.Err)
 		}
 
 		if delimiter != "" && obj.Key == "" {

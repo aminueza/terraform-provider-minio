@@ -21,6 +21,8 @@ return diag.FromErr(err)
 return diag.Errorf("error: %v", err)
 ```
 
+For pure input validation messages with no underlying error (e.g., plan-time validators or config checks), `diag.Errorf` is acceptable (`docs/agents/ai-coding-standards.md`).
+
 **Payload pattern (mandatory):**
 
 ```go

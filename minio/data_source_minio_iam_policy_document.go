@@ -112,10 +112,14 @@ func dataSourceMinioIAMPolicyDocument() *schema.Resource {
 
 func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	mergedDoc := &IAMPolicyDoc{}
+	docID := d.Get("policy_id").(string)
+	if docID == "" {
+		docID = "iam_policy_document"
+	}
 
 	if sourceJSON, hasSourceJSON := d.GetOk("source_json"); hasSourceJSON {
 		if err := json.Unmarshal([]byte(sourceJSON.(string)), mergedDoc); err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("unmarshaling source_json", docID, err)
 		}
 	}
 
@@ -158,7 +162,7 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 					minioDecodePolicyStringList(resources), doc.Version,
 				)
 				if err != nil {
-					return diag.Errorf("error reading resources: %s", err)
+					return NewResourceError("reading statement resources", docID, err)
 				}
 			}
 
@@ -168,7 +172,7 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 					minioDecodePolicyStringList(notResources), doc.Version,
 				)
 				if err != nil {
-					return diag.Errorf("error reading not_resources: %s", err)
+					return NewResourceError("reading statement not_resources", docID, err)
 				}
 			}
 
@@ -224,7 +228,7 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 				var err error
 				stmt.Conditions, err = dataSourceMinioIAMPolicyDocumentMakeConditions(conditions, doc.Version)
 				if err != nil {
-					return diag.Errorf("error reading condition: %s", err)
+					return NewResourceError("reading statement condition", docID, err)
 				}
 			}
 
@@ -240,7 +244,7 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 	if overrideJSON, hasOverrideJSON := d.GetOk("override_json"); hasOverrideJSON {
 		overrideDoc := &IAMPolicyDoc{}
 		if err := json.Unmarshal([]byte(overrideJSON.(string)), overrideDoc); err != nil {
-			return diag.FromErr(err)
+			return NewResourceError("unmarshaling override_json", docID, err)
 		}
 
 		mergedDoc.merge(overrideDoc)
@@ -248,7 +252,7 @@ func dataSourceMinioIAMPolicyDocumentRead(ctx context.Context, d *schema.Resourc
 
 	jsonDoc, err := json.MarshalIndent(mergedDoc, "", "  ")
 	if err != nil {
-		return diag.FromErr(err)
+		return NewResourceError("marshaling IAM policy document", docID, err)
 	}
 	jsonString := string(jsonDoc)
 

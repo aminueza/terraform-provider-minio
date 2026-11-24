@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
+	"github.com/minio/madmin-go/v4"
 )
 
 func TestAccMinioIAMGroupPolicy_basic(t *testing.T) {
@@ -207,11 +208,11 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 			return err
 		}
 
-		if info, _ := conn.InfoCannedPolicy(context.Background(), name); info != nil {
-			return fmt.Errorf("found IAM group policy, expected none %s: %s", name, err)
-
+		if _, err := conn.InfoCannedPolicy(context.Background(), name); err == nil {
+			return fmt.Errorf("found IAM group policy, expected none: %s", name)
+		} else if !isNoSuchPolicyError(err) {
+			return fmt.Errorf("checking IAM group policy %s destroy: %w", name, err)
 		}
-
 	}
 
 	return nil
@@ -220,6 +221,7 @@ func testAccCheckIAMGroupPolicyDestroy(s *terraform.State) error {
 func testAccCheckIAMGroupPolicyDisappears(
 	iamGroupPolicyResource string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
+		ctx := context.Background()
 		iamconn := testAccClient().S3Admin
 
 		policy, ok := s.RootModule().Resources[iamGroupPolicyResource]
@@ -227,13 +229,20 @@ func testAccCheckIAMGroupPolicyDisappears(
 			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
-		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
+		groupName, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
 		if err != nil {
 			return err
 		}
 
-		if info, _ := iamconn.InfoCannedPolicy(context.Background(), name); info != nil {
-			err = iamconn.RemoveCannedPolicy(context.Background(), name)
+		if _, err := iamconn.DetachPolicy(ctx, madmin.PolicyAssociationReq{
+			Policies: []string{name},
+			Group:    groupName,
+		}); err != nil && !isNoSuchGroupError(err) {
+			return err
+		}
+
+		if info, _ := iamconn.InfoCannedPolicy(ctx, name); info != nil {
+			err = iamconn.RemoveCannedPolicy(ctx, name)
 			if err != nil {
 				return err
 			}
@@ -247,6 +256,9 @@ func testAccCheckIAMGroupPolicyExists(
 	iamGroupPolicyResource string,
 	groupPolicy *string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
+		ctx := context.Background()
+		conn := testAccClient().S3Admin
+
 		rs, ok := s.RootModule().Resources[iamGroupResource]
 		if !ok {
 			return fmt.Errorf("not Found: %s", iamGroupResource)
@@ -261,9 +273,21 @@ func testAccCheckIAMGroupPolicyExists(
 			return fmt.Errorf("not Found: %s", iamGroupPolicyResource)
 		}
 
-		_, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
+		groupName, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
 		if err != nil {
 			return err
+		}
+
+		if _, err := conn.InfoCannedPolicy(ctx, name); err != nil {
+			return fmt.Errorf("reading IAM group policy %s: %w", name, err)
+		}
+
+		policies, err := minioReadGroupPolicies(ctx, conn, groupName)
+		if err != nil {
+			return fmt.Errorf("reading IAM group %s: %w", groupName, err)
+		}
+		if !Contains(policies, name) {
+			return fmt.Errorf("IAM policy %q is not attached to group %q (attached: %v)", name, groupName, policies)
 		}
 
 		*groupPolicy = name
@@ -487,8 +511,16 @@ resource "minio_iam_group" "test" {
 			},
 			{
 				PreConfig: func() {
-					if err := testAccClient().S3Admin.AddCannedPolicy(context.Background(), policyName, []byte(policyJSON)); err != nil {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.AddCannedPolicy(ctx, policyName, []byte(policyJSON)); err != nil {
 						t.Fatalf("creating pre-existing policy %s: %v", policyName, err)
+					}
+					if _, err := admin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+						Policies: []string{policyName},
+						Group:    groupName,
+					}); err != nil {
+						t.Fatalf("attaching pre-existing policy %s to group %s: %v", policyName, groupName, err)
 					}
 				},
 				Config:             testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
@@ -517,6 +549,193 @@ resource "minio_iam_group" "test" {
 				Config:             testAccIAMGroupPolicyConfigNamePrefix(namePrefix, rInt, "s3:ListAllMyBuckets"),
 				PlanOnly:           true,
 				ExpectNonEmptyPlan: false,
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_attachDetachAndValidation(t *testing.T) {
+	rInt := acctest.RandInt()
+	groupName := fmt.Sprintf("developer-%d", rInt)
+	groupPolicyName := fmt.Sprintf("state-terraform-s3-%d", rInt)
+	attachedPolicyName := fmt.Sprintf("attached-pol-%d", rInt)
+	var recorded string
+
+	baseWithBoth := fmt.Sprintf(`
+resource "minio_iam_group" "developer" {
+  name = %[1]q
+}
+
+resource "minio_iam_policy" "extra" {
+  name   = %[2]q
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+
+resource "minio_iam_group_policy_attachment" "extra" {
+  group_name  = minio_iam_group.developer.name
+  policy_name = minio_iam_policy.extra.id
+}
+
+resource "minio_iam_group_policy" "test_policy" {
+  name  = %[3]q
+  group = minio_iam_group.developer.id
+  policy = <<EOF
+{
+  "Version":"2012-10-17",
+  "Statement": [
+    {
+      "Sid":"ListAllBucket",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject"],
+      "Principal":"*",
+      "Resource": "arn:aws:s3:::%[3]s/*"
+    }
+  ]
+}
+EOF
+  depends_on = [minio_iam_group_policy_attachment.extra]
+}
+`, groupName, attachedPolicyName, groupPolicyName)
+
+	withoutGroupPolicy := fmt.Sprintf(`
+resource "minio_iam_group" "developer" {
+  name = %[1]q
+}
+
+resource "minio_iam_policy" "extra" {
+  name   = %[2]q
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+
+resource "minio_iam_group_policy_attachment" "extra" {
+  group_name  = minio_iam_group.developer.name
+  policy_name = minio_iam_policy.extra.id
+}
+`, groupName, attachedPolicyName)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: baseWithBoth,
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists("minio_iam_group.developer", "minio_iam_group_policy.test_policy", &recorded),
+					func(s *terraform.State) error {
+						policies, err := minioReadGroupPolicies(context.Background(), testAccClient().S3Admin, groupName)
+						if err != nil {
+							return err
+						}
+						if !Contains(policies, attachedPolicyName) || !Contains(policies, groupPolicyName) {
+							return fmt.Errorf("expected both %q and %q attached to %q, got %v", attachedPolicyName, groupPolicyName, groupName, policies)
+						}
+						return nil
+					},
+				),
+			},
+			{
+				ResourceName:      "minio_iam_group_policy.test_policy",
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s:%s", groupName, groupPolicyName),
+				ImportStateVerify: true,
+			},
+			{
+				ResourceName:  "minio_iam_group_policy.test_policy",
+				ImportState:   true,
+				ImportStateId: "developer",
+				ExpectError:   regexp.MustCompile(`unexpected format of ID \("developer"\), expected <group-name>:<policy-name>`),
+			},
+			{
+				Config: withoutGroupPolicy,
+				Check: resource.ComposeTestCheckFunc(
+					func(s *terraform.State) error {
+						ctx := context.Background()
+						conn := testAccClient().S3Admin
+						policies, err := minioReadGroupPolicies(ctx, conn, groupName)
+						if err != nil {
+							return err
+						}
+						if Contains(policies, groupPolicyName) {
+							return fmt.Errorf("expected %q to be detached from %q, still got %v", groupPolicyName, groupName, policies)
+						}
+						if !Contains(policies, attachedPolicyName) {
+							return fmt.Errorf("expected attachment %q to stay attached to %q, got %v", attachedPolicyName, groupName, policies)
+						}
+						if _, err := conn.InfoCannedPolicy(ctx, groupPolicyName); !isNoSuchPolicyError(err) {
+							return fmt.Errorf("expected canned policy %q to be deleted, InfoCannedPolicy err = %v", groupPolicyName, err)
+						}
+						return nil
+					},
+				),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_externalDetachPlansCreate(t *testing.T) {
+	var out string
+	rInt := acctest.RandInt()
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccIAMGroupPolicyConfig(rInt),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckIAMGroupPolicyExists("minio_iam_group.group", "minio_iam_group_policy.foo", &out),
+					func(s *terraform.State) error {
+						policy, ok := s.RootModule().Resources["minio_iam_group_policy.foo"]
+						if !ok {
+							return fmt.Errorf("not Found: minio_iam_group_policy.foo")
+						}
+						groupName, name, err := resourceMinioIamGroupPolicyParseID(policy.Primary.ID)
+						if err != nil {
+							return err
+						}
+						_, err = testAccClient().S3Admin.DetachPolicy(context.Background(), madmin.PolicyAssociationReq{
+							Policies: []string{name},
+							Group:    groupName,
+						})
+						return err
+					},
+				),
+				ExpectNonEmptyPlan: true,
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_invalidGroupErrors(t *testing.T) {
+	missingGroup := fmt.Sprintf("does-not-exist-%d", acctest.RandInt())
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_iam_group_policy" "bad" {
+  name   = "bad_colon_policy"
+  group  = "a:b"
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+`,
+				PlanOnly:    true,
+				ExpectError: regexp.MustCompile(`group`),
+			},
+			{
+				Config: fmt.Sprintf(`
+resource "minio_iam_group_policy" "missing" {
+  name   = "missing_group_policy_%d"
+  group  = %q
+  policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"s3:ListAllMyBuckets\",\"Resource\":[\"arn:aws:s3:::*\"]}]}"
+}
+`, acctest.RandInt(), missingGroup),
+				ExpectError: regexp.MustCompile(regexp.QuoteMeta(missingGroup)),
 			},
 		},
 	})

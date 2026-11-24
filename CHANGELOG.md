@@ -47,6 +47,15 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_group_policy` now validates `group` with
+  `validateMinioIamGroupName` (rejecting names containing `:` or `/` at plan
+  time) and actually attaches its canned policy to `group` on create and
+  detaches it before deleting the policy. Existing configurations whose `group`
+  contained `:` or relied on `minio_iam_group_policy` creating an unattached
+  canned policy must update `group` or migrate to `minio_iam_policy`; on first
+  refresh after upgrading, previously unattached `minio_iam_group_policy`
+  resources will be dropped from state so the next apply attaches them
+  ([#1386](https://github.com/aminueza/terraform-provider-minio/issues/1386)).
 - `minio_s3_bucket`: `object_locking` changes on an existing bucket (`false` to
   `true` or `true` to `false`) are now rejected during plan instead of being
   silently ignored in `Update` or forcing destructive replacement via
@@ -92,6 +101,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_group_policy` now attaches the created canned policy to `group`,
+  detaches it on delete without disturbing other policies attached to the
+  group, drops state when the policy is detached outside Terraform so the next
+  plan shows a create, rejects malformed import IDs such as `"developer"` with
+  `unexpected format of ID ("developer"), expected <group-name>:<policy-name>`
+  instead of panicking, and documents the `<group-name>:<policy-name>` import
+  format ([#1386](https://github.com/aminueza/terraform-provider-minio/issues/1386)).
 - `minio_s3_bucket`: `Read` (and therefore `terraform import`) now refreshes
   `object_locking` via `GetObjectLockConfig` instead of silently leaving stale
   state or swallowing non-not-found errors during import, and removes the

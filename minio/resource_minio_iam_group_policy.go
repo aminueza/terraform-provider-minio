@@ -20,7 +20,7 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 		UpdateContext: minioUpdateGroupPolicy,
 		DeleteContext: minioDeleteGroupPolicy,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			StateContext: minioImportGroupPolicy,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -50,10 +50,11 @@ func resourceMinioIAMGroupPolicy() *schema.Resource {
 				ValidateFunc:  validateIAMNamePrefixPolicy,
 			},
 			"group": {
-				Type:        schema.TypeString,
-				Description: "Name of group the policy belongs to.",
-				Required:    true,
-				ForceNew:    true,
+				Type:         schema.TypeString,
+				Description:  "Name of group the policy belongs to.",
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validateMinioIamGroupName,
 			},
 		},
 	}
@@ -63,6 +64,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	var name string
 
 	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
+	groupName := iAMGroupPolicyConfig.MinioIAMGroup
 
 	if policyName := iAMGroupPolicyConfig.MinioIAMName; policyName != "" {
 		name = policyName
@@ -72,28 +74,56 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		name = id.UniqueId()
 	}
 
-	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy))
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
 
-	err := iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
+	policies, err := minioReadGroupPolicies(ctx, iAMGroupPolicyConfig.MinioAdmin, groupName)
 	if err != nil {
-		return NewResourceError("unable to create group policy", iAMGroupPolicyConfig.MinioIAMPolicy, err)
+		return NewResourceError("failed to load group infos", groupName, err)
 	}
 
-	d.SetId(fmt.Sprintf("%s:%s", iAMGroupPolicyConfig.MinioIAMGroup, name))
+	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy))
+
+	err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
+	if err != nil {
+		return NewResourceError("unable to create group policy", name, err)
+	}
+
+	if !Contains(policies, name) {
+		tflog.Debug(ctx, fmt.Sprintf("Attaching policy %s to group %s", name, groupName))
+		policies = append(policies, name)
+		if _, attachErr := iAMGroupPolicyConfig.MinioAdmin.AttachPolicy(ctx, madmin.PolicyAssociationReq{
+			Policies: policies,
+			Group:    groupName,
+		}); attachErr != nil {
+			if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
+				tflog.Warn(ctx, fmt.Sprintf("Failed cleaning up canned policy %s after attach failure: %v", name, rmErr))
+			}
+			return NewResourceError("unable to attach group policy", groupName+" "+name, attachErr)
+		}
+	}
+
+	d.SetId(fmt.Sprintf("%s:%s", groupName, name))
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s", d.Id()))
 
-	return minioReadGroupPolicy(ctx, d, meta)
+	return doMinioReadGroupPolicy(ctx, d, meta, groupName, name)
 }
 
 func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-
-	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
-
 	groupName, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
+
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
+
+	return doMinioReadGroupPolicy(ctx, d, meta, groupName, policyName)
+}
+
+func doMinioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}, groupName, policyName string) diag.Diagnostics {
+	iAMGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
 
 	tflog.Debug(ctx, fmt.Sprintf("Getting IAM Group Policy: %s", d.Id()))
 
@@ -105,6 +135,24 @@ func minioReadGroupPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 			return nil
 		}
 		return NewResourceError("unable to read group policy", d.Id(), err)
+	}
+
+	policies, err := minioReadGroupPolicies(ctx, iAMGroupPolicyConfig.MinioAdmin, groupName)
+	if err != nil {
+		if isNoSuchGroupError(err) && !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("No such Group (%s) found, removing group policy (%s) from state", groupName, d.Id()))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("failed to load group infos", groupName, err)
+	}
+	if !Contains(policies, policyName) {
+		if !d.IsNewResource() {
+			tflog.Warn(ctx, fmt.Sprintf("IAM group policy (%s) is not attached to group (%s), removing from state", policyName, groupName))
+			d.SetId("")
+			return nil
+		}
+		return NewResourceError("group policy not attached after create", d.Id(), fmt.Errorf("policy %q is not attached to group %q", policyName, groupName))
 	}
 
 	if err := d.Set("name", policyName); err != nil {
@@ -147,32 +195,57 @@ func minioUpdateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 }
 
 func minioDeleteGroupPolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	iamPolicyConfig := IAMPolicyConfig(d, meta)
+	iamGroupPolicyConfig := IAMGroupPolicyConfig(d, meta)
 
-	_, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
+	groupName, policyName, err := resourceMinioIamGroupPolicyParseID(d.Id())
 	if err != nil {
 		return NewResourceError("[FATAL] Reading group policies failed", d.Id(), err)
 	}
 
-	if _, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName); err != nil {
+	groupPolicyAttachmentLock.Lock(groupName)
+	defer groupPolicyAttachmentLock.Unlock(groupName)
+
+	policies, err := minioReadGroupPolicies(ctx, iamGroupPolicyConfig.MinioAdmin, groupName)
+	if err != nil {
+		if !isNoSuchGroupError(err) {
+			return NewResourceError("failed to load group infos", groupName, err)
+		}
+	} else if Contains(policies, policyName) {
+		tflog.Debug(ctx, fmt.Sprintf("Detaching policy %s from group: %s", policyName, groupName))
+		if _, detachErr := iamGroupPolicyConfig.MinioAdmin.DetachPolicy(ctx, madmin.PolicyAssociationReq{
+			Policies: []string{policyName},
+			Group:    groupName,
+		}); detachErr != nil && !isNoSuchGroupError(detachErr) {
+			return NewResourceError("unable to detach group policy", d.Id(), detachErr)
+		}
+	}
+
+	if _, err := iamGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, policyName); err != nil {
 		if isNoSuchPolicyError(err) {
 			return nil
 		}
 		return NewResourceError("unable to read group policy before deleting it", d.Id(), err)
 	}
 
-	err = iamPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, policyName)
-	if err != nil {
+	err = iamGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, policyName)
+	if err != nil && !isNoSuchPolicyError(err) {
 		return NewResourceError("unable to delete group policy", d.Id(), err)
 	}
 
 	return nil
 }
 
+func minioImportGroupPolicy(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
+	if _, _, err := resourceMinioIamGroupPolicyParseID(d.Id()); err != nil {
+		return nil, err
+	}
+	return []*schema.ResourceData{d}, nil
+}
+
 func resourceMinioIamGroupPolicyParseID(id string) (groupName, policyName string, err error) {
 	parts := strings.SplitN(id, ":", 2)
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		err = fmt.Errorf("group_policy id must be of the form <group-name>:<policy-name> got %s:%s", parts[0], parts[1])
+		err = fmt.Errorf("unexpected format of ID (%q), expected <group-name>:<policy-name>", id)
 		return
 	}
 

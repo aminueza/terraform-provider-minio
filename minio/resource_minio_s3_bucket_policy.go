@@ -92,13 +92,14 @@ func minioPutBucketPolicy(ctx context.Context, d *schema.ResourceData, meta inte
 	// restore it if SetBucketPolicy destroyed it.
 	versioningBefore, beforeErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
 	if beforeErr != nil {
-		tflog.Debug(ctx, fmt.Sprintf("Skipping pre-policy versioning snapshot for bucket %s: %v", bucketPolicyConfig.MinioBucket, beforeErr))
+		tflog.Debug(ctx, fmt.Sprintf("Skipping versioning-loss check for bucket %s: %v", bucketPolicyConfig.MinioBucket, beforeErr))
 	} else if versioningBefore.Status != "" {
 		time.Sleep(500 * time.Millisecond)
 		versioningAfter, afterErr := bucketPolicyConfig.MinioClient.GetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket)
-		if afterErr != nil {
-			tflog.Debug(ctx, fmt.Sprintf("Failed to verify bucket %s versioning after SetBucketPolicy: %v", bucketPolicyConfig.MinioBucket, afterErr))
-		} else if versioningAfter.Status == "" {
+		// A failed verification read counts as lost: re-applying the captured
+		// configuration is idempotent, and skipping the restore would silently
+		// drop the protection this workaround exists for.
+		if afterErr != nil || versioningAfter.Status == "" {
 			tflog.Warn(ctx, fmt.Sprintf("Bucket %s versioning was lost after SetBucketPolicy, restoring", bucketPolicyConfig.MinioBucket))
 			if restoreErr := bucketPolicyConfig.MinioClient.SetBucketVersioning(ctx, bucketPolicyConfig.MinioBucket, versioningBefore); restoreErr != nil {
 				tflog.Warn(ctx, fmt.Sprintf("Failed to restore bucket %s versioning after SetBucketPolicy: %v", bucketPolicyConfig.MinioBucket, restoreErr))

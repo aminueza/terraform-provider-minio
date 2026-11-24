@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
@@ -109,7 +108,6 @@ func TestDataSourceIAMUsersUnit(t *testing.T) {
 
 		ds := dataSourceIAMUsers()
 
-		// enabled + name_prefix="team-"
 		d := ds.TestResourceData()
 		if err := d.Set("name_prefix", "team-"); err != nil {
 			t.Fatal(err)
@@ -133,6 +131,11 @@ func TestDataSourceIAMUsersUnit(t *testing.T) {
 		if !slices.Equal(gotOrder, []string{"team-alpha", "team-bravo", "team-charlie"}) {
 			t.Fatalf("expected sorted user names [team-alpha team-bravo team-charlie], got %v", gotOrder)
 		}
+		for _, u := range []map[string]interface{}{u0, u1, u2} {
+			if u["status"] != "enabled" {
+				t.Fatalf("user %v status = %q, want enabled", u["name"], u["status"])
+			}
+		}
 		if got := toStringSlice(u0["policy_names"]); !slices.Equal(got, []string{"a", "b"}) {
 			t.Fatalf("team-alpha policy_names = %v, want [a b]", got)
 		}
@@ -152,7 +155,6 @@ func TestDataSourceIAMUsersUnit(t *testing.T) {
 			t.Fatalf("team-charlie member_of_groups = %v, want [grp-1]", got)
 		}
 
-		// status="disabled"
 		dDisabled := ds.TestResourceData()
 		if err := dDisabled.Set("name_prefix", "team-"); err != nil {
 			t.Fatal(err)
@@ -167,8 +169,10 @@ func TestDataSourceIAMUsersUnit(t *testing.T) {
 		if len(disUsers) != 1 || disUsers[0].(map[string]interface{})["name"] != "team-disabled" {
 			t.Fatalf("expected [team-disabled], got %v", disUsers)
 		}
+		if got := disUsers[0].(map[string]interface{})["status"]; got != "disabled" {
+			t.Fatalf("team-disabled status = %q, want disabled", got)
+		}
 
-		// status="all"
 		dAll := ds.TestResourceData()
 		if err := dAll.Set("name_prefix", "team-"); err != nil {
 			t.Fatal(err)
@@ -184,31 +188,23 @@ func TestDataSourceIAMUsersUnit(t *testing.T) {
 		}
 	})
 
-	t.Run("id is stable across repeated reads with same filters", func(t *testing.T) {
+	t.Run("id is derived from the filters", func(t *testing.T) {
 		client := iamUsersStubAdmin(t, iamUsersEncryptedHandler(t, map[string]madmin.UserInfo{
 			"alice": {Status: madmin.AccountEnabled, PolicyName: "a,b"},
 		}))
 		ds := dataSourceIAMUsers()
-
-		readOnce := func() string {
-			d := ds.TestResourceData()
-			if err := d.Set("name_prefix", "al"); err != nil {
-				t.Fatal(err)
-			}
-			if err := d.Set("status", "enabled"); err != nil {
-				t.Fatal(err)
-			}
-			if diags := ds.ReadContext(ctx, d, &S3MinioClient{S3Admin: client}); diags.HasError() {
-				t.Fatalf("ReadContext error: %v", diags)
-			}
-			return d.Id()
+		d := ds.TestResourceData()
+		if err := d.Set("name_prefix", "al"); err != nil {
+			t.Fatal(err)
 		}
-
-		id1 := readOnce()
-		time.Sleep(1100 * time.Millisecond)
-		id2 := readOnce()
-		if id1 == "" || id1 != id2 {
-			t.Fatalf("expected stable non-empty ID across reads, got %q then %q", id1, id2)
+		if err := d.Set("status", "enabled"); err != nil {
+			t.Fatal(err)
+		}
+		if diags := ds.ReadContext(ctx, d, &S3MinioClient{S3Admin: client}); diags.HasError() {
+			t.Fatalf("ReadContext error: %v", diags)
+		}
+		if d.Id() != "iam-users:enabled:al" {
+			t.Fatalf("id = %q, want %q", d.Id(), "iam-users:enabled:al")
 		}
 	})
 

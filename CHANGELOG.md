@@ -77,10 +77,8 @@ History older than 3.39.0 lives in the
 ### Fixed
 
 - `minio_iam_users` data source now populates `policy_names` and
-  `member_of_groups` from `ListUsers`, reports API and state errors through
-  `NewResourceError`, adds descriptions to every schema field, documents that
-  service accounts are omitted and LDAP policy-mapped users appear under their
-  DN, and removes the misleading service-accounts example
+  `member_of_groups` from `ListUsers`, and documents that service accounts
+  are omitted and LDAP policy-mapped users appear under their DN
   ([#1367](https://github.com/aminueza/terraform-provider-minio/issues/1367)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema

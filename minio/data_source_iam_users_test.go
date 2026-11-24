@@ -3,11 +3,9 @@ package minio
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccDataSourceMinioIAMUsers_listAndFilter(t *testing.T) {
@@ -184,9 +182,10 @@ data "minio_iam_users" "all" {
 }
 `, aUser, zUser, dUser, mUser, secret, policy1, policy2, groupName, prefix)
 
-	var firstEnabledID string
 	checkStep := resource.ComposeTestCheckFunc(
+		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "id", "iam-users:enabled:"+prefix),
 		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.#", "3"),
+		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.0.status", "enabled"),
 		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.0.name", aUser),
 		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.1.name", mUser),
 		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.2.name", zUser),
@@ -201,6 +200,7 @@ data "minio_iam_users" "all" {
 		resource.TestCheckResourceAttr("data.minio_iam_users.enabled", "users.1.member_of_groups.#", "0"),
 		resource.TestCheckResourceAttr("data.minio_iam_users.disabled", "users.#", "1"),
 		resource.TestCheckResourceAttr("data.minio_iam_users.disabled", "users.0.name", dUser),
+		resource.TestCheckResourceAttr("data.minio_iam_users.disabled", "users.0.status", "disabled"),
 		resource.TestCheckResourceAttr("data.minio_iam_users.all", "users.#", "4"),
 	)
 
@@ -210,36 +210,7 @@ data "minio_iam_users" "all" {
 		Steps: []resource.TestStep{
 			{
 				Config: cfg,
-				Check: resource.ComposeTestCheckFunc(
-					checkStep,
-					func(s *terraform.State) error {
-						rs, ok := s.RootModule().Resources["data.minio_iam_users.enabled"]
-						if !ok || rs.Primary == nil || rs.Primary.ID == "" {
-							return fmt.Errorf("data.minio_iam_users.enabled id not set")
-						}
-						firstEnabledID = rs.Primary.ID
-						return nil
-					},
-				),
-			},
-			{
-				PreConfig: func() {
-					time.Sleep(1100 * time.Millisecond)
-				},
-				Config: cfg,
-				Check: resource.ComposeTestCheckFunc(
-					checkStep,
-					func(s *terraform.State) error {
-						rs, ok := s.RootModule().Resources["data.minio_iam_users.enabled"]
-						if !ok || rs.Primary == nil {
-							return fmt.Errorf("data.minio_iam_users.enabled missing in state")
-						}
-						if rs.Primary.ID != firstEnabledID {
-							return fmt.Errorf("expected deterministic id %q across reads, got %q", firstEnabledID, rs.Primary.ID)
-						}
-						return nil
-					},
-				),
+				Check:  checkStep,
 			},
 		},
 	})

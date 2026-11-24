@@ -424,8 +424,12 @@ func customizeDiffKafkaSasl(_ context.Context, d *schema.ResourceDiff, _ interfa
 	if !d.NewValueKnown("sasl") || d.Get("sasl").(bool) {
 		return nil
 	}
-	if d.Get("sasl_username").(string) != "" || d.Get("sasl_password").(string) != "" {
-		return fmt.Errorf("sasl_username and sasl_password are ignored by MinIO when sasl is false; add sasl = true to enable SASL authentication")
+	for _, k := range []string{"sasl_username", "sasl_password"} {
+		// A credential unknown at plan time resolves at apply, when
+		// CustomizeDiff does not run again, so treat it as set.
+		if !d.NewValueKnown(k) || d.Get(k).(string) != "" {
+			return fmt.Errorf("sasl_username and sasl_password are ignored by MinIO when sasl is false; add sasl = true to enable SASL authentication")
+		}
 	}
 	return nil
 }

@@ -202,6 +202,19 @@ func TestKafkaSaslCustomizeDiff(t *testing.T) {
 					t.Fatalf("unexpected diff error for unknown sasl: %v", err)
 				}
 			})
+
+			t.Run("unknown_credential_without_sasl", func(t *testing.T) {
+				cfg := terraform.NewResourceConfigShimmed(cty.ObjectVal(map[string]cty.Value{
+					"name":          cty.StringVal("primary"),
+					"brokers":       cty.StringVal("localhost:9092"),
+					"topic":         cty.StringVal("events"),
+					"sasl":          cty.False,
+					"sasl_password": cty.UnknownVal(cty.String),
+				}), r.res.CoreConfigSchema())
+				if _, err := r.res.Diff(ctx, nil, cfg, nil); err == nil {
+					t.Fatal("expected plan error for a credential unknown at plan time with sasl = false")
+				}
+			})
 		})
 	}
 }

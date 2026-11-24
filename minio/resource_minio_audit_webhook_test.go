@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -320,4 +321,45 @@ resource "minio_audit_webhook" "test" {
   client_key  = "/srv/tls/client-privkey"
 }
 `, name)
+}
+
+func TestAccMinioAuditWebhook_createFailsWhenExists(t *testing.T) {
+	name := "tfacc-" + acctest.RandString(6)
+	originalEndpoint := "http://127.0.0.1:19998/original-audit"
+	key := auditWebhookConfigKey(name)
+
+	// Sequential on purpose: PreConfig and CheckDestroy restart the primary
+	// test server so GetConfigKV serves the target.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: func(s *terraform.State) error {
+			if len(s.RootModule().Resources) != 0 {
+				return fmt.Errorf("expected no resources in state after failed create, got %d", len(s.RootModule().Resources))
+			}
+			return testAccCheckServerStoredTarget("audit_webhook", name, map[string]string{
+				"endpoint": originalEndpoint,
+			})(s)
+		},
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if _, err := admin.SetConfigKV(ctx, fmt.Sprintf("%s endpoint=%s enable=off", key, originalEndpoint)); err != nil {
+						t.Fatalf("creating %s outside Terraform: %v", key, err)
+					}
+					if err := testAccRestartPrimaryServer(); err != nil {
+						t.Fatalf("restarting primary server: %v", err)
+					}
+					t.Cleanup(func() {
+						_, _ = admin.DelConfigKV(ctx, key)
+						_ = testAccRestartPrimaryServer()
+					})
+				},
+				Config:      testAccMinioAuditWebhookBasic(name),
+				ExpectError: regexp.MustCompile(`already exists`),
+			},
+		},
+	})
 }

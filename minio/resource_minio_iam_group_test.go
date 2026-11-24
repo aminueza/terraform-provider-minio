@@ -448,3 +448,89 @@ resource "minio_iam_group" "test" {
 }
 `, groupName)
 }
+
+func TestAccMinioIAMGroup_createFailsWhenExists(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-group-exists-%s", rString)
+	outsideUser := fmt.Sprintf("tf-acc-user-exists-%s", rString)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: func(s *terraform.State) error {
+			if len(s.RootModule().Resources) != 0 {
+				return fmt.Errorf("expected no resources in state after failed create, got %d", len(s.RootModule().Resources))
+			}
+			desc, err := testAccClient().S3Admin.GetGroupDescription(context.Background(), groupName)
+			if err != nil {
+				return fmt.Errorf("reading pre-existing group %s: %w", groupName, err)
+			}
+			if desc.Status != "disabled" {
+				return fmt.Errorf("group %s status = %q, want disabled", groupName, desc.Status)
+			}
+			if len(desc.Members) != 1 || desc.Members[0] != outsideUser {
+				return fmt.Errorf("group %s members = %v, want [%s]", groupName, desc.Members, outsideUser)
+			}
+			return nil
+		},
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.AddUser(ctx, outsideUser, "tfacc-outside-secret"); err != nil {
+						t.Fatalf("creating outside user %s: %v", outsideUser, err)
+					}
+					if err := admin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
+						Group:   groupName,
+						Members: []string{outsideUser},
+					}); err != nil {
+						t.Fatalf("creating pre-existing group %s: %v", groupName, err)
+					}
+					if err := admin.SetGroupStatus(ctx, groupName, madmin.GroupStatus("disabled")); err != nil {
+						t.Fatalf("disabling pre-existing group %s: %v", groupName, err)
+					}
+					t.Cleanup(func() {
+						_ = admin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
+							Group:    groupName,
+							Members:  []string{outsideUser},
+							IsRemove: true,
+						})
+						_ = admin.UpdateGroupMembers(ctx, madmin.GroupAddRemove{
+							Group:    groupName,
+							Members:  []string{},
+							IsRemove: true,
+						})
+						_ = admin.RemoveUser(ctx, outsideUser)
+					})
+				},
+				Config:      testAccMinioGroupConfig(groupName),
+				ExpectError: regexp.MustCompile(`already exists`),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroup_duplicateNameInConfig(t *testing.T) {
+	groupName := fmt.Sprintf("tf-acc-group-dup-%s", acctest.RandString(8))
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioGroupGone(groupName),
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_iam_group" "first" {
+  name = %[1]q
+}
+
+resource "minio_iam_group" "second" {
+  name = %[1]q
+}
+`, groupName),
+				ExpectError: regexp.MustCompile(`already exists`),
+			},
+		},
+	})
+}

@@ -88,6 +88,24 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		name = id.UniqueId()
 	}
 
+	// Lock the policy name before the group lock everywhere this pair is taken.
+	iamPolicyCreateLock.Lock(name)
+	defer iamPolicyCreateLock.Unlock(name)
+
+	// AddCannedPolicy overwrites any existing canned policy (including built-ins
+	// or policies managed outside this resource), so fail instead of taking over.
+	_, preCheckErr := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, name)
+	if preCheckErr == nil {
+		return NewResourceError(
+			"unable to create group policy",
+			name,
+			alreadyExistsError("minio_iam_group_policy", name, fmt.Sprintf("%s:%s", groupName, name)),
+		)
+	}
+	if !isNoSuchPolicyError(preCheckErr) {
+		return NewResourceError("checking for existing IAM policy", name, preCheckErr)
+	}
+
 	groupPolicyAttachmentLock.Lock(groupName)
 	defer groupPolicyAttachmentLock.Unlock(groupName)
 
@@ -97,12 +115,6 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy))
-
-	// Remember whether the canned policy already existed: AddCannedPolicy
-	// overwrites, so a failed attach must not remove a policy this resource
-	// did not create.
-	_, preCheckErr := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, name)
-	policyPreExisted := preCheckErr == nil
 
 	err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
@@ -116,9 +128,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 			Policies: policies,
 			Group:    groupName,
 		}); attachErr != nil {
-			if policyPreExisted {
-				tflog.Warn(ctx, fmt.Sprintf("Keeping canned policy %s after attach failure: it existed before this resource created it", name))
-			} else if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
+			if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
 				tflog.Warn(ctx, fmt.Sprintf("Failed cleaning up canned policy %s after attach failure: %v", name, rmErr))
 			}
 			return NewResourceError("unable to attach group policy", groupName+" "+name, attachErr)

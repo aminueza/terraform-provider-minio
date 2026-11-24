@@ -47,6 +47,15 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_iam_group`, `minio_iam_policy`, `minio_iam_group_policy`, notification
+  targets (`minio_notify_*`, `minio_logger_webhook`, `minio_audit_kafka`),
+  `minio_audit_webhook`, and `minio_s3_bucket` now fail to create when an
+  object with that name already exists instead of taking over or overwriting the
+  existing object. Import existing objects with `terraform import` (or an
+  `import` block) to manage them. Create now looks up IAM groups, policies,
+  and notification/audit targets first, so provider credentials must also allow
+  reading them (`GetGroupDescription`, `InfoCannedPolicy`, `GetConfigKV`)
+  ([#1393](https://github.com/aminueza/terraform-provider-minio/issues/1393)).
 - `minio_notify_kafka`, `minio_audit_kafka`, and `data.minio_notify_kafka` now
   expose `sasl` as a boolean defaulting to `false`, sent to MinIO as
   `sasl=on`/`sasl=off`. Configurations that set `sasl_username` or

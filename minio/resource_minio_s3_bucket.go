@@ -203,18 +203,16 @@ func minioCreateBucket(ctx context.Context, d *schema.ResourceData, meta interfa
 		return NewResourceError("unable to create bucket", bucket, err)
 	}
 
-	if e, err := bucketConfig.MinioClient.BucketExists(ctx, bucket); err != nil {
-		return NewResourceError("unable to check bucket", bucket, err)
-	} else if e {
-		return NewResourceError("bucket already exists!", bucket, err)
-	}
-
 	err := bucketConfig.MinioClient.MakeBucket(ctx, bucket, minio.MakeBucketOptions{
 		Region:        region,
 		ObjectLocking: bucketConfig.ObjectLockingEnabled,
 	})
 
 	if err != nil {
+		errResp := minio.ToErrorResponse(err)
+		if errResp.Code == minio.BucketAlreadyExists || errResp.Code == minio.BucketAlreadyOwnedByYou {
+			return NewResourceError("unable to create bucket", bucket, alreadyExistsError("minio_s3_bucket", bucket, bucket))
+		}
 		tflog.Error(ctx, NewResourceErrorStr("unable to create bucket", bucket, err))
 		return NewResourceError("unable to create bucket", bucket, err)
 	}

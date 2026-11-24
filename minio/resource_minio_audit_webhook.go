@@ -87,11 +87,28 @@ func auditWebhookConfigKey(name string) string {
 
 func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	config := AuditWebhookConfig(d, meta)
+	configKey := auditWebhookConfigKey(config.Name)
+
+	notifyConfigCreateLock.Lock(configKey)
+	defer notifyConfigCreateLock.Unlock(configKey)
+
+	// SetConfigKV merges into an existing target, so fail if one already exists.
+	_, err := config.MinioAdmin.GetConfigKV(ctx, configKey)
+	if err == nil {
+		return NewResourceError(
+			"creating audit webhook configuration",
+			config.Name,
+			alreadyExistsError("minio_audit_webhook", config.Name, config.Name),
+		)
+	}
+	if !isNotifyTargetMissingError(err) {
+		return NewResourceError("checking for existing audit webhook configuration", config.Name, err)
+	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating audit webhook: %s", config.Name))
 
 	cfgData := buildAuditWebhookCfgData(config)
-	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
+	configString := fmt.Sprintf("%s %s", configKey, cfgData)
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, configString)
 	if err != nil {
 		return NewResourceError("creating audit webhook configuration", config.Name, err)
@@ -116,8 +133,7 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 	configKey := auditWebhookConfigKey(name)
 	configData, err := minioAdmin.GetConfigKV(ctx, configKey)
 	if err != nil {
-		errMsg := strings.ToLower(err.Error())
-		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
+		if isNotifyTargetMissingError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Audit webhook %s no longer exists, removing from state", name))
 			d.SetId("")
 			return nil

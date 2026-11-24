@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/awspolicyequivalence"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/id"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
@@ -742,6 +743,99 @@ resource "minio_iam_group_policy" "missing" {
 }
 `, acctest.RandInt(), missingGroup),
 				ExpectError: regexp.MustCompile(regexp.QuoteMeta(missingGroup)),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_createFailsWhenExists(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-gpol-grp-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-gpol-exists-%s", rString)
+	const originalPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::original/*"]}]}`
+	const replacementPolicy = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:*"],"Resource":["arn:aws:s3:::*"]}]}`
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: func(s *terraform.State) error {
+			for _, rs := range s.RootModule().Resources {
+				if rs.Type == "minio_iam_group_policy" {
+					return fmt.Errorf("expected minio_iam_group_policy not to remain in state, found %s", rs.Primary.ID)
+				}
+			}
+			info, err := testAccClient().S3Admin.InfoCannedPolicy(context.Background(), policyName)
+			if err != nil {
+				return fmt.Errorf("reading pre-existing policy %s: %w", policyName, err)
+			}
+			equivalent, err := awspolicy.PoliciesAreEquivalent(originalPolicy, string(info.Policy))
+			if err != nil {
+				return fmt.Errorf("comparing policies: %w", err)
+			}
+			if !equivalent {
+				return fmt.Errorf("policy %s was overwritten: got %s, want %s", policyName, string(info.Policy), originalPolicy)
+			}
+			return testAccCheckIAMGroupPolicyDestroy(s)
+		},
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					admin := testAccClient().S3Admin
+					if err := admin.AddCannedPolicy(ctx, policyName, []byte(originalPolicy)); err != nil {
+						t.Fatalf("creating pre-existing policy %s: %v", policyName, err)
+					}
+					t.Cleanup(func() {
+						_ = admin.RemoveCannedPolicy(ctx, policyName)
+					})
+				},
+				Config: fmt.Sprintf(`
+resource "minio_iam_group" "group" {
+  name = %q
+}
+
+resource "minio_iam_group_policy" "test" {
+  name   = %q
+  group  = minio_iam_group.group.name
+  policy = %q
+}
+`, groupName, policyName, replacementPolicy),
+				ExpectError: regexp.MustCompile(`already exists`),
+			},
+		},
+	})
+}
+
+func TestAccMinioIAMGroupPolicy_duplicateNameInConfig(t *testing.T) {
+	rString := acctest.RandString(8)
+	groupName := fmt.Sprintf("tf-acc-gpol-dup-grp-%s", rString)
+	policyName := fmt.Sprintf("tf-acc-gpol-dup-%s", rString)
+	const policyDoc = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:ListAllMyBuckets"],"Resource":["arn:aws:s3:::*"]}]}`
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckIAMGroupPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_iam_group" "group" {
+  name = %q
+}
+
+resource "minio_iam_group_policy" "first" {
+  name   = %[2]q
+  group  = minio_iam_group.group.name
+  policy = %[3]q
+}
+
+resource "minio_iam_group_policy" "second" {
+  name   = %[2]q
+  group  = minio_iam_group.group.name
+  policy = %[3]q
+}
+`, groupName, policyName, policyDoc),
+				ExpectError: regexp.MustCompile(`already exists`),
 			},
 		},
 	})

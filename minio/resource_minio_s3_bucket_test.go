@@ -2534,3 +2534,67 @@ resource "minio_s3_bucket" "bucket" {
 }
 `, bucketName)
 }
+
+func TestAccMinioS3Bucket_createFailsWhenExists(t *testing.T) {
+	bucketName := fmt.Sprintf("tfacc-bkt-exists-%s", strings.ToLower(acctest.RandString(8)))
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy: func(s *terraform.State) error {
+			if len(s.RootModule().Resources) != 0 {
+				return fmt.Errorf("expected no resources in state after failed create, got %d", len(s.RootModule().Resources))
+			}
+			exists, err := testAccClient().S3Client.BucketExists(context.Background(), bucketName)
+			if err != nil {
+				return fmt.Errorf("checking pre-existing bucket %s: %w", bucketName, err)
+			}
+			if !exists {
+				return fmt.Errorf("pre-existing bucket %s disappeared", bucketName)
+			}
+			return nil
+		},
+		Steps: []resource.TestStep{
+			{
+				PreConfig: func() {
+					ctx := context.Background()
+					client := testAccClient().S3Client
+					if err := client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{}); err != nil {
+						t.Fatalf("creating pre-existing bucket %s: %v", bucketName, err)
+					}
+					t.Cleanup(func() {
+						_ = client.RemoveBucket(ctx, bucketName)
+					})
+				},
+				Config:      testAccMinioS3BucketConfigWithBucket(bucketName),
+				ExpectError: regexp.MustCompile(`terraform import minio_s3_bucket`),
+			},
+		},
+	})
+}
+
+func TestAccMinioS3Bucket_duplicateNameInConfig(t *testing.T) {
+	bucketName := fmt.Sprintf("tfacc-bkt-dup-%s", strings.ToLower(acctest.RandString(8)))
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_s3_bucket" "first" {
+  bucket = %[1]q
+  acl    = "private"
+}
+
+resource "minio_s3_bucket" "second" {
+  bucket = %[1]q
+  acl    = "private"
+}
+`, bucketName),
+				ExpectError: regexp.MustCompile(`terraform import minio_s3_bucket`),
+			},
+		},
+	})
+}

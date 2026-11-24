@@ -371,3 +371,33 @@ func isLifecycleNotFoundError(err error) bool {
 	return strings.Contains(msg, "NoSuchLifecycleConfiguration") ||
 		strings.Contains(msg, "The lifecycle configuration does not exist")
 }
+
+// alreadyExistsError returns the consistent error for Create when the target
+// object already exists on the server, directing the user to import it instead.
+func alreadyExistsError(resourceType, name, importID string) error {
+	return fmt.Errorf(
+		"%s %q already exists. To manage it with Terraform, import it: terraform import %s.<name> %s",
+		resourceType, name, resourceType, importID,
+	)
+}
+
+// isMissingGroupError reports whether a madmin group lookup failed because the
+// group does not exist.
+func isMissingGroupError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return isNoSuchGroupError(err) || strings.Contains(strings.ToLower(err.Error()), "group does not exist")
+}
+
+// isNotifyTargetMissingError reports whether a get-config-kv lookup failed
+// because the notification or audit target does not exist.
+func isNotifyTargetMissingError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "not found") ||
+		strings.Contains(errMsg, "does not exist") ||
+		strings.Contains(errMsg, "there is no target")
+}

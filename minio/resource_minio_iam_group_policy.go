@@ -88,6 +88,24 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		name = id.UniqueId()
 	}
 
+	// Lock the policy name before the group lock everywhere this pair is taken.
+	iamPolicyCreateLock.Lock(name)
+	defer iamPolicyCreateLock.Unlock(name)
+
+	// AddCannedPolicy overwrites any existing canned policy (including built-ins
+	// or policies managed outside this resource), so fail instead of taking over.
+	_, preCheckErr := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, name)
+	if preCheckErr == nil {
+		return NewResourceError(
+			"unable to create group policy",
+			name,
+			groupPolicyExistsError(ctx, iAMGroupPolicyConfig.MinioAdmin, groupName, name),
+		)
+	}
+	if !isNoSuchPolicyError(preCheckErr) {
+		return NewResourceError("checking for existing IAM policy", name, preCheckErr)
+	}
+
 	groupPolicyAttachmentLock.Lock(groupName)
 	defer groupPolicyAttachmentLock.Unlock(groupName)
 
@@ -97,12 +115,6 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 	}
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Group Policy %s: %v", name, iAMGroupPolicyConfig.MinioIAMPolicy))
-
-	// Remember whether the canned policy already existed: AddCannedPolicy
-	// overwrites, so a failed attach must not remove a policy this resource
-	// did not create.
-	_, preCheckErr := iAMGroupPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, name)
-	policyPreExisted := preCheckErr == nil
 
 	err = iAMGroupPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iAMGroupPolicyConfig.MinioIAMPolicy))
 	if err != nil {
@@ -116,10 +128,8 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 			Policies: policies,
 			Group:    groupName,
 		}); attachErr != nil {
-			if policyPreExisted {
-				tflog.Warn(ctx, fmt.Sprintf("Keeping canned policy %s after attach failure: it existed before this resource created it", name))
-			} else if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
-				tflog.Warn(ctx, fmt.Sprintf("Failed cleaning up canned policy %s after attach failure: %v", name, rmErr))
+			if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
+				return NewResourceError("unable to attach group policy", groupName+" "+name, fmt.Errorf("%v; and cleaning up the canned policy %q also failed, remove it manually: %v", attachErr, name, rmErr))
 			}
 			return NewResourceError("unable to attach group policy", groupName+" "+name, attachErr)
 		}
@@ -316,6 +326,18 @@ func isNoSuchPolicyError(err error) bool {
 // does not exist.
 func isNoSuchGroupError(err error) bool {
 	return isMadminErrorCode(err, "XMinioAdminNoSuchGroup")
+}
+
+// groupPolicyExistsError explains that a canned policy blocks creating this
+// group policy. The import hint only works while the policy is attached to the
+// group: Read drops the resource when the policy is not attached, so an
+// unattached policy needs attaching first or a different name.
+func groupPolicyExistsError(ctx context.Context, minioAdmin *madmin.AdminClient, groupName, name string) error {
+	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
+	if err == nil && !Contains(policies, name) {
+		return fmt.Errorf("canned policy %q already exists but is not attached to group %q. Attach it to the group first and import it: terraform import minio_iam_group_policy.<name> %s:%s, or choose another name", name, groupName, groupName, name)
+	}
+	return alreadyExistsError("minio_iam_group_policy", name, fmt.Sprintf("%s:%s", groupName, name))
 }
 
 // isNoSuchUserError reports whether a madmin call failed because the user

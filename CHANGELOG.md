@@ -56,6 +56,18 @@ History older than 3.39.0 lives in the
   that manage an imported target holding both and declare only the certificate
   now fail at plan time, so declare the key path next to the certificate
   ([#1355](https://github.com/aminueza/terraform-provider-minio/issues/1355)).
+- `minio_iam_group`, `minio_iam_policy`, `minio_iam_group_policy`, and
+  `minio_s3_bucket` now fail to create when an object with that name already
+  exists instead of taking over or overwriting the existing object. Import
+  existing objects with `terraform import` (or an `import` block) to manage
+  them. Create now looks up IAM groups and policies first, so provider
+  credentials must also allow reading them (`GetGroupDescription`,
+  `InfoCannedPolicy`). `minio_iam_group` must be referenced by attribute from
+  membership resources (`minio_iam_group_membership`,
+  `minio_iam_group_user_attachment`, `minio_iam_user_group_membership`): a
+  membership resource with a literal group name that applies first creates the
+  group implicitly, and the group resource then fails to create
+  ([#1393](https://github.com/aminueza/terraform-provider-minio/issues/1393)).
 - `minio_notify_kafka`, `minio_audit_kafka`, and `data.minio_notify_kafka` now
   expose `sasl` as a boolean defaulting to `false`, sent to MinIO as
   `sasl=on`/`sasl=off`. Configurations that set `sasl_username` or
@@ -153,6 +165,9 @@ History older than 3.39.0 lives in the
   in state are reported as diagnostics instead of panicking refresh or
   destroy
   ([#1372](https://github.com/aminueza/terraform-provider-minio/issues/1372)).
+- `minio_audit_webhook` refresh now treats the server's "there is no target"
+  answer as the target having been removed outside Terraform, dropping the
+  resource from state instead of failing the refresh.
 - Removing optional notification fields now clears them on the server:
   `minio_notify_webhook`, `minio_logger_webhook`, `minio_notify_nats`,
   `minio_notify_kafka`, `minio_audit_kafka`, `minio_notify_mqtt`,

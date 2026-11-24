@@ -53,6 +53,8 @@ func resourceMinioIAMPolicy() *schema.Resource {
 	}
 }
 
+var iamPolicyCreateLock = NewMutexKV()
+
 func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	var name string
@@ -67,9 +69,22 @@ func minioCreatePolicy(ctx context.Context, d *schema.ResourceData, meta interfa
 		name = id.UniqueId()
 	}
 
+	iamPolicyCreateLock.Lock(name)
+	defer iamPolicyCreateLock.Unlock(name)
+
+	// AddCannedPolicy on MinIO overwrites an existing policy document,
+	// including built-in policies.
+	_, err := iamPolicyConfig.MinioAdmin.InfoCannedPolicy(ctx, name)
+	if err == nil {
+		return NewResourceError("unable to create policy", name, alreadyExistsError("minio_iam_policy", name, name))
+	}
+	if !isNoSuchPolicyError(err) {
+		return NewResourceError("checking for existing IAM policy", name, err)
+	}
+
 	tflog.Debug(ctx, fmt.Sprintf("Creating IAM Policy %s: %v", name, iamPolicyConfig.MinioIAMPolicy))
 
-	err := iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iamPolicyConfig.MinioIAMPolicy))
+	err = iamPolicyConfig.MinioAdmin.AddCannedPolicy(ctx, name, []byte(iamPolicyConfig.MinioIAMPolicy))
 	if err != nil {
 		return NewResourceError("unable to create policy", name, err)
 	}

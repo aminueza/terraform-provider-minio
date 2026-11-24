@@ -10,13 +10,13 @@ output "enabled_user_names" {
   value = [for user in data.minio_iam_users.all_enabled.users : user.name]
 }
 
-data "minio_iam_users" "service_accounts" {
-  name_prefix = "svc-"
+data "minio_iam_users" "team" {
+  name_prefix = "team-"
   status      = "enabled"
 }
 
-output "service_account_users" {
-  value = data.minio_iam_users.service_accounts.users
+output "team_users" {
+  value = data.minio_iam_users.team.users
 }
 
 data "minio_iam_users" "all" {

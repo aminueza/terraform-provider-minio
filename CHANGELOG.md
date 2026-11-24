@@ -53,6 +53,10 @@ History older than 3.39.0 lives in the
   format. Existing states migrate to the new ID on the next refresh with an
   empty plan and no replacement
   ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
+- `minio_iam_users` data source now returns `users` sorted by `name` and
+  derives a deterministic `id` from `status` and `name_prefix` instead of
+  generating a new Unix timestamp on every read
+  ([#1367](https://github.com/aminueza/terraform-provider-minio/issues/1367)).
 - `minio_iam_group_membership`: `id` now stores the `group` name instead of
   the Terraform-only `name` label, and `name` is no longer `ForceNew`. Existing
   states created before this change migrate `id` from `name` to `group` on the
@@ -84,6 +88,10 @@ History older than 3.39.0 lives in the
   rejected with that message instead of importing into a resource that Read
   immediately drops, and the LDAP group read error no longer mentions a user
   ([#1354](https://github.com/aminueza/terraform-provider-minio/issues/1354)).
+- `minio_iam_users` data source now populates `policy_names` and
+  `member_of_groups` from `ListUsers`, and documents that service accounts
+  are omitted and LDAP policy-mapped users appear under their DN
+  ([#1367](https://github.com/aminueza/terraform-provider-minio/issues/1367)).
 - `data.minio_s3_object` now formats `last_modified` and non-zero `expires` as
   RFC 3339 strings instead of passing `time.Time` values into string schema
   attributes (which dropped both fields and panicked under `TF_ACC`), and

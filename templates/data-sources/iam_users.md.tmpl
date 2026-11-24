@@ -11,6 +11,8 @@ description: |-
 
 Lists IAM users with optional filtering by name prefix and status. This is useful for discovering existing users, bulk operations, and auditing.
 
+-> **Note:** Service accounts are not returned by this data source; use `minio_access_keys` to list them. When LDAP is enabled, MinIO also includes LDAP users that have a direct policy mapping, keyed by DN with `policy_names` set, `member_of_groups` empty, and `status` reported as `"enabled"`.
+
 ## Example Usage
 
 {{ tffile "examples/data-sources/minio_iam_users/data-source.tf" }}
@@ -18,7 +20,7 @@ Lists IAM users with optional filtering by name prefix and status. This is usefu
 ## Use Cases
 
 - **User Discovery**: List all users in the MinIO deployment
-- **Filtered Queries**: Find users by prefix (e.g., service accounts)
+- **Filtered Queries**: Find users by prefix (e.g., `team-`)
 - **Status Filtering**: List only enabled or disabled users
 - **Bulk Operations**: Apply policies or configurations to multiple users
 - **Audit Reports**: Generate user inventory for compliance

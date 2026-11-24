@@ -51,9 +51,8 @@ func resourceMinioNotifyWebhook() *schema.Resource {
 func buildNotifyWebhookCfg(d *schema.ResourceData, meta interface{}) string {
 	var parts []string
 	notifyBuildCfgAddParam(&parts, "endpoint", d.Get("endpoint").(string))
-	notifyBuildCfgAddParam(&parts, "auth_token", getOptionalField(d, "auth_token", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_cert", getOptionalField(d, "client_cert", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_key", getOptionalField(d, "client_key", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "auth_token")
+	notifyBuildCfgClearablePair(&parts, d, "client_cert", "client_key")
 	notifyBuildCommonCfg(&parts, d, meta)
 	return strings.Join(parts, " ")
 }
@@ -62,7 +61,7 @@ func readNotifyWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 	if v, ok := cfgMap["endpoint"]; ok {
 		_ = d.Set("endpoint", v)
 	}
-	if v, ok := cfgMap["client_cert"]; ok && v != "" {
+	if v, ok := cfgMap["client_cert"]; ok {
 		_ = d.Set("client_cert", v)
 	}
 	notifyReadCommonFields(cfgMap, d)

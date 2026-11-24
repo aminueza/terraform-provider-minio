@@ -60,8 +60,7 @@ func buildNotifyElasticsearchCfg(d *schema.ResourceData, meta interface{}) strin
 	notifyBuildCfgAddParam(&parts, "url", d.Get("url").(string))
 	notifyBuildCfgAddParam(&parts, "index", d.Get("index").(string))
 	notifyBuildCfgAddParam(&parts, "format", d.Get("format").(string))
-	notifyBuildCfgAddParam(&parts, "username", getOptionalField(d, "username", "").(string))
-	notifyBuildCfgAddParam(&parts, "password", getOptionalField(d, "password", "").(string))
+	notifyBuildCfgClearablePair(&parts, d, "username", "password")
 
 	notifyBuildCommonCfg(&parts, d, meta)
 
@@ -83,7 +82,7 @@ func readNotifyElasticsearchFields(cfgMap map[string]string, d *schema.ResourceD
 		_ = d.Set("format", v)
 	}
 
-	if v, ok := cfgMap["username"]; ok && v != "" {
+	if v, ok := cfgMap["username"]; ok {
 		_ = d.Set("username", v)
 	}
 

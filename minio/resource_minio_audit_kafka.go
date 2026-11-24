@@ -89,12 +89,12 @@ func buildAuditKafkaCfg(d *schema.ResourceData, meta interface{}) string {
 	var parts []string
 	notifyBuildCfgAddParam(&parts, "brokers", d.Get("brokers").(string))
 	notifyBuildCfgAddParam(&parts, "topic", d.Get("topic").(string))
-	notifyBuildCfgAddParam(&parts, "sasl_username", getOptionalField(d, "sasl_username", "").(string))
-	notifyBuildCfgAddParam(&parts, "sasl_password", getOptionalField(d, "sasl_password", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "sasl_username")
+	notifyBuildCfgClearableParam(&parts, d, "sasl_password")
 	notifyBuildCfgAddParam(&parts, "sasl_mechanism", getOptionalField(d, "sasl_mechanism", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_tls_cert", getOptionalField(d, "client_tls_cert", "").(string))
-	notifyBuildCfgAddParam(&parts, "client_tls_key", getOptionalField(d, "client_tls_key", "").(string))
-	notifyBuildCfgAddParam(&parts, "version", getOptionalField(d, "version", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "client_tls_cert")
+	notifyBuildCfgClearableParam(&parts, d, "client_tls_key")
+	notifyBuildCfgClearableParam(&parts, d, "version")
 	// d.Get, not GetOk: GetOk reads false as unset, so a target written
 	// with tls=on kept tls=on on the server after the configuration
 	// turned it off. See issue #1331.
@@ -112,7 +112,7 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if v, ok := cfgMap["topic"]; ok {
 		_ = d.Set("topic", v)
 	}
-	if v, ok := cfgMap["sasl_username"]; ok && v != "" {
+	if v, ok := cfgMap["sasl_username"]; ok {
 		_ = d.Set("sasl_username", v)
 	}
 	if v, ok := cfgMap["sasl_mechanism"]; ok {
@@ -121,10 +121,10 @@ func readAuditKafkaFields(cfgMap map[string]string, d *schema.ResourceData) diag
 	if err := d.Set("sasl", cfgMap["sasl"] == "on"); err != nil {
 		return NewResourceError("setting sasl", d.Id(), err)
 	}
-	if v, ok := cfgMap["client_tls_cert"]; ok && v != "" {
+	if v, ok := cfgMap["client_tls_cert"]; ok {
 		_ = d.Set("client_tls_cert", v)
 	}
-	if v, ok := cfgMap["version"]; ok && v != "" {
+	if v, ok := cfgMap["version"]; ok {
 		_ = d.Set("version", v)
 	}
 	if v, ok := cfgMap["tls"]; ok {

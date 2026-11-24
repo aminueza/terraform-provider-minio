@@ -88,9 +88,9 @@ func buildNotifyAmqpCfg(d *schema.ResourceData, meta interface{}) string {
 	var parts []string
 
 	notifyBuildCfgAddParam(&parts, "url", d.Get("url").(string))
-	notifyBuildCfgAddParam(&parts, "exchange", getOptionalField(d, "exchange", "").(string))
-	notifyBuildCfgAddParam(&parts, "exchange_type", getOptionalField(d, "exchange_type", "").(string))
-	notifyBuildCfgAddParam(&parts, "routing_key", getOptionalField(d, "routing_key", "").(string))
+	notifyBuildCfgClearableParam(&parts, d, "exchange")
+	notifyBuildCfgClearableParam(&parts, d, "exchange_type")
+	notifyBuildCfgClearableParam(&parts, d, "routing_key")
 	notifyBuildCfgAddBool(&parts, "mandatory", getOptionalField(d, "mandatory", false).(bool))
 	notifyBuildCfgAddBool(&parts, "durable", getOptionalField(d, "durable", false).(bool))
 	notifyBuildCfgAddBool(&parts, "no_wait", getOptionalField(d, "no_wait", false).(bool))

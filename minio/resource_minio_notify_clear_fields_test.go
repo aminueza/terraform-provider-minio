@@ -65,13 +65,6 @@ func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.A
 			w.Header().Set(madmin.ConfigAppliedHeader, madmin.ConfigAppliedTrue)
 			w.WriteHeader(http.StatusOK)
 		case strings.HasSuffix(r.URL.Path, "/get-config-kv"):
-			if len(stub.kvs) == 0 && len(stub.sets) == 0 {
-				subsystem, name, _ := strings.Cut(stub.key, ":")
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusBadRequest)
-				_, _ = fmt.Fprintf(w, `{"Code":"XMinioConfigTargetNotFound","Message":"there is no target %q for subsystem %q"}`, name, subsystem)
-				return
-			}
 			body, err := madmin.EncryptData("secretkey", []byte(stub.line()))
 			if err != nil {
 				t.Errorf("encrypting config: %v", err)

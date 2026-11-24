@@ -2567,7 +2567,7 @@ func TestAccMinioS3Bucket_createFailsWhenExists(t *testing.T) {
 					})
 				},
 				Config:      testAccMinioS3BucketConfigWithBucket(bucketName),
-				ExpectError: regexp.MustCompile(`already exists`),
+				ExpectError: regexp.MustCompile(`terraform import minio_s3_bucket`),
 			},
 		},
 	})
@@ -2593,7 +2593,7 @@ resource "minio_s3_bucket" "second" {
   acl    = "private"
 }
 `, bucketName),
-				ExpectError: regexp.MustCompile(`already exists`),
+				ExpectError: regexp.MustCompile(`terraform import minio_s3_bucket`),
 			},
 		},
 	})

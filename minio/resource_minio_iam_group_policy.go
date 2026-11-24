@@ -99,7 +99,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 		return NewResourceError(
 			"unable to create group policy",
 			name,
-			alreadyExistsError("minio_iam_group_policy", name, fmt.Sprintf("%s:%s", groupName, name)),
+			groupPolicyExistsError(ctx, iAMGroupPolicyConfig.MinioAdmin, groupName, name),
 		)
 	}
 	if !isNoSuchPolicyError(preCheckErr) {
@@ -129,7 +129,7 @@ func minioCreateGroupPolicy(ctx context.Context, d *schema.ResourceData, meta in
 			Group:    groupName,
 		}); attachErr != nil {
 			if rmErr := iAMGroupPolicyConfig.MinioAdmin.RemoveCannedPolicy(ctx, name); rmErr != nil && !isNoSuchPolicyError(rmErr) {
-				tflog.Warn(ctx, fmt.Sprintf("Failed cleaning up canned policy %s after attach failure: %v", name, rmErr))
+				return NewResourceError("unable to attach group policy", groupName+" "+name, fmt.Errorf("%v; and cleaning up the canned policy %q also failed, remove it manually: %v", attachErr, name, rmErr))
 			}
 			return NewResourceError("unable to attach group policy", groupName+" "+name, attachErr)
 		}
@@ -326,6 +326,18 @@ func isNoSuchPolicyError(err error) bool {
 // does not exist.
 func isNoSuchGroupError(err error) bool {
 	return isMadminErrorCode(err, "XMinioAdminNoSuchGroup")
+}
+
+// groupPolicyExistsError explains that a canned policy blocks creating this
+// group policy. The import hint only works while the policy is attached to the
+// group: Read drops the resource when the policy is not attached, so an
+// unattached policy needs attaching first or a different name.
+func groupPolicyExistsError(ctx context.Context, minioAdmin *madmin.AdminClient, groupName, name string) error {
+	policies, err := minioReadGroupPolicies(ctx, minioAdmin, groupName)
+	if err == nil && !Contains(policies, name) {
+		return fmt.Errorf("canned policy %q already exists but is not attached to group %q. Attach it to the group first and import it: terraform import minio_iam_group_policy.<name> %s:%s, or choose another name", name, groupName, groupName, name)
+	}
+	return alreadyExistsError("minio_iam_group_policy", name, fmt.Sprintf("%s:%s", groupName, name))
 }
 
 // isNoSuchUserError reports whether a madmin call failed because the user

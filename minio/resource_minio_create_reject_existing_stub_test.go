@@ -188,6 +188,37 @@ func TestResourceMinioIAMGroupCreateRejectsExistingAndLookupErrors(t *testing.T)
 		}
 	})
 
+	t.Run("status failure after create keeps the group tainted in state", func(t *testing.T) {
+		name := "tfacc-grp-" + acctest.RandString(8)
+
+		admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/group") && r.Method == http.MethodGet:
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = fmt.Fprint(w, `{"Code":"XMinioAdminNoSuchGroup","Message":"The group not found"}`)
+			case strings.Contains(r.URL.Path, "set-group-status"):
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = fmt.Fprint(w, `{"Code":"InternalError","Message":"status backend down"}`)
+			default:
+				w.WriteHeader(http.StatusOK)
+			}
+		})
+
+		state, diags := applyCreateWithStub(t, resourceMinioIAMGroup(), map[string]interface{}{
+			"name":          name,
+			"disable_group": true,
+		}, &S3MinioClient{S3Admin: admin})
+
+		if !diags.HasError() {
+			t.Fatal("expected Create to fail when the status call fails")
+		}
+		if state == nil || state.ID != name {
+			t.Fatalf("expected the created group to stay in state as tainted, got %#v", state)
+		}
+	})
+
 	t.Run("concurrent duplicate creates serialize via per-name lock", func(t *testing.T) {
 		name := "tfacc-grp-" + acctest.RandString(8)
 		var mu sync.Mutex
@@ -377,8 +408,39 @@ func TestResourceMinioIAMGroupPolicyCreateRejectsExistingAndLookupErrors(t *test
 		}, &S3MinioClient{S3Admin: admin})
 
 		assertCreateAlreadyExistsError(t, diags, state, "minio_iam_group_policy", name, group+":"+name)
+		if !strings.Contains(fmt.Sprint(diags), "not attached to group") {
+			t.Fatalf("expected not-attached guidance when the policy is not attached to the group, got %v", diags)
+		}
 		if len(writeCalls) > 0 {
 			t.Fatalf("expected no write calls for existing group policy, got: %v", writeCalls)
+		}
+	})
+
+	t.Run("existing attached policy gets the plain import hint", func(t *testing.T) {
+		name := "tfacc-gpol-" + acctest.RandString(8)
+		group := "devs"
+
+		admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/info-canned-policy"):
+				_, _ = fmt.Fprintf(w, `{"PolicyName":%q,"Policy":%s}`, name, policyJSON)
+			case strings.HasSuffix(r.URL.Path, "/group"):
+				_, _ = fmt.Fprintf(w, `{"name":%q,"status":"enabled","members":[],"policy":%q}`, group, name)
+			default:
+				w.WriteHeader(http.StatusOK)
+			}
+		})
+
+		state, diags := applyCreateWithStub(t, resourceMinioIAMGroupPolicy(), map[string]interface{}{
+			"group":  group,
+			"name":   name,
+			"policy": policyJSON,
+		}, &S3MinioClient{S3Admin: admin})
+
+		assertCreateAlreadyExistsError(t, diags, state, "minio_iam_group_policy", name, group+":"+name)
+		if strings.Contains(fmt.Sprint(diags), "not attached") {
+			t.Fatalf("an attached policy must get the plain import hint, got %v", diags)
 		}
 	})
 
@@ -487,146 +549,6 @@ func TestResourceMinioIAMGroupPolicyCreateRejectsExistingAndLookupErrors(t *test
 			t.Fatalf("expected exactly 1 AddCannedPolicy call, got %d", addCalls)
 		}
 	})
-}
-
-func TestResourceMinioNotifyAndAuditCreateRejectsExistingAndLookupErrors(t *testing.T) {
-	cases := []struct {
-		resourceType string
-		subsystem    string
-		resourceFn   func() *schema.Resource
-		raw          map[string]interface{}
-		seedLine     string
-	}{
-		{
-			resourceType: "minio_notify_webhook",
-			subsystem:    "notify_webhook",
-			resourceFn:   resourceMinioNotifyWebhook,
-			raw: map[string]interface{}{
-				"name":     "primary",
-				"endpoint": "https://new.example.com/hook",
-			},
-			seedLine: "notify_webhook:primary enable=on endpoint=https://old.example.com/hook",
-		},
-		{
-			resourceType: "minio_logger_webhook",
-			subsystem:    "logger_webhook",
-			resourceFn:   resourceMinioLoggerWebhook,
-			raw: map[string]interface{}{
-				"name":     "primary",
-				"endpoint": "https://new.example.com/log",
-			},
-			seedLine: "logger_webhook:primary enable=on endpoint=https://old.example.com/log",
-		},
-		{
-			resourceType: "minio_audit_kafka",
-			subsystem:    "audit_kafka",
-			resourceFn:   resourceMinioAuditKafka,
-			raw: map[string]interface{}{
-				"name":    "primary",
-				"brokers": "new-broker:9092",
-				"topic":   "audit",
-			},
-			seedLine: "audit_kafka:primary enable=on brokers=old-broker:9092 topic=audit",
-		},
-		{
-			resourceType: "minio_audit_webhook",
-			subsystem:    "audit_webhook",
-			resourceFn:   resourceMinioAuditWebhook,
-			raw: map[string]interface{}{
-				"name":     "primary",
-				"endpoint": "https://new.example.com/audit",
-			},
-			seedLine: "audit_webhook:primary enable=on endpoint=https://old.example.com/audit",
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.resourceType+"/existing", func(t *testing.T) {
-			var mu sync.Mutex
-			var setCalls int
-
-			admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
-				switch {
-				case strings.HasSuffix(r.URL.Path, "/get-config-kv"):
-					body, err := madmin.EncryptData("secretkey", []byte(tc.seedLine))
-					if err != nil {
-						t.Errorf("encrypting config: %v", err)
-						w.WriteHeader(http.StatusInternalServerError)
-						return
-					}
-					_, _ = w.Write(body)
-				case strings.HasSuffix(r.URL.Path, "/set-config-kv"):
-					_, _ = io.Copy(io.Discard, r.Body)
-					mu.Lock()
-					setCalls++
-					mu.Unlock()
-					w.Header().Set(madmin.ConfigAppliedHeader, madmin.ConfigAppliedTrue)
-					w.WriteHeader(http.StatusOK)
-				default:
-					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-					w.WriteHeader(http.StatusNotImplemented)
-				}
-			})
-
-			state, diags := applyCreateWithStub(t, tc.resourceFn(), tc.raw, &S3MinioClient{S3Admin: admin})
-			name := tc.raw["name"].(string)
-			assertCreateAlreadyExistsError(t, diags, state, tc.resourceType, name, name)
-			if setCalls != 0 {
-				t.Fatalf("expected 0 set-config-kv calls, got %d", setCalls)
-			}
-		})
-
-		t.Run(tc.resourceType+"/lookup_error", func(t *testing.T) {
-			var mu sync.Mutex
-			var setCalls int
-
-			admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
-				switch {
-				case strings.HasSuffix(r.URL.Path, "/get-config-kv"):
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusForbidden)
-					_, _ = fmt.Fprint(w, `{"Code":"AccessDenied","Message":"Access Denied."}`)
-				case strings.HasSuffix(r.URL.Path, "/set-config-kv"):
-					_, _ = io.Copy(io.Discard, r.Body)
-					mu.Lock()
-					setCalls++
-					mu.Unlock()
-					w.Header().Set(madmin.ConfigAppliedHeader, madmin.ConfigAppliedTrue)
-					w.WriteHeader(http.StatusOK)
-				default:
-					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
-					w.WriteHeader(http.StatusNotImplemented)
-				}
-			})
-
-			state, diags := applyCreateWithStub(t, tc.resourceFn(), tc.raw, &S3MinioClient{S3Admin: admin})
-			if !diags.HasError() {
-				t.Fatalf("expected Create to fail on AccessDenied lookup for %s", tc.resourceType)
-			}
-			if state != nil && state.ID != "" {
-				t.Fatalf("expected empty state ID, got %q", state.ID)
-			}
-			if setCalls != 0 {
-				t.Fatalf("expected 0 set-config-kv calls on lookup error, got %d", setCalls)
-			}
-		})
-
-		t.Run(tc.resourceType+"/concurrent_duplicate", func(t *testing.T) {
-			key := tc.subsystem + ":" + tc.raw["name"].(string)
-			stub, admin := newNotifyConfigStub(t, key)
-			meta := &S3MinioClient{S3Admin: admin}
-			res := tc.resourceFn()
-			name := tc.raw["name"].(string)
-
-			runConcurrentDuplicateCreate(t, func() (*terraform.InstanceState, diag.Diagnostics) {
-				return applyCreateWithStub(t, res, tc.raw, meta)
-			}, tc.resourceType, name, name)
-
-			if len(stub.sets) != 1 {
-				t.Fatalf("expected 1 set-config-kv call, got %d", len(stub.sets))
-			}
-		})
-	}
 }
 
 func TestResourceMinioS3BucketCreateTranslatesAlreadyExistsWithoutPreCheck(t *testing.T) {

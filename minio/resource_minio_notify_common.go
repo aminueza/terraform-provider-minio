@@ -15,35 +15,15 @@ func notifyConfigKey(subsystem, name string) string {
 	return fmt.Sprintf("%s:%s", subsystem, name)
 }
 
-var notifyConfigCreateLock = NewMutexKV()
-
 func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
-		configKey := notifyConfigKey(nrc.subsystem, name)
-
-		notifyConfigCreateLock.Lock(configKey)
-		defer notifyConfigCreateLock.Unlock(configKey)
-
-		// SetConfigKV merges into an existing target, overwriting its keys and
-		// keeping untouched ones, so reject when the target already exists.
-		_, err := admin.GetConfigKV(ctx, configKey)
-		if err == nil {
-			return NewResourceError(
-				fmt.Sprintf("creating %s target", nrc.subsystem),
-				name,
-				alreadyExistsError("minio_"+nrc.subsystem, name, name),
-			)
-		}
-		if !isNotifyTargetMissingError(err) {
-			return NewResourceError(fmt.Sprintf("checking for existing %s target", nrc.subsystem), name, err)
-		}
 
 		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
 		cfgData := nrc.buildCfg(d, meta)
-		configString := fmt.Sprintf("%s %s", configKey, cfgData)
+		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
 		restart, err := admin.SetConfigKV(ctx, configString)
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)

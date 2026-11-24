@@ -88,12 +88,16 @@ func minioCreateGroup(ctx context.Context, d *schema.ResourceData, meta interfac
 		return NewResourceError("creating group", groupName, err)
 	}
 
+	// Record the ID before any further call: the group exists on the server
+	// now, and a later failure must leave a tainted resource in state rather
+	// than a group Terraform never recorded, which the next create would
+	// reject as "already exists".
+	d.SetId(groupName)
+
 	err = minioStatusGroup(ctx, d, meta)
 	if err != nil {
 		return NewResourceError("updating IAM group", groupName, err)
 	}
-
-	d.SetId(groupName)
 
 	return minioReadGroup(ctx, d, meta)
 }

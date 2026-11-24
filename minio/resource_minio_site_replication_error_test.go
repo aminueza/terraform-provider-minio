@@ -2,6 +2,7 @@ package minio
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -225,6 +226,60 @@ func TestSiteReplicationReadPreservesStateOnTransientErrors(t *testing.T) {
 
 		if diags := minioDeleteSiteReplication(context.Background(), d, meta); !diags.HasError() {
 			t.Fatal("expected delete to surface peer reachability failure")
+		}
+	})
+
+	newSplitMeta := func(t *testing.T, removeStatus int, removeCode, removeMsg string, info madmin.SiteReplicationInfo, infoErr bool) *S3MinioClient {
+		t.Helper()
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			if strings.HasSuffix(r.URL.Path, "/site-replication/remove") {
+				w.WriteHeader(removeStatus)
+				_, _ = fmt.Fprintf(w, `{"Code":%q,"Message":%q}`, removeCode, removeMsg)
+				return
+			}
+			if infoErr {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = fmt.Fprint(w, `{"Code":"XMinioSiteReplicationInvalidRequest","Message":"site replication is not enabled"}`)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(info)
+		}))
+		t.Cleanup(srv.Close)
+
+		admin, err := madmin.NewWithOptions(strings.TrimPrefix(srv.URL, "http://"), &madmin.Options{
+			Creds:  credentials.NewStaticV4("accesskey", "secretkey", ""),
+			Secure: false,
+		})
+		if err != nil {
+			t.Fatalf("creating admin client: %v", err)
+		}
+		return &S3MinioClient{S3Admin: admin}
+	}
+
+	t.Run("delete with stale site name keeps state and errors", func(t *testing.T) {
+		// The server answers "config missing" when a site name in the
+		// request no longer exists on the cluster, but replication is still
+		// enabled: nothing was removed, so the delete must fail.
+		meta := newSplitMeta(t,
+			http.StatusBadRequest, "XMinioSiteReplicationConfigMissingError", "unable to find site replication configuration",
+			madmin.SiteReplicationInfo{Enabled: true, Name: "repl-cluster"}, false)
+		d := newSiteReplicationData(t)
+
+		if diags := minioDeleteSiteReplication(context.Background(), d, meta); !diags.HasError() {
+			t.Fatal("expected delete to fail while the cluster still has enabled replication")
+		}
+	})
+
+	t.Run("delete confirms absence through info when not enabled", func(t *testing.T) {
+		meta := newSplitMeta(t,
+			http.StatusBadRequest, "XMinioSiteReplicationInvalidRequest", "site replication is not enabled",
+			madmin.SiteReplicationInfo{Enabled: false}, false)
+		d := newSiteReplicationData(t)
+
+		if diags := minioDeleteSiteReplication(context.Background(), d, meta); diags.HasError() {
+			t.Fatalf("expected delete to succeed once info confirms replication is off, got: %v", diags)
 		}
 	})
 }

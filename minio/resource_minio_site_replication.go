@@ -306,6 +306,19 @@ func minioDeleteSiteReplication(ctx context.Context, d *schema.ResourceData, met
 	})
 	if err != nil {
 		if isSiteReplicationNotConfiguredError(err) {
+			// Confirm before dropping state: the server also answers
+			// "config missing" when a site name in the request no longer
+			// exists on the cluster, and in that case nothing was removed.
+			// Only treat the delete as a no-op when the cluster really has
+			// no enabled replication.
+			info, infoErr := client.SiteReplicationInfo(ctx)
+			if infoErr != nil {
+				if !isSiteReplicationNotConfiguredError(infoErr) {
+					return NewResourceError("error deleting site replication", d.Id(), err)
+				}
+			} else if info.Enabled {
+				return NewResourceError("error deleting site replication", d.Id(), err)
+			}
 			tflog.Info(ctx, fmt.Sprintf("Site replication already removed or not configured: %v", err))
 			return nil
 		}

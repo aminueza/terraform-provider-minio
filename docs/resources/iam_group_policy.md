@@ -7,6 +7,8 @@ description: |-
 
 # minio_iam_group_policy (Resource)
 
+
+
 Creates a global canned IAM policy in MinIO and attaches it to a built-in group. This resource only works with built-in MinIO groups (for LDAP groups, use `minio_iam_ldap_group_policy_attachment`). Do not combine `minio_iam_group_policy` and `minio_iam_group_policy_attachment` for the same group and policy pair, since both manage attachment of that policy to the group.
 
 ## Example Usage

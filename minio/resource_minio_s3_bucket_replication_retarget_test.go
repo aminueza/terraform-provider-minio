@@ -11,7 +11,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7"
@@ -273,4 +275,138 @@ func TestPutBucketReplicationRetargetFailureSaysReplicationStopped(t *testing.T)
 	if msg := fmt.Sprint(diags); !strings.Contains(msg, "replication to minio-b:9000 is stopped until an apply succeeds") {
 		t.Fatalf("error does not say replication stopped: %s", msg)
 	}
+}
+
+func replicationRuleTargetData(t *testing.T, target map[string]interface{}) *schema.ResourceData {
+	t.Helper()
+	return schema.TestResourceDataRaw(t, resourceMinioBucketReplication().Schema, map[string]interface{}{
+		"bucket": "source",
+		"rule": []interface{}{
+			map[string]interface{}{
+				"priority": 1,
+				"target":   []interface{}{target},
+			},
+		},
+	})
+}
+
+func TestBucketReplicationInvalidTargetFieldsDoNotPanic(t *testing.T) {
+	f := &fakeReplicationServer{t: t}
+	client := newFakeReplicationClient(t, f)
+
+	cases := []struct {
+		name      string
+		target    map[string]interface{}
+		wantField string
+	}{
+		{
+			name: "invalid health_check_period",
+			target: map[string]interface{}{
+				"bucket":              "bucket-1",
+				"host":                "minio-b:9000",
+				"access_key":          "replication",
+				"secret_key":          "replication-secret",
+				"health_check_period": "5|",
+			},
+			wantField: "health_check_period",
+		},
+		{
+			name: "invalid bandwidth_limt",
+			target: map[string]interface{}{
+				"bucket":         "bucket-1",
+				"host":           "minio-b:9000",
+				"access_key":     "replication",
+				"secret_key":     "replication-secret",
+				"bandwidth_limt": "abc",
+			},
+			wantField: "bandwidth_limt",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			d := replicationRuleTargetData(t, tc.target)
+			putDiags := minioPutBucketReplication(context.Background(), d, client)
+			if !putDiags.HasError() {
+				t.Fatalf("minioPutBucketReplication unexpectedly succeeded for %s", tc.name)
+			}
+			if !strings.Contains(fmt.Sprint(putDiags), tc.wantField) {
+				t.Fatalf("minioPutBucketReplication diags = %v, want error naming %q", putDiags, tc.wantField)
+			}
+
+			d.SetId("source")
+			delDiags := minioDeleteBucketReplication(context.Background(), d, client)
+			if !delDiags.HasError() {
+				t.Fatalf("minioDeleteBucketReplication unexpectedly succeeded for %s", tc.name)
+			}
+			if !strings.Contains(fmt.Sprint(delDiags), tc.wantField) {
+				t.Fatalf("minioDeleteBucketReplication diags = %v, want error naming %q", delDiags, tc.wantField)
+			}
+
+			if len(f.requests) != 0 {
+				t.Fatalf("unexpected HTTP requests for invalid target: %v", f.requests)
+			}
+		})
+	}
+}
+
+func TestBucketReplicationWarningsAndLegacyBandwidthRoundTrip(t *testing.T) {
+	const newARN = "arn:minio:replication::new:bucket-1"
+	f := &fakeReplicationServer{
+		t:      t,
+		config: `<ReplicationConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></ReplicationConfiguration>`,
+		newARN: newARN,
+	}
+	client := newFakeReplicationClient(t, f)
+
+	d := replicationRuleTargetData(t, map[string]interface{}{
+		"bucket":              "bucket-1",
+		"host":                "minio-b:9000",
+		"secure":              false,
+		"health_check_period": "1m30s",
+		"bandwidth_limt":      "200M",
+		"access_key":          "replication",
+		"secret_key":          "replication-secret",
+	})
+
+	putDiags := minioPutBucketReplication(context.Background(), d, client)
+	if putDiags.HasError() {
+		t.Fatalf("minioPutBucketReplication unexpected error: %v", putDiags)
+	}
+	wantWarn := "rule[0].target.secure is false. It is unsafe to use bucket replication over HTTP"
+	assertHasReplicationWarning(t, "minioPutBucketReplication", putDiags, wantWarn)
+	if len(f.targets) != 1 || f.targets[0].BandwidthLimit != 200000000 {
+		t.Fatalf("remote targets = %+v, want BandwidthLimit=200000000", f.targets)
+	}
+	if f.targets[0].HealthCheckDuration != 90*time.Second {
+		t.Fatalf("HealthCheckDuration = %s, want 1m30s", f.targets[0].HealthCheckDuration)
+	}
+
+	readDiags := minioReadBucketReplication(context.Background(), d, client)
+	if readDiags.HasError() {
+		t.Fatalf("minioReadBucketReplication unexpected error: %v", readDiags)
+	}
+	assertHasReplicationWarning(t, "minioReadBucketReplication", readDiags, wantWarn)
+
+	rules := d.Get("rule").([]interface{})
+	target := rules[0].(map[string]interface{})["target"].([]interface{})[0].(map[string]interface{})
+	if target["bandwidth_limt"] != "200000000" {
+		t.Fatalf("read target[bandwidth_limt] = %v, want 200000000", target["bandwidth_limt"])
+	}
+	if target["bandwidth_limit"] != "0" {
+		t.Fatalf("read target[bandwidth_limit] = %v, want 0", target["bandwidth_limit"])
+	}
+	if target["health_check_period"] != "1m30s" {
+		t.Fatalf("read target[health_check_period] = %v, want 1m30s", target["health_check_period"])
+	}
+}
+
+func assertHasReplicationWarning(t *testing.T, op string, diags diag.Diagnostics, wantSummary string) {
+	t.Helper()
+	for _, d := range diags {
+		if d.Severity == diag.Warning && d.Summary == wantSummary {
+			return
+		}
+	}
+	t.Fatalf("%s diags = %v, want warning %q", op, diags, wantSummary)
 }

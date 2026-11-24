@@ -141,6 +141,13 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_bucket_replication` no longer crashes the provider when a rule
+  carries an invalid `health_check_period` or `bandwidth_limt`: both fields
+  are now validated at plan time, the duration check uses Go duration syntax
+  instead of a regex that accepted values like `5|`, and invalid values found
+  in state are reported as diagnostics instead of panicking refresh or
+  destroy
+  ([#1372](https://github.com/aminueza/terraform-provider-minio/issues/1372)).
 - `minio_audit_webhook` refresh now treats the server's "there is no target"
   answer as the target having been removed outside Terraform, dropping the
   resource from state instead of failing the refresh.

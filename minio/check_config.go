@@ -63,7 +63,7 @@ func BucketReplicationConfig(ctx context.Context, d *schema.ResourceData, meta i
 		MinioAdmin:       m.S3Admin,
 		MinioBucket:      getOptionalField(d, "bucket", "").(string),
 		ReplicationRules: replicationRules,
-	}, nil
+	}, diags
 }
 
 func BucketNotificationConfig(d *schema.ResourceData, meta interface{}) *S3MinioBucketNotification {

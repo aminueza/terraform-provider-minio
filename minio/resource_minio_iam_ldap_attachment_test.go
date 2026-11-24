@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -42,9 +43,21 @@ func TestAccMinioIAMLDAPUserPolicyAttachment_basic(t *testing.T) {
 			{
 				Config: testAccLDAPUserPolicyAttachmentConfig(userDN, "readonly"),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/readonly", userDN)),
 					resource.TestCheckResourceAttr(resourceName, "user_dn", userDN),
 					resource.TestCheckResourceAttr(resourceName, "policy_name", "readonly"),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s/readonly", userDN),
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -62,9 +75,21 @@ func TestAccMinioIAMLDAPGroupPolicyAttachment_basic(t *testing.T) {
 			{
 				Config: testAccLDAPGroupPolicyAttachmentConfig(groupDN, "readonly"),
 				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "id", fmt.Sprintf("%s/readonly", groupDN)),
 					resource.TestCheckResourceAttr(resourceName, "group_dn", groupDN),
 					resource.TestCheckResourceAttr(resourceName, "policy_name", "readonly"),
 				),
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateId:     fmt.Sprintf("%s/readonly", groupDN),
+				ImportStateVerify: true,
 			},
 		},
 	})
@@ -223,4 +248,81 @@ resource "minio_iam_ldap_group_policy_attachment" "test" {
   policy_name = %[2]q
 }
 `, groupDN, policyName)
+}
+
+func TestAccMinioIAMLDAPPolicyAttachment_upgradeLegacyStateID(t *testing.T) {
+	t.Setenv("TF_ACC_PROVIDER_NAMESPACE", "aminueza")
+
+	userDN := os.Getenv("MINIO_LDAP_TEST_USER_DN")
+	groupDN := os.Getenv("MINIO_LDAP_TEST_GROUP_DN")
+	ldapServer := os.Getenv("LDAP_MINIO_ENDPOINT")
+	ldapUser := os.Getenv("LDAP_MINIO_USER")
+	ldapPassword := os.Getenv("LDAP_MINIO_PASSWORD")
+	ldapSSL, _ := strconv.ParseBool(os.Getenv("LDAP_MINIO_ENABLE_HTTPS"))
+
+	legacyCfg := fmt.Sprintf(`
+provider "minio" {
+  minio_server   = %[1]q
+  minio_user     = %[2]q
+  minio_password = %[3]q
+  minio_ssl      = %[4]t
+}
+
+resource "minio_iam_ldap_user_policy_attachment" "test" {
+  user_dn     = %[5]q
+  policy_name = "readonly"
+}
+
+resource "minio_iam_ldap_group_policy_attachment" "test" {
+  group_dn    = %[6]q
+  policy_name = "readonly"
+}
+`, ldapServer, ldapUser, ldapPassword, ldapSSL, userDN, groupDN)
+
+	upgradedCfg := fmt.Sprintf(`
+terraform {
+  required_providers {
+    minio = {
+      source = "aminueza/minio"
+    }
+  }
+}
+%s`, legacyCfg)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck: func() { testAccLDAPAttachmentPreCheck(t) },
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckLDAPUserPolicyAttachmentDestroy,
+			testAccCheckLDAPGroupPolicyAttachmentDestroy,
+		),
+		Steps: []resource.TestStep{
+			{
+				ExternalProviders: map[string]resource.ExternalProvider{
+					"minio": {
+						Source:            "aminueza/minio",
+						VersionConstraint: "3.46.4",
+					},
+				},
+				Config: legacyCfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_ldap_user_policy_attachment.test", "id", fmt.Sprintf("readonly/%s", userDN)),
+					resource.TestCheckResourceAttr("minio_iam_ldap_group_policy_attachment.test", "id", fmt.Sprintf("readonly/%s", groupDN)),
+				),
+			},
+			{
+				ProviderFactories:  testAccProviders,
+				Config:             upgradedCfg,
+				PlanOnly:           true,
+				ExpectNonEmptyPlan: false,
+			},
+			{
+				ProviderFactories: testAccProviders,
+				Config:            upgradedCfg,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_iam_ldap_user_policy_attachment.test", "id", fmt.Sprintf("%s/readonly", userDN)),
+					resource.TestCheckResourceAttr("minio_iam_ldap_group_policy_attachment.test", "id", fmt.Sprintf("%s/readonly", groupDN)),
+				),
+			},
+		},
+	})
 }

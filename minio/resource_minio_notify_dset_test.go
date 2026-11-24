@@ -290,6 +290,108 @@ func TestNotifyAuditAndLoggerReadFieldsCheckState(t *testing.T) {
 	}
 }
 
+func TestNotifyBoolAndEmptyStringSemantics(t *testing.T) {
+	// Bools are seeded true on purpose: always-written fields must reset to
+	// false when the server omits the key, while present-only fields must keep
+	// the previous state value. Fresh TestResourceData would read false either
+	// way and prove nothing.
+	t.Run("kafka_always_written_bools_reset_when_absent", func(t *testing.T) {
+		d := resourceMinioNotifyKafka().TestResourceData()
+		d.SetId("k1")
+		if err := d.Set("tls", true); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Set("tls_skip_verify", true); err != nil {
+			t.Fatal(err)
+		}
+		if diags := readNotifyKafkaFields(map[string]string{"brokers": "b:9092"}, d); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		if d.Get("tls").(bool) {
+			t.Error("tls = true, want false: kafka tls is written even when the server omits it")
+		}
+		if d.Get("tls_skip_verify").(bool) {
+			t.Error("tls_skip_verify = true, want false: kafka tls_skip_verify is written even when the server omits it")
+		}
+	})
+
+	t.Run("audit_kafka_present_only_bools_keep_state_when_absent", func(t *testing.T) {
+		d := resourceMinioAuditKafka().TestResourceData()
+		d.SetId("ak1")
+		if err := d.Set("tls", true); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Set("tls_skip_verify", true); err != nil {
+			t.Fatal(err)
+		}
+		if diags := readAuditKafkaFields(map[string]string{"brokers": "b:9092"}, d); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		if !d.Get("tls").(bool) {
+			t.Error("tls = false, want true kept: audit_kafka tls is written only when the server returns it")
+		}
+		if !d.Get("tls_skip_verify").(bool) {
+			t.Error("tls_skip_verify = false, want true kept: audit_kafka tls_skip_verify is written only when the server returns it")
+		}
+	})
+
+	t.Run("amqp_always_written_flags_reset_when_absent", func(t *testing.T) {
+		flags := []string{"mandatory", "durable", "no_wait", "internal", "auto_deleted", "publisher_confirms"}
+		d := resourceMinioNotifyAmqp().TestResourceData()
+		d.SetId("am1")
+		for _, k := range flags {
+			if err := d.Set(k, true); err != nil {
+				t.Fatalf("seeding %s: %v", k, err)
+			}
+		}
+		if diags := readNotifyAmqpFields(map[string]string{"url": "amqp://x"}, d); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		for _, k := range flags {
+			if d.Get(k).(bool) {
+				t.Errorf("%s = true, want false: amqp flags are written even when the server omits them", k)
+			}
+		}
+	})
+
+	t.Run("redis_empty_string_skips_and_mysql_present_empty_writes", func(t *testing.T) {
+		d := resourceMinioNotifyRedis().TestResourceData()
+		d.SetId("r1")
+		if err := d.Set("address", "old:6379"); err != nil {
+			t.Fatal(err)
+		}
+		if diags := readNotifyRedisFields(map[string]string{"address": ""}, d); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		if got := d.Get("address").(string); got != "old:6379" {
+			t.Errorf("address = %q, want the old value kept: redis address skips empty strings", got)
+		}
+
+		dMy := resourceMinioNotifyMysql().TestResourceData()
+		dMy.SetId("m1")
+		if err := dMy.Set("table", "old_t"); err != nil {
+			t.Fatal(err)
+		}
+		if diags := readNotifyMysqlFields(map[string]string{"table": ""}, dMy); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		if got := dMy.Get("table").(string); got != "" {
+			t.Errorf("table = %q, want empty: mysql table is written even when empty", got)
+		}
+	})
+
+	t.Run("unparseable_int_is_skipped_without_error", func(t *testing.T) {
+		d := resourceMinioLoggerWebhook().TestResourceData()
+		d.SetId("lw1")
+		if diags := readLoggerWebhookFields(map[string]string{"batch_size": "abc"}, d); diags.HasError() {
+			t.Fatalf("read failed: %v", diags)
+		}
+		if got := d.Get("batch_size").(int); got != 0 {
+			t.Errorf("batch_size = %d, want 0 when the server value does not parse", got)
+		}
+	})
+}
+
 func TestNotifyCommonCreateReadUpdateChecksState(t *testing.T) {
 	ctx := context.Background()
 	res := resourceMinioNotifyWebhook()
@@ -303,6 +405,9 @@ func TestNotifyCommonCreateReadUpdateChecksState(t *testing.T) {
 			"enable":   true,
 			"comment":  "c1",
 		})
+		if err := d.Set("restart_required", true); err != nil {
+			t.Fatal(err)
+		}
 		if diags := res.CreateContext(ctx, d, meta); diags.HasError() {
 			t.Fatalf("CreateContext failed: %v", diags)
 		}
@@ -313,7 +418,40 @@ func TestNotifyCommonCreateReadUpdateChecksState(t *testing.T) {
 			t.Errorf("endpoint = %q, want %q", got, "https://wh.local/hook")
 		}
 		if d.Get("restart_required").(bool) {
-			t.Error("expected restart_required=false")
+			t.Error("restart_required = true, want false after an applied create (the read normalizes it too)")
+		}
+	})
+
+	t.Run("update_writes_restart_required_and_new_config", func(t *testing.T) {
+		stub, admin := newNotifyConfigStub(t, "notify_webhook:wh3")
+		meta := &S3MinioClient{S3Admin: admin}
+		d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{
+			"name":     "wh3",
+			"endpoint": "https://wh3.local/hook",
+			"enable":   true,
+			"comment":  "c1",
+		})
+		if diags := res.CreateContext(ctx, d, meta); diags.HasError() {
+			t.Fatalf("CreateContext failed: %v", diags)
+		}
+		if err := d.Set("comment", "c2"); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Set("restart_required", true); err != nil {
+			t.Fatal(err)
+		}
+		if diags := res.UpdateContext(ctx, d, meta); diags.HasError() {
+			t.Fatalf("UpdateContext failed: %v", diags)
+		}
+		if got := d.Get("comment").(string); got != "c2" {
+			t.Errorf("comment = %q, want c2", got)
+		}
+		if d.Get("restart_required").(bool) {
+			t.Error("restart_required = true, want false after an applied update (the read normalizes it too)")
+		}
+		joined := strings.Join(stub.sets, "\n")
+		if !strings.Contains(joined, "comment=c2") {
+			t.Errorf("stub never received comment=c2, set-config bodies:\n%s", joined)
 		}
 	})
 

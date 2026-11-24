@@ -57,27 +57,47 @@ func resourceMinioIAMGroup() *schema.Resource {
 	}
 }
 
+var iamGroupCreateLock = NewMutexKV()
+
 func minioCreateGroup(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 
 	iamGroupConfig := IAMGroupConfig(d, meta)
+	groupName := iamGroupConfig.MinioIAMName
+
+	iamGroupCreateLock.Lock(groupName)
+	defer iamGroupCreateLock.Unlock(groupName)
+
+	// UpdateGroupMembers on MinIO creates or updates a group, so an existing
+	// disabled group or one with members would have its status overwritten.
+	_, err := iamGroupConfig.MinioAdmin.GetGroupDescription(ctx, groupName)
+	if err == nil {
+		return NewResourceError("creating group", groupName, alreadyExistsError("minio_iam_group", groupName, groupName))
+	}
+	if !isMissingGroupError(err) {
+		return NewResourceError("checking for existing IAM group", groupName, err)
+	}
 
 	groupAddRemove := madmin.GroupAddRemove{
-		Group:    iamGroupConfig.MinioIAMName,
+		Group:    groupName,
 		Members:  []string{},
 		IsRemove: false,
 	}
 
-	err := iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
+	err = iamGroupConfig.MinioAdmin.UpdateGroupMembers(ctx, groupAddRemove)
 	if err != nil {
-		return NewResourceError("creating group", d.Id(), err)
+		return NewResourceError("creating group", groupName, err)
 	}
+
+	// Record the ID before any further call: the group exists on the server
+	// now, and a later failure must leave a tainted resource in state rather
+	// than a group Terraform never recorded, which the next create would
+	// reject as "already exists".
+	d.SetId(groupName)
 
 	err = minioStatusGroup(ctx, d, meta)
 	if err != nil {
-		return NewResourceError("updating IAM group", d.Id(), err)
+		return NewResourceError("updating IAM group", groupName, err)
 	}
-
-	d.SetId(iamGroupConfig.MinioIAMName)
 
 	return minioReadGroup(ctx, d, meta)
 }

@@ -514,26 +514,32 @@ func TestIAMGroupPolicyCreateReadDeleteLifecycle(t *testing.T) {
 		}
 	})
 
-	t.Run("create keeps pre-existing canned policy when attach fails", func(t *testing.T) {
+	t.Run("create rejects pre-existing canned policy without modifying or removing it", func(t *testing.T) {
 		st := &stubState{
-			groups:          map[string][]string{"devs": {}},
-			canned:          map[string]string{"group-pol": policyJSON},
-			failAttachError: true,
+			groups: map[string][]string{"devs": {}},
+			canned: map[string]string{"group-pol": policyJSON},
 		}
 		meta := &S3MinioClient{S3Admin: newClient(st)}
 
 		d := resourceMinioIAMGroupPolicy().TestResourceData()
 		d.Set("group", "devs")
 		d.Set("name", "group-pol")
-		d.Set("policy", policyJSON)
-		if diags := minioCreateGroupPolicy(context.Background(), d, meta); !diags.HasError() {
-			t.Fatal("expected error when attach fails")
+		d.Set("policy", `{"Version":"2012-10-17","Statement":[{"Action":["s3:*"],"Effect":"Allow","Resource":["arn:aws:s3:::*"]}]}`)
+		diags := minioCreateGroupPolicy(context.Background(), d, meta)
+		if !diags.HasError() {
+			t.Fatal("expected error when canned policy already exists")
+		}
+		if st.addCalls != 0 {
+			t.Fatalf("addCalls = %d, want 0", st.addCalls)
+		}
+		if len(st.attachCalls) != 0 {
+			t.Fatalf("attachCalls = %v, want none", st.attachCalls)
 		}
 		if len(st.removeCalls) != 0 {
-			t.Fatalf("removeCalls = %v, want none: the policy existed before this resource created it", st.removeCalls)
+			t.Fatalf("removeCalls = %v, want none", st.removeCalls)
 		}
-		if _, ok := st.canned["group-pol"]; !ok {
-			t.Fatal("pre-existing canned policy was deleted after attach failure")
+		if got := st.canned["group-pol"]; got != policyJSON {
+			t.Fatalf("canned policy overwritten: got %q, want %q", got, policyJSON)
 		}
 	})
 

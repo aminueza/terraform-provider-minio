@@ -116,8 +116,7 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 	configKey := auditWebhookConfigKey(name)
 	configData, err := minioAdmin.GetConfigKV(ctx, configKey)
 	if err != nil {
-		errMsg := strings.ToLower(err.Error())
-		if strings.Contains(errMsg, "not found") || strings.Contains(errMsg, "does not exist") {
+		if isNotifyTargetMissingError(err) {
 			tflog.Warn(ctx, fmt.Sprintf("Audit webhook %s no longer exists, removing from state", name))
 			d.SetId("")
 			return nil

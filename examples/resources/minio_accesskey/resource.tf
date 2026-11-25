@@ -22,11 +22,42 @@ resource "minio_accesskey" "custom_key" {
   status             = "enabled"
 }
 
-# Create an access key using write-only secret
+# Create an access key with write-only secret
 resource "minio_accesskey" "custom_key_write_only" {
   user                  = minio_iam_user.example_user.name
   access_key            = "MINIO_ACCESS_KEY2"
   secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.access_key_password.data.secret_key)
   secret_key_wo_version = 1
   status                = "enabled"
+}
+
+# Create a disabled access key
+resource "minio_accesskey" "disabled_key" {
+  user   = minio_iam_user.example_user.name
+  status = "disabled"
+}
+
+# Create an access key with a description
+resource "minio_accesskey" "with_description" {
+  user        = minio_iam_user.example_user.name
+  description = "CI/CD deployment key"
+}
+
+# Create an access key and attach a policy directly (policy JSON)
+resource "minio_accesskey" "with_policy" {
+  user               = minio_iam_user.example_user.name
+  access_key         = "EXAMPLEKEY1"
+  secret_key         = "mySuperSecretKey"
+  secret_key_version = "v1"
+  status             = "enabled"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:GetObject"]
+        Resource = ["arn:aws:s3:::my-bucket/*"]
+      }
+    ]
+  })
 }

@@ -13,7 +13,8 @@ description: |-
 
 ## Example Usage
 
-```hcl
+```terraform
+# Example: Basic site replication with static configuration
 resource "minio_site_replication" "primary" {
   name = "my-cluster-replication"
 
@@ -39,7 +40,7 @@ resource "minio_site_replication" "primary" {
   }
 }
 
-# Optional: write-only variant using ephemeral Vault secrets
+# Vault secrets read by the write-only example below
 ephemeral "vault_kv_secret_v2" "site1_secret" {
   mount = "secret"
   name  = "minio/site-replication/site1"
@@ -55,6 +56,7 @@ ephemeral "vault_kv_secret_v2" "site3_secret" {
   name  = "minio/site-replication/site3"
 }
 
+# Example: Site replication with write-only secrets from Vault
 resource "minio_site_replication" "primary_write_only" {
   name = "my-cluster-replication-write-only"
 

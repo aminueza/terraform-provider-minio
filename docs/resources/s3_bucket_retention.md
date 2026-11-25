@@ -15,6 +15,10 @@ Note: Object locking can only be enabled during bucket creation and requires ver
 
 This resource provides compliance with SEC17a-4(f), FINRA 4511(C), and CFTC 1.31(c)-(d) requirements.
 
+`minio_s3_bucket_object_lock_configuration` manages the same default object
+lock retention, and destroying either resource clears it. Set the default
+retention in one of the two, not both.
+
 ## Example Usage
 
 ```terraform

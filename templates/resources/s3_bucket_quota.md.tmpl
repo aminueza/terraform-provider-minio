@@ -9,6 +9,10 @@ description: |-
 
 {{ .Description | trimspace }}
 
+`minio_s3_bucket` also manages the bucket quota through its `quota`
+attribute, and removing `quota` there writes a quota of size 0, clearing the
+quota managed here. Set the quota in one of the two, not both.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_s3_bucket_quota/resource.tf" }}

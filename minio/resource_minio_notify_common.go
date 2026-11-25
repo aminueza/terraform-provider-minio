@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -269,6 +270,11 @@ func notifyRunningConfigMatchesState(nrc notifyResourceConfig, cfgMap map[string
 		want, sent := intended[key]
 		if !sent {
 			if isClearableNotifyConfigKey(key) {
+				// A level set to 0 outside Terraform is stored as "0",
+				// not empty, and means the same as a cleared one.
+				if key == "compression_level" && serverValue == "0" {
+					continue
+				}
 				if serverValue != "" {
 					return false
 				}
@@ -551,16 +557,68 @@ func notifyBuildCfgClearablePair(parts *[]string, d *schema.ResourceData, readab
 	notifyBuildCfgAddParam(parts, secretKey, secretVal)
 }
 
+// notifyConfigRemovedFromConfig reports whether a Computed field was removed
+// from the configuration. The diff keeps the old value for such a field, so
+// d.HasChange cannot see the removal; the raw config can, because a field the
+// configuration does not set is null there. A raw config that is entirely
+// null (a unit test, a refresh, or an import) is not a removal.
+func notifyConfigRemovedFromConfig(d *schema.ResourceData, key string) bool {
+	raw := d.GetRawConfig()
+	return !raw.IsNull() && raw.GetAttr(key).IsNull()
+}
+
+// notifyBuildCfgClearableIntParam adds an int field like
+// notifyBuildCfgAddInt, and writes an empty key= when the value was removed
+// from the configuration. notifyBuildCfgAddInt skips values that are not
+// above 0, so a removed field could never go back to a default of 0; MinIO
+// turns an empty compression_level into 0. Unlike notifyBuildCfgAddInt this
+// sends any non-zero value: MinIO passes compression_level straight to the
+// sarama producer (internal/event/target/kafka.go), where a negative level
+// is meaningful: for gzip only -1 means the library default, and the plan
+// check in customizeDiffKafkaCompression keeps gzip levels inside -2..9.
+func notifyBuildCfgClearableIntParam(parts *[]string, d *schema.ResourceData, key string) {
+	val := getOptionalField(d, key, 0).(int)
+	if val == 0 {
+		if d.HasChange(key) {
+			*parts = append(*parts, key+"=")
+		}
+		return
+	}
+	*parts = append(*parts, fmt.Sprintf("%s=%d", key, val))
+}
+
+// notifyBuildCfgClearableComputedString writes key=value for a value the
+// configuration sets on an Optional and Computed field. When the field was
+// removed from the configuration, customizeDiffKafkaCompression has already
+// planned the value back to fallback, and the old value in state says there
+// is something to clear: the key is then written as fallback, because a key
+// left out of set-config-kv keeps its old value on the server. MinIO parses
+// an empty duration as an error once the target is enabled, so those keys go
+// back to the subsystem's documented default, not to an empty value.
+func notifyBuildCfgClearableComputedString(parts *[]string, d *schema.ResourceData, key, fallback string) {
+	if notifyConfigRemovedFromConfig(d, key) {
+		if old, _ := d.GetChange(key); old.(string) != "" {
+			*parts = append(*parts, buildConfigParam(key, fallback))
+		}
+		return
+	}
+	notifyBuildCfgAddParam(parts, key, d.Get(key).(string))
+}
+
 // isClearableNotifyConfigKey lists the non-secret keys the builders can clear
 // with notifyBuildCfgClearableParam. Every such key must be listed here too,
 // otherwise a cleared value that has not reached the server yet (pending
 // restart) is not recognized as stale by notifyRunningConfigMatchesState.
+// batch_commit_timeout is not listed: MinIO seeds its 0s default into every
+// stored target, and the builder sends the key whenever the state holds a
+// value, so the plain comparison already covers it.
 func isClearableNotifyConfigKey(key string) bool {
 	switch key {
 	case "comment", "queue_dir",
 		"client_cert", "client_key", "proxy", "username", "streaming_cluster_id",
 		"cert_authority", "sasl_username", "client_tls_cert", "client_tls_key", "version",
-		"user", "exchange", "exchange_type", "routing_key":
+		"user", "exchange", "exchange_type", "routing_key",
+		"compression_codec", "compression_level":
 		return true
 	default:
 		return false
@@ -650,6 +708,75 @@ func customizeDiffKafkaSasl(_ context.Context, d *schema.ResourceDiff, _ interfa
 		// CustomizeDiff does not run again, so treat it as set.
 		if !d.NewValueKnown(k) || d.Get(k).(string) != "" {
 			return fmt.Errorf("sasl_username and sasl_password are ignored by MinIO when sasl is false; add sasl = true to enable SASL authentication")
+		}
+	}
+	return nil
+}
+
+// customizeDiffKafka chains the minio_notify_kafka plan checks.
+func customizeDiffKafka(ctx context.Context, d *schema.ResourceDiff, meta interface{}) error {
+	if err := customizeDiffKafkaSasl(ctx, d, meta); err != nil {
+		return err
+	}
+	return customizeDiffKafkaCompression(ctx, d, meta)
+}
+
+// customizeDiffKafkaCompression covers the one removal the diff cannot see:
+// batch_commit_timeout is Optional and Computed (MinIO seeds its 0s default
+// into every stored target), so removing it from the configuration keeps the
+// old value in the diff and no update would run. The raw config sees the
+// removal, and SetNew plans 0s so the update runs and the builder writes the
+// default back. compression_codec and compression_level are not Computed:
+// their defaults are empty, so their removal is a plain diff.
+//
+// MinIO only validates batch_commit_timeout on an enabled target, so the
+// provider rejects the settings MinIO would silently ignore while the plan
+// can still see them, and only for a timeout above 0, which is where MinIO's
+// own validation starts. A value unknown at plan time resolves at apply, when
+// CustomizeDiff does not run again, so it is skipped. compression_level
+// without compression_codec is rejected earlier, by RequiredWith.
+func customizeDiffKafkaCompression(_ context.Context, d *schema.ResourceDiff, _ interface{}) error {
+	raw := d.GetRawConfig()
+	if raw.IsNull() {
+		return nil
+	}
+	// sarama hands compression_level to gzip.NewWriterLevel, which only
+	// accepts -2..9, and MinIO surfaces that as an apply failure. Catch it
+	// at plan, enabled target or not: a level stored on a disabled target
+	// only breaks once it is enabled. The other codecs ignore the level or
+	// clamp it, so only gzip is checked. 0 means the field was left out.
+	if d.Get("compression_codec").(string) == "gzip" {
+		if level := d.Get("compression_level").(int); level != 0 && (level < -2 || level > 9) {
+			return fmt.Errorf("compression_level %d is not valid for gzip: gzip accepts -2 to 9, where -1 is the library default and 0 means no level was set", level)
+		}
+	}
+	if raw.GetAttr("batch_commit_timeout").IsNull() && d.Get("batch_commit_timeout").(string) != "" {
+		if err := d.SetNew("batch_commit_timeout", "0s"); err != nil {
+			return err
+		}
+	}
+	if !raw.GetAttr("batch_commit_timeout").IsNull() {
+		// MinIO only checks the timeout when it is above 0, and so do we:
+		// a module that passes "0s" by default must not trip over the
+		// queue_dir and batch_size requirements.
+		if v := d.Get("batch_commit_timeout").(string); v != "" {
+			if dur, err := time.ParseDuration(v); err == nil && dur > 0 {
+				// A queue_dir from another resource is unknown at plan
+				// time and reads as empty here; it resolves at apply,
+				// when this check does not run again.
+				if d.NewValueKnown("queue_dir") && d.Get("queue_dir").(string) == "" {
+					return fmt.Errorf("batch_commit_timeout has no effect without queue_dir: MinIO only commits partly filled batches from the queue directory; set queue_dir, or remove batch_commit_timeout")
+				}
+				// A create that leaves batch_size out sends nothing and
+				// MinIO stores 0: no batching, so the timeout would
+				// never fire. The diff cannot see that 0 yet, because
+				// the computed field is unknown until the read; the raw
+				// config can, and a create has no prior state to keep.
+				omittedOnCreate := d.Id() == "" && raw.GetAttr("batch_size").IsNull()
+				if omittedOnCreate || (d.NewValueKnown("batch_size") && d.Get("batch_size").(int) <= 1) {
+					return fmt.Errorf("batch_commit_timeout has no effect with batch_size of 1 or less: MinIO only waits on a partly filled batch; raise batch_size above 1, or remove batch_commit_timeout")
+				}
+			}
 		}
 	}
 	return nil

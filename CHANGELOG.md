@@ -10,8 +10,25 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_notify_kafka` and its data source expose `compression_codec`,
+  `compression_level` and `batch_commit_timeout`, the Kafka producer
+  compression and batch commit keys MinIO added in RELEASE.2023-12-02 and
+  RELEASE.2024-09-09. The plan rejects a `batch_commit_timeout` above `0s`
+  without `queue_dir` or with a `batch_size` of 1 or less,
+  `compression_level` without `compression_codec`, and a gzip
+  `compression_level` outside -2..9: an enabled target refuses those
+  combinations and a disabled one stores them without ever acting on them.
+  ([#1369](https://github.com/aminueza/terraform-provider-minio/issues/1369))
+
 ### Fixed
 
+- `minio_s3_object_legal_hold` now logs the server's code and message when a
+  read drops it from state. A legal hold on a bucket without object locking is
+  dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
+  instead of the old, misleading "not found" warning.
+  ([#1413](https://github.com/aminueza/terraform-provider-minio/issues/1413))
 - `minio_notify_amqp`: setting `publisher_confirms` against a MinIO server older
   than RELEASE.2021-06-17T00-10-46Z now fails with a clear error naming that
   release, instead of succeeding and silently corrupting the config value

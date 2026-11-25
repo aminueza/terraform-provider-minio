@@ -9,7 +9,7 @@ description: |-
 
 
 
-Creates a global canned IAM policy in MinIO and attaches it to a built-in group. This resource only works with built-in MinIO groups (for LDAP groups, use `minio_iam_ldap_group_policy_attachment`). Do not combine `minio_iam_group_policy` and `minio_iam_group_policy_attachment` for the same group and policy pair, since both manage attachment of that policy to the group.
+Creates a global canned IAM policy in MinIO and attaches it to a built-in group. This resource only works with built-in MinIO groups (for LDAP groups, use `minio_iam_ldap_group_policy_attachment`). Do not combine `minio_iam_group_policy` and `minio_iam_group_policy_attachment` for the same group and policy pair, since both manage attachment of that policy to the group. A `minio_iam_policy` with the same name manages the same canned policy: whichever of the two is created second fails with an already-exists error, and destroying this one removes the canned policy. Create each policy with one of the two, not both; to attach a policy created with `minio_iam_policy`, use `minio_iam_group_policy_attachment`.
 
 ## Example Usage
 
@@ -38,15 +38,15 @@ EOF
 }
 
 output "minio_name" {
-  value = "${minio_iam_group_membership.developer.id}"
+  value = minio_iam_group_policy.test_policy.id
 }
 
 output "minio_policy" {
-  value = "${minio_iam_group_membership.developer.policy}"
+  value = minio_iam_group_policy.test_policy.name
 }
 
 output "minio_group" {
-  value = "${minio_iam_group_membership.developer.group}"
+  value = minio_iam_group_policy.test_policy.group
 }
 ```
 

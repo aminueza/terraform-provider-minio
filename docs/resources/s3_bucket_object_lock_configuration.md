@@ -15,7 +15,7 @@ Object locking must be enabled when creating the bucket; it cannot be enabled or
 
 Useful for compliance: SEC17a-4(f), FINRA 4511(C), CFTC 1.31(c)-(d)
 
-Cleaner alternative to `minio_s3_bucket_retention` with a nested schema structure that matches the API better.
+Cleaner alternative to `minio_s3_bucket_retention` with a nested schema structure that matches the API better. Both resources write the bucket's default object lock retention, and destroying either clears it. Manage the default retention with one of the two, not both.
 
 ## Differences from minio_s3_bucket_retention
 

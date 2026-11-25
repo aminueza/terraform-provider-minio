@@ -78,7 +78,7 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 			"restart_required": {
 				Type:        schema.TypeBool,
 				Computed:    true,
-				Description: "Whether a MinIO server restart is required to apply the configuration.",
+				Description: "Whether a MinIO server restart is required to apply the configuration. While it is true the read cannot tell a pending restart from an external change that was already restarted, so etcd config changed outside Terraform is only reported after the flag clears.",
 			},
 		},
 		// v0 states carry a restart_required that the pre-gate provider set
@@ -162,23 +162,22 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 		return NewResourceError("reading etcd configuration", "etcd", err)
 	}
 
-	configStr := strings.TrimSpace(string(configData))
-	var valueStr string
-	if strings.HasPrefix(configStr, "etcd ") {
-		parts := strings.SplitN(configStr, " ", 2)
-		if len(parts) == 2 {
-			valueStr = strings.TrimSpace(parts[1])
-		}
-	}
-
-	cfgMap := parseConfigParams(valueStr)
+	// get-config-kv prints the values on a line starting with "etcd ", and
+	// when any MINIO_ETCD_* environment variable is set it prints a
+	// "# MINIO_ETCD_...=..." line before it, so the values are located line
+	// by line the way the notify targets read theirs.
+	cfgMap, _ := notifyTargetConfigParams(string(configData), "etcd")
 	d.SetId("etcd")
 
 	// get-config-kv serves the pre-restart config while a restart is pending,
 	// so a response that does not match the configured values is stale and the
 	// state keeps them. Once the server has restarted the response matches and
 	// the flag is cleared. The site and policy plugin configs gate on the same
-	// signal.
+	// signal. The gate cannot tell a stale pre-restart response from an etcd
+	// config changed outside Terraform and restarted before the next refresh:
+	// that drift stays hidden, and restart_required stays true, until the
+	// server is restarted again. Site, LDAP and policy plugin accept the same
+	// trade-off.
 	if d.Get("restart_required").(bool) {
 		if !etcdRunningConfigMatchesState(d, cfgMap) {
 			tflog.Warn(ctx, "etcd still shows the pre-restart config, keeping configured values in state")

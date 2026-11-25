@@ -19,7 +19,9 @@ History older than 3.39.0 lives in the
   values before and the resource showed a permanent diff that could never be
   resolved. The read now keeps the configured values in state while a restart is
   pending, and `restart_required` returns to `false` once the restart lands; it
-  used to stay `true` forever. After upgrading, the first plan may show one
+  used to stay `true` forever. The read also finds the values now when a
+  `MINIO_ETCD_*` environment variable makes `get-config-kv` print a `# ...`
+  line first. After upgrading, the first plan may show one
   pending diff if a restart was still pending
   ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
 

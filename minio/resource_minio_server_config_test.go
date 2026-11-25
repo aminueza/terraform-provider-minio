@@ -688,14 +688,9 @@ func testAccCheckServerEtcdParams(want map[string]string) resource.TestCheckFunc
 		if err != nil {
 			return fmt.Errorf("reading the etcd config from the server after the restart: %w", err)
 		}
-		valueStr := strings.TrimSpace(string(data))
-		if strings.HasPrefix(valueStr, "etcd ") {
-			parts := strings.SplitN(valueStr, " ", 2)
-			if len(parts) == 2 {
-				valueStr = strings.TrimSpace(parts[1])
-			}
-		}
-		stored := parseConfigParams(valueStr)
+		// Same line-by-line read as the resource: a MINIO_ETCD_* environment
+		// variable makes get-config-kv print a "# MINIO_ETCD_..." line first.
+		stored, _ := notifyTargetConfigParams(string(data), "etcd")
 		for key, value := range want {
 			got, ok := stored[key]
 			if !ok {

@@ -1,20 +1,20 @@
-resource "minio_iam_user" "alice" {
-  name = "alice"
+resource "minio_iam_user" "user" {
+  name = "example-user"
 }
 
-resource "minio_iam_group" "dev" {
+resource "minio_iam_group" "developers" {
   name = "developers"
 }
 
-resource "minio_iam_group" "ops" {
-  name = "operations"
+resource "minio_iam_group" "admins" {
+  name = "admins"
 }
 
-resource "minio_iam_user_group_membership" "alice" {
-  user = minio_iam_user.alice.name
+resource "minio_iam_user_group_membership" "example" {
+  user = minio_iam_user.user.name
 
   groups = [
-    minio_iam_group.dev.name,
-    minio_iam_group.ops.name,
+    minio_iam_group.developers.name,
+    minio_iam_group.admins.name,
   ]
 }

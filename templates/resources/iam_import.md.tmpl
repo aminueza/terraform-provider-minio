@@ -11,6 +11,12 @@ description: |-
 
 ## Example Usage
 
+The two clusters are declared as provider aliases:
+
+{{ tffile "examples/resources/minio_iam_import/providers.tf" }}
+
+The export runs against the source and the import against the target:
+
 {{ tffile "examples/resources/minio_iam_import/resource.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}

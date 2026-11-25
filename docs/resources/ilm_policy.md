@@ -22,6 +22,7 @@ resource "minio_ilm_policy" "test_policy" {
   rule {
     id     = "rule1"
     status = "Enabled"
+    # Delete objects after 90 days
     expiration = "90d"
     filter     = "documents/"
     tags = {
@@ -33,6 +34,7 @@ resource "minio_ilm_policy" "test_policy" {
   rule {
     id     = "rule2"
     status = "Disabled"
+    # Move objects to GLACIER after 30 days
     transition {
       days          = "30d"
       storage_class = "GLACIER"
@@ -42,8 +44,9 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule3"
+    # Transition on a specific date instead of an age
     transition {
-      date          = "2025-12-31"  # Example: transition on a specific date
+      date          = "2027-12-31"
       storage_class = "STANDARD_IA"
     }
     filter = "archives/"
@@ -51,6 +54,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule4"
+    # Handle noncurrent versions
     noncurrent_transition {
       days           = "45d"
       storage_class  = "GLACIER"
@@ -61,6 +65,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule5"
+    # Delete old versions
     noncurrent_expiration {
       days           = "365d"
       newer_versions = 5
@@ -70,6 +75,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule6"
+    # Combined policy: transition then expire
     transition {
       days          = "60d"
       storage_class = "STANDARD_IA"
@@ -84,6 +90,7 @@ resource "minio_ilm_policy" "test_policy" {
 
   rule {
     id = "rule7"
+    # Remove expired delete markers, and drop noncurrent versions after 30 days
     expired_object_delete_marker = true
     noncurrent_expiration {
       days = "30d"
@@ -96,6 +103,8 @@ resource "minio_ilm_policy" "test_policy" {
 ## Important: One Resource Per Bucket
 
 Each bucket must have exactly **one** `minio_ilm_policy` resource. All lifecycle rules for a bucket must be defined within a single resource. Creating multiple `minio_ilm_policy` resources for the same bucket will cause them to overwrite each other, leading to unexpected behavior.
+
+`minio_s3_bucket_lifecycle` manages the same lifecycle configuration of a bucket. Manage a bucket's lifecycle with this resource or with that one, not both.
 
 **Incorrect** (rules will overwrite each other):
 

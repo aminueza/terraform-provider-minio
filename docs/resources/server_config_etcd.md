@@ -36,7 +36,7 @@ resource "minio_server_config_etcd" "federation" {
 ### Read-Only
 
 - `id` (String) The ID of this resource.
-- `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration.
+- `restart_required` (Boolean) Whether a MinIO server restart is required to apply the configuration. While it is true the read cannot tell a pending restart from an external change that was already restarted, so etcd config changed outside Terraform is only reported after the flag clears.
 
 ## Import
 

@@ -9,10 +9,12 @@ description: |-
 
 {{ .Description | trimspace }}
 
-`users` is the complete membership of the group: members added outside this
-resource are removed on the next apply. Manage each group with exactly one
-`minio_iam_group_membership`; for per-user management use
-`minio_iam_group_user_attachment`.
+`users` is the complete membership of the group: the group ends up with
+**exactly** the users listed, and any other member is removed on the next
+apply, including members added by `minio_iam_user_group_membership` or
+`minio_iam_group_user_attachment`. Manage a group's members with this
+resource or with one of those two, never with more than one of the three
+at once.
 
 ## Example Usage
 

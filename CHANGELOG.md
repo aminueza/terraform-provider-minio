@@ -10,6 +10,30 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_notify_kafka` and its data source expose `compression_codec`,
+  `compression_level` and `batch_commit_timeout`, the Kafka producer
+  compression and batch commit keys MinIO added in RELEASE.2023-12-02 and
+  RELEASE.2024-09-09. The plan rejects a `batch_commit_timeout` above `0s`
+  without `queue_dir` or with a `batch_size` of 1 or less,
+  `compression_level` without `compression_codec`, and a gzip
+  `compression_level` outside -2..9: an enabled target refuses those
+  combinations and a disabled one stores them without ever acting on them.
+  ([#1369](https://github.com/aminueza/terraform-provider-minio/issues/1369))
+- `minio_audit_webhook` and `minio_logger_webhook` expose MinIO's retry and
+  timeout keys `max_retry`, `retry_interval` and `http_timeout`, and
+  `minio_audit_webhook` also gains `queue_dir`. Removing one of the retry or
+  timeout fields writes MinIO's own default (`0`, `3s` or `5s`) back to the
+  server, never an empty value
+  ([#1370](https://github.com/aminueza/terraform-provider-minio/issues/1370)).
+  Upgrade note: leaving these fields out now means "MinIO's default", not
+  "whatever the server has", so a value previously set with
+  `mc admin config set` is reset on the first apply; copy it into your
+  configuration first. The keys need a MinIO at least as new as the release
+  each field's documentation names: older servers glue an unknown key onto
+  the value before it and corrupt the target.
+
 ### Changed
 
 - `minio_s3_bucket_policy` and `minio_s3_bucket_versioning` now read the setting they
@@ -20,6 +44,23 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_object_legal_hold` now logs the server's code and message when a
+  read drops it from state. A legal hold on a bucket without object locking is
+  dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
+  instead of the old, misleading "not found" warning.
+  ([#1413](https://github.com/aminueza/terraform-provider-minio/issues/1413))
+- `minio_server_config_etcd`: removing `client_cert` or `client_cert_key` from the
+  configuration now clears them on the server by sending them as empty `key=`
+  values, applied after the usual MinIO restart. MinIO merges `set-config-kv`
+  into the subsystem's current settings, so the omitted keys kept their old
+  values before and the resource showed a permanent diff that could never be
+  resolved. The read now keeps the configured values in state while a restart is
+  pending, and `restart_required` returns to `false` once the restart lands; it
+  used to stay `true` forever. The read also finds the values now when a
+  `MINIO_ETCD_*` environment variable makes `get-config-kv` print a `# ...`
+  line first. After upgrading, the first plan may show one
+  pending diff if a restart was still pending
+  ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
 - The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
   now captures the setting it protects before the write, so a versioning or policy loss
   caused by the write itself can be restored; the snapshot used to be taken after the

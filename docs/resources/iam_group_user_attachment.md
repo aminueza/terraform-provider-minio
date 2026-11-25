@@ -9,6 +9,13 @@ description: |-
 
 
 
+This resource manages a single user-to-group pair and leaves the rest of the
+group's members and the user's groups alone. `minio_iam_group_membership`
+for the same group owns the whole member list and
+`minio_iam_user_group_membership` for the same user owns the whole group
+list, so either one removes this pair on its next apply. Use only one of the
+three membership resources for a given group or user.
+
 ## Example Usage
 
 ```terraform
@@ -20,7 +27,7 @@ resource "minio_iam_user" "user_one" {
 }
 
 resource "minio_iam_group_user_attachment" "developer" {
-  group_name = minio_iam_group.group.name
+  group_name = minio_iam_group.developer.name
   user_name  = minio_iam_user.user_one.name
 }
 
@@ -28,11 +35,11 @@ output "minio_name" {
   value = minio_iam_group_user_attachment.developer.id
 }
 
-output "minio_users" {
+output "minio_group" {
   value = minio_iam_group_user_attachment.developer.group_name
 }
 
-output "minio_group" {
+output "minio_user" {
   value = minio_iam_group_user_attachment.developer.user_name
 }
 ```

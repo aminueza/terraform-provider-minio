@@ -395,15 +395,19 @@ type S3MinioIncompleteUploadCleanup struct {
 }
 
 type S3MinioAuditWebhook struct {
-	MinioAdmin *madmin.AdminClient
-	Name       string
-	Endpoint   string
-	AuthToken  string
-	Enable     bool
-	QueueSize  int
-	BatchSize  int
-	ClientCert string
-	ClientKey  string
+	MinioAdmin    *madmin.AdminClient
+	Name          string
+	Endpoint      string
+	AuthToken     string
+	Enable        bool
+	QueueSize     int
+	BatchSize     int
+	QueueDir      string
+	MaxRetry      int
+	RetryInterval string
+	HTTPTimeout   string
+	ClientCert    string
+	ClientKey     string
 }
 
 type S3MinioServerConfigCompression struct {

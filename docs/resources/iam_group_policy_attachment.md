@@ -9,6 +9,10 @@ description: |-
 
 
 
+`minio_iam_group_policy` creates a canned policy and attaches it to a group
+in one resource. Do not combine the two for the same group and policy pair,
+since both manage attachment of that policy to the group.
+
 ## Example Usage
 
 ```terraform
@@ -35,7 +39,7 @@ EOF
 }
 
 resource "minio_iam_group_policy_attachment" "developer" {
-  group_name  = minio_iam_group.group.name
+  group_name  = minio_iam_group.developer.name
   policy_name = minio_iam_policy.test_policy.id
 }
 
@@ -43,11 +47,11 @@ output "minio_name" {
   value = minio_iam_group_policy_attachment.developer.id
 }
 
-output "minio_users" {
+output "minio_group" {
   value = minio_iam_group_policy_attachment.developer.group_name
 }
 
-output "minio_group" {
+output "minio_policy" {
   value = minio_iam_group_policy_attachment.developer.policy_name
 }
 ```

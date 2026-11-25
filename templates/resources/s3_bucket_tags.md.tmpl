@@ -9,6 +9,11 @@ description: |-
 
 {{ .Description | trimspace }}
 
+`minio_s3_bucket` also manages the whole tag set through its `tags`
+attribute. Both resources replace the complete tag set, so each removes the
+tags the other added. Manage the tags with this resource or with the `tags`
+attribute of `minio_s3_bucket`, not both.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_s3_bucket_tags/resource.tf" }}

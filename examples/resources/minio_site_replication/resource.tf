@@ -1,22 +1,4 @@
-terraform {
-  required_providers {
-    minio = {
-      source  = "aminueza/minio"
-      version = "~> 2"
-    }
-    vault = {
-      source  = "hashicorp/vault"
-      version = "~> 4.8"
-    }
-  }
-}
-
-provider "minio" {
-  minio_server   = "https://minio1.example.com"
-  minio_user     = "minioadmin"
-  minio_password = "minio123"
-}
-
+# Vault secrets read by the write-only example below
 ephemeral "vault_kv_secret_v2" "site1_secret" {
   mount = "secret"
   name  = "minio/site-replication/site1"

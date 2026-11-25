@@ -13,7 +13,24 @@ description: |-
 
 ## Example Usage
 
-```hcl
+```terraform
+# Vault secrets read by the write-only example below
+ephemeral "vault_kv_secret_v2" "site1_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site1"
+}
+
+ephemeral "vault_kv_secret_v2" "site2_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site2"
+}
+
+ephemeral "vault_kv_secret_v2" "site3_secret" {
+  mount = "secret"
+  name  = "minio/site-replication/site3"
+}
+
+# Example: Basic site replication with static configuration
 resource "minio_site_replication" "primary" {
   name = "my-cluster-replication"
 
@@ -39,22 +56,7 @@ resource "minio_site_replication" "primary" {
   }
 }
 
-# Optional: write-only variant using ephemeral Vault secrets
-ephemeral "vault_kv_secret_v2" "site1_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site1"
-}
-
-ephemeral "vault_kv_secret_v2" "site2_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site2"
-}
-
-ephemeral "vault_kv_secret_v2" "site3_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site3"
-}
-
+# Example: Site replication with write-only secrets from Vault
 resource "minio_site_replication" "primary_write_only" {
   name = "my-cluster-replication-write-only"
 

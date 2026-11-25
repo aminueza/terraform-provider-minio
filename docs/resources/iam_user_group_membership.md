@@ -14,7 +14,7 @@ Attaches a single MinIO IAM user to one or more IAM groups. This resource ensure
 
 ## Example Usage
 
-```hcl
+```terraform
 resource "minio_iam_user" "user" {
   name = "example-user"
 }

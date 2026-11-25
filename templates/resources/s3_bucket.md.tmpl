@@ -13,17 +13,7 @@ description: |-
 
 {{ tffile "examples/resources/minio_s3_bucket/resource.tf" }}
 
-```terraform
-resource "minio_s3_bucket" "data_lake" {
-  bucket = "my-data-lake"
-
-  tags = {
-    Environment = "production"
-    Team        = "data-engineering"
-    CostCenter  = "12345"
-  }
-}
-```
+{{ tffile "examples/resources/minio_s3_bucket/data_lake.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 

@@ -13,76 +13,7 @@ description: |-
 
 ## Example Usage
 
-```hcl
-resource "minio_site_replication" "primary" {
-  name = "my-cluster-replication"
-
-  site {
-    name       = "site1"
-    endpoint   = "https://minio1.example.com"
-    access_key = "minioadmin"
-    secret_key = "minio123"
-  }
-
-  site {
-    name       = "site2"
-    endpoint   = "https://minio2.example.com"
-    access_key = "minioadmin"
-    secret_key = "minio456"
-  }
-
-  site {
-    name       = "site3"
-    endpoint   = "https://minio3.example.com"
-    access_key = "minioadmin"
-    secret_key = "minio789"
-  }
-}
-
-# Optional: write-only variant using ephemeral Vault secrets
-ephemeral "vault_kv_secret_v2" "site1_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site1"
-}
-
-ephemeral "vault_kv_secret_v2" "site2_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site2"
-}
-
-ephemeral "vault_kv_secret_v2" "site3_secret" {
-  mount = "secret"
-  name  = "minio/site-replication/site3"
-}
-
-resource "minio_site_replication" "primary_write_only" {
-  name = "my-cluster-replication-write-only"
-
-  site {
-    name                  = "site1"
-    endpoint              = "https://minio1.example.com"
-    access_key            = "minioadmin"
-    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site1_secret.data.secret_key)
-    secret_key_wo_version = 1
-  }
-
-  site {
-    name                  = "site2"
-    endpoint              = "https://minio2.example.com"
-    access_key            = "minioadmin"
-    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site2_secret.data.secret_key)
-    secret_key_wo_version = 1
-  }
-
-  site {
-    name                  = "site3"
-    endpoint              = "https://minio3.example.com"
-    access_key            = "minioadmin"
-    secret_key_wo         = tostring(ephemeral.vault_kv_secret_v2.site3_secret.data.secret_key)
-    secret_key_wo_version = 1
-  }
-}
-```
+{{ tffile "examples/resources/minio_site_replication/resource.tf" }}
 
 ## Argument Reference
 

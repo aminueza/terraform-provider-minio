@@ -160,6 +160,14 @@ func TestNotifyBuildersSendOnlyKnownKeys(t *testing.T) {
 			build:     buildLoggerWebhookCfg,
 			raw:       map[string]interface{}{"name": "n", "endpoint": "http://localhost:9999/logs", "queue_size": 5000},
 			mustHave:  []string{"queue_size=5000"},
+			mustNotBe: []string{"queue_limit=", "max_retry=", "retry_interval=", "http_timeout="},
+		},
+		{
+			name:      "logger_webhook sends retry keys when set",
+			resource:  resourceMinioLoggerWebhook(),
+			build:     buildLoggerWebhookCfg,
+			raw:       map[string]interface{}{"name": "n", "endpoint": "http://localhost:9999/logs", "max_retry": 3, "retry_interval": "10s", "http_timeout": "10s"},
+			mustHave:  []string{"max_retry=3", "retry_interval=10s", "http_timeout=10s"},
 			mustNotBe: []string{"queue_limit="},
 		},
 		{

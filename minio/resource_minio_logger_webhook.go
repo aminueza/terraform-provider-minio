@@ -21,7 +21,8 @@ func resourceMinioLoggerWebhook() *schema.Resource {
 		UpdateContext: notifyUpdate(nrc),
 		DeleteContext: notifyDelete(nrc),
 		Importer:      &schema.ResourceImporter{StateContext: schema.ImportStatePassthroughContext},
-		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(map[string]*schema.Schema{
+		CustomizeDiff: customizeDiffWebhookRetry,
+		Schema: mergeSchemas(notifyCommonSchema(), notifyWithQueueSize(addWebhookRetryFields(map[string]*schema.Schema{
 			"endpoint": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -61,7 +62,7 @@ func resourceMinioLoggerWebhook() *schema.Resource {
 				Optional:    true,
 				Description: "Proxy URL for the webhook endpoint.",
 			},
-		})),
+		}))),
 	}
 }
 
@@ -72,6 +73,7 @@ func buildLoggerWebhookCfg(d *schema.ResourceData, meta interface{}) string {
 	notifyBuildCfgClearablePair(&parts, d, "client_cert", "client_key")
 	notifyBuildCfgClearableParam(&parts, d, "proxy")
 	notifyBuildCfgAddInt(&parts, "batch_size", getOptionalField(d, "batch_size", 0).(int))
+	buildWebhookRetryCfg(&parts, d)
 	notifyBuildQueueSizeCommonCfg(&parts, d)
 	return strings.Join(parts, " ")
 }
@@ -81,6 +83,9 @@ func readLoggerWebhookFields(cfgMap map[string]string, d *schema.ResourceData) d
 		return diags
 	}
 	if diags := notifySetInt(d, cfgMap, "batch_size", "batch_size"); diags != nil {
+		return diags
+	}
+	if diags := readWebhookRetryFields(cfgMap, d); diags != nil {
 		return diags
 	}
 	if diags := notifyReadQueueSize(cfgMap, d); diags != nil {

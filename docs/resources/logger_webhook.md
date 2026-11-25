@@ -36,10 +36,13 @@ resource "minio_logger_webhook" "splunk" {
 - `client_key` (String, Sensitive) Path to X.509 private key for mTLS.
 - `comment` (String) Comment or description for this notification target.
 - `enable` (Boolean) Whether this notification target is enabled.
+- `http_timeout` (String) Timeout for each request, at least `1s`; MinIO seeds `5s`. First available in MinIO RELEASE.2024-09-13T20-26-02Z.
+- `max_retry` (Number) Retries before an undelivered batch is dropped; `0` retries forever. First available in MinIO RELEASE.2024-09-09T16-59-28Z.
 - `proxy` (String) Proxy URL for the webhook endpoint.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number, Deprecated) Deprecated: use 'queue_size' instead.
 - `queue_size` (Number) Maximum number of undelivered events to queue.
+- `retry_interval` (String) Pause between retries, at most `1m`; MinIO seeds `3s`. First available in MinIO RELEASE.2024-09-09T16-59-28Z.
 
 ### Read-Only
 

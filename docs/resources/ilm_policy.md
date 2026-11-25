@@ -104,6 +104,8 @@ resource "minio_ilm_policy" "test_policy" {
 
 Each bucket must have exactly **one** `minio_ilm_policy` resource. All lifecycle rules for a bucket must be defined within a single resource. Creating multiple `minio_ilm_policy` resources for the same bucket will cause them to overwrite each other, leading to unexpected behavior.
 
+`minio_s3_bucket_lifecycle` manages the same lifecycle configuration of a bucket. Manage a bucket's lifecycle with this resource or with that one, not both.
+
 **Incorrect** (rules will overwrite each other):
 
 ```terraform

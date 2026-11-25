@@ -9,7 +9,7 @@ description: |-
 
 {{ .Description | trimspace }}
 
-Cleaner alternative to `minio_s3_bucket_retention` with a nested schema structure that matches the API better.
+Cleaner alternative to `minio_s3_bucket_retention` with a nested schema structure that matches the API better. Both resources write the bucket's default object lock retention, and destroying either clears it. Manage the default retention with one of the two, not both.
 
 ## Differences from minio_s3_bucket_retention
 

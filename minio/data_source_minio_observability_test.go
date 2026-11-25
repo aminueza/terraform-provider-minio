@@ -7,7 +7,16 @@ import (
 )
 
 func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
-	resource.ParallelTest(t, resource.TestCase{
+	// Sequential on purpose. The data source aggregates every bucket in the
+	// account, and madmin cannot decode a bucket that carries tags on the
+	// current server: it marshals details.tags in the XML shape that
+	// minio-go's tags.Tags refuses to parse (tracked in #1460). A parallel
+	// run overlaps with tests like TestAccMinioS3Bucket_tags, whose tagged
+	// bucket is alive while this refresh reads, and the decode fails the
+	// step. Every sequential test finishes before any t.Parallel test
+	// resumes, and no sequential test leaves a tagged bucket behind, so
+	// none is alive here. See issue #1415.
+	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{

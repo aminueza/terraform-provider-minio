@@ -9,6 +9,13 @@ description: |-
 
 
 
+The bucket policy is also written by a non-private `acl` on
+`minio_s3_bucket` and by `minio_s3_bucket_anonymous_access`, and setting
+that `acl` back to `private` (or removing it) deletes the policy managed
+here; the next apply writes it back. Manage a bucket's policy with this
+resource or with one of those, not both, or they overwrite each other's
+policy.
+
 ## Example Usage
 
 ```terraform

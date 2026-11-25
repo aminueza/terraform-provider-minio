@@ -22,13 +22,13 @@ EOF
 }
 
 output "minio_name" {
-  value = "${minio_iam_group_membership.developer.id}"
+  value = minio_iam_group_policy.test_policy.id
 }
 
 output "minio_policy" {
-  value = "${minio_iam_group_membership.developer.policy}"
+  value = minio_iam_group_policy.test_policy.name
 }
 
 output "minio_group" {
-  value = "${minio_iam_group_membership.developer.group}"
+  value = minio_iam_group_policy.test_policy.group
 }

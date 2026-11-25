@@ -9,6 +9,10 @@ description: |-
 
 {{ .Description | trimspace }}
 
+`minio_iam_group_policy` creates a canned policy and attaches it to a group
+in one resource. Do not combine the two for the same group and policy pair,
+since both manage attachment of that policy to the group.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_iam_group_policy_attachment/resource.tf" }}

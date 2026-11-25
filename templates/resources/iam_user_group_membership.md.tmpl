@@ -9,7 +9,7 @@ description: |-
 
 {{ .Description | trimspace }}
 
-Attaches a single MinIO IAM user to one or more IAM groups. This resource ensures the user is a member of **exactly** the groups specified—any groups not listed will be removed.
+Attaches a single MinIO IAM user to one or more IAM groups. This resource ensures the user is a member of **exactly** the groups specified—any groups not listed will be removed. Groups added by `minio_iam_group_membership` or `minio_iam_group_user_attachment` are removed on the next apply. Manage a user's groups with this resource or with one of those two, never with more than one of the three at once.
 
 
 ## Example Usage

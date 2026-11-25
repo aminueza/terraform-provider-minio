@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
@@ -66,6 +67,57 @@ func TestAccMinioS3ObjectLegalHold_off(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "key", objectKey),
 					resource.TestCheckResourceAttr(resourceName, "status", "OFF"),
 				),
+			},
+		},
+	})
+}
+
+// A bucket without object locking cannot hold a legal hold: MinIO rejects the
+// put with InvalidRequest "Bucket is missing ObjectLockConfiguration", so the
+// apply fails with that error instead of silently succeeding. See issue #1413.
+func TestAccMinioS3ObjectLegalHold_bucketWithoutObjectLock(t *testing.T) {
+	bucketName := "tfacc-legal-hold-" + acctest.RandString(8)
+	objectKey := "test-object-unlocked.txt"
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      testAccMinioS3ObjectLegalHoldNoLockConfig(bucketName, objectKey),
+				ExpectError: regexp.MustCompile(`Bucket is missing ObjectLockConfiguration`),
+			},
+		},
+	})
+}
+
+// Importing a legal hold for an object in a bucket without object locking reads
+// InvalidRequest "Bucket is missing ObjectLockConfiguration", which drops the
+// resource, so the import fails instead of importing a resource the next
+// refresh would remove. See issue #1413.
+func TestAccMinioS3ObjectLegalHold_importBucketWithoutObjectLock(t *testing.T) {
+	bucketName := "tfacc-legal-hold-" + acctest.RandString(8)
+	objectKey := "test-object.txt"
+	unlockedBucketName := "tfacc-legal-hold-" + acctest.RandString(8)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioObjectLegalHoldDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccMinioS3ObjectLegalHoldNoLockImportConfig(bucketName, objectKey, unlockedBucketName),
+				Check: resource.ComposeTestCheckFunc(
+					testAccCheckMinioS3ObjectLegalHoldExists("minio_s3_object_legal_hold.test"),
+					resource.TestCheckResourceAttr("minio_s3_object_legal_hold.test", "status", "ON"),
+				),
+			},
+			{
+				ResourceName:  "minio_s3_object_legal_hold.test",
+				ImportState:   true,
+				ImportStateId: fmt.Sprintf("%s/%s", unlockedBucketName, objectKey),
+				ExpectError:   regexp.MustCompile(`Cannot import non-existent remote object`),
 			},
 		},
 	})
@@ -257,6 +309,60 @@ resource "minio_s3_object_legal_hold" "test" {
   status     = "%[3]s"
 }
 `, bucketName, objectKey, status)
+}
+
+func testAccMinioS3ObjectLegalHoldNoLockConfig(bucketName, objectKey string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket        = "%[1]s"
+  force_destroy = true
+}
+
+resource "minio_s3_object" "object" {
+  bucket_name = minio_s3_bucket.bucket.id
+  object_name = "%[2]s"
+  content     = "test content"
+}
+
+resource "minio_s3_object_legal_hold" "test" {
+  bucket = minio_s3_bucket.bucket.id
+  key    = minio_s3_object.object.object_name
+  status = "ON"
+}
+`, bucketName, objectKey)
+}
+
+func testAccMinioS3ObjectLegalHoldNoLockImportConfig(bucketName, objectKey, unlockedBucketName string) string {
+	return fmt.Sprintf(`
+resource "minio_s3_bucket" "bucket" {
+  bucket         = "%[1]s"
+  object_locking = true
+  force_destroy  = true
+}
+
+resource "minio_s3_object" "object" {
+  bucket_name = minio_s3_bucket.bucket.id
+  object_name = "%[2]s"
+  content     = "test content"
+}
+
+resource "minio_s3_object_legal_hold" "test" {
+  bucket = minio_s3_bucket.bucket.id
+  key    = minio_s3_object.object.object_name
+  status = "ON"
+}
+
+resource "minio_s3_bucket" "unlocked" {
+  bucket        = "%[3]s"
+  force_destroy = true
+}
+
+resource "minio_s3_object" "unlocked_object" {
+  bucket_name = minio_s3_bucket.unlocked.id
+  object_name = "%[2]s"
+  content     = "test content"
+}
+`, bucketName, objectKey, unlockedBucketName)
 }
 
 func testAccMinioS3ObjectLegalHoldTwoObjectsConfig(bucketName, heldKey, plainKey string) string {

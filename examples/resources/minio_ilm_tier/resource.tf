@@ -46,7 +46,7 @@ resource "minio_ilm_tier" "gcs" {
   bucket = "gcs-archive"
 
   gcs_config {
-    credentials   = file("gcs-service-account.json")
+    credentials   = var.gcs_credentials # contents of the service account JSON key file
     storage_class = "NEARLINE"
   }
 }

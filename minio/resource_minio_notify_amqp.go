@@ -78,7 +78,7 @@ func resourceMinioNotifyAmqp() *schema.Resource {
 			"publisher_confirms": {
 				Type:        schema.TypeBool,
 				Optional:    true,
-				Description: "Whether MinIO waits for the broker to confirm each published message and treats a rejected publish as an error. Use it together with `queue_dir` for guaranteed delivery.",
+				Description: "Whether MinIO waits for the broker to confirm each published message and treats a rejected publish as an error. Use it together with `queue_dir` for guaranteed delivery. Requires MinIO RELEASE.2021-06-17T00-10-46Z or newer.",
 			},
 		}),
 	}

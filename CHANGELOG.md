@@ -10,6 +10,20 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_notify_amqp`: setting `publisher_confirms` against a MinIO server older
+  than RELEASE.2021-06-17T00-10-46Z now fails with a clear error naming that
+  release, instead of succeeding and silently corrupting the config value
+  written before it: MinIO's `set-config-kv` parser glues a key the server does
+  not know onto the previous value. Targets that do not set the attribute keep
+  working on old servers: the provider drops the explicit `off` it sends before
+  writing, because absent and `off` mean the same thing on a server without the
+  key. The provider asks the server which keys the subsystem has
+  (`help-config-kv`) before sending a version-gated key, and fails closed: if
+  that call fails, the write fails too
+  ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

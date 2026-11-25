@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -83,7 +84,15 @@ func TestAccMinioAuditWebhook_retryFields(t *testing.T) {
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
-		CheckDestroy:      testAccCheckServerRemovedTarget("audit_webhook", name),
+		CheckDestroy: resource.ComposeTestCheckFunc(
+			testAccCheckServerRemovedTarget("audit_webhook", name),
+			func(_ *terraform.State) error {
+				// The server mkdirs the queue dir when it builds the
+				// target and never removes it; on a binary MinIO that
+				// leaves a directory in /tmp per run.
+				return os.RemoveAll("/tmp/tfacc-audit-" + name)
+			},
+		),
 		Steps: []resource.TestStep{
 			{
 				Config: testAccMinioAuditWebhookRetry(name, true),

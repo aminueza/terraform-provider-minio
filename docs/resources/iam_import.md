@@ -11,6 +11,26 @@ Imports an IAM configuration into the MinIO server (users, groups, policies, ser
 
 ## Example Usage
 
+The two clusters are declared as provider aliases:
+
+```terraform
+provider "minio" {
+  alias          = "source"
+  minio_server   = "source.example.com:9000"
+  minio_user     = "minio"
+  minio_password = "minio123"
+}
+
+provider "minio" {
+  alias          = "target"
+  minio_server   = "target.example.com:9000"
+  minio_user     = "minio"
+  minio_password = "minio456"
+}
+```
+
+The export runs against the source and the import against the target:
+
 ```terraform
 data "minio_iam_export" "source_cluster" {
   provider = minio.source

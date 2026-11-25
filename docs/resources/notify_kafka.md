@@ -38,10 +38,13 @@ resource "minio_notify_kafka" "events" {
 
 ### Optional
 
+- `batch_commit_timeout` (String) How long a partly filled batch waits before it is committed; `0s` means 30s. Only used when `queue_dir` is set and `batch_size` is above 1; the plan rejects a value above `0s` without `queue_dir` or with `batch_size` of 1 or less. First available in MinIO RELEASE.2024-09-09T16-59-28Z.
 - `batch_size` (Number) Number of messages to batch before sending to Kafka.
 - `client_tls_cert` (String) Path to the client TLS certificate for mTLS authentication.
 - `client_tls_key` (String, Sensitive) Path to the client TLS private key.
 - `comment` (String) Comment or description for this notification target.
+- `compression_codec` (String) Producer compression codec: `none`, `snappy`, `gzip`, `lz4` or `zstd`. First available in MinIO RELEASE.2023-12-02T10-51-33Z. Set `compression_level` with it: a codec without a level means level 0, which for gzip is no compression.
+- `compression_level` (Number) Compression level for `compression_codec`. MinIO turns a value it cannot parse into 0. gzip accepts -2 to 9, where -1 is the library default. First available in MinIO RELEASE.2023-12-02T10-51-33Z.
 - `enable` (Boolean) Whether this notification target is enabled.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline.
 - `queue_limit` (Number) Maximum number of undelivered messages to queue.

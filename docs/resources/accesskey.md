@@ -33,7 +33,7 @@ resource "minio_accesskey" "custom_key" {
   access_key         = "MINIO_ACCESS_KEY" # Must be 8-20 characters
   secret_key         = "mySuperSecretKey" # Must be at least 8 characters
   secret_key_version = "v1"               # Version identifier for change detection
-  status            = "enabled"
+  status             = "enabled"
 }
 
 # Create an access key with write-only secret
@@ -64,7 +64,7 @@ resource "minio_accesskey" "with_policy" {
   secret_key         = "mySuperSecretKey"
   secret_key_version = "v1"
   status             = "enabled"
-  policy             = jsonencode({
+  policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

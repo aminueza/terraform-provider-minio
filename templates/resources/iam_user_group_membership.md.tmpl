@@ -14,28 +14,7 @@ Attaches a single MinIO IAM user to one or more IAM groups. This resource ensure
 
 ## Example Usage
 
-```hcl
-resource "minio_iam_user" "user" {
-  name = "example-user"
-}
-
-resource "minio_iam_group" "developers" {
-  name = "developers"
-}
-
-resource "minio_iam_group" "admins" {
-  name = "admins"
-}
-
-resource "minio_iam_user_group_membership" "example" {
-  user = minio_iam_user.user.name
-
-  groups = [
-    minio_iam_group.developers.name,
-    minio_iam_group.admins.name,
-  ]
-}
-```
+{{ tffile "examples/resources/minio_iam_user_group_membership/resource.tf" }}
 
 {{ .SchemaMarkdown | trimspace }}
 

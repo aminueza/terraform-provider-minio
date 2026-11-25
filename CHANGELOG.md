@@ -29,6 +29,18 @@ History older than 3.39.0 lives in the
   dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
   instead of the old, misleading "not found" warning.
   ([#1413](https://github.com/aminueza/terraform-provider-minio/issues/1413))
+- `minio_server_config_etcd`: removing `client_cert` or `client_cert_key` from the
+  configuration now clears them on the server by sending them as empty `key=`
+  values, applied after the usual MinIO restart. MinIO merges `set-config-kv`
+  into the subsystem's current settings, so the omitted keys kept their old
+  values before and the resource showed a permanent diff that could never be
+  resolved. The read now keeps the configured values in state while a restart is
+  pending, and `restart_required` returns to `false` once the restart lands; it
+  used to stay `true` forever. The read also finds the values now when a
+  `MINIO_ETCD_*` environment variable makes `get-config-kv` print a `# ...`
+  line first. After upgrading, the first plan may show one
+  pending diff if a restart was still pending
+  ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
 - `minio_notify_amqp`: setting `publisher_confirms` against a MinIO server older
   than RELEASE.2021-06-17T00-10-46Z now fails with a clear error naming that
   release, instead of succeeding and silently corrupting the config value

@@ -15,20 +15,7 @@ retention in one of the two, not both.
 
 ## Example Usage
 
-```terraform
-resource "minio_s3_bucket" "test_bucket" {
-  bucket         = "test-retention-bucket"
-  force_destroy  = true
-  object_locking = true
-}
-
-resource "minio_s3_bucket_retention" "test_retention" {
-  bucket          = minio_s3_bucket.test_bucket.bucket
-  mode            = "GOVERNANCE"
-  unit            = "YEARS"
-  validity_period = 1
-}
-```
+{{ tffile "examples/resources/minio_s3_bucket_retention/resource.tf" }}
 
 ## Interaction with Lifecycle Rules
 

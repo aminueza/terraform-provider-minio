@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/go-cty/cty"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 )
 
 func TestAccMinioServerConfigRegion_basic(t *testing.T) {
@@ -456,6 +457,102 @@ func TestAccMinioServerConfigStorageClass_basic(t *testing.T) {
 	})
 }
 
+func TestServerConfigEtcdRunningConfigMatchesState(t *testing.T) {
+	stateWith := func(cert, certKey string) *schema.ResourceData {
+		return schema.TestResourceDataRaw(t, resourceMinioServerConfigEtcd().Schema, map[string]interface{}{
+			"endpoints":       "http://etcd:2379",
+			"client_cert":     cert,
+			"client_cert_key": certKey,
+		})
+	}
+
+	// The maps below are responses measured from the test server, not the
+	// output of the etcd builder.
+	t.Run("pre-restart response with cleared certs does not match", func(t *testing.T) {
+		if etcdRunningConfigMatchesState(stateWith("/tmp/client.crt", "/tmp/client.key"), map[string]string{
+			"endpoints": "http://etcd:2379",
+		}) {
+			t.Errorf("expected no match for the pre-restart response")
+		}
+	})
+
+	t.Run("post-restart response matches", func(t *testing.T) {
+		if !etcdRunningConfigMatchesState(stateWith("/tmp/client.crt", "/tmp/client.key"), map[string]string{
+			"endpoints":       "http://etcd:2379",
+			"client_cert":     "/tmp/client.crt",
+			"client_cert_key": "/tmp/client.key",
+		}) {
+			t.Errorf("expected the post-restart response to match")
+		}
+	})
+
+	t.Run("stale cert path does not match a cleared state", func(t *testing.T) {
+		if etcdRunningConfigMatchesState(stateWith("", ""), map[string]string{
+			"endpoints":   "http://etcd:2379",
+			"client_cert": "/tmp/client.crt",
+		}) {
+			t.Errorf("expected no match while the server still reports the removed cert")
+		}
+	})
+
+	t.Run("cleared certs match the cleared response", func(t *testing.T) {
+		if !etcdRunningConfigMatchesState(stateWith("", ""), map[string]string{
+			"endpoints":       "http://etcd:2379",
+			"client_cert":     "",
+			"client_cert_key": "",
+		}) {
+			t.Errorf("expected the cleared post-restart response to match")
+		}
+	})
+
+	t.Run("stale endpoints do not match", func(t *testing.T) {
+		if etcdRunningConfigMatchesState(stateWith("/tmp/client.crt", "/tmp/client.key"), map[string]string{
+			"endpoints":       "http://other-etcd:2379",
+			"client_cert":     "/tmp/client.crt",
+			"client_cert_key": "/tmp/client.key",
+		}) {
+			t.Errorf("expected no match while the server reports different endpoints")
+		}
+	})
+
+	t.Run("key without cert matches the key-only response", func(t *testing.T) {
+		if !etcdRunningConfigMatchesState(stateWith("", "/tmp/client.key"), map[string]string{
+			"endpoints":       "http://etcd:2379",
+			"client_cert":     "",
+			"client_cert_key": "/tmp/client.key",
+		}) {
+			t.Errorf("expected the key-only response to match")
+		}
+	})
+}
+
+func TestServerConfigEtcdStateUpgradeV0(t *testing.T) {
+	res := resourceMinioServerConfigEtcd()
+	if res.SchemaVersion != 1 {
+		t.Errorf("SchemaVersion is %d, want 1", res.SchemaVersion)
+	}
+	if len(res.StateUpgraders) != 1 || res.StateUpgraders[0].Version != 0 || res.StateUpgraders[0].Upgrade == nil {
+		t.Errorf("expected exactly one v0 state upgrader, got %+v", res.StateUpgraders)
+	}
+
+	rawState := map[string]interface{}{
+		"endpoints":        "http://etcd:2379",
+		"client_cert":      "",
+		"restart_required": true,
+	}
+
+	state, err := resourceMinioServerConfigEtcdUpgradeV0(context.Background(), rawState, nil)
+	if err != nil {
+		t.Fatalf("upgrading the v0 state: %v", err)
+	}
+	if state["restart_required"] != false {
+		t.Errorf("restart_required after the upgrade is %v, want false", state["restart_required"])
+	}
+	if state["endpoints"] != "http://etcd:2379" {
+		t.Errorf("endpoints after the upgrade is %v, want the stored value", state["endpoints"])
+	}
+}
+
 // TestAccMinioServerConfigEtcd_basic requires TF_ACC_ETCD_ENDPOINTS to be set.
 // No etcd is available in the standard CI environment, so this is skipped by default.
 func TestAccMinioServerConfigEtcd_basic(t *testing.T) {
@@ -466,9 +563,15 @@ func TestAccMinioServerConfigEtcd_basic(t *testing.T) {
 
 	resourceName := "minio_server_config_etcd.test"
 
+	// Sequential on purpose: the destroy check restarts the primary test
+	// server, which must not be running underneath other tests.
 	resource.Test(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
+		// The delete only queues the reset: the destroy check restarts to
+		// apply it and leaves the server out of etcd mode for whatever runs
+		// next.
+		CheckDestroy: testAccCheckServerEtcdParams(map[string]string{"endpoints": ""}),
 		Steps: []resource.TestStep{
 			{
 				Config: `
@@ -477,6 +580,12 @@ resource "minio_server_config_etcd" "test" {
 }`,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "endpoints", endpoints),
+					// The restart here is what makes the import step below
+					// meaningful: get-config-kv serves the pre-restart
+					// section while the config is pending, so an import
+					// before the restart would read a section without the
+					// endpoints.
+					testAccCheckServerEtcdParams(map[string]string{"endpoints": endpoints}),
 				),
 			},
 			{
@@ -487,6 +596,112 @@ resource "minio_server_config_etcd" "test" {
 			},
 		},
 	})
+}
+
+// TestAccMinioServerConfigEtcd_clearClientCert also requires TF_ACC_ETCD_ENDPOINTS.
+// It verifies that removing client_cert and client_cert_key from the
+// configuration sends them as empty key= so MinIO clears them (the server
+// merges set-config-kv, so a key left out keeps its old value), that the plan
+// converges once the restart is applied, and that the read gate holds the
+// state against the pre-restart response while a restart is pending.
+func TestAccMinioServerConfigEtcd_clearClientCert(t *testing.T) {
+	endpoints := os.Getenv("TF_ACC_ETCD_ENDPOINTS")
+	if endpoints == "" {
+		t.Skip("TF_ACC_ETCD_ENDPOINTS not set — skipping etcd config acceptance test")
+	}
+
+	resourceName := "minio_server_config_etcd.test"
+
+	// Sequential on purpose: the server checks restart the primary test
+	// server, which must not be running underneath other tests.
+	resource.Test(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		// The delete only queues the reset: DelConfigKV needs a restart too.
+		// Restarting here applies it and leaves the primary server out of etcd
+		// mode for the tests that run after this one.
+		CheckDestroy: testAccCheckServerEtcdParams(map[string]string{"endpoints": ""}),
+		Steps: []resource.TestStep{
+			{
+				Config: `
+resource "minio_server_config_etcd" "test" {
+  endpoints       = "` + endpoints + `"
+  client_cert     = "/tmp/client.crt"
+  client_cert_key = "/tmp/client.key"
+  comment         = "clear test"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "client_cert", "/tmp/client.crt"),
+					// comment is in the map so the gate's comment check is
+					// exercised: if get-config-kv ever stops returning it,
+					// the gate never opens and this step's plan fails.
+					testAccCheckServerEtcdParams(map[string]string{
+						"client_cert":     "/tmp/client.crt",
+						"client_cert_key": "/tmp/client.key",
+						"comment":         "clear test",
+					}),
+				),
+			},
+			{
+				Config: `
+resource "minio_server_config_etcd" "test" {
+  endpoints = "` + endpoints + `"
+}`,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "client_cert", ""),
+					testAccCheckServerEtcdParams(map[string]string{
+						"client_cert":     "",
+						"client_cert_key": "",
+					}),
+				),
+			},
+			{
+				// Re-add the pair and do not restart. The framework's
+				// refresh-then-plan after this step is what exercises the
+				// read gate: without the gate the read writes the empty
+				// pre-restart value and the plan never converges until the
+				// restart. The Check only pins the apply result (the flag
+				// comes from SetConfigKV, not from the gate).
+				Config: `
+resource "minio_server_config_etcd" "test" {
+  endpoints       = "` + endpoints + `"
+  client_cert     = "/tmp/client.crt"
+  client_cert_key = "/tmp/client.key"
+}`,
+				Check: resource.TestCheckResourceAttr(resourceName, "restart_required", "true"),
+			},
+		},
+	})
+}
+
+// testAccCheckServerEtcdParams restarts the primary test server and checks
+// that get-config-kv reports the etcd subsystem with the given key=value
+// pairs. A cleared key is checked against "".
+func testAccCheckServerEtcdParams(want map[string]string) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		if err := testAccRestartPrimaryServer(); err != nil {
+			return err
+		}
+
+		client := testAccClient()
+		data, err := client.S3Admin.GetConfigKV(context.Background(), "etcd")
+		if err != nil {
+			return fmt.Errorf("reading the etcd config from the server after the restart: %w", err)
+		}
+		// Same line-by-line read as the resource: a MINIO_ETCD_* environment
+		// variable makes get-config-kv print a "# MINIO_ETCD_..." line first.
+		stored, _ := notifyTargetConfigParams(string(data), "etcd")
+		for key, value := range want {
+			got, ok := stored[key]
+			if !ok {
+				return fmt.Errorf("the etcd config stored on the server has no %q key; response: %s", key, string(data))
+			}
+			if got != value {
+				return fmt.Errorf("%q of the etcd config stored on the server is %q, want %q", key, got, value)
+			}
+		}
+		return nil
+	}
 }
 
 // The compression subsystem is a singleton: every test writes the same

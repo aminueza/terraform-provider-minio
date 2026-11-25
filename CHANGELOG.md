@@ -10,6 +10,19 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Fixed
+
+- `minio_server_config_etcd`: removing `client_cert` or `client_cert_key` from the
+  configuration now clears them on the server by sending them as empty `key=`
+  values, applied after the usual MinIO restart. MinIO merges `set-config-kv`
+  into the subsystem's current settings, so the omitted keys kept their old
+  values before and the resource showed a permanent diff that could never be
+  resolved. The read now keeps the configured values in state while a restart is
+  pending, and `restart_required` returns to `false` once the restart lands; it
+  used to stay `true` forever. After upgrading, the first plan may show one
+  pending diff if a restart was still pending
+  ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

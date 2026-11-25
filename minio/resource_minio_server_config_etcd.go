@@ -10,8 +10,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 )
 
+// resourceMinioServerConfigEtcdUpgradeV0 resets restart_required in v0
+// states: the pre-gate provider set the flag but never cleared it, so the
+// stored true refers to no pending restart and the read gate must not trust
+// it. After the reset the first refresh reads the server's real values, and
+// a removal that the old provider could not clear shows up in the plan.
+func resourceMinioServerConfigEtcdUpgradeV0(ctx context.Context, rawState map[string]interface{}, meta interface{}) (map[string]interface{}, error) {
+	rawState["restart_required"] = false
+	return rawState, nil
+}
+
 func resourceMinioServerConfigEtcd() *schema.Resource {
-	return &schema.Resource{
+	r := &schema.Resource{
 		Description:   "Manages MinIO etcd configuration for federated deployments and external IAM storage.",
 		CreateContext: minioServerConfigEtcdSet,
 		ReadContext:   minioServerConfigEtcdRead,
@@ -39,12 +49,11 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 				ValidateFunc: validateConfigValue,
 				Description:  "CoreDNS path for bucket DNS registration (default: \"/skydns\").",
 			},
-			// RequiredWith keeps a cert-only configuration out of the plan: the
-			// readback would put the server's key path into state and the empty
-			// config value would then clear it, and the etcd builder omits empty
-			// params, so the pair could never converge. See issue #1439. The
-			// key alone stays allowed: removing the certificate while the key
-			// remains is how the pair gets cleared.
+			// MinIO only uses the client certificate together with its key, so
+			// RequiredWith keeps a cert-only configuration out of the plan. The
+			// key alone stays allowed: dropping the pair from the configuration
+			// sends both keys empty, which is how the server clears them
+			// (issue #1439).
 			"client_cert": {
 				Type:         schema.TypeString,
 				Optional:     true,
@@ -72,7 +81,22 @@ func resourceMinioServerConfigEtcd() *schema.Resource {
 				Description: "Whether a MinIO server restart is required to apply the configuration.",
 			},
 		},
+		// v0 states carry a restart_required that the pre-gate provider set
+		// but never cleared; the upgrade resets it (see
+		// resourceMinioServerConfigEtcdUpgradeV0). The v0 type below is the
+		// live schema: snapshot it into its own function before changing any
+		// field of this resource, or "v0" silently starts meaning something
+		// else.
+		SchemaVersion: 1,
 	}
+	r.StateUpgraders = []schema.StateUpgrader{
+		{
+			Type:    r.CoreConfigSchema().ImpliedType(),
+			Version: 0,
+			Upgrade: resourceMinioServerConfigEtcdUpgradeV0,
+		},
+	}
+	return r
 }
 
 func minioServerConfigEtcdSet(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -92,12 +116,22 @@ func minioServerConfigEtcdSet(ctx context.Context, d *schema.ResourceData, meta 
 	if v, ok := d.GetOk("coredns_path"); ok {
 		addParam("coredns_path", v.(string))
 	}
-	if v, ok := d.GetOk("client_cert"); ok {
-		addParam("client_cert", v.(string))
+	// MinIO merges set-config-kv into the subsystem's current settings, so a
+	// key left out keeps its old value on the server. Always send the
+	// clearable pair, empty included: an empty key= clears the stored value
+	// (the documented clear mechanism mc uses), and the read gate can then
+	// trust that the server copy of the pair matches the configuration once
+	// the restart lands.
+	clearableParam := func(key string) {
+		val := d.Get(key).(string)
+		if val == "" {
+			parts = append(parts, key+"=")
+			return
+		}
+		parts = append(parts, buildConfigParam(key, val))
 	}
-	if v, ok := d.GetOk("client_cert_key"); ok {
-		addParam("client_cert_key", v.(string))
-	}
+	clearableParam("client_cert")
+	clearableParam("client_cert_key")
 	if v, ok := d.GetOk("comment"); ok {
 		addParam("comment", v.(string))
 	}
@@ -140,11 +174,35 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 	cfgMap := parseConfigParams(valueStr)
 	d.SetId("etcd")
 
-	for _, field := range []string{"endpoints", "path_prefix", "coredns_path", "client_cert"} {
+	// get-config-kv serves the pre-restart config while a restart is pending,
+	// so a response that does not match the configured values is stale and the
+	// state keeps them. Once the server has restarted the response matches and
+	// the flag is cleared. The site and policy plugin configs gate on the same
+	// signal.
+	if d.Get("restart_required").(bool) {
+		if !etcdRunningConfigMatchesState(d, cfgMap) {
+			tflog.Warn(ctx, "etcd still shows the pre-restart config, keeping configured values in state")
+			return nil
+		}
+		if err := d.Set("restart_required", false); err != nil {
+			return NewResourceError("clearing restart_required", "etcd", err)
+		}
+	}
+
+	for _, field := range []string{"endpoints", "path_prefix", "coredns_path"} {
 		if v, ok := cfgMap[field]; ok && v != "" {
 			if diags := setResourceField(d, field, v, d.Id()); diags != nil {
 				return diags
 			}
+		}
+	}
+	// client_cert is read even when empty: the gate above returns early on a
+	// stale pre-restart response, so an empty value here is the server's real
+	// answer and the state must converge to it, including for clears made
+	// outside Terraform.
+	if v, ok := cfgMap["client_cert"]; ok {
+		if diags := setResourceField(d, "client_cert", v, d.Id()); diags != nil {
+			return diags
 		}
 	}
 	if v, ok := cfgMap["client_cert_key"]; ok {
@@ -159,6 +217,28 @@ func minioServerConfigEtcdRead(ctx context.Context, d *schema.ResourceData, meta
 	}
 
 	return nil
+}
+
+func etcdRunningConfigMatchesState(d *schema.ResourceData, cfgMap map[string]string) bool {
+	// Keys the builder leaves out (an empty path_prefix, coredns_path or
+	// comment) have nothing to compare. The clearable certificate pair must
+	// also come back empty when the state holds it empty, which is how a
+	// removal converges once the restart lands.
+	for _, key := range []string{"endpoints", "path_prefix", "coredns_path", "comment"} {
+		want := d.Get(key).(string)
+		if want == "" {
+			continue
+		}
+		if got, ok := cfgMap[key]; !ok || got != want {
+			return false
+		}
+	}
+	for _, key := range []string{"client_cert", "client_cert_key"} {
+		if cfgMap[key] != d.Get(key).(string) {
+			return false
+		}
+	}
+	return true
 }
 
 func minioServerConfigEtcdDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

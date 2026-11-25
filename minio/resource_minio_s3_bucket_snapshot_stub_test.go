@@ -21,6 +21,7 @@ const (
 	snapshotEmptyXML   = `<VersioningConfiguration></VersioningConfiguration>`
 	snapshotDeniedXML  = `<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`
 	snapshotNotImplXML = `<Error><Code>NotImplemented</Code><Message>The operation is not supported by this backend</Message></Error>`
+	snapshotBadReqXML  = `<Error><Code>InvalidRequest</Code><Message>The request was rejected</Message></Error>`
 	snapshotNoBucket   = `<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message></Error>`
 )
 
@@ -32,6 +33,7 @@ type snapshotStubAnswer struct {
 var (
 	snapshotDenied         = snapshotStubAnswer{http.StatusForbidden, snapshotDeniedXML}
 	snapshotNotImplemented = snapshotStubAnswer{http.StatusNotImplemented, snapshotNotImplXML}
+	snapshotBadRequest     = snapshotStubAnswer{http.StatusBadRequest, snapshotBadReqXML}
 )
 
 func snapshotStubClient(t *testing.T, url string) *minio.Client {
@@ -50,9 +52,11 @@ func snapshotStubClient(t *testing.T, url string) *minio.Client {
 // The cross-protection workaround in minioPutBucketPolicy must capture the
 // versioning configuration before SetBucketPolicy runs (issue #1389), so a loss
 // caused by the write itself can be restored. A failed verification read counts
-// as lost because re-applying the captured configuration is idempotent. A failed
-// snapshot read aborts before the write, except when s3_compat_mode absorbs a
-// backend that does not implement the API, and a failed restore is an error.
+// as lost because re-applying the captured configuration is idempotent. A
+// snapshot read that fails with AccessDenied or 501 skips the check with a
+// warning, because those credentials and backends cannot lose versioning to
+// this write; any other failure aborts before the write. A failed restore is an
+// error and leaves the resource in state so the error taints it.
 func TestBucketPolicyPutVersioningSnapshotRestore(t *testing.T) {
 	cases := []struct {
 		name             string
@@ -65,16 +69,60 @@ func TestBucketPolicyPutVersioningSnapshotRestore(t *testing.T) {
 		secondRead       snapshotStubAnswer
 		wantRestore      bool
 	}{
-		{"a write that drops versioning is restored", true, nil, false, false, false, false, snapshotStubAnswer{}, true},
-		{"a transient NoSuchBucket on the snapshot read is retried", false, nil, false, false, false, true, snapshotStubAnswer{}, false},
-		{"a failed snapshot read aborts before the write", false, &snapshotDenied, false, false, false, false, snapshotStubAnswer{}, false},
-		{"a missing versioning API aborts with s3_compat_mode off", false, &snapshotNotImplemented, false, false, false, false, snapshotStubAnswer{}, false},
-		{"a missing versioning API skips the check under s3_compat_mode", false, &snapshotNotImplemented, true, true, false, false, snapshotStubAnswer{}, false},
-		{"a denied snapshot read aborts even under s3_compat_mode", false, &snapshotDenied, true, false, false, false, snapshotStubAnswer{}, false},
-		{"a failed restore is reported", true, nil, false, false, true, false, snapshotStubAnswer{}, false},
-		{"a failed verification read still restores the snapshot", false, nil, false, false, false, false, snapshotDenied, true},
-		{"an empty verification read restores the snapshot", false, nil, false, false, false, false, snapshotStubAnswer{http.StatusOK, snapshotEmptyXML}, true},
-		{"an intact verification read does not restore", false, nil, false, false, false, false, snapshotStubAnswer{http.StatusOK, snapshotEnabledXML}, false},
+		{
+			name:        "a write that drops versioning is restored",
+			dropOnWrite: true,
+			wantRestore: true,
+		},
+		{
+			name:             "a transient NoSuchBucket on the snapshot read is retried",
+			noSuchBucketOnce: true,
+		},
+		{
+			name:         "a denied snapshot read skips the check",
+			snapshotFail: &snapshotDenied,
+			absorbed:     true,
+		},
+		{
+			name:         "a denied snapshot read skips the check under s3_compat_mode too",
+			snapshotFail: &snapshotDenied,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing versioning API skips the check with s3_compat_mode off",
+			snapshotFail: &snapshotNotImplemented,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing versioning API skips the check under s3_compat_mode",
+			snapshotFail: &snapshotNotImplemented,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "any other snapshot failure aborts before the write",
+			snapshotFail: &snapshotBadRequest,
+		},
+		{
+			name:        "a failed restore is reported and keeps the resource tainted",
+			dropOnWrite: true,
+			restoreFail: true,
+		},
+		{
+			name:        "a failed verification read still restores the snapshot",
+			secondRead:  snapshotDenied,
+			wantRestore: true,
+		},
+		{
+			name:        "an empty verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, snapshotEmptyXML},
+			wantRestore: true,
+		},
+		{
+			name:       "an intact verification read does not restore",
+			secondRead: snapshotStubAnswer{http.StatusOK, snapshotEnabledXML},
+		},
 	}
 
 	for _, tc := range cases {
@@ -163,8 +211,8 @@ func TestBucketPolicyPutVersioningSnapshotRestore(t *testing.T) {
 				if !strings.Contains(diags[0].Summary, "restoring bucket versioning after setting policy") {
 					t.Errorf("error summary = %q, want it to name the failed restore", diags[0].Summary)
 				}
-				if d.Id() != "" {
-					t.Errorf("a failed create left the resource %q in state", d.Id())
+				if d.Id() != "test-bucket" {
+					t.Errorf("id = %q, want the resource kept in state so the failed restore taints it", d.Id())
 				}
 				if len(restoreBodies) != 1 {
 					t.Fatalf("restore attempts = %d, want exactly 1", len(restoreBodies))
@@ -222,17 +270,65 @@ func TestBucketVersioningPutPolicySnapshotRestore(t *testing.T) {
 		secondRead       snapshotStubAnswer
 		wantRestore      bool
 	}{
-		{"a write that drops the policy is restored", true, nil, false, false, false, false, snapshotStubAnswer{}, true},
-		{"a transient NoSuchBucket on the snapshot read is retried", false, nil, false, false, false, true, snapshotStubAnswer{}, false},
-		{"a failed snapshot read aborts before the write", false, &snapshotDenied, false, false, false, false, snapshotStubAnswer{}, false},
-		{"a missing policy API aborts with s3_compat_mode off", false, &snapshotNotImplemented, false, false, false, false, snapshotStubAnswer{}, false},
-		{"a missing policy API skips the check under s3_compat_mode", false, &snapshotNotImplemented, true, true, false, false, snapshotStubAnswer{}, false},
-		{"a denied snapshot read aborts even under s3_compat_mode", false, &snapshotDenied, true, false, false, false, snapshotStubAnswer{}, false},
-		{"a failed restore is reported", true, nil, false, false, true, false, snapshotStubAnswer{}, false},
-		{"a failed verification read still restores the snapshot", false, nil, false, false, false, false, snapshotDenied, true},
-		{"an empty verification read restores the snapshot", false, nil, false, false, false, false, snapshotStubAnswer{http.StatusOK, ""}, true},
-		{"a cleared verification read restores the snapshot", false, nil, false, false, false, false, snapshotStubAnswer{http.StatusOK, "{}"}, true},
-		{"an intact verification read does not restore", false, nil, false, false, false, false, snapshotStubAnswer{http.StatusOK, snapshotPolicyJSON}, false},
+		{
+			name:        "a write that drops the policy is restored",
+			dropOnWrite: true,
+			wantRestore: true,
+		},
+		{
+			name:             "a transient NoSuchBucket on the snapshot read is retried",
+			noSuchBucketOnce: true,
+		},
+		{
+			name:         "a denied snapshot read skips the check",
+			snapshotFail: &snapshotDenied,
+			absorbed:     true,
+		},
+		{
+			name:         "a denied snapshot read skips the check under s3_compat_mode too",
+			snapshotFail: &snapshotDenied,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing policy API skips the check with s3_compat_mode off",
+			snapshotFail: &snapshotNotImplemented,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing policy API skips the check under s3_compat_mode",
+			snapshotFail: &snapshotNotImplemented,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "any other snapshot failure aborts before the write",
+			snapshotFail: &snapshotBadRequest,
+		},
+		{
+			name:        "a failed restore is reported and keeps the resource tainted",
+			dropOnWrite: true,
+			restoreFail: true,
+		},
+		{
+			name:        "a failed verification read still restores the snapshot",
+			secondRead:  snapshotDenied,
+			wantRestore: true,
+		},
+		{
+			name:        "an empty verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, ""},
+			wantRestore: true,
+		},
+		{
+			name:        "a cleared verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, "{}"},
+			wantRestore: true,
+		},
+		{
+			name:       "an intact verification read does not restore",
+			secondRead: snapshotStubAnswer{http.StatusOK, snapshotPolicyJSON},
+		},
 	}
 
 	for _, tc := range cases {
@@ -323,8 +419,8 @@ func TestBucketVersioningPutPolicySnapshotRestore(t *testing.T) {
 				if !strings.Contains(diags[0].Summary, "restoring bucket policy after setting versioning") {
 					t.Errorf("error summary = %q, want it to name the failed restore", diags[0].Summary)
 				}
-				if d.Id() != "" {
-					t.Errorf("a failed create left the resource %q in state", d.Id())
+				if d.Id() != "test-bucket" {
+					t.Errorf("id = %q, want the resource kept in state so the failed restore taints it", d.Id())
 				}
 				if len(restoreBodies) != 1 {
 					t.Fatalf("restore attempts = %d, want exactly 1", len(restoreBodies))

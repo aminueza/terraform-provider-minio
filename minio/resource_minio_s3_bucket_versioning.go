@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 	"time"
@@ -113,10 +115,18 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		return nil
 	})
 	if beforeErr != nil {
-		// A backend without the policy API cannot lose a policy on a versioning
-		// write, so s3_compat_mode skips the check; any other failure aborts
-		// before the write instead of running unprotected.
-		if !isS3CompatNotSupported(meta.(*S3MinioClient), s3Compat405IsMissingFeature, beforeErr) {
+		// The snapshot is a safety check the provider does for itself, not a
+		// feature the configuration asked for. Credentials without
+		// s3:GetBucketPolicy (AccessDenied) and backends without the policy
+		// API (501) cannot lose a policy to this write, so they skip the check
+		// with a warning and keep working as they did before the check
+		// existed. Any other failure aborts before the write instead of
+		// running unprotected.
+		errResp := minio.ToErrorResponse(beforeErr)
+		skipCheck := errResp.Code == "AccessDenied" || errResp.StatusCode == http.StatusForbidden ||
+			errResp.Code == "NotImplemented" || errResp.StatusCode == http.StatusNotImplemented ||
+			isS3CompatNotSupported(meta.(*S3MinioClient), s3Compat405IsMissingFeature, beforeErr)
+		if !skipCheck {
 			return NewResourceError("reading bucket policy before setting versioning", bucketVersioningConfig.MinioBucket, beforeErr)
 		}
 		tflog.Warn(ctx, fmt.Sprintf("Bucket %s: cannot read the policy before setting versioning, skipping the policy-loss check: %v", bucketVersioningConfig.MinioBucket, beforeErr))
@@ -143,6 +153,11 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 		return NewResourceError("error putting bucket versioning configuration", bucketVersioningConfig.MinioBucket, s3CompatWriteError(meta.(*S3MinioClient), "bucket versioning configuration", err))
 	}
 
+	// The write succeeded: set the id before the verify/restore block so a
+	// failed restore leaves the resource in state, tainted by the error,
+	// instead of losing versioning that is live on the server.
+	d.SetId(bucketVersioningConfig.MinioBucket)
+
 	// A failed verification read counts as lost: re-applying the captured
 	// policy is idempotent, and skipping the restore would silently drop the
 	// protection this workaround exists for.
@@ -156,8 +171,6 @@ func minioPutBucketVersioning(ctx context.Context, d *schema.ResourceData, meta 
 			}
 		}
 	}
-
-	d.SetId(bucketVersioningConfig.MinioBucket)
 
 	return minioReadBucketVersioning(ctx, d, meta)
 }

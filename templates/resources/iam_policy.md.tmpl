@@ -9,6 +9,13 @@ description: |-
 
 {{ .Description | trimspace }}
 
+`minio_iam_group_policy` also creates a canned policy and attaches it to a
+group. A `minio_iam_group_policy` with the same name manages the same
+canned policy: whichever of the two is created second fails to create, so
+both only end up in state after an import, and destroying either one then
+removes the canned policy managed here. To attach a policy created here to
+a group, use `minio_iam_group_policy_attachment`.
+
 ## Example Usage
 
 {{ tffile "examples/resources/minio_iam_policy/resource.tf" }}

@@ -9,6 +9,18 @@ description: |-
 
 
 
+`minio_config` writes a config subsystem as raw key=value data, and the
+provider also has typed resources for most subsystems
+(`minio_server_config_*`, `minio_audit_webhook`, `minio_logger_webhook`, the
+`minio_notify_*` resources, `minio_iam_idp_*` and others). Where both write
+the same setting of the same target, each apply overwrites the other's
+value: `minio_config` with key `region` and `minio_server_config_region`
+both set the region name, for example. Destroying `minio_config` deletes
+the target its key names and resets it to MinIO's defaults, which for a
+single-target subsystem like `region` is the whole subsystem the typed
+resource manages. Manage a subsystem with its typed resource or with
+`minio_config`, not both.
+
 ## Example Usage
 
 ```terraform

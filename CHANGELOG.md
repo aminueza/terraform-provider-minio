@@ -12,6 +12,11 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_s3_object_legal_hold` now logs the server's code and message when a
+  read drops it from state. A legal hold on a bucket without object locking is
+  dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
+  instead of the old, misleading "not found" warning.
+  ([#1413](https://github.com/aminueza/terraform-provider-minio/issues/1413))
 - `minio_server_config_etcd`: removing `client_cert` or `client_cert_key` from the
   configuration now clears them on the server by sending them as empty `key=`
   values, applied after the usual MinIO restart. MinIO merges `set-config-kv`

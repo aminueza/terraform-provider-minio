@@ -9,6 +9,10 @@ description: |-
 
 {{ .Description | trimspace }}
 
+`minio_s3_bucket_object_lock_configuration` manages the same default object
+lock retention, and destroying either resource clears it. Set the default
+retention in one of the two, not both.
+
 ## Example Usage
 
 ```terraform

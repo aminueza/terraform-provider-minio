@@ -11,7 +11,7 @@ description: |-
 
 Use this resource when you want to expose part (or all) of a bucket to anonymous clients. It builds on the standard bucket policy primitives while adding conveniences for canned policies and importable state.
 
-> **Important:** For a given bucket, manage anonymous access with either this resource _or_ `minio_s3_bucket_policy`—not both. They share the same underlying bucket policy and will constantly fight each other if applied simultaneously.
+> **Important:** For a given bucket, manage anonymous access with either this resource _or_ `minio_s3_bucket_policy`—not both. They share the same underlying bucket policy and will constantly fight each other if applied simultaneously. A non-private `acl` on `minio_s3_bucket` writes the same bucket policy and fights these two the same way; setting that `acl` back to `private` (or removing it) deletes the policy managed here.
 
 ## Example Usage
 

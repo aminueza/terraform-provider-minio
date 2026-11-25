@@ -25,6 +25,14 @@ History older than 3.39.0 lives in the
   each field's documentation names: older servers glue an unknown key onto
   the value before it and corrupt the target.
 
+### Fixed
+
+- `minio_s3_object_legal_hold` now logs the server's code and message when a
+  read drops it from state. A legal hold on a bucket without object locking is
+  dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
+  instead of the old, misleading "not found" warning.
+  ([#1413](https://github.com/aminueza/terraform-provider-minio/issues/1413))
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

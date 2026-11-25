@@ -99,16 +99,19 @@ func minioReadObjectLegalHold(ctx context.Context, d *schema.ResourceData, meta 
 			return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), objectVersionImportHint(err, parsedFromID))
 		}
 		if objectLockReadGone(minioErr) {
-			tflog.Warn(ctx, fmt.Sprintf("Object or bucket %s/%s not found, removing from state", bucket, objectKey))
+			tflog.Warn(ctx, fmt.Sprintf("Object legal hold %s/%s can no longer be read (%s: %s), removing from state", bucket, objectKey, minioErr.Code, minioErr.Message))
 			d.SetId("")
 			return nil
 		}
 		if minioErr.Code != "NoSuchObjectLockConfiguration" {
 			return NewResourceError("reading object legal hold", fmt.Sprintf("%s/%s", bucket, objectKey), objectVersionImportHint(err, parsedFromID))
 		}
-		// MinIO answers NoSuchObjectLockConfiguration for an object that never
-		// had a legal hold. The effective status is OFF, not a failed read, so
-		// an import of that object records the status instead of erroring.
+		// MinIO answers NoSuchObjectLockConfiguration ("The specified object
+		// does not have a ObjectLock configuration") for an object in a locked
+		// bucket that never had a legal hold. The effective status here is OFF,
+		// not a failed read, so an import of that object records the status
+		// instead of erroring. The bucket-without-object-lock case arrives above
+		// and drops the resource; see objectLockReadGone and issue #1413.
 		status = nil
 	}
 

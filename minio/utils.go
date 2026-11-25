@@ -325,11 +325,12 @@ func parseObjectVersionID(id string) (bucket, key, versionID string, err error) 
 }
 
 // objectLockReadGone reports whether a GetObjectLegalHold, GetObjectRetention
-// or PutObjectLegalHold error means the object, its version, the bucket, or the
-// bucket's object lock configuration no longer exists, so the resource belongs
-// out of state or the delete has nothing left to do. MinIO
-// answers a missing bucket's lock configuration as InvalidRequest rather than
-// with a dedicated code. See issue #1378.
+// or PutObjectLegalHold error means the object, its version or the bucket is
+// gone, or the bucket never had an object lock configuration at all, so the
+// resource belongs out of state or the delete has nothing left to do. MinIO
+// answers a lock read on a bucket without object locking as InvalidRequest
+// "Bucket is missing ObjectLockConfiguration" rather than with a dedicated
+// code. See issue #1378 and issue #1413.
 func objectLockReadGone(minioErr minio.ErrorResponse) bool {
 	switch minioErr.Code {
 	case "NoSuchKey", "NoSuchVersion", "NoSuchBucket":

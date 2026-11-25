@@ -434,7 +434,8 @@ func notifyConfigRemovedFromConfig(d *schema.ResourceData, key string) bool {
 // turns an empty compression_level into 0. Unlike notifyBuildCfgAddInt this
 // sends any non-zero value: MinIO passes compression_level straight to the
 // sarama producer (internal/event/target/kafka.go), where a negative level
-// is meaningful, for gzip it means the library default.
+// is meaningful: for gzip only -1 means the library default, and the plan
+// check in customizeDiffKafkaCompression keeps gzip levels inside -2..9.
 func notifyBuildCfgClearableIntParam(parts *[]string, d *schema.ResourceData, key string) {
 	val := getOptionalField(d, key, 0).(int)
 	if val == 0 {
@@ -598,6 +599,16 @@ func customizeDiffKafkaCompression(_ context.Context, d *schema.ResourceDiff, _ 
 	raw := d.GetRawConfig()
 	if raw.IsNull() {
 		return nil
+	}
+	// sarama hands compression_level to gzip.NewWriterLevel, which only
+	// accepts -2..9, and MinIO surfaces that as an apply failure. Catch it
+	// at plan, enabled target or not: a level stored on a disabled target
+	// only breaks once it is enabled. The other codecs ignore the level or
+	// clamp it, so only gzip is checked. 0 means the field was left out.
+	if d.Get("compression_codec").(string) == "gzip" {
+		if level := d.Get("compression_level").(int); level != 0 && (level < -2 || level > 9) {
+			return fmt.Errorf("compression_level %d is not valid for gzip: gzip accepts -2 to 9, where -1 is the library default and 0 means no level was set", level)
+		}
 	}
 	if raw.GetAttr("batch_commit_timeout").IsNull() && d.Get("batch_commit_timeout").(string) != "" {
 		if err := d.SetNew("batch_commit_timeout", "0s"); err != nil {

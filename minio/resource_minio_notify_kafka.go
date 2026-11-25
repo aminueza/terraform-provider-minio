@@ -113,7 +113,7 @@ func resourceMinioNotifyKafka() *schema.Resource {
 				Type:         schema.TypeInt,
 				Optional:     true,
 				RequiredWith: []string{"compression_codec"},
-				Description:  "Compression level for `compression_codec`. MinIO turns a value it cannot parse into 0. First available in MinIO RELEASE.2023-12-02T10-51-33Z.",
+				Description:  "Compression level for `compression_codec`. MinIO turns a value it cannot parse into 0. gzip accepts -2 to 9, where -1 is the library default. First available in MinIO RELEASE.2023-12-02T10-51-33Z.",
 			},
 			"batch_commit_timeout": {
 				Type:     schema.TypeString,

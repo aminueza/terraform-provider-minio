@@ -46,7 +46,8 @@ func TestBuildNotifyKafkaCfgCompressionFields(t *testing.T) {
 	}
 
 	// MinIO passes compression_level straight to the sarama producer, where
-	// a negative level is meaningful: for gzip it means the library default.
+	// a negative level is meaningful: for gzip only -1 means the library
+	// default.
 	negative := buildNotifyKafkaCfg(schema.TestResourceDataRaw(t, s, map[string]interface{}{
 		"name":              "n",
 		"brokers":           "localhost:9092",
@@ -247,6 +248,18 @@ func TestAccMinioNotifyKafka_compressionPlanChecks(t *testing.T) {
 			extra: "  queue_dir            = \"/tmp/minio-queue\"\n  batch_size           = 10\n  batch_commit_timeout = \"\"\n",
 			want:  `must be a non-negative golang duration`,
 		},
+		{
+			// sarama hands the level to gzip.NewWriterLevel, which only
+			// accepts -2..9; MinIO surfaces that as an apply failure.
+			name:  "gzip compression_level above the range",
+			extra: "  compression_codec    = \"gzip\"\n  compression_level    = 42\n",
+			want:  `is not valid for gzip`,
+		},
+		{
+			name:  "gzip compression_level below the range",
+			extra: "  compression_codec    = \"gzip\"\n  compression_level    = -50\n",
+			want:  `is not valid for gzip`,
+		},
 	}
 
 	for _, tc := range cases {
@@ -274,7 +287,7 @@ func TestAccMinioNotifyKafka_batchCommitWithUnknownQueueDir(t *testing.T) {
 	name := "tfacc-" + acctest.RandString(6)
 	config := testAccMinioNotifyDisabledTarget("kafka", name, `  brokers              = "localhost:9092"
   topic                = "events"
-  queue_dir            = minio_notify_kafka.dir.id
+  queue_dir            = "/tmp/${minio_notify_kafka.dir.id}"
   batch_size           = 10
   batch_commit_timeout = "10s"`) + `
 
@@ -297,7 +310,12 @@ resource "minio_notify_kafka" "dir" {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr("minio_notify_kafka.test", "batch_commit_timeout", "10s"),
-					resource.TestCheckResourceAttrPair("minio_notify_kafka.test", "queue_dir", "minio_notify_kafka.dir", "id"),
+					resource.TestCheckResourceAttrWith("minio_notify_kafka.test", "queue_dir", func(v string) error {
+						if !strings.HasPrefix(v, "/tmp/"+name+"-dir") {
+							return fmt.Errorf("queue_dir = %q, want an absolute path built from the other target's id", v)
+						}
+						return nil
+					}),
 				),
 			},
 		},

@@ -9,6 +9,10 @@ description: |-
 
 Manages quota limits for S3 buckets in MinIO.
 
+`minio_s3_bucket` also manages the bucket quota through its `quota`
+attribute, and removing `quota` there writes a quota of size 0, clearing the
+quota managed here. Set the quota in one of the two, not both.
+
 ## Example Usage
 
 ```terraform

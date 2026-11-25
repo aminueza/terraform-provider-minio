@@ -9,6 +9,12 @@ description: |-
 
 
 
+`minio_iam_group_policy` also creates a canned policy and attaches it to a
+group. A `minio_iam_group_policy` with the same name manages the same
+canned policy: whichever of the two is created second fails to create, and
+destroying that resource removes the canned policy managed here. To attach
+a policy created here to a group, use `minio_iam_group_policy_attachment`.
+
 ## Example Usage
 
 ```terraform

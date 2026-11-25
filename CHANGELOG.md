@@ -10,6 +10,21 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+### Added
+
+- `minio_audit_webhook` and `minio_logger_webhook` expose MinIO's retry and
+  timeout keys `max_retry`, `retry_interval` and `http_timeout`, and
+  `minio_audit_webhook` also gains `queue_dir`. Removing one of the retry or
+  timeout fields writes MinIO's own default (`0`, `3s` or `5s`) back to the
+  server, never an empty value
+  ([#1370](https://github.com/aminueza/terraform-provider-minio/issues/1370)).
+  Upgrade note: leaving these fields out now means "MinIO's default", not
+  "whatever the server has", so a value previously set with
+  `mc admin config set` is reset on the first apply; copy it into your
+  configuration first. The keys need a MinIO at least as new as the release
+  each field's documentation names: older servers glue an unknown key onto
+  the value before it and corrupt the target.
+
 ## [3.47.0] - 2026-11-24
 
 ### Added

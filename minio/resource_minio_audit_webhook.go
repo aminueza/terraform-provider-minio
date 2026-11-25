@@ -21,7 +21,11 @@ func resourceMinioAuditWebhook() *schema.Resource {
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
-		Schema: map[string]*schema.Schema{
+		CustomizeDiff: customizeDiffWebhookRetry,
+		// mergeSchemas adds validateConfigValue to every string field, so the
+		// fields below must not carry it themselves or a bad value would
+		// report the same error twice.
+		Schema: mergeSchemas(webhookRetryFields(), map[string]*schema.Schema{
 			"name": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -29,17 +33,15 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Description: "Target name for the audit webhook (e.g., 'splunk', 'elk'). Used as the identifier in the configuration key 'audit_webhook:<name>'.",
 			},
 			"endpoint": {
-				Type:         schema.TypeString,
-				Required:     true,
-				ValidateFunc: validateConfigValue,
-				Description:  "HTTP(S) endpoint URL to send audit events to.",
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "HTTP(S) endpoint URL to send audit events to.",
 			},
 			"auth_token": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Sensitive:    true,
-				ValidateFunc: validateConfigValue,
-				Description:  "Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Authentication token for the webhook endpoint (e.g., Bearer token). MinIO does not return this value on read; Terraform keeps the value from your configuration.",
 			},
 			"enable": {
 				Type:        schema.TypeBool,
@@ -59,6 +61,11 @@ func resourceMinioAuditWebhook() *schema.Resource {
 				Computed:    true,
 				Description: "Number of audit events to send in a single batch to the endpoint.",
 			},
+			"queue_dir": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Directory path for persistent event store when the target is offline. MinIO creates it when the target is applied, so it must be creatable and writable by the MinIO process on every node; an unwritable path crashes the server.",
+			},
 			// RequiredWith keeps a cert-only configuration out of the plan: the
 			// readback would put the server's key path into state and the empty
 			// config value would then clear it, which MinIO rejects as a broken
@@ -67,23 +74,21 @@ func resourceMinioAuditWebhook() *schema.Resource {
 			"client_cert": {
 				Type:         schema.TypeString,
 				Optional:     true,
-				ValidateFunc: validateConfigValue,
 				RequiredWith: []string{"client_key"},
 				Description:  "Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.",
 			},
 			"client_key": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				Sensitive:    true,
-				ValidateFunc: validateConfigValue,
-				Description:  "Path to the X.509 private key for mTLS authentication with the webhook endpoint.",
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Path to the X.509 private key for mTLS authentication with the webhook endpoint.",
 			},
 			"restart_required": {
 				Type:        schema.TypeBool,
 				Computed:    true,
 				Description: "Indicates whether a MinIO server restart is required for the configuration to take effect.",
 			},
-		},
+		}),
 	}
 }
 
@@ -185,6 +190,16 @@ func minioReadAuditWebhook(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
+	if v, ok := cfgMap["queue_dir"]; ok {
+		if setErr := d.Set("queue_dir", v); setErr != nil {
+			return NewResourceError("setting queue_dir", name, setErr)
+		}
+	}
+
+	if diags := readWebhookRetryFields(cfgMap, d); diags != nil {
+		return diags
+	}
+
 	if v, ok := cfgMap["client_cert"]; ok {
 		if setErr := d.Set("client_cert", v); setErr != nil {
 			return NewResourceError("setting client_cert", name, setErr)
@@ -208,6 +223,12 @@ func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	cfgData := buildAuditWebhookCfgData(config)
 	for _, key := range auditWebhookClearedKeys(d) {
 		cfgData += " " + key + "="
+	}
+	// max_retry=0 means "retry forever" and is what MinIO seeds into a new
+	// target, so a removal must write it back explicitly: the server merges
+	// omitted keys and would otherwise keep the old retry count.
+	if d.HasChange("max_retry") && d.Get("max_retry").(int) == 0 {
+		cfgData += " max_retry=0"
 	}
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, configString)
@@ -254,7 +275,7 @@ func minioDeleteAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 // an empty key= instead.
 func auditWebhookClearedKeys(d *schema.ResourceData) []string {
 	var keys []string
-	for _, key := range []string{"auth_token", "client_cert", "client_key"} {
+	for _, key := range []string{"auth_token", "client_cert", "client_key", "queue_dir"} {
 		if d.HasChange(key) && d.Get(key).(string) == "" {
 			keys = append(keys, key)
 		}
@@ -289,6 +310,16 @@ func buildAuditWebhookCfgData(config *S3MinioAuditWebhook) string {
 	if config.BatchSize > 0 {
 		parts = append(parts, fmt.Sprintf("batch_size=%d", config.BatchSize))
 	}
+
+	addParam("queue_dir", config.QueueDir)
+
+	// max_retry=0 is written by minioUpdateAuditWebhook on removal, not here:
+	// the builder has no diff to tell a removal from a target that never set it.
+	if config.MaxRetry > 0 {
+		parts = append(parts, fmt.Sprintf("max_retry=%d", config.MaxRetry))
+	}
+	addParam("retry_interval", config.RetryInterval)
+	addParam("http_timeout", config.HTTPTimeout)
 
 	if config.Enable {
 		parts = append(parts, "enable=on")

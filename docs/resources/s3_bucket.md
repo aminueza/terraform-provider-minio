@@ -9,6 +9,15 @@ description: |-
 
 
 
+Some attributes share server state with dedicated resources: `quota` and
+`minio_s3_bucket_quota` (removing `quota` writes a quota of size 0, clearing
+the quota the other resource manages), `tags` and `minio_s3_bucket_tags`
+(both own the whole tag set), and a non-private `acl` together with
+`minio_s3_bucket_policy` or `minio_s3_bucket_anonymous_access` (all write
+the bucket policy, and setting `acl` back to `private` deletes that policy).
+Set each of these in this resource or in the dedicated one, not both, or
+they overwrite each other's changes.
+
 ## Example Usage
 
 ```terraform

@@ -307,13 +307,20 @@ func TestDynamicTargetCreateFailureKeepsTheID(t *testing.T) {
 }
 
 // A refused gated key must fail the create before the id is set: the guard
-// writes nothing, so a tainted resource would only make the next apply
-// destroy a target that was never created. No dynamic subsystem has a gated
-// key yet, so the test registers one for its duration (it must stay
-// sequential while it changes the package-level map).
+// writes nothing, so the failed create should not be saved as a tainted
+// resource. No dynamic subsystem has a gated key yet, so the test registers
+// one for its duration (it must stay sequential while it changes the
+// package-level map).
 func TestDynamicTargetGatedKeyRefusalLeavesNoID(t *testing.T) {
+	previous, hadPrevious := notifyVersionGatedKeys["logger_webhook"]
 	notifyVersionGatedKeys["logger_webhook"] = map[string]string{"endpoint": "RELEASE.2099-01-01T00-00-00Z"}
-	defer delete(notifyVersionGatedKeys, "logger_webhook")
+	defer func() {
+		if hadPrevious {
+			notifyVersionGatedKeys["logger_webhook"] = previous
+		} else {
+			delete(notifyVersionGatedKeys, "logger_webhook")
+		}
+	}()
 
 	var otherCalls []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

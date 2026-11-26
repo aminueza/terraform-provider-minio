@@ -21,8 +21,8 @@ import (
 type dynamicTargetCase struct {
 	resourceType string
 	subsystem    string
-	outsideCfg string
-	config func(name string) string
+	outsideCfg   string
+	config       func(name string) string
 }
 
 func dynamicTargetCases() []dynamicTargetCase {

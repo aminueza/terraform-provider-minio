@@ -1,22 +1,15 @@
 package minio
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
-	// Sequential on purpose. The data source aggregates every bucket in the
-	// account, and madmin cannot decode a bucket that carries tags on the
-	// current server: it marshals details.tags in the XML shape that
-	// minio-go's tags.Tags refuses to parse (tracked in #1460). A parallel
-	// run overlaps with tests like TestAccMinioS3Bucket_tags, whose tagged
-	// bucket is alive while this refresh reads, and the decode fails the
-	// step. Every sequential test finishes before any t.Parallel test
-	// resumes, and no sequential test leaves a tagged bucket behind, so
-	// none is alive here. See issue #1415.
-	resource.Test(t, resource.TestCase{
+	resource.ParallelTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: testAccProviders,
 		Steps: []resource.TestStep{
@@ -27,6 +20,38 @@ func TestAccDataSourceMinioAccountInfo_basic(t *testing.T) {
 					resource.TestCheckResourceAttrSet("data.minio_account_info.test", "bucket_count"),
 					resource.TestCheckResourceAttrSet("data.minio_account_info.test", "total_size"),
 					resource.TestCheckResourceAttrSet("data.minio_account_info.test", "total_objects"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccDataSourceMinioAccountInfo_taggedBucket(t *testing.T) {
+	bucketName := "tfacc-acctags-" + acctest.RandString(8)
+
+	resource.ParallelTest(t, resource.TestCase{
+		PreCheck:          func() { testAccPreCheck(t) },
+		ProviderFactories: testAccProviders,
+		CheckDestroy:      testAccCheckMinioS3BucketDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: fmt.Sprintf(`
+resource "minio_s3_bucket" "tagged" {
+  bucket = %q
+  tags = {
+    team = "storage"
+  }
+}
+
+data "minio_account_info" "test" {
+  depends_on = [minio_s3_bucket.tagged]
+}
+`, bucketName),
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr("minio_s3_bucket.tagged", "tags.team", "storage"),
+					resource.TestCheckTypeSetElemNestedAttrs("data.minio_account_info.test", "buckets.*", map[string]string{
+						"name": bucketName,
+					}),
 				),
 			},
 		},

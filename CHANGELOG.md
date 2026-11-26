@@ -44,6 +44,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `data.minio_account_info` no longer fails with `json: cannot unmarshal
+  object into Go struct field ... tags` when any bucket in the account carries
+  tags. MinIO sends a tagged bucket's tags in a shape madmin cannot decode; the
+  provider now rewrites that field, which never holds tag data, before the
+  decode
+  ([#1460](https://github.com/aminueza/terraform-provider-minio/issues/1460)).
 - `minio_s3_object_legal_hold` now logs the server's code and message when a
   read drops it from state. A legal hold on a bucket without object locking is
   dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`

@@ -76,9 +76,9 @@ var notifyVersionGatedKeys = map[string]map[string]string{
 	},
 }
 
-// notifyGatedKeyNeutral is the value MinIO seeds for each gated key, which
-// is also how a server without the key behaves. Writing it to such a server
-// expresses no intent, so the guard drops it instead of refusing: the
+// notifyGatedKeyNeutral is the value MinIO seeds for each gated key. Writing
+// that default to a server without the key expresses no intent, so the guard
+// drops it instead of refusing: the
 // builders send it on a removal, and state taken from a newer server before a
 // rollback holds the seeded values, which the read cannot clear because the
 // older server never returns the keys.

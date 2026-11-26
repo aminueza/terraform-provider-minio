@@ -471,6 +471,15 @@ func TestNotifyCheckGatedKeysDropsSeededValues(t *testing.T) {
 	if _, err := notifyCheckGatedKeys(ctx, admin, "logger_webhook", "endpoint=http://x retry_interval=4s enable=on"); err == nil {
 		t.Error("a value other than the seeded one must still be refused")
 	}
+
+	kafka, _ := gatedKeysTestServer(t, helpJSON("notify_kafka", "enable", "brokers", "topic"))
+	got, err = notifyCheckGatedKeys(ctx, kafka, "notify_kafka", "brokers=x:9092 topic=t batch_commit_timeout=0s")
+	if err != nil {
+		t.Fatalf("expected the seeded batch_commit_timeout to be dropped, got: %v", err)
+	}
+	if want := "brokers=x:9092 topic=t"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
 }
 
 // TestAuditWebhookUpdateAfterRollback covers state taken from a newer server
@@ -514,7 +523,9 @@ func TestAuditWebhookUpdateAfterRollback(t *testing.T) {
 	if !strings.Contains(last, "endpoint=http://y.example.com/audit") {
 		t.Errorf("the update did not send the new endpoint: %q", last)
 	}
-	for _, key := range []string{"max_retry=", "retry_interval=", "http_timeout="} {
+	// max_retry is not checked here: it does not change, so the update never
+	// sends it. TestNotifyCheckGatedKeysDropsSeededValues covers its drop.
+	for _, key := range []string{"retry_interval=", "http_timeout="} {
 		if strings.Contains(last, key) {
 			t.Errorf("the update sent %s to a server without it: %q", key, last)
 		}

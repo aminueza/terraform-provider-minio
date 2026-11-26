@@ -21,9 +21,7 @@ import (
 type dynamicTargetCase struct {
 	resourceType string
 	subsystem    string
-	// outsideCfg is what a user configured with mc before Terraform.
 	outsideCfg string
-	// config renders the resource with the given name.
 	config func(name string) string
 }
 

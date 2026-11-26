@@ -100,7 +100,7 @@ func testAccCheckDynamicTargetGone(subsystem, name string) error {
 	if err == nil {
 		return fmt.Errorf("%s is still on the server", target)
 	}
-	if !isNotifyTargetMissing(err) {
+	if !isNotifyTargetMissingError(err) {
 		return fmt.Errorf("reading %s: %w", target, err)
 	}
 	return nil
@@ -118,7 +118,7 @@ func TestAccMinioDynamicTargets_rejectExisting(t *testing.T) {
 				PreCheck:          func() { testAccPreCheck(t) },
 				ProviderFactories: testAccProviders,
 				CheckDestroy: func(*terraform.State) error {
-					if _, err := testAccClient().S3Admin.DelConfigKV(context.Background(), outsideKey); err != nil && !isNotifyTargetMissing(err) {
+					if _, err := testAccClient().S3Admin.DelConfigKV(context.Background(), outsideKey); err != nil && !isNotifyTargetMissingError(err) {
 						return fmt.Errorf("removing %s: %w", outsideKey, err)
 					}
 					return testAccCheckDynamicTargetGone(tc.subsystem, fresh)
@@ -139,6 +139,11 @@ func TestAccMinioDynamicTargets_rejectExisting(t *testing.T) {
 							testAccCheckDynamicTargetParam(tc.subsystem, outside, outsideParam, outsideValue),
 							resource.TestCheckResourceAttr(tc.resourceType+".test", "name", fresh),
 						),
+					},
+					{
+						Config: tc.config(fresh),
+						Taint:  []string{tc.resourceType + ".test"},
+						Check:  resource.TestCheckResourceAttr(tc.resourceType+".test", "name", fresh),
 					},
 					{
 						Config: `locals {}`,

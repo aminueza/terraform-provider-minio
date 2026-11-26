@@ -11,6 +11,8 @@ Manages a Redis notification target for MinIO bucket event notifications.
 
 **NOTE:** Creating a new notification target may require a MinIO server restart before it becomes fully active. The `restart_required` attribute indicates when this is necessary.
 
+**NOTE:** MinIO applies a new notification target only after a restart, so Terraform cannot tell on create whether a target with the same name is already stored on the server. Creating this resource over an existing target merges into it and takes it over, and destroying the resource then deletes it. Check first with `mc admin config get <alias> notify_redis`, and import an existing target instead of creating it. See [#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438).
+
 ## Example Usage
 
 ```terraform

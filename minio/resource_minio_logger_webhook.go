@@ -9,9 +9,10 @@ import (
 
 func resourceMinioLoggerWebhook() *schema.Resource {
 	nrc := notifyResourceConfig{
-		subsystem:  "logger_webhook",
-		buildCfg:   buildLoggerWebhookCfg,
-		readFields: readLoggerWebhookFields,
+		subsystem:             "logger_webhook",
+		buildCfg:              buildLoggerWebhookCfg,
+		readFields:            readLoggerWebhookFields,
+		appliesWithoutRestart: true,
 	}
 
 	return &schema.Resource{

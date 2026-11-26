@@ -18,6 +18,30 @@ func notifyConfigKey(subsystem, name string) string {
 	return fmt.Sprintf("%s:%s", subsystem, name)
 }
 
+// dynamicTargetCreateLock holds the existence check and the write of a
+// target created by rejectExistingDynamicTarget's callers together, so two
+// resources with the same name in one apply cannot both pass the check.
+var dynamicTargetCreateLock = NewMutexKV()
+
+// rejectExistingDynamicTarget fails when the target is already on the server.
+// It is only correct for subsystems MinIO applies without a restart: measured
+// on RELEASE.2025-09-07T16-13-09Z, get-config-kv serves a logger_webhook,
+// audit_webhook or audit_kafka target right after set-config-kv and answers
+// "there is no target" right after del-config-kv. A notify_* target is only
+// served after a restart and stays served after a delete until the next one,
+// so the same check would let duplicates through and reject a target that is
+// gone. Any lookup error other than the missing target fails the create.
+func rejectExistingDynamicTarget(ctx context.Context, admin *madmin.AdminClient, subsystem, name string) error {
+	_, err := admin.GetConfigKV(ctx, notifyConfigKey(subsystem, name))
+	if err == nil {
+		return alreadyExistsError("minio_"+subsystem, name, name)
+	}
+	if isNotifyTargetMissingError(err) {
+		return nil
+	}
+	return fmt.Errorf("checking whether %s target %q already exists: %w", subsystem, name, err)
+}
+
 // notifyVersionGatedKeys maps each subsystem to the config keys that only
 // exist in MinIO releases newer than the oldest server the provider can
 // assume, with the first release that has each key. MinIO's set-config-kv
@@ -155,12 +179,27 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
 
-		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
-
 		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
 		if err != nil {
 			return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
 		}
+
+		if nrc.appliesWithoutRestart {
+			lockKey := notifyConfigKey(nrc.subsystem, name)
+			dynamicTargetCreateLock.Lock(lockKey)
+			defer dynamicTargetCreateLock.Unlock(lockKey)
+			if err := rejectExistingDynamicTarget(ctx, admin, nrc.subsystem, name); err != nil {
+				return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
+			}
+			// The server may save the target and still fail the response (a
+			// timeout or a dropped connection). With the id set first, a failed
+			// write leaves the resource tainted, so the retry replaces it
+			// instead of failing the existence check on its own target.
+			d.SetId(name)
+		}
+
+		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
+
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
 		restart, err := admin.SetConfigKV(ctx, configString)
 		if err != nil {

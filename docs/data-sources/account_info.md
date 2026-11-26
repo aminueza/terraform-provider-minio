@@ -9,6 +9,8 @@ description: |-
 
 Returns storage usage and bucket information for the authenticated account.
 
+**NOTE:** MinIO builds the bucket list from a cache it refreshes in the background, so the list can lag the server by up to two seconds: a bucket created just before the read can be missing, and a bucket deleted just before it can still be listed. A refresh or a second apply picks up the change.
+
 ## Example Usage
 
 ```terraform

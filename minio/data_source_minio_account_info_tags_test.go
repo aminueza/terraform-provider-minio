@@ -123,7 +123,7 @@ func TestAccountInfoTagsTransportOnlyTouchesAccountInfo(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	req, err := http.NewRequest(http.MethodGet, srv.URL+"/minio/admin/v3/datausageinfo", nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL+"/minio/admin/v3/datausageinfo", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

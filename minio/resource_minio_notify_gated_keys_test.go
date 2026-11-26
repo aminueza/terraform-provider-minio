@@ -402,15 +402,29 @@ func TestGatedKeysRefusedByEveryResource(t *testing.T) {
 	}
 }
 
-// TestAuditWebhookUpdateRefusesGatedKey proves minio_audit_webhook's own
-// update calls the guard too.
-func TestAuditWebhookUpdateRefusesGatedKey(t *testing.T) {
+// TestWebhookUpdateRefusesGatedKey proves both update paths (notifyUpdate for
+// minio_logger_webhook, minio_audit_webhook's own update) call the guard and
+// keep the prior state when it refuses.
+func TestWebhookUpdateRefusesGatedKey(t *testing.T) {
+	for _, tc := range []struct {
+		target string
+		res    func() *schema.Resource
+	}{
+		{"logger_webhook:primary", resourceMinioLoggerWebhook},
+		{"audit_webhook:primary", resourceMinioAuditWebhook},
+	} {
+		t.Run(tc.target, func(t *testing.T) {
+			testWebhookUpdateRefusesGatedKey(t, tc.target, tc.res())
+		})
+	}
+}
+
+func testWebhookUpdateRefusesGatedKey(t *testing.T, target string, res *schema.Resource) {
 	ctx := context.Background()
-	stub, client := newNotifyConfigStub(t, "audit_webhook:primary")
+	stub, client := newNotifyConfigStub(t, target)
 	stub.helpKeys = []string{"enable", "endpoint"}
 	meta := &S3MinioClient{S3Admin: client}
-	res := resourceMinioAuditWebhook()
-	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit"}
+	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/hook"}
 	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
 	if err != nil {
 		t.Fatalf("diff: %v", err)
@@ -425,11 +439,84 @@ func TestAuditWebhookUpdateRefusesGatedKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("update diff: %v", err)
 	}
-	_, diags2 := res.Apply(ctx, state, diff2, meta)
+	after, diags2 := res.Apply(ctx, state, diff2, meta)
 	if !diags2.HasError() {
 		t.Fatalf("update succeeded, want max_retry refused; sets: %v", stub.sets)
 	}
+	if msg := diags2[0].Summary + " " + diags2[0].Detail; !strings.Contains(msg, "RELEASE.2024-09-09T16-59-28Z") {
+		t.Errorf("error %q is not the gated-key refusal", msg)
+	}
 	if len(stub.sets) != 1 {
 		t.Errorf("expected only the create's set-config-kv call, got %v", stub.sets)
+	}
+	// An old server never returns max_retry, so the read cannot correct a
+	// refused value saved into state: the next plan would show no change.
+	if got := after.Attributes["max_retry"]; got != "0" && got != "" {
+		t.Errorf("max_retry in state after the refused update = %q, want the value before the update", got)
+	}
+}
+
+func TestNotifyCheckGatedKeysDropsSeededValues(t *testing.T) {
+	ctx := context.Background()
+	admin, _ := gatedKeysTestServer(t, helpJSON("logger_webhook", "enable", "endpoint"))
+
+	got, err := notifyCheckGatedKeys(ctx, admin, "logger_webhook", "endpoint=http://x max_retry=0 retry_interval=3s http_timeout=5s enable=on")
+	if err != nil {
+		t.Fatalf("expected the seeded values to be dropped, got: %v", err)
+	}
+	if want := "endpoint=http://x enable=on"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	if _, err := notifyCheckGatedKeys(ctx, admin, "logger_webhook", "endpoint=http://x retry_interval=4s enable=on"); err == nil {
+		t.Error("a value other than the seeded one must still be refused")
+	}
+}
+
+// TestAuditWebhookUpdateAfterRollback covers state taken from a newer server
+// that seeded the retry keys, followed by a rollback to a server without
+// them: an update that does not touch those keys must still go through.
+func TestAuditWebhookUpdateAfterRollback(t *testing.T) {
+	ctx := context.Background()
+	stub, client := newNotifyConfigStub(t, "audit_webhook:primary")
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioAuditWebhook()
+	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit"}
+	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	state, diags := res.Apply(ctx, nil, diff, meta)
+	if diags.HasError() {
+		t.Fatalf("create: %v", diags)
+	}
+	stub.kvs["max_retry"] = "0"
+	stub.kvs["retry_interval"] = "3s"
+	stub.kvs["http_timeout"] = "5s"
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh: %v", diags)
+	}
+	if state.Attributes["retry_interval"] != "3s" || state.Attributes["http_timeout"] != "5s" {
+		t.Fatalf("the refresh did not store the seeded values: %v", state.Attributes)
+	}
+
+	stub.helpKeys = []string{"enable", "endpoint"}
+	raw["endpoint"] = "http://y.example.com/audit"
+	diff2, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("update diff: %v", err)
+	}
+	if _, diags := res.Apply(ctx, state, diff2, meta); diags.HasError() {
+		t.Fatalf("update after the rollback: %v", diags)
+	}
+	last := stub.sets[len(stub.sets)-1]
+	if !strings.Contains(last, "endpoint=http://y.example.com/audit") {
+		t.Errorf("the update did not send the new endpoint: %q", last)
+	}
+	for _, key := range []string{"max_retry=", "retry_interval=", "http_timeout="} {
+		if strings.Contains(last, key) {
+			t.Errorf("the update sent %s to a server without it: %q", key, last)
+		}
 	}
 }

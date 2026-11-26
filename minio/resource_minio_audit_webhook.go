@@ -246,6 +246,8 @@ func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	cfgData, err := notifyCheckGatedKeys(ctx, config.MinioAdmin, "audit_webhook", cfgData)
 	if err != nil {
+		// Nothing was written; keep the prior state, as notifyUpdate does.
+		d.Partial(true)
 		return NewResourceError("updating audit webhook configuration", config.Name, err)
 	}
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)

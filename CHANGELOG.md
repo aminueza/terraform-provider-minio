@@ -60,8 +60,12 @@ History older than 3.39.0 lives in the
   `batch_commit_timeout` on a MinIO server that does not have them, with an
   error naming the first release that does, instead of writing them and
   silently corrupting the value written before them (the endpoint, for
-  example). Targets that do not set these attributes keep working on old
-  servers. `http_timeout` reaches `minio_audit_webhook` only in
+  example). A value equal to the one MinIO seeds (`max_retry=0`,
+  `retry_interval=3s`, `http_timeout=5s`, `batch_commit_timeout=0s`) is dropped
+  instead, as `publisher_confirms=off` already was, so targets that do not set
+  these attributes keep working on old servers, also after a rollback from a
+  newer one. A refused update now keeps the previous state instead of saving
+  the refused value. `http_timeout` reaches `minio_audit_webhook` only in
   RELEASE.2024-09-22T00-33-43Z, one release after its help text lists it, so
   on RELEASE.2024-09-13T20-26-02Z the guard cannot catch it
   ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).

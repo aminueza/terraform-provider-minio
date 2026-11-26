@@ -76,17 +76,27 @@ var notifyVersionGatedKeys = map[string]map[string]string{
 	},
 }
 
+// notifyGatedKeyNeutral is the value MinIO seeds for each gated key, which
+// is also how a server without the key behaves. Writing it to such a server
+// expresses no intent, so the guard drops it instead of refusing: the
+// builders send it on a removal, and state taken from a newer server before a
+// rollback holds the seeded values, which the read cannot clear because the
+// older server never returns the keys.
+var notifyGatedKeyNeutral = map[string]string{
+	"publisher_confirms":   "off",
+	"max_retry":            "0",
+	"retry_interval":       "3s",
+	"http_timeout":         "5s",
+	"batch_commit_timeout": "0s",
+}
+
 // notifyCheckGatedKeys guards the version-gated keys before they go on the
 // wire. It returns the config string to send, which is cfgData unchanged
-// except that a gated key the server does not have and that is set to off is
-// dropped: for the bool keys an absent key means off on the server too (the
-// read maps an absent key to false), so an explicit off carries no meaning
-// there and dropping it keeps old servers working. Any other value of a gated
+// except that a gated key the server does not have and that is set to its
+// neutral value (notifyGatedKeyNeutral) is dropped. Any other value of a gated
 // key the server does not have is refused with the first release that has
-// it; the builders send the non-bool gated keys only when the configuration
-// or the state holds a value, so targets that do not use them never hit the
-// refusal. Only keys actually present in cfgData are checked, so the help
-// call is skipped when the config string carries no gated key.
+// it. Only keys actually present in cfgData are checked, so the help call is
+// skipped when the config string carries no gated key.
 func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsystem, cfgData string) (string, error) {
 	gated := notifyVersionGatedKeys[subsystem]
 	if len(gated) == 0 {
@@ -120,8 +130,8 @@ func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsys
 		if available[key] {
 			continue
 		}
-		if sent[key] == "off" {
-			filtered = notifyStripParam(filtered, key+"=off")
+		if neutral, ok := notifyGatedKeyNeutral[key]; ok && sent[key] == neutral {
+			filtered = notifyStripParam(filtered, key+"="+neutral)
 			stripped = append(stripped, key)
 			continue
 		}
@@ -361,6 +371,10 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 
 		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
 		if err != nil {
+			// Nothing was written. Without Partial the SDK saves the planned
+			// values, and an old server never returns the refused key, so the
+			// read could not correct it and the next plan would show no change.
+			d.Partial(true)
 			return NewResourceError(fmt.Sprintf("updating %s target", nrc.subsystem), name, err)
 		}
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)

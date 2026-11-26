@@ -34,6 +34,14 @@ History older than 3.39.0 lives in the
   each field's documentation names: older servers glue an unknown key onto
   the value before it and corrupt the target.
 
+### Changed
+
+- `minio_s3_bucket_policy` and `minio_s3_bucket_versioning` now read the setting they
+  protect (versioning and policy respectively) before writing. Credentials that cannot
+  read it, and backends that do not implement those APIs, skip the check with a warning
+  and keep working as before; any other read failure aborts the write instead of
+  proceeding unprotected.
+
 ### Fixed
 
 - `minio_s3_object_legal_hold` now logs the server's code and message when a
@@ -53,6 +61,13 @@ History older than 3.39.0 lives in the
   line first. After upgrading, the first plan may show one
   pending diff if a restart was still pending
   ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
+- The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
+  now captures the setting it protects before the write, so a versioning or policy loss
+  caused by the write itself can be restored; the snapshot used to be taken after the
+  write and could never catch that case. A snapshot read that fails for a reason other
+  than missing permission or an unimplemented API now aborts the write instead of
+  silently skipping the protection, and a failed restore is reported as an error and
+  leaves the resource tainted instead of only being logged. ([#1389](https://github.com/aminueza/terraform-provider-minio/issues/1389))
 
 ## [3.47.0] - 2026-11-24
 

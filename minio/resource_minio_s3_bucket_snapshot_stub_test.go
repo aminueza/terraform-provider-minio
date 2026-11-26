@@ -19,12 +19,22 @@ const (
 	snapshotPolicyJSON = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::test-bucket/*"]}]}`
 	snapshotEnabledXML = `<VersioningConfiguration><Status>Enabled</Status></VersioningConfiguration>`
 	snapshotEmptyXML   = `<VersioningConfiguration></VersioningConfiguration>`
+	snapshotDeniedXML  = `<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`
+	snapshotNotImplXML = `<Error><Code>NotImplemented</Code><Message>The operation is not supported by this backend</Message></Error>`
+	snapshotBadReqXML  = `<Error><Code>InvalidRequest</Code><Message>The request was rejected</Message></Error>`
+	snapshotNoBucket   = `<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message></Error>`
 )
 
 type snapshotStubAnswer struct {
 	status int
 	body   string
 }
+
+var (
+	snapshotDenied         = snapshotStubAnswer{http.StatusForbidden, snapshotDeniedXML}
+	snapshotNotImplemented = snapshotStubAnswer{http.StatusNotImplemented, snapshotNotImplXML}
+	snapshotBadRequest     = snapshotStubAnswer{http.StatusBadRequest, snapshotBadReqXML}
+)
 
 func snapshotStubClient(t *testing.T, url string) *minio.Client {
 	t.Helper()
@@ -39,27 +49,87 @@ func snapshotStubClient(t *testing.T, url string) *minio.Client {
 	return client
 }
 
-// The cross-protection workaround in minioPutBucketPolicy must re-apply the captured
-// versioning configuration also when the verification read itself fails: re-applying
-// the same configuration is idempotent, and skipping the restore on a read error
-// silently drops the protection the workaround exists for.
-func TestBucketPolicyPutRestoresVersioningSnapshotWhenVerifyReadFails(t *testing.T) {
-	denied := snapshotStubAnswer{http.StatusForbidden, `<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`}
-
+// The cross-protection workaround in minioPutBucketPolicy must capture the
+// versioning configuration before SetBucketPolicy runs (issue #1389), so a loss
+// caused by the write itself can be restored. A failed verification read counts
+// as lost because re-applying the captured configuration is idempotent. A
+// snapshot read that fails with AccessDenied or 501 skips the check with a
+// warning, because those credentials and backends cannot lose versioning to
+// this write; any other failure aborts before the write. A failed restore is an
+// error and leaves the resource in state so the error taints it.
+func TestBucketPolicyPutVersioningSnapshotRestore(t *testing.T) {
 	cases := []struct {
-		name        string
-		secondRead  snapshotStubAnswer
-		wantRestore bool
+		name             string
+		dropOnWrite      bool
+		snapshotFail     *snapshotStubAnswer
+		compatMode       bool
+		absorbed         bool
+		restoreFail      bool
+		noSuchBucketOnce bool
+		secondRead       snapshotStubAnswer
+		wantRestore      bool
 	}{
-		{"a failed verification read still restores the snapshot", denied, true},
-		{"an empty verification read restores the snapshot", snapshotStubAnswer{http.StatusOK, snapshotEmptyXML}, true},
-		{"an intact verification read does not restore", snapshotStubAnswer{http.StatusOK, snapshotEnabledXML}, false},
+		{
+			name:        "a write that drops versioning is restored",
+			dropOnWrite: true,
+			wantRestore: true,
+		},
+		{
+			name:             "a transient NoSuchBucket on the snapshot read is retried",
+			noSuchBucketOnce: true,
+		},
+		{
+			name:         "a denied snapshot read skips the check",
+			snapshotFail: &snapshotDenied,
+			absorbed:     true,
+		},
+		{
+			name:         "a denied snapshot read skips the check under s3_compat_mode too",
+			snapshotFail: &snapshotDenied,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing versioning API skips the check with s3_compat_mode off",
+			snapshotFail: &snapshotNotImplemented,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing versioning API skips the check under s3_compat_mode",
+			snapshotFail: &snapshotNotImplemented,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "any other snapshot failure aborts before the write",
+			snapshotFail: &snapshotBadRequest,
+		},
+		{
+			name:        "a failed restore is reported and keeps the resource tainted",
+			dropOnWrite: true,
+			restoreFail: true,
+		},
+		{
+			name:        "a failed verification read still restores the snapshot",
+			secondRead:  snapshotDenied,
+			wantRestore: true,
+		},
+		{
+			name:        "an empty verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, snapshotEmptyXML},
+			wantRestore: true,
+		},
+		{
+			name:       "an intact verification read does not restore",
+			secondRead: snapshotStubAnswer{http.StatusOK, snapshotEnabledXML},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var mu sync.Mutex
 			versioningReads := 0
+			policyWrites := 0
 			var restoreBodies []string
 			setPolicy := ""
 
@@ -71,21 +141,41 @@ func TestBucketPolicyPutRestoresVersioningSnapshotWhenVerifyReadFails(t *testing
 				case r.Method == http.MethodGet && query.Has("location"):
 					_, _ = fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?><LocationConstraint>us-east-1</LocationConstraint>`)
 				case r.Method == http.MethodPut && query.Has("policy"):
+					policyWrites++
 					body, _ := io.ReadAll(r.Body)
 					setPolicy = string(body)
 				case r.Method == http.MethodGet && query.Has("policy"):
 					_, _ = fmt.Fprint(w, setPolicy)
 				case r.Method == http.MethodGet && query.Has("versioning"):
 					versioningReads++
-					if versioningReads == 2 {
+					switch {
+					case tc.noSuchBucketOnce && versioningReads == 1:
+						w.WriteHeader(http.StatusNotFound)
+						_, _ = fmt.Fprint(w, snapshotNoBucket)
+					case tc.noSuchBucketOnce:
+						_, _ = fmt.Fprint(w, snapshotEnabledXML)
+					case tc.snapshotFail != nil && versioningReads == 1:
+						w.WriteHeader(tc.snapshotFail.status)
+						_, _ = fmt.Fprint(w, tc.snapshotFail.body)
+					case tc.dropOnWrite:
+						if policyWrites > 0 {
+							_, _ = fmt.Fprint(w, snapshotEmptyXML)
+						} else {
+							_, _ = fmt.Fprint(w, snapshotEnabledXML)
+						}
+					case versioningReads == 2:
 						w.WriteHeader(tc.secondRead.status)
 						_, _ = fmt.Fprint(w, tc.secondRead.body)
-					} else {
+					default:
 						_, _ = fmt.Fprint(w, snapshotEnabledXML)
 					}
 				case r.Method == http.MethodPut && query.Has("versioning"):
 					body, _ := io.ReadAll(r.Body)
 					restoreBodies = append(restoreBodies, string(body))
+					if tc.restoreFail {
+						w.WriteHeader(snapshotDenied.status)
+						_, _ = fmt.Fprint(w, snapshotDenied.body)
+					}
 				default:
 					t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
 					w.WriteHeader(http.StatusInternalServerError)
@@ -97,13 +187,59 @@ func TestBucketPolicyPutRestoresVersioningSnapshotWhenVerifyReadFails(t *testing
 				"bucket": "test-bucket",
 				"policy": snapshotPolicyJSON,
 			})
-			diags := minioPutBucketPolicy(context.Background(), d, &S3MinioClient{S3Client: snapshotStubClient(t, srv.URL)})
+			diags := minioPutBucketPolicy(context.Background(), d, &S3MinioClient{S3Client: snapshotStubClient(t, srv.URL), S3CompatMode: tc.compatMode})
+
+			if tc.snapshotFail != nil && !tc.absorbed {
+				if !diags.HasError() {
+					t.Fatalf("create succeeded, want an error aborting on the failed snapshot read")
+				}
+				if !strings.Contains(diags[0].Summary, "reading bucket versioning before setting policy") {
+					t.Errorf("error summary = %q, want it to name the pre-write versioning read", diags[0].Summary)
+				}
+				if policyWrites != 0 {
+					t.Errorf("policy writes = %d, want the write skipped when the snapshot read fails", policyWrites)
+				}
+				if d.Id() != "" {
+					t.Errorf("a failed create left the resource %q in state", d.Id())
+				}
+				return
+			}
+			if tc.restoreFail {
+				if !diags.HasError() {
+					t.Fatalf("create succeeded, want an error reporting the failed restore")
+				}
+				if !strings.Contains(diags[0].Summary, "restoring bucket versioning after setting policy") {
+					t.Errorf("error summary = %q, want it to name the failed restore", diags[0].Summary)
+				}
+				if d.Id() != "test-bucket" {
+					t.Errorf("id = %q, want the resource kept in state so the failed restore taints it", d.Id())
+				}
+				if len(restoreBodies) != 1 {
+					t.Fatalf("restore attempts = %d, want exactly 1", len(restoreBodies))
+				}
+				return
+			}
 			if diags.HasError() {
 				t.Fatalf("create failed: %v", diags)
 			}
-
-			if versioningReads < 2 {
-				t.Fatalf("the stub served %d versioning reads, want both the snapshot and the verification read", versioningReads)
+			if policyWrites != 1 {
+				t.Fatalf("policy writes = %d, want exactly 1", policyWrites)
+			}
+			if tc.snapshotFail != nil {
+				if versioningReads != 1 {
+					t.Fatalf("the stub served %d versioning reads, want only the skipped snapshot read", versioningReads)
+				}
+				if len(restoreBodies) != 0 {
+					t.Fatalf("versioning restore writes = %d, want 0 when the check is skipped", len(restoreBodies))
+				}
+				return
+			}
+			wantVersioningReads := 2
+			if tc.noSuchBucketOnce {
+				wantVersioningReads = 3
+			}
+			if versioningReads != wantVersioningReads {
+				t.Fatalf("the stub served %d versioning reads, want the snapshot and the verification read plus any retry", versioningReads)
 			}
 			if tc.wantRestore {
 				if len(restoreBodies) != 1 {
@@ -119,27 +255,87 @@ func TestBucketPolicyPutRestoresVersioningSnapshotWhenVerifyReadFails(t *testing
 	}
 }
 
-// The cross-protection workaround in minioPutBucketVersioning must re-apply the
-// captured bucket policy also when the verification read itself fails, for the same
-// reason as TestBucketPolicyPutRestoresVersioningSnapshotWhenVerifyReadFails.
-func TestBucketVersioningPutRestoresPolicySnapshotWhenVerifyReadFails(t *testing.T) {
-	denied := snapshotStubAnswer{http.StatusForbidden, `<Error><Code>AccessDenied</Code><Message>Access Denied.</Message></Error>`}
-
+// The cross-protection workaround in minioPutBucketVersioning must capture the
+// bucket policy before SetBucketVersioning runs (issue #1389), for the same
+// reasons as TestBucketPolicyPutVersioningSnapshotRestore.
+func TestBucketVersioningPutPolicySnapshotRestore(t *testing.T) {
 	cases := []struct {
-		name        string
-		secondRead  snapshotStubAnswer
-		wantRestore bool
+		name             string
+		dropOnWrite      bool
+		snapshotFail     *snapshotStubAnswer
+		compatMode       bool
+		absorbed         bool
+		restoreFail      bool
+		noSuchBucketOnce bool
+		secondRead       snapshotStubAnswer
+		wantRestore      bool
 	}{
-		{"a failed verification read still restores the snapshot", denied, true},
-		{"an empty verification read restores the snapshot", snapshotStubAnswer{http.StatusOK, ""}, true},
-		{"a cleared verification read restores the snapshot", snapshotStubAnswer{http.StatusOK, "{}"}, true},
-		{"an intact verification read does not restore", snapshotStubAnswer{http.StatusOK, snapshotPolicyJSON}, false},
+		{
+			name:        "a write that drops the policy is restored",
+			dropOnWrite: true,
+			wantRestore: true,
+		},
+		{
+			name:             "a transient NoSuchBucket on the snapshot read is retried",
+			noSuchBucketOnce: true,
+		},
+		{
+			name:         "a denied snapshot read skips the check",
+			snapshotFail: &snapshotDenied,
+			absorbed:     true,
+		},
+		{
+			name:         "a denied snapshot read skips the check under s3_compat_mode too",
+			snapshotFail: &snapshotDenied,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing policy API skips the check with s3_compat_mode off",
+			snapshotFail: &snapshotNotImplemented,
+			absorbed:     true,
+		},
+		{
+			name:         "a missing policy API skips the check under s3_compat_mode",
+			snapshotFail: &snapshotNotImplemented,
+			compatMode:   true,
+			absorbed:     true,
+		},
+		{
+			name:         "any other snapshot failure aborts before the write",
+			snapshotFail: &snapshotBadRequest,
+		},
+		{
+			name:        "a failed restore is reported and keeps the resource tainted",
+			dropOnWrite: true,
+			restoreFail: true,
+		},
+		{
+			name:        "a failed verification read still restores the snapshot",
+			secondRead:  snapshotDenied,
+			wantRestore: true,
+		},
+		{
+			name:        "an empty verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, ""},
+			wantRestore: true,
+		},
+		{
+			name:        "a cleared verification read restores the snapshot",
+			secondRead:  snapshotStubAnswer{http.StatusOK, "{}"},
+			wantRestore: true,
+		},
+		{
+			name:       "an intact verification read does not restore",
+			secondRead: snapshotStubAnswer{http.StatusOK, snapshotPolicyJSON},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var mu sync.Mutex
 			policyReads := 0
+			versioningWrites := 0
 			var restoreBodies []string
 
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -152,20 +348,40 @@ func TestBucketVersioningPutRestoresPolicySnapshotWhenVerifyReadFails(t *testing
 				case r.Method == http.MethodHead:
 					w.WriteHeader(http.StatusOK)
 				case r.Method == http.MethodPut && query.Has("versioning"):
+					versioningWrites++
 					w.WriteHeader(http.StatusOK)
 				case r.Method == http.MethodGet && query.Has("versioning"):
 					_, _ = fmt.Fprint(w, snapshotEnabledXML)
 				case r.Method == http.MethodGet && query.Has("policy"):
 					policyReads++
-					if policyReads == 2 {
+					switch {
+					case tc.noSuchBucketOnce && policyReads == 1:
+						w.WriteHeader(http.StatusNotFound)
+						_, _ = fmt.Fprint(w, snapshotNoBucket)
+					case tc.noSuchBucketOnce:
+						_, _ = fmt.Fprint(w, snapshotPolicyJSON)
+					case tc.snapshotFail != nil && policyReads == 1:
+						w.WriteHeader(tc.snapshotFail.status)
+						_, _ = fmt.Fprint(w, tc.snapshotFail.body)
+					case tc.dropOnWrite:
+						if versioningWrites > 0 {
+							w.WriteHeader(http.StatusOK)
+						} else {
+							_, _ = fmt.Fprint(w, snapshotPolicyJSON)
+						}
+					case policyReads == 2:
 						w.WriteHeader(tc.secondRead.status)
 						_, _ = fmt.Fprint(w, tc.secondRead.body)
-					} else {
+					default:
 						_, _ = fmt.Fprint(w, snapshotPolicyJSON)
 					}
 				case r.Method == http.MethodPut && query.Has("policy"):
 					body, _ := io.ReadAll(r.Body)
 					restoreBodies = append(restoreBodies, string(body))
+					if tc.restoreFail {
+						w.WriteHeader(snapshotDenied.status)
+						_, _ = fmt.Fprint(w, snapshotDenied.body)
+					}
 				default:
 					t.Errorf("unexpected request %s %s", r.Method, r.URL.String())
 					w.WriteHeader(http.StatusInternalServerError)
@@ -179,13 +395,59 @@ func TestBucketVersioningPutRestoresPolicySnapshotWhenVerifyReadFails(t *testing
 					map[string]interface{}{"status": "Enabled"},
 				},
 			})
-			diags := minioPutBucketVersioning(context.Background(), d, &S3MinioClient{S3Client: snapshotStubClient(t, srv.URL)})
+			diags := minioPutBucketVersioning(context.Background(), d, &S3MinioClient{S3Client: snapshotStubClient(t, srv.URL), S3CompatMode: tc.compatMode})
+
+			if tc.snapshotFail != nil && !tc.absorbed {
+				if !diags.HasError() {
+					t.Fatalf("create succeeded, want an error aborting on the failed snapshot read")
+				}
+				if !strings.Contains(diags[0].Summary, "reading bucket policy before setting versioning") {
+					t.Errorf("error summary = %q, want it to name the pre-write policy read", diags[0].Summary)
+				}
+				if versioningWrites != 0 {
+					t.Errorf("versioning writes = %d, want the write skipped when the snapshot read fails", versioningWrites)
+				}
+				if d.Id() != "" {
+					t.Errorf("a failed create left the resource %q in state", d.Id())
+				}
+				return
+			}
+			if tc.restoreFail {
+				if !diags.HasError() {
+					t.Fatalf("create succeeded, want an error reporting the failed restore")
+				}
+				if !strings.Contains(diags[0].Summary, "restoring bucket policy after setting versioning") {
+					t.Errorf("error summary = %q, want it to name the failed restore", diags[0].Summary)
+				}
+				if d.Id() != "test-bucket" {
+					t.Errorf("id = %q, want the resource kept in state so the failed restore taints it", d.Id())
+				}
+				if len(restoreBodies) != 1 {
+					t.Fatalf("restore attempts = %d, want exactly 1", len(restoreBodies))
+				}
+				return
+			}
 			if diags.HasError() {
 				t.Fatalf("create failed: %v", diags)
 			}
-
-			if policyReads < 2 {
-				t.Fatalf("the stub served %d policy reads, want both the snapshot and the verification read", policyReads)
+			if versioningWrites != 1 {
+				t.Fatalf("versioning writes = %d, want exactly 1", versioningWrites)
+			}
+			if tc.snapshotFail != nil {
+				if policyReads != 1 {
+					t.Fatalf("the stub served %d policy reads, want only the skipped snapshot read", policyReads)
+				}
+				if len(restoreBodies) != 0 {
+					t.Fatalf("policy restore writes = %d, want 0 when the check is skipped", len(restoreBodies))
+				}
+				return
+			}
+			wantPolicyReads := 2
+			if tc.noSuchBucketOnce {
+				wantPolicyReads = 3
+			}
+			if policyReads != wantPolicyReads {
+				t.Fatalf("the stub served %d policy reads, want the snapshot and the verification read plus any retry", policyReads)
 			}
 			if tc.wantRestore {
 				if len(restoreBodies) != 1 {

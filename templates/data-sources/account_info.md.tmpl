@@ -11,6 +11,8 @@ description: |-
 
 **NOTE:** MinIO builds the bucket list from a cache it refreshes in the background, so the list can lag the server by up to two seconds: a bucket created just before the read can be missing, and a bucket deleted just before it can still be listed. A refresh or a second apply picks up the change.
 
+**NOTE:** The sizes and object counts come from MinIO's background scanner, not from a live count: they are as of the last scanner run, so a bucket created since then shows 0 objects and 0 bytes, and recent writes are not counted yet. How old they are depends on the scanner settings and the amount of data.
+
 ## Example Usage
 
 {{ tffile (printf "examples/data-sources/%s/data-source.tf" .Name) }}

@@ -14,15 +14,15 @@ func dataSourceMinioDataUsage() *schema.Resource {
 		Description: "Returns cluster-wide data usage statistics including total objects, size, and per-bucket breakdown.",
 		ReadContext: dataSourceMinioDataUsageRead,
 		Schema: map[string]*schema.Schema{
-			"last_update":   {Type: schema.TypeString, Computed: true, Description: "Timestamp of last usage data update."},
-			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets."},
-			"total_size":    {Type: schema.TypeString, Computed: true, Description: "Total storage used (bytes)."},
-			"buckets_count": {Type: schema.TypeInt, Computed: true, Description: "Number of buckets."},
+			"last_update":   {Type: schema.TypeString, Computed: true, Description: "Time of the scanner run the other values come from."},
+			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets, as of MinIO's last scanner run."},
+			"total_size":    {Type: schema.TypeString, Computed: true, Description: "Total storage used (bytes), as of MinIO's last scanner run."},
+			"buckets_count": {Type: schema.TypeInt, Computed: true, Description: "Number of buckets in the last scanner run, which can differ from the buckets that exist now."},
 			"buckets_usage": {
 				Type:        schema.TypeMap,
 				Computed:    true,
 				Elem:        &schema.Schema{Type: schema.TypeString},
-				Description: "Per-bucket storage usage in bytes.",
+				Description: "Per-bucket storage usage in bytes, as of MinIO's last scanner run.",
 			},
 		},
 	}

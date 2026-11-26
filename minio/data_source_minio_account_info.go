@@ -22,8 +22,8 @@ func dataSourceMinioAccountInfo() *schema.Resource {
 		Schema: map[string]*schema.Schema{
 			"account_name":  {Type: schema.TypeString, Computed: true, Description: "Name of the authenticated account."},
 			"bucket_count":  {Type: schema.TypeInt, Computed: true, Description: "Total number of buckets accessible to this account."},
-			"total_size":    {Type: schema.TypeString, Computed: true, Description: "Total storage used across all buckets (bytes)."},
-			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets."},
+			"total_size":    {Type: schema.TypeString, Computed: true, Description: "Total storage used across all buckets (bytes), as of MinIO's last scanner run."},
+			"total_objects": {Type: schema.TypeString, Computed: true, Description: "Total object count across all buckets, as of MinIO's last scanner run."},
 			"buckets": {
 				Type:     schema.TypeList,
 				Computed: true,

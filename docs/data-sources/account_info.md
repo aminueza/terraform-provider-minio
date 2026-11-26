@@ -11,6 +11,8 @@ Returns storage usage and bucket information for the authenticated account.
 
 **NOTE:** MinIO builds the bucket list from a cache it refreshes in the background, so the list can lag the server by up to two seconds: a bucket created just before the read can be missing, and a bucket deleted just before it can still be listed. A refresh or a second apply picks up the change.
 
+**NOTE:** The sizes and object counts come from MinIO's background scanner, not from a live count: they are as of the last scanner run, so a bucket created since then shows 0 objects and 0 bytes, and recent writes are not counted yet. How old they are depends on the scanner settings and the amount of data.
+
 ## Example Usage
 
 ```terraform
@@ -26,8 +28,8 @@ data "minio_account_info" "current" {}
 - `bucket_count` (Number) Total number of buckets accessible to this account.
 - `buckets` (List of Object) (see [below for nested schema](#nestedatt--buckets))
 - `id` (String) The ID of this resource.
-- `total_objects` (String) Total object count across all buckets.
-- `total_size` (String) Total storage used across all buckets (bytes).
+- `total_objects` (String) Total object count across all buckets, as of MinIO's last scanner run.
+- `total_size` (String) Total storage used across all buckets (bytes), as of MinIO's last scanner run.
 
 <a id="nestedatt--buckets"></a>
 ### Nested Schema for `buckets`

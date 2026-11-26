@@ -179,6 +179,11 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
 
+		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
+		if err != nil {
+			return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
+		}
+
 		if nrc.appliesWithoutRestart {
 			lockKey := notifyConfigKey(nrc.subsystem, name)
 			dynamicTargetCreateLock.Lock(lockKey)
@@ -195,10 +200,6 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 
 		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
-		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
-		if err != nil {
-			return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
-		}
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
 		restart, err := admin.SetConfigKV(ctx, configString)
 		if err != nil {

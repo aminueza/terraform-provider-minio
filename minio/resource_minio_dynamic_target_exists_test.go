@@ -305,3 +305,44 @@ func TestDynamicTargetCreateFailureKeepsTheID(t *testing.T) {
 		})
 	}
 }
+
+// A refused gated key must fail the create before the id is set: the guard
+// writes nothing, so a tainted resource would only make the next apply
+// destroy a target that was never created. No dynamic subsystem has a gated
+// key yet, so the test registers one for its duration (it must stay
+// sequential while it changes the package-level map).
+func TestDynamicTargetGatedKeyRefusalLeavesNoID(t *testing.T) {
+	notifyVersionGatedKeys["logger_webhook"] = map[string]string{"endpoint": "RELEASE.2099-01-01T00-00-00Z"}
+	defer delete(notifyVersionGatedKeys, "logger_webhook")
+
+	var otherCalls []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/help-config-kv") {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, helpJSON("logger_webhook", "enable"))
+			return
+		}
+		otherCalls = append(otherCalls, r.URL.Path)
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+	admin, err := madmin.NewWithOptions(strings.TrimPrefix(srv.URL, "http://"), &madmin.Options{
+		Creds: credentials.NewStaticV4("accesskey", "secretkey", ""),
+	})
+	if err != nil {
+		t.Fatalf("creating admin client: %v", err)
+	}
+
+	res := resourceMinioLoggerWebhook()
+	d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "enable": false})
+	diags := res.CreateContext(context.Background(), d, &S3MinioClient{S3Admin: admin})
+	if !diags.HasError() || !strings.Contains(diags[0].Summary+diags[0].Detail, "RELEASE.2099-01-01T00-00-00Z") {
+		t.Fatalf("diags = %v, want the gated-key refusal", diags)
+	}
+	if len(otherCalls) != 0 {
+		t.Errorf("calls after the refusal = %v, want none", otherCalls)
+	}
+	if d.Id() != "" {
+		t.Errorf("id after a refused create = %q, want empty: nothing was written", d.Id())
+	}
+}

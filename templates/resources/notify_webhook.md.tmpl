@@ -15,7 +15,7 @@ Multiple webhook targets can be configured simultaneously to send events to diff
 
 **NOTE:** Creating a new webhook target may require a MinIO server restart before it becomes fully active. The `restart_required` attribute indicates when this is necessary. Import is only supported for targets that are already active on the server.
 
-**NOTE:** MinIO applies a new notification target only after a restart, so Terraform cannot tell on create whether a target with the same name is already stored on the server. Creating this resource over an existing target merges into it and takes it over, and destroying the resource then deletes it. Check first with `mc admin config get <alias> notify_webhook`, and import an existing target instead of creating it. See [#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438).
+**NOTE:** MinIO applies a new notification target only after a restart, so Terraform cannot tell on create whether a target with the same name is already stored on the server. Creating this resource over an existing target merges into it and takes it over, and destroying the resource then deletes it. Check with `mc admin config get <alias> notify_webhook` and import an existing target instead of creating it. That command shows the config as of the server's last restart, so a target added since then is missing and one deleted since then is still listed: if the config changed since the last restart, restart the server before you check. See [#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438).
 
 See the [MinIO Webhook Notification documentation](https://min.io/docs/minio/linux/administration/monitoring/publish-events-to-webhook.html) for more details.
 

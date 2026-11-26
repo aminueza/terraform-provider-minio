@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -252,6 +253,56 @@ func TestRejectExistingDynamicTarget(t *testing.T) {
 				t.Fatalf("err = %v, want nil", err)
 			case tc.wantErr != "" && (err == nil || err.Error() != tc.wantErr):
 				t.Fatalf("err = %v, want %q", err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestDynamicTargetCreateFailureKeepsTheID(t *testing.T) {
+	cases := []struct {
+		name   string
+		res    *schema.Resource
+		config map[string]interface{}
+	}{
+		{"minio_logger_webhook", resourceMinioLoggerWebhook(), map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "enable": false}},
+		{"minio_audit_webhook", resourceMinioAuditWebhook(), map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "enable": false}},
+		{"minio_audit_kafka", resourceMinioAuditKafka(), map[string]interface{}{"name": "primary", "brokers": "x.example.com:9092", "topic": "t", "enable": false}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var sets int
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case strings.HasSuffix(r.URL.Path, "/get-config-kv"):
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = io.WriteString(w, `{"Code":"XMinioConfigError","Message":"there is no target primary"}`)
+				case strings.HasSuffix(r.URL.Path, "/set-config-kv"):
+					sets++
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = io.WriteString(w, `{"Code":"XMinioAdminConfigBadJSON","Message":"the response was lost"}`)
+				default:
+					t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+					http.NotFound(w, r)
+				}
+			}))
+			defer srv.Close()
+			admin, err := madmin.NewWithOptions(strings.TrimPrefix(srv.URL, "http://"), &madmin.Options{
+				Creds: credentials.NewStaticV4("accesskey", "secretkey", ""),
+			})
+			if err != nil {
+				t.Fatalf("creating admin client: %v", err)
+			}
+
+			d := schema.TestResourceDataRaw(t, tc.res.Schema, tc.config)
+			diags := tc.res.CreateContext(context.Background(), d, &S3MinioClient{S3Admin: admin})
+			if !diags.HasError() {
+				t.Fatal("create succeeded, want the set-config-kv error")
+			}
+			if sets != 1 {
+				t.Errorf("set-config-kv calls = %d, want 1", sets)
+			}
+			if d.Id() != "primary" {
+				t.Errorf("id after a failed write = %q, want %q so the failed create is saved as tainted", d.Id(), "primary")
 			}
 		})
 	}

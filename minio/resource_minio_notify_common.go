@@ -53,6 +53,11 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 			if err := rejectExistingDynamicTarget(ctx, admin, nrc.subsystem, name); err != nil {
 				return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
 			}
+			// The server may save the target and still fail the response (a
+			// timeout or a dropped connection). With the id set first, a failed
+			// write leaves the resource tainted, so the retry replaces it
+			// instead of failing the existence check on its own target.
+			d.SetId(name)
 		}
 
 		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})

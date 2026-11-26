@@ -107,6 +107,9 @@ func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	if err := rejectExistingDynamicTarget(ctx, config.MinioAdmin, "audit_webhook", config.Name); err != nil {
 		return NewResourceError("creating audit webhook configuration", config.Name, err)
 	}
+	// Set before the write so a write that fails after the server saved the
+	// target leaves the resource tainted; see notifyCreate.
+	d.SetId(config.Name)
 
 	cfgData := buildAuditWebhookCfgData(config)
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)

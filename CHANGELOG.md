@@ -40,7 +40,9 @@ History older than 3.39.0 lives in the
   fail on create when a target with the same name already exists on the
   server, with an error that points at `terraform import`, instead of merging
   into it and taking it over. MinIO applies these three subsystems without a
-  restart, so the server's answer is reliable. The `minio_notify_*` targets
+  restart, so the server's answer is reliable. A create whose write fails
+  is saved as tainted, so the retry replaces it instead of failing the check
+  on a target the failed write may have saved. The `minio_notify_*` targets
   apply only after a restart and cannot be checked this way; their docs now
   say so
   ([#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438)).

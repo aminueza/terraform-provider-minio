@@ -55,6 +55,12 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `data.minio_account_info` no longer fails with `json: cannot unmarshal
+  object into Go struct field ... tags` when any bucket in the account carries
+  tags. MinIO sends a tagged bucket's tags in a shape madmin cannot decode; the
+  provider now rewrites that field, which never holds tag data, before the
+  decode
+  ([#1460](https://github.com/aminueza/terraform-provider-minio/issues/1460)).
 - `minio_s3_object_legal_hold` now logs the server's code and message when a
   read drops it from state. A legal hold on a bucket without object locking is
   dropped for `InvalidRequest: Bucket is missing ObjectLockConfiguration`
@@ -72,6 +78,17 @@ History older than 3.39.0 lives in the
   line first. After upgrading, the first plan may show one
   pending diff if a restart was still pending
   ([#1439](https://github.com/aminueza/terraform-provider-minio/issues/1439)).
+- `minio_notify_amqp`: setting `publisher_confirms` against a MinIO server older
+  than RELEASE.2021-06-17T00-10-46Z now fails with a clear error naming that
+  release, instead of succeeding and silently corrupting the config value
+  written before it: MinIO's `set-config-kv` parser glues a key the server does
+  not know onto the previous value. Targets that do not set the attribute keep
+  working on old servers: the provider drops the explicit `off` it sends before
+  writing, because absent and `off` mean the same thing on a server without the
+  key. Before sending `publisher_confirms`, the provider asks the server which
+  keys `notify_amqp` has (`help-config-kv`), and fails closed: if that call
+  fails, the write fails too. The other version-gated keys are not guarded yet
+  ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
 - The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
   now captures the setting it protects before the write, so a versioning or policy loss
   caused by the write itself can be restored; the snapshot used to be taken after the

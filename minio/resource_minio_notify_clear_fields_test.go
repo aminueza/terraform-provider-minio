@@ -27,6 +27,12 @@ type notifyConfigStub struct {
 	kvs        map[string]string
 	hideOnRead map[string]bool
 	sets       []string
+	// helpKeys is what the stub answers help-config-kv with. It defaults to
+	// a server that has every version-gated key the provider knows; tests
+	// overwrite it to simulate an older server.
+	helpKeys []string
+	// helpFail makes help-config-kv answer 500, to test the fail-closed path.
+	helpFail bool
 }
 
 func (s *notifyConfigStub) line() string {
@@ -51,6 +57,7 @@ func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.A
 		key:        key,
 		kvs:        map[string]string{},
 		hideOnRead: map[string]bool{},
+		helpKeys:   []string{"publisher_confirms"},
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -85,6 +92,14 @@ func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.A
 				t.Errorf("encrypting config: %v", err)
 			}
 			_, _ = w.Write(body)
+		case strings.HasSuffix(r.URL.Path, "/help-config-kv"):
+			if stub.helpFail {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			sub := r.URL.Query().Get("subSys")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(helpJSON(sub, stub.helpKeys...)))
 		default:
 			_, _ = io.Copy(io.Discard, r.Body)
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)

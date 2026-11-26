@@ -36,6 +36,15 @@ History older than 3.39.0 lives in the
 
 ### Changed
 
+- `minio_logger_webhook`, `minio_audit_webhook` and `minio_audit_kafka` now
+  fail on create when a target with the same name already exists on the
+  server, with an error that points at `terraform import`, instead of merging
+  into it and taking it over. MinIO applies these three subsystems without a
+  restart, so the server's answer is reliable. The `minio_notify_*` targets
+  apply only after a restart and cannot be checked this way; their docs now
+  say so
+  ([#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438)).
+
 - `minio_s3_bucket_policy` and `minio_s3_bucket_versioning` now read the setting they
   protect (versioning and policy respectively) before writing. Credentials that cannot
   read it, and backends that do not implement those APIs, skip the check with a warning

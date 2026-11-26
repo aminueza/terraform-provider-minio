@@ -9,9 +9,10 @@ import (
 
 func resourceMinioAuditKafka() *schema.Resource {
 	nrc := notifyResourceConfig{
-		subsystem:  "audit_kafka",
-		buildCfg:   buildAuditKafkaCfg,
-		readFields: readAuditKafkaFields,
+		subsystem:             "audit_kafka",
+		buildCfg:              buildAuditKafkaCfg,
+		readFields:            readAuditKafkaFields,
+		appliesWithoutRestart: true,
 	}
 
 	return &schema.Resource{

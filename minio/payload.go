@@ -526,6 +526,12 @@ type notifyResourceConfig struct {
 	// state, so a missing target means "restart not applied yet", never
 	// "removed outside Terraform".
 	keepStateOnMissingTarget bool
+	// appliesWithoutRestart marks the subsystems MinIO applies at once
+	// (logger_webhook, audit_kafka; audit_webhook has its own create). Only
+	// for those does get-config-kv show a target right after set-config-kv
+	// and drop it right after del-config-kv, so only for those can Create
+	// reject a target that already exists. See issue #1438.
+	appliesWithoutRestart bool
 }
 
 type jwtClaim struct {

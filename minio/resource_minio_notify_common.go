@@ -10,16 +10,56 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/minio/madmin-go/v4"
 )
 
 func notifyConfigKey(subsystem, name string) string {
 	return fmt.Sprintf("%s:%s", subsystem, name)
 }
 
+// dynamicTargetCreateLock holds the existence check and the write of a
+// target created by rejectExistingDynamicTarget's callers together, so two
+// resources with the same name in one apply cannot both pass the check.
+var dynamicTargetCreateLock = NewMutexKV()
+
+// rejectExistingDynamicTarget fails when the target is already on the server.
+// It is only correct for subsystems MinIO applies without a restart: measured
+// on RELEASE.2025-09-07T16-13-09Z, get-config-kv serves a logger_webhook,
+// audit_webhook or audit_kafka target right after set-config-kv and answers
+// "there is no target" right after del-config-kv. A notify_* target is only
+// served after a restart and stays served after a delete until the next one,
+// so the same check would let duplicates through and reject a target that is
+// gone. Any lookup error other than the missing target fails the create.
+func rejectExistingDynamicTarget(ctx context.Context, admin *madmin.AdminClient, subsystem, name string) error {
+	_, err := admin.GetConfigKV(ctx, notifyConfigKey(subsystem, name))
+	if err == nil {
+		return alreadyExistsError("minio_"+subsystem, name, name)
+	}
+	if isNotifyTargetMissing(err) {
+		return nil
+	}
+	return fmt.Errorf("checking whether %s target %q already exists: %w", subsystem, name, err)
+}
+
+func isNotifyTargetMissing(err error) bool {
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "there is no target") || strings.Contains(errMsg, "not found") ||
+		strings.Contains(errMsg, "does not exist")
+}
+
 func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 	return func(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 		admin := meta.(*S3MinioClient).S3Admin
 		name := d.Get("name").(string)
+
+		if nrc.appliesWithoutRestart {
+			lockKey := notifyConfigKey(nrc.subsystem, name)
+			dynamicTargetCreateLock.Lock(lockKey)
+			defer dynamicTargetCreateLock.Unlock(lockKey)
+			if err := rejectExistingDynamicTarget(ctx, admin, nrc.subsystem, name); err != nil {
+				return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
+			}
+		}
 
 		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 

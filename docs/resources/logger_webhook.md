@@ -49,6 +49,10 @@ resource "minio_logger_webhook" "splunk" {
 - `id` (String) The ID of this resource.
 - `restart_required` (Boolean) Indicates whether a MinIO server restart is required.
 
+## Existing targets
+
+MinIO applies this target without a restart, so creating the resource fails when a target with the same name is already on the server, instead of taking it over. Import the existing target to manage it with Terraform.
+
 ## Import
 
 ```shell

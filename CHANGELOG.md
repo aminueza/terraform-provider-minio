@@ -68,9 +68,9 @@ History older than 3.39.0 lives in the
   not know onto the previous value. Targets that do not set the attribute keep
   working on old servers: the provider drops the explicit `off` it sends before
   writing, because absent and `off` mean the same thing on a server without the
-  key. The provider asks the server which keys the subsystem has
-  (`help-config-kv`) before sending a version-gated key, and fails closed: if
-  that call fails, the write fails too
+  key. Before sending `publisher_confirms`, the provider asks the server which
+  keys `notify_amqp` has (`help-config-kv`), and fails closed: if that call
+  fails, the write fails too. The other version-gated keys are not guarded yet
   ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
 - The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
   now captures the setting it protects before the write, so a versioning or policy loss

@@ -1,6 +1,7 @@
 package minio
 
 import (
+	"net/http"
 	"sync"
 	"time"
 
@@ -45,6 +46,12 @@ type S3MinioConfig struct {
 	RequestTimeoutSeconds int
 	MaxRetries            int
 	RetryDelayMs          int
+}
+
+// accountInfoTagsTransport wraps the admin client's transport to repair the
+// accountinfo response before madmin decodes it. See issue #1460.
+type accountInfoTagsTransport struct {
+	base http.RoundTripper
 }
 
 type S3MinioClient struct {

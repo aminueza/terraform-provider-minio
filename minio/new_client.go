@@ -117,7 +117,7 @@ func (config *S3MinioConfig) NewClient(ctx context.Context) (interface{}, error)
 	minioAdmin, err := madmin.NewWithOptions(config.S3HostPort, &madmin.Options{
 		Creds:     minioCredentials,
 		Secure:    config.S3SSL,
-		Transport: tr,
+		Transport: accountInfoTagsTransport{base: tr},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create admin client: %w", err)

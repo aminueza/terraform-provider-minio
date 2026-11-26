@@ -73,6 +73,13 @@ func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.A
 			w.Header().Set(madmin.ConfigAppliedHeader, madmin.ConfigAppliedTrue)
 			w.WriteHeader(http.StatusOK)
 		case strings.HasSuffix(r.URL.Path, "/get-config-kv"):
+			// A server answers this way for a target it does not have, which
+			// is what Create of a dynamic target checks for (issue #1438).
+			if len(stub.sets) == 0 && len(stub.kvs) == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = fmt.Fprintf(w, `{"Code":"XMinioConfigError","Message":"there is no target %s"}`, stub.key)
+				return
+			}
 			body, err := madmin.EncryptData("secretkey", []byte(stub.line()))
 			if err != nil {
 				t.Errorf("encrypting config: %v", err)

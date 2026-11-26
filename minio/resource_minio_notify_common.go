@@ -35,16 +35,10 @@ func rejectExistingDynamicTarget(ctx context.Context, admin *madmin.AdminClient,
 	if err == nil {
 		return alreadyExistsError("minio_"+subsystem, name, name)
 	}
-	if isNotifyTargetMissing(err) {
+	if isNotifyTargetMissingError(err) {
 		return nil
 	}
 	return fmt.Errorf("checking whether %s target %q already exists: %w", subsystem, name, err)
-}
-
-func isNotifyTargetMissing(err error) bool {
-	errMsg := strings.ToLower(err.Error())
-	return strings.Contains(errMsg, "there is no target") || strings.Contains(errMsg, "not found") ||
-		strings.Contains(errMsg, "does not exist")
 }
 
 func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {

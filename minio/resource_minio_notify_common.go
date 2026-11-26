@@ -3,6 +3,7 @@ package minio
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -10,10 +11,143 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
+	"github.com/minio/madmin-go/v4"
 )
 
 func notifyConfigKey(subsystem, name string) string {
 	return fmt.Sprintf("%s:%s", subsystem, name)
+}
+
+// notifyVersionGatedKeys maps each subsystem to the config keys that only
+// exist in MinIO releases newer than the oldest server the provider can
+// assume, with the first release that has each key. MinIO's set-config-kv
+// parser glues a key the server does not know onto the value written before
+// it (see the notifyWithQueueSize comment), so sending one of these keys to
+// an older server silently corrupts a neighbouring value. The create and
+// update paths ask the server which keys it has before sending any of them.
+// When adding a key here, add it to the default helpKeys of the stub in
+// resource_minio_notify_clear_fields_test.go too, or stub-based tests that
+// send the new key will fail the guard.
+var notifyVersionGatedKeys = map[string]map[string]string{
+	"notify_amqp": {
+		"publisher_confirms": "RELEASE.2021-06-17T00-10-46Z",
+	},
+}
+
+// notifyCheckGatedKeys guards the version-gated keys before they go on the
+// wire. It returns the config string to send, which is cfgData unchanged
+// except that a gated key the server does not have and that is set to its off
+// value is dropped: for these bool keys an absent key means off on the
+// server too (the read maps an absent key to false), so an explicit off
+// carries no meaning there and dropping it keeps old servers working. A
+// gated key the user actually turned on is refused with the first release
+// that has it. Only keys actually present in cfgData are checked, so the help
+// call is skipped when the config string carries no gated key.
+func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsystem, cfgData string) (string, error) {
+	gated := notifyVersionGatedKeys[subsystem]
+	if len(gated) == 0 {
+		return cfgData, nil
+	}
+	sent := parseConfigParams(cfgData)
+	var wanted []string
+	for key := range gated {
+		if _, ok := sent[key]; ok {
+			wanted = append(wanted, key)
+		}
+	}
+	if len(wanted) == 0 {
+		return cfgData, nil
+	}
+
+	help, err := admin.HelpConfigKV(ctx, subsystem, "", false)
+	if err != nil {
+		return "", fmt.Errorf("asking the server which keys %s supports: %w", subsystem, err)
+	}
+	available := make(map[string]bool, len(help.KeysHelp))
+	for _, kv := range help.KeysHelp {
+		available[kv.Key] = true
+	}
+
+	sort.Strings(wanted)
+	var missing []string
+	var stripped []string
+	filtered := cfgData
+	for _, key := range wanted {
+		if available[key] {
+			continue
+		}
+		if sent[key] == "off" {
+			filtered = notifyStripParam(filtered, key+"=off")
+			stripped = append(stripped, key)
+			continue
+		}
+		missing = append(missing, fmt.Sprintf("%q (first available in MinIO %s)", key, gated[key]))
+	}
+	if len(missing) > 0 {
+		return "", fmt.Errorf("this MinIO server does not support %s for %s; the target was not changed (upgrade MinIO to use it)", strings.Join(missing, ", "), subsystem)
+	}
+	if len(stripped) > 0 {
+		// Fail loud if the strip ever misses: sending the key anyway is the
+		// corruption this guard exists to prevent.
+		after := parseConfigParams(filtered)
+		for _, key := range stripped {
+			if _, ok := after[key]; ok {
+				return "", fmt.Errorf("this MinIO server does not have %q for %s and the provider failed to drop it from the config string; refusing to send it", key, subsystem)
+			}
+		}
+	}
+	return filtered, nil
+}
+
+// notifyStripParam removes the field whose text equals token from a config
+// string. Fields are located the way parseConfigParams reads them (a quoted
+// value starts right after key= and ends at the next '"', any other value
+// ends at the next whitespace, and a key is the last word before its '='), but
+// only the matched field is spliced out: everything else reaches the server
+// byte for byte, so text the tokenizer cannot make sense of survives exactly
+// as a server without the strip would receive it.
+func notifyStripParam(cfgData, token string) string {
+	for pos := 0; ; {
+		rel := strings.IndexFunc(cfgData[pos:], func(r rune) bool { return r != ' ' && r != '\t' && r != '\n' })
+		if rel < 0 {
+			break
+		}
+		pos += rel
+		relEq := strings.IndexByte(cfgData[pos:], '=')
+		if relEq < 0 {
+			break // trailing text without '=' is not a field: keep it
+		}
+		eq := pos + relEq
+		keyText := cfgData[pos:eq]
+		key := keyText[strings.LastIndexAny(keyText, " \t\n")+1:]
+		// The splice cuts from the key, not from pos: text the tokenizer could
+		// not make sense of sits in front of the key and must survive.
+		keyStart := eq - len(key)
+		var end int
+		if v := cfgData[eq+1:]; strings.HasPrefix(v, `"`) {
+			if q := strings.IndexByte(v[1:], '"'); q >= 0 {
+				end = eq + 2 + q + 1
+			} else {
+				end = len(cfgData)
+			}
+		} else if j := strings.IndexAny(cfgData[eq+1:], " \t\n"); j >= 0 {
+			end = eq + 1 + j
+		} else {
+			end = len(cfgData)
+		}
+		if key+cfgData[eq:end] == token {
+			if end < len(cfgData) {
+				skip := end
+				for skip < len(cfgData) && (cfgData[skip] == ' ' || cfgData[skip] == '\t' || cfgData[skip] == '\n') {
+					skip++
+				}
+				return cfgData[:keyStart] + cfgData[skip:]
+			}
+			return strings.TrimRight(cfgData[:keyStart], " \t\n")
+		}
+		pos = end
+	}
+	return cfgData
 }
 
 func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
@@ -23,7 +157,10 @@ func notifyCreate(nrc notifyResourceConfig) schema.CreateContextFunc {
 
 		tflog.Debug(ctx, "Creating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
-		cfgData := nrc.buildCfg(d, meta)
+		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
+		if err != nil {
+			return NewResourceError(fmt.Sprintf("creating %s target", nrc.subsystem), name, err)
+		}
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
 		restart, err := admin.SetConfigKV(ctx, configString)
 		if err != nil {
@@ -163,7 +300,10 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 
 		tflog.Debug(ctx, "Updating notification target", map[string]interface{}{"subsystem": nrc.subsystem, "name": name})
 
-		cfgData := nrc.buildCfg(d, meta)
+		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
+		if err != nil {
+			return NewResourceError(fmt.Sprintf("updating %s target", nrc.subsystem), name, err)
+		}
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)
 		if restart, err := admin.SetConfigKV(ctx, configString); err != nil {
 			return NewResourceError(fmt.Sprintf("updating %s target", nrc.subsystem), name, err)

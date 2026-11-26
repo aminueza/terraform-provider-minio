@@ -101,6 +101,11 @@ func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 
 	tflog.Debug(ctx, fmt.Sprintf("Creating audit webhook: %s", config.Name))
 
+	cfgData, err := notifyCheckGatedKeys(ctx, config.MinioAdmin, "audit_webhook", buildAuditWebhookCfgData(config))
+	if err != nil {
+		return NewResourceError("creating audit webhook configuration", config.Name, err)
+	}
+
 	lockKey := auditWebhookConfigKey(config.Name)
 	dynamicTargetCreateLock.Lock(lockKey)
 	defer dynamicTargetCreateLock.Unlock(lockKey)
@@ -111,7 +116,6 @@ func minioCreateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	// target leaves the resource tainted; see notifyCreate.
 	d.SetId(config.Name)
 
-	cfgData := buildAuditWebhookCfgData(config)
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, configString)
 	if err != nil {
@@ -239,6 +243,10 @@ func minioUpdateAuditWebhook(ctx context.Context, d *schema.ResourceData, meta i
 	// omitted keys and would otherwise keep the old retry count.
 	if d.HasChange("max_retry") && d.Get("max_retry").(int) == 0 {
 		cfgData += " max_retry=0"
+	}
+	cfgData, err := notifyCheckGatedKeys(ctx, config.MinioAdmin, "audit_webhook", cfgData)
+	if err != nil {
+		return NewResourceError("updating audit webhook configuration", config.Name, err)
 	}
 	configString := fmt.Sprintf("%s %s", auditWebhookConfigKey(config.Name), cfgData)
 	restart, err := config.MinioAdmin.SetConfigKV(ctx, configString)

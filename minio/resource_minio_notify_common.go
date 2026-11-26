@@ -51,21 +51,41 @@ func rejectExistingDynamicTarget(ctx context.Context, admin *madmin.AdminClient,
 // update paths ask the server which keys it has before sending any of them.
 // When adding a key here, add it to the default helpKeys of the stub in
 // resource_minio_notify_clear_fields_test.go too, or stub-based tests that
-// send the new key will fail the guard.
+// send the new key will fail the guard. The release is the first one whose
+// set-config-kv parser knows the key (the subsystem's default KVS), which can
+// be later than the help text: RELEASE.2024-09-13T20-26-02Z lists
+// http_timeout in the audit_webhook help but only parses it from
+// RELEASE.2024-09-22T00-33-43Z, so on that one release the guard sees the
+// key as available and cannot stop the corruption.
 var notifyVersionGatedKeys = map[string]map[string]string{
 	"notify_amqp": {
 		"publisher_confirms": "RELEASE.2021-06-17T00-10-46Z",
+	},
+	"notify_kafka": {
+		"batch_commit_timeout": "RELEASE.2024-09-09T16-59-28Z",
+	},
+	"logger_webhook": {
+		"max_retry":      "RELEASE.2024-09-09T16-59-28Z",
+		"retry_interval": "RELEASE.2024-09-09T16-59-28Z",
+		"http_timeout":   "RELEASE.2024-09-13T20-26-02Z",
+	},
+	"audit_webhook": {
+		"max_retry":      "RELEASE.2024-09-09T16-59-28Z",
+		"retry_interval": "RELEASE.2024-09-09T16-59-28Z",
+		"http_timeout":   "RELEASE.2024-09-22T00-33-43Z",
 	},
 }
 
 // notifyCheckGatedKeys guards the version-gated keys before they go on the
 // wire. It returns the config string to send, which is cfgData unchanged
-// except that a gated key the server does not have and that is set to its off
-// value is dropped: for these bool keys an absent key means off on the
-// server too (the read maps an absent key to false), so an explicit off
-// carries no meaning there and dropping it keeps old servers working. A
-// gated key the user actually turned on is refused with the first release
-// that has it. Only keys actually present in cfgData are checked, so the help
+// except that a gated key the server does not have and that is set to off is
+// dropped: for the bool keys an absent key means off on the server too (the
+// read maps an absent key to false), so an explicit off carries no meaning
+// there and dropping it keeps old servers working. Any other value of a gated
+// key the server does not have is refused with the first release that has
+// it; the builders send the non-bool gated keys only when the configuration
+// or the state holds a value, so targets that do not use them never hit the
+// refusal. Only keys actually present in cfgData are checked, so the help
 // call is skipped when the config string carries no gated key.
 func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsystem, cfgData string) (string, error) {
 	gated := notifyVersionGatedKeys[subsystem]

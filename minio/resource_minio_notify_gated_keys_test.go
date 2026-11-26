@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -346,4 +347,89 @@ func TestNotifyGatedKeysHooks(t *testing.T) {
 			t.Errorf("expected only the create's set-config-kv call, got %v", stub.sets)
 		}
 	})
+}
+
+// TestGatedKeysRefusedByEveryResource drives each resource that sends a
+// version-gated key against a server whose help-config-kv lacks it, and
+// checks the create refuses with the first release that has the key and
+// writes nothing. minio_audit_webhook has its own create, so this also proves
+// a map entry reaches it.
+func TestGatedKeysRefusedByEveryResource(t *testing.T) {
+	cases := []struct {
+		name    string
+		key     string
+		res     func() *schema.Resource
+		raw     map[string]interface{}
+		release string
+	}{
+		{"logger_webhook max_retry", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "max_retry": 3}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"logger_webhook retry_interval", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "retry_interval": "10s"}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"logger_webhook http_timeout", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "http_timeout": "10s"}, "RELEASE.2024-09-13T20-26-02Z"},
+		{"audit_webhook max_retry", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "max_retry": 3}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"audit_webhook retry_interval", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "retry_interval": "10s"}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"audit_webhook http_timeout", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "http_timeout": "10s"}, "RELEASE.2024-09-22T00-33-43Z"},
+		{"notify_kafka batch_commit_timeout", "notify_kafka:primary", resourceMinioNotifyKafka,
+			map[string]interface{}{"name": "primary", "brokers": "x.example.com:9092", "topic": "t", "queue_dir": "/tmp/q", "batch_size": 10, "batch_commit_timeout": "5s"}, "RELEASE.2024-09-09T16-59-28Z"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			stub, client := newNotifyConfigStub(t, tc.key)
+			stub.helpKeys = []string{"enable", "endpoint", "brokers", "topic"}
+			meta := &S3MinioClient{S3Admin: client}
+			res := tc.res()
+			diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(tc.raw), meta)
+			if err != nil {
+				t.Fatalf("diff: %v", err)
+			}
+			_, diags := res.Apply(ctx, nil, diff, meta)
+			if !diags.HasError() {
+				t.Fatalf("create succeeded, want the gated key refused; sets: %v", stub.sets)
+			}
+			if msg := diags[0].Summary + " " + diags[0].Detail; !strings.Contains(msg, tc.release) {
+				t.Errorf("error %q does not name the first release %s", msg, tc.release)
+			}
+			if len(stub.sets) != 0 {
+				t.Errorf("expected no set-config-kv call, got %v", stub.sets)
+			}
+		})
+	}
+}
+
+// TestAuditWebhookUpdateRefusesGatedKey proves minio_audit_webhook's own
+// update calls the guard too.
+func TestAuditWebhookUpdateRefusesGatedKey(t *testing.T) {
+	ctx := context.Background()
+	stub, client := newNotifyConfigStub(t, "audit_webhook:primary")
+	stub.helpKeys = []string{"enable", "endpoint"}
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioAuditWebhook()
+	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit"}
+	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	state, diags := res.Apply(ctx, nil, diff, meta)
+	if diags.HasError() {
+		t.Fatalf("create without gated keys: %v", diags)
+	}
+
+	raw["max_retry"] = 3
+	diff2, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("update diff: %v", err)
+	}
+	_, diags2 := res.Apply(ctx, state, diff2, meta)
+	if !diags2.HasError() {
+		t.Fatalf("update succeeded, want max_retry refused; sets: %v", stub.sets)
+	}
+	if len(stub.sets) != 1 {
+		t.Errorf("expected only the create's set-config-kv call, got %v", stub.sets)
+	}
 }

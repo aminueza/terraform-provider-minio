@@ -65,6 +65,51 @@ func TestAuditWebhookUpdateClearsRemovedFields(t *testing.T) {
 	}
 }
 
+// Removing max_retry writes MinIO's seeded 0 back to the server: SetConfigKV
+// merges omitted keys, so leaving the key out would keep the old retry count
+// on an enabled target. The durations cannot be covered this way, because a
+// raw test config gives CustomizeDiff an empty raw config and its guard
+// returns early; the acceptance tests cover them.
+func TestAuditWebhookUpdateResetsRemovedMaxRetry(t *testing.T) {
+	stub, client := newNotifyConfigStub(t, "audit_webhook:splunk")
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioAuditWebhook()
+	ctx := context.Background()
+
+	apply := func(state *terraform.InstanceState, raw map[string]interface{}) *terraform.InstanceState {
+		t.Helper()
+		diff, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+		if err != nil {
+			t.Fatalf("diff: %v", err)
+		}
+		newState, diags := res.Apply(ctx, state, diff, meta)
+		if diags.HasError() {
+			t.Fatalf("apply: %v", diags)
+		}
+		return newState
+	}
+
+	state := apply(nil, map[string]interface{}{
+		"name":      "splunk",
+		"endpoint":  "https://splunk:8088",
+		"max_retry": 3,
+	})
+	if stub.kvs["max_retry"] != "3" {
+		t.Fatalf("server max_retry after create = %q, want 3; last set-config-kv: %q", stub.kvs["max_retry"], stub.sets[len(stub.sets)-1])
+	}
+
+	state = apply(state, map[string]interface{}{
+		"name":     "splunk",
+		"endpoint": "https://splunk:8088",
+	})
+	if got := stub.kvs["max_retry"]; got != "0" {
+		t.Errorf("server max_retry after removing it = %q, want 0; last set-config-kv: %q", got, stub.sets[len(stub.sets)-1])
+	}
+	if got := state.Attributes["max_retry"]; got != "0" {
+		t.Errorf("max_retry in state = %q, want 0", got)
+	}
+}
+
 // auth_token is never returned on read, and older servers may omit client_key;
 // an unrelated update when those fields are omitted on read keeps both on the
 // server.

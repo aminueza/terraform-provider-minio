@@ -21,6 +21,26 @@ History older than 3.39.0 lives in the
   `compression_level` outside -2..9: an enabled target refuses those
   combinations and a disabled one stores them without ever acting on them.
   ([#1369](https://github.com/aminueza/terraform-provider-minio/issues/1369))
+- `minio_audit_webhook` and `minio_logger_webhook` expose MinIO's retry and
+  timeout keys `max_retry`, `retry_interval` and `http_timeout`, and
+  `minio_audit_webhook` also gains `queue_dir`. Removing one of the retry or
+  timeout fields writes MinIO's own default (`0`, `3s` or `5s`) back to the
+  server, never an empty value
+  ([#1370](https://github.com/aminueza/terraform-provider-minio/issues/1370)).
+  Upgrade note: leaving these fields out now means "MinIO's default", not
+  "whatever the server has", so a value previously set with
+  `mc admin config set` is reset on the first apply; copy it into your
+  configuration first. The keys need a MinIO at least as new as the release
+  each field's documentation names: older servers glue an unknown key onto
+  the value before it and corrupt the target.
+
+### Changed
+
+- `minio_s3_bucket_policy` and `minio_s3_bucket_versioning` now read the setting they
+  protect (versioning and policy respectively) before writing. Credentials that cannot
+  read it, and backends that do not implement those APIs, skip the check with a warning
+  and keep working as before; any other read failure aborts the write instead of
+  proceeding unprotected.
 
 ### Fixed
 
@@ -52,6 +72,13 @@ History older than 3.39.0 lives in the
   (`help-config-kv`) before sending a version-gated key, and fails closed: if
   that call fails, the write fails too
   ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
+- The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
+  now captures the setting it protects before the write, so a versioning or policy loss
+  caused by the write itself can be restored; the snapshot used to be taken after the
+  write and could never catch that case. A snapshot read that fails for a reason other
+  than missing permission or an unimplemented API now aborts the write instead of
+  silently skipping the protection, and a failed restore is reported as an error and
+  leaves the resource tainted instead of only being logged. ([#1389](https://github.com/aminueza/terraform-provider-minio/issues/1389))
 
 ## [3.47.0] - 2026-11-24
 

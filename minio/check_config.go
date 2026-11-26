@@ -381,8 +381,16 @@ func AuditWebhookConfig(d *schema.ResourceData, meta interface{}) *S3MinioAuditW
 		Enable:     d.Get("enable").(bool),
 		QueueSize:  getOptionalField(d, "queue_size", 0).(int),
 		BatchSize:  getOptionalField(d, "batch_size", 0).(int),
-		ClientCert: getOptionalField(d, "client_cert", "").(string),
-		ClientKey:  getOptionalField(d, "client_key", "").(string),
+		QueueDir:   getOptionalField(d, "queue_dir", "").(string),
+		MaxRetry:   getOptionalField(d, "max_retry", 0).(int),
+		// retry_interval and http_timeout are Optional and Computed: after an
+		// apply they hold what the server has, and on removal CustomizeDiff
+		// has already planned MinIO's default into them, which is what the
+		// builder must write back.
+		RetryInterval: getOptionalField(d, "retry_interval", "").(string),
+		HTTPTimeout:   getOptionalField(d, "http_timeout", "").(string),
+		ClientCert:    getOptionalField(d, "client_cert", "").(string),
+		ClientKey:     getOptionalField(d, "client_key", "").(string),
 	}
 }
 

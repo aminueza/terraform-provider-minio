@@ -31,7 +31,7 @@ tasks:
   generate-docs:
     desc: Generate the docs for the provider
     cmds:
-      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0 generate --tf-version 1.15.7
+      - go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.25.0 generate --tf-version 1.15.7 --provider-name terraform-provider-minio
 
   install:
     desc: Build and install the plugin in the correct folder (resolved automatically based on current Operating System).

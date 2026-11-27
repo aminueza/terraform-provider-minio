@@ -2,7 +2,6 @@ package minio
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"regexp"
@@ -121,7 +120,7 @@ func minioCreateUser(ctx context.Context, d *schema.ResourceData, meta interface
 			"minio_iam_user %q already exists. To manage it with Terraform, import it: terraform import minio_iam_user.<name> %s",
 			accessKey, accessKey))
 	}
-	if errResp := (madmin.ErrorResponse{}); !errors.As(err, &errResp) || errResp.Code != "XMinioAdminNoSuchUser" {
+	if !isNoSuchUserError(err) {
 		return NewResourceError("checking for existing IAM user", accessKey, err)
 	}
 
@@ -229,14 +228,10 @@ func minioReadUser(ctx context.Context, d *schema.ResourceData, meta interface{}
 
 	output, err := iamUserConfig.MinioAdmin.GetUserInfo(ctx, d.Id())
 
-	errResp := madmin.ErrorResponse{}
-
-	if errors.As(err, &errResp) {
-		if errResp.Code == "XMinioAdminNoSuchUser" {
-			tflog.Error(ctx, NewResourceErrorStr("unable to find user", d.Id(), err))
-			d.SetId("")
-			return nil
-		}
+	if isNoSuchUserError(err) {
+		tflog.Error(ctx, NewResourceErrorStr("unable to find user", d.Id(), err))
+		d.SetId("")
+		return nil
 	}
 
 	if err != nil {

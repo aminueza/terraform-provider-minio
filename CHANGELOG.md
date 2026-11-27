@@ -96,6 +96,14 @@ History older than 3.39.0 lives in the
   than missing permission or an unimplemented API now aborts the write instead of
   silently skipping the protection, and a failed restore is reported as an error and
   leaves the resource tainted instead of only being logged. ([#1389](https://github.com/aminueza/terraform-provider-minio/issues/1389))
+- Creating `minio_iam_user`, `minio_iam_policy`, `minio_iam_group` and
+  `minio_iam_group_policy` no longer fails with "checking for existing IAM ..."
+  on RustFS. The existence check added in 3.47.0 accepted only MinIO's own codes
+  (`XMinioAdminNoSuchUser` and friends); RustFS answers a missing user, group or
+  policy with `404 NoSuchResource`. That answer now counts as "does not exist"
+  too, so those creates work and a read of an object deleted outside Terraform
+  drops the resource from state there as well
+  ([#1484](https://github.com/aminueza/terraform-provider-minio/issues/1484)).
 
 ## [3.47.0] - 2026-11-24
 

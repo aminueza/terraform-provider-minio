@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -361,6 +362,15 @@ func TestIAMUserGroupMembershipMissingTarget(t *testing.T) {
 			wantGone: true,
 		},
 		{
+			name:     "server answering NoSuchResource clears id",
+			status:   http.StatusNotFound,
+			code:     "NoSuchResource",
+			message:  "user does not exist",
+			isNew:    false,
+			wantErr:  false,
+			wantGone: true,
+		},
+		{
 			name:     "missing user after create still errors",
 			status:   http.StatusNotFound,
 			code:     "XMinioAdminNoSuchUser",
@@ -477,6 +487,55 @@ func TestIAMUserGroupMembershipMissingTarget(t *testing.T) {
 		}
 		if !called["group-a"] || !called["group-b"] {
 			t.Fatalf("expected both groups to be processed, got %v", called)
+		}
+		if d.Id() != "" {
+			t.Fatalf("expected empty id, got %q", d.Id())
+		}
+	})
+
+	// A server that answers every missing object with NoSuchResource cannot tell
+	// the user from the group, so the loop has to keep going (issue #1484).
+	// Every group is missing here, so the order the set lists them in cannot hide
+	// a loop that stops early.
+	t.Run("delete/compatible missing groups are all processed", func(t *testing.T) {
+		var mu sync.Mutex
+		called := make(map[string]bool)
+		client := iamMissingTargetAdminStub(t, func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/update-group-members") {
+				t.Errorf("unexpected path %s %s", r.Method, r.URL.Path)
+				http.NotFound(w, r)
+				return
+			}
+			var req madmin.GroupAddRemove
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			mu.Lock()
+			called[req.Group] = true
+			mu.Unlock()
+			writeMadminStubError(w, http.StatusNotFound, "NoSuchResource", fmt.Sprintf("group '%s' does not exist", req.Group))
+		})
+
+		d := res.TestResourceData()
+		if err := d.Set("user", "test-user"); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.Set("groups", []string{"group-a", "group-b", "group-c"}); err != nil {
+			t.Fatal(err)
+		}
+		d.SetId("test-user")
+
+		diags := res.DeleteContext(context.Background(), d, &S3MinioClient{S3Admin: client})
+		if diags.HasError() {
+			t.Fatalf("expected delete to succeed, got %v", diags)
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for _, group := range []string{"group-a", "group-b", "group-c"} {
+			if !called[group] {
+				t.Fatalf("expected %s to be processed, got %v", group, called)
+			}
 		}
 		if d.Id() != "" {
 			t.Fatalf("expected empty id, got %q", d.Id())

@@ -185,12 +185,17 @@ func minioDeleteUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members:  []string{cfg.UserName},
 			IsRemove: true,
 		}); err != nil {
+			// Check the group first: a server that reports every missing object with
+			// one code (NoSuchResource, issue #1484) cannot tell the user from the
+			// group, and skipping this group is right either way. If the user is the
+			// object that is gone, every remaining group answers the same and the
+			// loop still ends with the id cleared below.
+			if isNoSuchGroupError(err) {
+				continue
+			}
 			if isNoSuchUserError(err) {
 				d.SetId("")
 				return nil
-			}
-			if isNoSuchGroupError(err) {
-				continue
 			}
 			return NewResourceError("removing user from group", cfg.UserName, err)
 		}

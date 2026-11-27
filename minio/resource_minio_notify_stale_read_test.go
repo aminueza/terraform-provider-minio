@@ -119,6 +119,15 @@ func newNotifyStaleConfigStub(t *testing.T, key string, defaults map[string]stri
 				t.Errorf("encrypting config: %v", err)
 			}
 			_, _ = w.Write(body)
+		case strings.HasSuffix(r.URL.Path, "/help-config-kv"):
+			// A server that seeds a key into its targets also lists it in its
+			// help, which is what the version-gated key guard asks.
+			keys := make([]string, 0, len(stub.defaults))
+			for k := range stub.defaults {
+				keys = append(keys, k)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, helpJSON(stub.subsystem, keys...))
 		default:
 			_, _ = io.Copy(io.Discard, r.Body)
 			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)

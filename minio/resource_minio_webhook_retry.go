@@ -42,7 +42,7 @@ func webhookRetryFields() map[string]*schema.Schema {
 			Optional:     true,
 			Computed:     true,
 			ValidateFunc: validateWebhookHTTPTimeout,
-			Description:  "Timeout for each request, at least `1s`; MinIO seeds `5s`. First available in MinIO RELEASE.2024-09-13T20-26-02Z.",
+			Description:  "Timeout for each request, at least `1s`; MinIO seeds `5s`. First available in MinIO RELEASE.2024-09-13T20-26-02Z for `minio_logger_webhook` and RELEASE.2024-09-22T00-33-43Z for `minio_audit_webhook`.",
 		},
 	}
 }

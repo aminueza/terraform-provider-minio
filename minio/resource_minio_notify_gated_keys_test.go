@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -346,4 +347,187 @@ func TestNotifyGatedKeysHooks(t *testing.T) {
 			t.Errorf("expected only the create's set-config-kv call, got %v", stub.sets)
 		}
 	})
+}
+
+// TestGatedKeysRefusedByEveryResource drives each resource that sends a
+// version-gated key against a server whose help-config-kv lacks it, and
+// checks the create refuses with the first release that has the key and
+// writes nothing. minio_audit_webhook has its own create, so this also proves
+// a map entry reaches it.
+func TestGatedKeysRefusedByEveryResource(t *testing.T) {
+	cases := []struct {
+		name    string
+		key     string
+		res     func() *schema.Resource
+		raw     map[string]interface{}
+		release string
+	}{
+		{"logger_webhook max_retry", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "max_retry": 3}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"logger_webhook retry_interval", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "retry_interval": "10s"}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"logger_webhook http_timeout", "logger_webhook:primary", resourceMinioLoggerWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/log", "http_timeout": "10s"}, "RELEASE.2024-09-13T20-26-02Z"},
+		{"audit_webhook max_retry", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "max_retry": 3}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"audit_webhook retry_interval", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "retry_interval": "10s"}, "RELEASE.2024-09-09T16-59-28Z"},
+		{"audit_webhook http_timeout", "audit_webhook:primary", resourceMinioAuditWebhook,
+			map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit", "http_timeout": "10s"}, "RELEASE.2024-09-22T00-33-43Z"},
+		{"notify_kafka batch_commit_timeout", "notify_kafka:primary", resourceMinioNotifyKafka,
+			map[string]interface{}{"name": "primary", "brokers": "x.example.com:9092", "topic": "t", "queue_dir": "/tmp/q", "batch_size": 10, "batch_commit_timeout": "5s"}, "RELEASE.2024-09-09T16-59-28Z"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			stub, client := newNotifyConfigStub(t, tc.key)
+			stub.helpKeys = []string{"enable", "endpoint", "brokers", "topic"}
+			meta := &S3MinioClient{S3Admin: client}
+			res := tc.res()
+			diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(tc.raw), meta)
+			if err != nil {
+				t.Fatalf("diff: %v", err)
+			}
+			_, diags := res.Apply(ctx, nil, diff, meta)
+			if !diags.HasError() {
+				t.Fatalf("create succeeded, want the gated key refused; sets: %v", stub.sets)
+			}
+			if msg := diags[0].Summary + " " + diags[0].Detail; !strings.Contains(msg, tc.release) {
+				t.Errorf("error %q does not name the first release %s", msg, tc.release)
+			}
+			if len(stub.sets) != 0 {
+				t.Errorf("expected no set-config-kv call, got %v", stub.sets)
+			}
+		})
+	}
+}
+
+// TestWebhookUpdateRefusesGatedKey proves both update paths (notifyUpdate for
+// minio_logger_webhook, minio_audit_webhook's own update) call the guard and
+// keep the prior state when it refuses.
+func TestWebhookUpdateRefusesGatedKey(t *testing.T) {
+	for _, tc := range []struct {
+		target string
+		res    func() *schema.Resource
+	}{
+		{"logger_webhook:primary", resourceMinioLoggerWebhook},
+		{"audit_webhook:primary", resourceMinioAuditWebhook},
+	} {
+		t.Run(tc.target, func(t *testing.T) {
+			testWebhookUpdateRefusesGatedKey(t, tc.target, tc.res())
+		})
+	}
+}
+
+func testWebhookUpdateRefusesGatedKey(t *testing.T, target string, res *schema.Resource) {
+	ctx := context.Background()
+	stub, client := newNotifyConfigStub(t, target)
+	stub.helpKeys = []string{"enable", "endpoint"}
+	meta := &S3MinioClient{S3Admin: client}
+	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/hook"}
+	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	state, diags := res.Apply(ctx, nil, diff, meta)
+	if diags.HasError() {
+		t.Fatalf("create without gated keys: %v", diags)
+	}
+
+	raw["max_retry"] = 3
+	diff2, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("update diff: %v", err)
+	}
+	after, diags2 := res.Apply(ctx, state, diff2, meta)
+	if !diags2.HasError() {
+		t.Fatalf("update succeeded, want max_retry refused; sets: %v", stub.sets)
+	}
+	if msg := diags2[0].Summary + " " + diags2[0].Detail; !strings.Contains(msg, "RELEASE.2024-09-09T16-59-28Z") {
+		t.Errorf("error %q is not the gated-key refusal", msg)
+	}
+	if len(stub.sets) != 1 {
+		t.Errorf("expected only the create's set-config-kv call, got %v", stub.sets)
+	}
+	// An old server never returns max_retry, so the read cannot correct a
+	// refused value saved into state: the next plan would show no change.
+	if got := after.Attributes["max_retry"]; got != "0" && got != "" {
+		t.Errorf("max_retry in state after the refused update = %q, want the value before the update", got)
+	}
+}
+
+func TestNotifyCheckGatedKeysDropsSeededValues(t *testing.T) {
+	ctx := context.Background()
+	admin, _ := gatedKeysTestServer(t, helpJSON("logger_webhook", "enable", "endpoint"))
+
+	got, err := notifyCheckGatedKeys(ctx, admin, "logger_webhook", "endpoint=http://x max_retry=0 retry_interval=3s http_timeout=5s enable=on")
+	if err != nil {
+		t.Fatalf("expected the seeded values to be dropped, got: %v", err)
+	}
+	if want := "endpoint=http://x enable=on"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+
+	if _, err := notifyCheckGatedKeys(ctx, admin, "logger_webhook", "endpoint=http://x retry_interval=4s enable=on"); err == nil {
+		t.Error("a value other than the seeded one must still be refused")
+	}
+
+	kafka, _ := gatedKeysTestServer(t, helpJSON("notify_kafka", "enable", "brokers", "topic"))
+	got, err = notifyCheckGatedKeys(ctx, kafka, "notify_kafka", "brokers=x:9092 topic=t batch_commit_timeout=0s")
+	if err != nil {
+		t.Fatalf("expected the seeded batch_commit_timeout to be dropped, got: %v", err)
+	}
+	if want := "brokers=x:9092 topic=t"; got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// TestAuditWebhookUpdateAfterRollback covers state taken from a newer server
+// that seeded the retry keys, followed by a rollback to a server without
+// them: an update that does not touch those keys must still go through.
+func TestAuditWebhookUpdateAfterRollback(t *testing.T) {
+	ctx := context.Background()
+	stub, client := newNotifyConfigStub(t, "audit_webhook:primary")
+	meta := &S3MinioClient{S3Admin: client}
+	res := resourceMinioAuditWebhook()
+	raw := map[string]interface{}{"name": "primary", "endpoint": "http://x.example.com/audit"}
+	diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("diff: %v", err)
+	}
+	state, diags := res.Apply(ctx, nil, diff, meta)
+	if diags.HasError() {
+		t.Fatalf("create: %v", diags)
+	}
+	stub.kvs["max_retry"] = "0"
+	stub.kvs["retry_interval"] = "3s"
+	stub.kvs["http_timeout"] = "5s"
+	state, diags = res.RefreshWithoutUpgrade(ctx, state, meta)
+	if diags.HasError() {
+		t.Fatalf("refresh: %v", diags)
+	}
+	if state.Attributes["retry_interval"] != "3s" || state.Attributes["http_timeout"] != "5s" {
+		t.Fatalf("the refresh did not store the seeded values: %v", state.Attributes)
+	}
+
+	stub.helpKeys = []string{"enable", "endpoint"}
+	raw["endpoint"] = "http://y.example.com/audit"
+	diff2, err := res.Diff(ctx, state, terraform.NewResourceConfigRaw(raw), meta)
+	if err != nil {
+		t.Fatalf("update diff: %v", err)
+	}
+	if _, diags := res.Apply(ctx, state, diff2, meta); diags.HasError() {
+		t.Fatalf("update after the rollback: %v", diags)
+	}
+	last := stub.sets[len(stub.sets)-1]
+	if !strings.Contains(last, "endpoint=http://y.example.com/audit") {
+		t.Errorf("the update did not send the new endpoint: %q", last)
+	}
+	// max_retry is not checked here: it does not change, so the update never
+	// sends it. TestNotifyCheckGatedKeysDropsSeededValues covers its drop.
+	for _, key := range []string{"retry_interval=", "http_timeout="} {
+		if strings.Contains(last, key) {
+			t.Errorf("the update sent %s to a server without it: %q", key, last)
+		}
+	}
 }

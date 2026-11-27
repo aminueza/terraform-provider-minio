@@ -51,22 +51,52 @@ func rejectExistingDynamicTarget(ctx context.Context, admin *madmin.AdminClient,
 // update paths ask the server which keys it has before sending any of them.
 // When adding a key here, add it to the default helpKeys of the stub in
 // resource_minio_notify_clear_fields_test.go too, or stub-based tests that
-// send the new key will fail the guard.
+// send the new key will fail the guard. The release is the first one whose
+// set-config-kv parser knows the key (the subsystem's default KVS), which can
+// be later than the help text: RELEASE.2024-09-13T20-26-02Z lists
+// http_timeout in the audit_webhook help but only parses it from
+// RELEASE.2024-09-22T00-33-43Z, so on that one release the guard sees the
+// key as available and cannot stop the corruption.
 var notifyVersionGatedKeys = map[string]map[string]string{
 	"notify_amqp": {
 		"publisher_confirms": "RELEASE.2021-06-17T00-10-46Z",
 	},
+	"notify_kafka": {
+		"batch_commit_timeout": "RELEASE.2024-09-09T16-59-28Z",
+	},
+	"logger_webhook": {
+		"max_retry":      "RELEASE.2024-09-09T16-59-28Z",
+		"retry_interval": "RELEASE.2024-09-09T16-59-28Z",
+		"http_timeout":   "RELEASE.2024-09-13T20-26-02Z",
+	},
+	"audit_webhook": {
+		"max_retry":      "RELEASE.2024-09-09T16-59-28Z",
+		"retry_interval": "RELEASE.2024-09-09T16-59-28Z",
+		"http_timeout":   "RELEASE.2024-09-22T00-33-43Z",
+	},
+}
+
+// notifyGatedKeyNeutral is the value MinIO seeds for each gated key. Writing
+// that default to a server without the key expresses no intent, so the guard
+// drops it instead of refusing: the
+// builders send it on a removal, and state taken from a newer server before a
+// rollback holds the seeded values, which the read cannot clear because the
+// older server never returns the keys.
+var notifyGatedKeyNeutral = map[string]string{
+	"publisher_confirms":   "off",
+	"max_retry":            "0",
+	"retry_interval":       "3s",
+	"http_timeout":         "5s",
+	"batch_commit_timeout": "0s",
 }
 
 // notifyCheckGatedKeys guards the version-gated keys before they go on the
 // wire. It returns the config string to send, which is cfgData unchanged
-// except that a gated key the server does not have and that is set to its off
-// value is dropped: for these bool keys an absent key means off on the
-// server too (the read maps an absent key to false), so an explicit off
-// carries no meaning there and dropping it keeps old servers working. A
-// gated key the user actually turned on is refused with the first release
-// that has it. Only keys actually present in cfgData are checked, so the help
-// call is skipped when the config string carries no gated key.
+// except that a gated key the server does not have and that is set to its
+// neutral value (notifyGatedKeyNeutral) is dropped. Any other value of a gated
+// key the server does not have is refused with the first release that has
+// it. Only keys actually present in cfgData are checked, so the help call is
+// skipped when the config string carries no gated key.
 func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsystem, cfgData string) (string, error) {
 	gated := notifyVersionGatedKeys[subsystem]
 	if len(gated) == 0 {
@@ -100,8 +130,8 @@ func notifyCheckGatedKeys(ctx context.Context, admin *madmin.AdminClient, subsys
 		if available[key] {
 			continue
 		}
-		if sent[key] == "off" {
-			filtered = notifyStripParam(filtered, key+"=off")
+		if neutral, ok := notifyGatedKeyNeutral[key]; ok && sent[key] == neutral {
+			filtered = notifyStripParam(filtered, key+"="+neutral)
 			stripped = append(stripped, key)
 			continue
 		}
@@ -341,6 +371,10 @@ func notifyUpdate(nrc notifyResourceConfig) schema.UpdateContextFunc {
 
 		cfgData, err := notifyCheckGatedKeys(ctx, admin, nrc.subsystem, nrc.buildCfg(d, meta))
 		if err != nil {
+			// Nothing was written. Without Partial the SDK saves the planned
+			// values, and an old server never returns the refused key, so the
+			// read could not correct it and the next plan would show no change.
+			d.Partial(true)
 			return NewResourceError(fmt.Sprintf("updating %s target", nrc.subsystem), name, err)
 		}
 		configString := fmt.Sprintf("%s %s", notifyConfigKey(nrc.subsystem, name), cfgData)

@@ -55,6 +55,20 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_logger_webhook`, `minio_audit_webhook` and `minio_notify_kafka` now
+  refuse `max_retry`, `retry_interval`, `http_timeout` and
+  `batch_commit_timeout` on a MinIO server that does not have them, with an
+  error naming the first release that does, instead of writing them and
+  silently corrupting the value written before them (the endpoint, for
+  example). A value equal to the one MinIO seeds (`max_retry=0`,
+  `retry_interval=3s`, `http_timeout=5s`, `batch_commit_timeout=0s`) is dropped
+  instead, as `publisher_confirms=off` already was, so targets that do not set
+  these attributes keep working on old servers, also after a rollback from a
+  newer one. A refused update leaves the state unchanged. `http_timeout`
+  reaches `minio_audit_webhook` only in
+  RELEASE.2024-09-22T00-33-43Z, one release after its help text lists it, so
+  on RELEASE.2024-09-13T20-26-02Z the guard cannot catch it
+  ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
 - `data.minio_account_info` no longer fails with `json: cannot unmarshal
   object into Go struct field ... tags` when any bucket in the account carries
   tags. MinIO sends a tagged bucket's tags in a shape madmin cannot decode; the
@@ -87,7 +101,7 @@ History older than 3.39.0 lives in the
   writing, because absent and `off` mean the same thing on a server without the
   key. Before sending `publisher_confirms`, the provider asks the server which
   keys `notify_amqp` has (`help-config-kv`), and fails closed: if that call
-  fails, the write fails too. The other version-gated keys are not guarded yet
+  fails, the write fails too
   ([#1462](https://github.com/aminueza/terraform-provider-minio/issues/1462)).
 - The cross-protection workaround in `minio_s3_bucket_policy` and `minio_s3_bucket_versioning`
   now captures the setting it protects before the write, so a versioning or policy loss

@@ -162,3 +162,28 @@ func TestGroupMembershipRemovalHitMissingUser(t *testing.T) {
 		})
 	}
 }
+
+// The group read matched only the text "group does not exist", and RustFS puts
+// the name inside that sentence (group 'devs' does not exist), so the answer has
+// to reach the code. See issue #1484.
+func TestGroupReadDropsMissingGroup(t *testing.T) {
+	admin := newAmbiguousStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/group") {
+			t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchResource</Code><Message>group 'devs' does not exist</Message></Error>`)
+	})
+
+	res := resourceMinioIAMGroup()
+	d := schema.TestResourceDataRaw(t, res.Schema, map[string]interface{}{"name": "devs"})
+	d.SetId("devs")
+
+	if diags := res.ReadContext(context.Background(), d, &S3MinioClient{S3Admin: admin}); diags.HasError() {
+		t.Fatalf("read failed: %v", diags)
+	}
+	if d.Id() != "" {
+		t.Errorf("id = %q, want the group dropped from state once it is gone", d.Id())
+	}
+}

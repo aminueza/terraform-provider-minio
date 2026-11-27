@@ -2,11 +2,17 @@ package minio
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+
+	"github.com/hashicorp/go-cty/cty"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/acctest"
+	"github.com/hashicorp/terraform-plugin-sdk/v2/terraform"
 
 	"github.com/minio/madmin-go/v4"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -106,4 +112,181 @@ func TestIAMNotFoundClassification(t *testing.T) {
 			})
 		}
 	}
+}
+
+// The report in #1484 was about create: the existence check failed, so the
+// create aborted although the object was absent. These drive Create against a
+// stub that answers like RustFS and check that the write goes through.
+func TestIAMCreateProceedsOnRustfsNotFound(t *testing.T) {
+	const policyJSON = `{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::original/*"]}]}`
+
+	rustfsMissing := func(message string) string {
+		return `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchResource</Code><Message>` +
+			message + `</Message></Error>`
+	}
+	writeRustfsMissingBody := func(w http.ResponseWriter, message string) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, rustfsMissing(message))
+	}
+
+	t.Run("policy", func(t *testing.T) {
+		name := "tfacc-pol-" + acctest.RandString(8)
+		var mu sync.Mutex
+		stored := ""
+		var createCalls int
+
+		admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/info-canned-policy"):
+				if stored == "" {
+					writeRustfsMissingBody(w, "policy does not exist")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprintf(w, `{"PolicyName":%q,"Policy":%s}`, name, stored)
+			case strings.HasSuffix(r.URL.Path, "/add-canned-policy"):
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("reading add-canned-policy body: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				stored = string(body)
+				createCalls++
+				w.WriteHeader(http.StatusOK)
+			default:
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		state, diags := applyCreateWithStub(t, resourceMinioIAMPolicy(), map[string]interface{}{
+			"name":   name,
+			"policy": policyJSON,
+		}, &S3MinioClient{S3Admin: admin})
+
+		if diags.HasError() {
+			t.Fatalf("create failed: %v", diags)
+		}
+		if createCalls != 1 {
+			t.Errorf("AddCannedPolicy calls = %d, want 1", createCalls)
+		}
+		if state == nil || state.ID != name {
+			t.Errorf("state = %#v, want the created policy", state)
+		}
+	})
+
+	t.Run("group", func(t *testing.T) {
+		name := "tfacc-grp-" + acctest.RandString(8)
+		var mu sync.Mutex
+		exists := false
+		var createCalls int
+
+		admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/group"):
+				if !exists {
+					writeRustfsMissingBody(w, fmt.Sprintf("group '%s' does not exist", name))
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = fmt.Fprintf(w, `{"name":%q,"status":"enabled","members":[]}`, name)
+			case strings.HasSuffix(r.URL.Path, "/update-group-members"):
+				exists = true
+				createCalls++
+				w.WriteHeader(http.StatusOK)
+			case strings.HasSuffix(r.URL.Path, "/set-group-status"):
+				w.WriteHeader(http.StatusOK)
+			default:
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		state, diags := applyCreateWithStub(t, resourceMinioIAMGroup(), map[string]interface{}{
+			"name": name,
+		}, &S3MinioClient{S3Admin: admin})
+
+		if diags.HasError() {
+			t.Fatalf("create failed: %v", diags)
+		}
+		if createCalls != 1 {
+			t.Errorf("UpdateGroupMembers calls = %d, want 1", createCalls)
+		}
+		if state == nil || state.ID != name {
+			t.Errorf("state = %#v, want the created group", state)
+		}
+	})
+
+	t.Run("user", func(t *testing.T) {
+		name := "tfacc-" + acctest.RandString(8)
+		var mu sync.Mutex
+		exists := false
+		var createCalls int
+
+		admin := newCreateRejectStubAdmin(t, func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case strings.HasSuffix(r.URL.Path, "/user-info"):
+				if !exists {
+					writeRustfsMissingBody(w, "user does not exist")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"status":"enabled","policyName":"","memberOf":[]}`)
+			case strings.HasSuffix(r.URL.Path, "/add-user"):
+				exists = true
+				createCalls++
+				w.WriteHeader(http.StatusOK)
+			default:
+				t.Errorf("unexpected request %s %s", r.Method, r.URL.Path)
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		ctx := context.Background()
+		meta := &S3MinioClient{S3Admin: admin}
+		res := resourceMinioIAMUser()
+
+		diff, err := res.Diff(ctx, nil, terraform.NewResourceConfigRaw(map[string]interface{}{
+			"name":              name,
+			"secret_wo":         "wo-secret-value",
+			"secret_wo_version": 1,
+		}), meta)
+		if err != nil {
+			t.Fatalf("planning create: %v", err)
+		}
+		// Resource.Diff does not carry the config through, and write-only values
+		// are only readable from it.
+		diff.RawConfig = cty.ObjectVal(map[string]cty.Value{
+			"id":                cty.NullVal(cty.String),
+			"name":              cty.StringVal(name),
+			"force_destroy":     cty.False,
+			"disable_user":      cty.False,
+			"update_secret":     cty.False,
+			"status":            cty.NullVal(cty.String),
+			"secret":            cty.NullVal(cty.String),
+			"secret_wo":         cty.StringVal("wo-secret-value"),
+			"secret_wo_version": cty.NumberIntVal(1),
+			"tags":              cty.NullVal(cty.Map(cty.String)),
+		})
+
+		state, diags := res.Apply(ctx, nil, diff, meta)
+
+		if diags.HasError() {
+			t.Fatalf("create failed: %v", diags)
+		}
+		if createCalls != 1 {
+			t.Errorf("AddUser calls = %d, want 1", createCalls)
+		}
+		if state == nil || state.ID != name {
+			t.Errorf("state = %#v, want the created user", state)
+		}
+	})
 }

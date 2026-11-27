@@ -57,7 +57,7 @@ func newNotifyConfigStub(t *testing.T, key string) (*notifyConfigStub, *madmin.A
 		key:        key,
 		kvs:        map[string]string{},
 		hideOnRead: map[string]bool{},
-		helpKeys:   []string{"publisher_confirms"},
+		helpKeys:   []string{"publisher_confirms", "batch_commit_timeout", "max_retry", "retry_interval", "http_timeout"},
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -11,7 +11,7 @@ description: |-
 
 **NOTE:** Creating a new notification target may require a MinIO server restart before it becomes fully active. The `restart_required` attribute indicates when this is necessary.
 
-**NOTE:** MinIO applies a new notification target only after a restart, so Terraform cannot tell on create whether a target with the same name is already stored on the server. Creating this resource over an existing target merges into it and takes it over, and destroying the resource then deletes it. Check first with `mc admin config get <alias> notify_nsq`, and import an existing target instead of creating it. See [#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438).
+**NOTE:** MinIO applies a new notification target only after a restart, so Terraform cannot tell on create whether a target with the same name is already stored on the server. Creating this resource over an existing target merges into it and takes it over, and destroying the resource then deletes it. Check with `mc admin config get <alias> notify_nsq` and import an existing target instead of creating it. That command shows the config as of the server's last restart, so a target added since then is missing and one deleted since then is still listed: if the config changed since the last restart, restart the server before you check. See [#1438](https://github.com/aminueza/terraform-provider-minio/issues/1438).
 
 ## Example Usage
 

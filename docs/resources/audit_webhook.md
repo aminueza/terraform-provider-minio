@@ -50,7 +50,7 @@ resource "minio_audit_webhook" "backup" {
 - `client_cert` (String) Path to the X.509 client certificate for mTLS authentication with the webhook endpoint.
 - `client_key` (String, Sensitive) Path to the X.509 private key for mTLS authentication with the webhook endpoint.
 - `enable` (Boolean) Whether this audit webhook target is enabled.
-- `http_timeout` (String) Timeout for each request, at least `1s`; MinIO seeds `5s`. First available in MinIO RELEASE.2024-09-13T20-26-02Z.
+- `http_timeout` (String) Timeout for each request, at least `1s`; MinIO seeds `5s`. First available in MinIO RELEASE.2024-09-13T20-26-02Z for `minio_logger_webhook` and RELEASE.2024-09-22T00-33-43Z for `minio_audit_webhook`.
 - `max_retry` (Number) Retries before an undelivered batch is dropped; `0` retries forever. First available in MinIO RELEASE.2024-09-09T16-59-28Z.
 - `queue_dir` (String) Directory path for persistent event store when the target is offline. MinIO creates it when the target is applied, so it must be creatable and writable by the MinIO process on every node; an unwritable path crashes the server.
 - `queue_size` (Number) Maximum number of audit events to queue before dropping. Defaults to MinIO server default if not set.

@@ -170,7 +170,7 @@ func minioReadUserPolicies(ctx context.Context, minioAdmin *madmin.AdminClient, 
 
 		tflog.Debug(ctx, fmt.Sprintf("UserPolicyAttachment: got an error, errUserIsResponse=%t, errUserResponse.Code=%s", errUserIsResponse, errUserResponse.Code))
 
-		if errUserIsResponse && strings.EqualFold(errUserResponse.Code, "XMinioAdminNoSuchUser") {
+		if isNoSuchUserError(errUser) {
 			return nil, nil
 		}
 		if !isLDAPUser || !errUserIsResponse {

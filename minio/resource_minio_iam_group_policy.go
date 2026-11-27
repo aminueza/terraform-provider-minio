@@ -316,16 +316,26 @@ func isMadminErrorCode(err error, code string) bool {
 	return errors.As(err, &errResp) && errResp.Code == code
 }
 
+// isMadminNotFound reports whether a madmin lookup failed because the object
+// does not exist. MinIO answers with one code per kind (minioCode), RustFS with
+// NoSuchResource for every missing user, group, policy and service account.
+// A bare 404 is not enough: Read drops the resource on this answer, and a 404
+// from anything else in front of the admin API would silently lose state.
+// See issue #1484.
+func isMadminNotFound(err error, minioCode string) bool {
+	return isMadminErrorCode(err, minioCode) || isMadminErrorCode(err, "NoSuchResource")
+}
+
 // isNoSuchPolicyError reports whether a madmin call failed because the canned
 // policy does not exist.
 func isNoSuchPolicyError(err error) bool {
-	return isMadminErrorCode(err, "XMinioAdminNoSuchPolicy")
+	return isMadminNotFound(err, "XMinioAdminNoSuchPolicy")
 }
 
 // isNoSuchGroupError reports whether a madmin call failed because the group
 // does not exist.
 func isNoSuchGroupError(err error) bool {
-	return isMadminErrorCode(err, "XMinioAdminNoSuchGroup")
+	return isMadminNotFound(err, "XMinioAdminNoSuchGroup")
 }
 
 // groupPolicyExistsError explains that a canned policy blocks creating this
@@ -343,5 +353,5 @@ func groupPolicyExistsError(ctx context.Context, minioAdmin *madmin.AdminClient,
 // isNoSuchUserError reports whether a madmin call failed because the user
 // does not exist.
 func isNoSuchUserError(err error) bool {
-	return isMadminErrorCode(err, "XMinioAdminNoSuchUser")
+	return isMadminNotFound(err, "XMinioAdminNoSuchUser")
 }

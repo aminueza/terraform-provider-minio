@@ -55,6 +55,20 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_user`, `minio_iam_policy`, `minio_iam_group`, `minio_iam_group_policy`
+  and the IAM membership and attachment resources treat RustFS's
+  `NoSuchResource` answer as "does not exist", next to MinIO's
+  `XMinioAdminNoSuch*` codes. Since 3.47.0 the existence check before create
+  failed on RustFS for every new user or policy, and a user, group or policy
+  removed outside Terraform failed the refresh instead of leaving the state.
+  A bare HTTP 404 is still not taken as "does not exist". RustFS answers a
+  missing user and a missing group the same way, so
+  `minio_iam_user_group_membership` delete checks the group first and keeps
+  removing the user from the other groups, and `minio_iam_group_membership`
+  update looks the group up before it treats the answer as a missing user
+  ([#1484](https://github.com/aminueza/terraform-provider-minio/issues/1484),
+  [#1485](https://github.com/aminueza/terraform-provider-minio/issues/1485)).
+
 - `minio_logger_webhook`, `minio_audit_webhook` and `minio_notify_kafka` now
   refuse `max_retry`, `retry_interval`, `http_timeout` and
   `batch_commit_timeout` on a MinIO server that does not have them, with an

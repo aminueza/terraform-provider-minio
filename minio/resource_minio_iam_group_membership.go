@@ -95,7 +95,7 @@ func minioUpdateGroupMembership(ctx context.Context, d *schema.ResourceData, met
 			if err := userToRemove(ctx, iamGroupMembershipConfig, usersToRemove); err != nil {
 				// Ignore "user does not exist" errors - the user may have been deleted
 				// before the membership update, which effectively removes them from the group
-				if !isGroupMembershipUserMissing(err) {
+				if !groupMembershipRemovalHitMissingUser(ctx, iamGroupMembershipConfig.MinioAdmin, iamGroupMembershipConfig.MinioIAMGroup, err) {
 					return NewResourceError("removing users from group", iamGroupMembershipConfig.MinioIAMGroup, err)
 				}
 			}
@@ -188,7 +188,7 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 func isGroupMembershipGroupMissing(err error) bool {
 	var errResp madmin.ErrorResponse
 	if errors.As(err, &errResp) {
-		return errResp.Code == "XMinioAdminNoSuchGroup"
+		return isMadminNotFound(err, "XMinioAdminNoSuchGroup")
 	}
 	return strings.Contains(err.Error(), "group does not exist")
 }
@@ -196,7 +196,7 @@ func isGroupMembershipGroupMissing(err error) bool {
 func isGroupMembershipUserMissing(err error) bool {
 	var errResp madmin.ErrorResponse
 	if errors.As(err, &errResp) {
-		return errResp.Code == "XMinioAdminNoSuchUser"
+		return isMadminNotFound(err, "XMinioAdminNoSuchUser")
 	}
 	return strings.Contains(err.Error(), "user does not exist")
 }
@@ -255,4 +255,17 @@ func userToRemove(ctx context.Context, iamGroupMembershipConfig *S3MinioIAMGroup
 	}
 
 	return nil
+}
+
+// groupMembershipRemovalHitMissingUser reports whether a failed removal from
+// the group failed only because a user is gone. RustFS answers a missing group
+// and a missing user with the same NoSuchResource, so that answer is
+// attributed by looking the group up: if the group still exists, the missing
+// object was a user. See issue #1485.
+func groupMembershipRemovalHitMissingUser(ctx context.Context, admin *madmin.AdminClient, group string, err error) bool {
+	if !isMadminErrorCode(err, "NoSuchResource") {
+		return isGroupMembershipUserMissing(err)
+	}
+	_, groupErr := admin.GetGroupDescription(ctx, group)
+	return groupErr == nil
 }

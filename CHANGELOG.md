@@ -10,6 +10,8 @@ History older than 3.39.0 lives in the
 
 ## [Unreleased]
 
+## [3.48.0] - 2026-11-27
+
 ### Added
 
 - `minio_notify_kafka` and its data source expose `compression_codec`,
@@ -1118,7 +1120,8 @@ History older than 3.39.0 lives in the
   the `MADMIN_API_VERSION=v3` environment variable on the machine running
   Terraform to skip the fallback entirely.
 
-[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.47.0...HEAD
+[Unreleased]: https://github.com/aminueza/terraform-provider-minio/compare/v3.48.0...HEAD
+[3.48.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.47.0...v3.48.0
 [3.47.0]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.4...v3.47.0
 [3.46.4]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.3...v3.46.4
 [3.46.3]: https://github.com/aminueza/terraform-provider-minio/compare/v3.46.2...v3.46.3

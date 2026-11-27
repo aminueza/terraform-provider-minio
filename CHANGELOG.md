@@ -55,6 +55,15 @@ History older than 3.39.0 lives in the
 
 ### Fixed
 
+- `minio_iam_user`, `minio_iam_policy`, `minio_iam_group`, `minio_iam_group_policy`
+  and the IAM membership and attachment resources treat RustFS's
+  `NoSuchResource` answer as "does not exist", next to MinIO's
+  `XMinioAdminNoSuch*` codes. Since 3.47.0 the existence check before create
+  failed on RustFS for every new user or policy, and a user, group or policy
+  removed outside Terraform failed the refresh instead of leaving the state.
+  A bare HTTP 404 is still not taken as "does not exist"
+  ([#1484](https://github.com/aminueza/terraform-provider-minio/issues/1484)).
+
 - `data.minio_account_info` no longer fails with `json: cannot unmarshal
   object into Go struct field ... tags` when any bucket in the account carries
   tags. MinIO sends a tagged bucket's tags in a shape madmin cannot decode; the

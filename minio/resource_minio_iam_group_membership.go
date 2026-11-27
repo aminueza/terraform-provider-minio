@@ -188,7 +188,7 @@ func minioDeleteGroupMembership(ctx context.Context, d *schema.ResourceData, met
 func isGroupMembershipGroupMissing(err error) bool {
 	var errResp madmin.ErrorResponse
 	if errors.As(err, &errResp) {
-		return errResp.Code == "XMinioAdminNoSuchGroup"
+		return isMadminNotFound(err, "XMinioAdminNoSuchGroup")
 	}
 	return strings.Contains(err.Error(), "group does not exist")
 }
@@ -196,7 +196,7 @@ func isGroupMembershipGroupMissing(err error) bool {
 func isGroupMembershipUserMissing(err error) bool {
 	var errResp madmin.ErrorResponse
 	if errors.As(err, &errResp) {
-		return errResp.Code == "XMinioAdminNoSuchUser"
+		return isMadminNotFound(err, "XMinioAdminNoSuchUser")
 	}
 	return strings.Contains(err.Error(), "user does not exist")
 }

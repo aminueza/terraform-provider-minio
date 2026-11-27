@@ -61,8 +61,13 @@ History older than 3.39.0 lives in the
   `XMinioAdminNoSuch*` codes. Since 3.47.0 the existence check before create
   failed on RustFS for every new user or policy, and a user, group or policy
   removed outside Terraform failed the refresh instead of leaving the state.
-  A bare HTTP 404 is still not taken as "does not exist"
-  ([#1484](https://github.com/aminueza/terraform-provider-minio/issues/1484)).
+  A bare HTTP 404 is still not taken as "does not exist". RustFS answers a
+  missing user and a missing group the same way, so
+  `minio_iam_user_group_membership` delete checks the group first and keeps
+  removing the user from the other groups, and `minio_iam_group_membership`
+  update looks the group up before it treats the answer as a missing user
+  ([#1484](https://github.com/aminueza/terraform-provider-minio/issues/1484),
+  [#1485](https://github.com/aminueza/terraform-provider-minio/issues/1485)).
 
 - `data.minio_account_info` no longer fails with `json: cannot unmarshal
   object into Go struct field ... tags` when any bucket in the account carries

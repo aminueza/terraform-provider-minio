@@ -185,12 +185,17 @@ func minioDeleteUserGroupMembership(ctx context.Context, d *schema.ResourceData,
 			Members:  []string{cfg.UserName},
 			IsRemove: true,
 		}); err != nil {
+			// The group check comes first: RustFS answers a missing group and a
+			// missing user with the same NoSuchResource, and reading that as a
+			// missing user would stop before the remaining groups. If the user
+			// is the one missing, every group answers the same way and the loop
+			// still ends with nothing left to remove. See issue #1485.
+			if isNoSuchGroupError(err) {
+				continue
+			}
 			if isNoSuchUserError(err) {
 				d.SetId("")
 				return nil
-			}
-			if isNoSuchGroupError(err) {
-				continue
 			}
 			return NewResourceError("removing user from group", cfg.UserName, err)
 		}

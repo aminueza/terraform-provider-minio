@@ -9,6 +9,8 @@ description: |-
 
 Returns cluster-wide data usage statistics including total objects, size, and per-bucket breakdown.
 
+**NOTE:** These numbers come from MinIO's background scanner, not from a live count: they are as of the last scanner run (`last_update`), so a bucket created since then may be missing, and recent writes are not counted yet. How old they are depends on the scanner settings and the amount of data.
+
 ## Example Usage
 
 ```terraform
@@ -20,9 +22,9 @@ data "minio_data_usage" "current" {}
 
 ### Read-Only
 
-- `buckets_count` (Number) Number of buckets.
-- `buckets_usage` (Map of String) Per-bucket storage usage in bytes.
+- `buckets_count` (Number) Number of buckets in the last scanner run, which can differ from the buckets that exist now.
+- `buckets_usage` (Map of String) Per-bucket storage usage in bytes, as of MinIO's last scanner run.
 - `id` (String) The ID of this resource.
-- `last_update` (String) Timestamp of last usage data update.
-- `total_objects` (String) Total object count across all buckets.
-- `total_size` (String) Total storage used (bytes).
+- `last_update` (String) Time of the scanner run the other values come from.
+- `total_objects` (String) Total object count across all buckets, as of MinIO's last scanner run.
+- `total_size` (String) Total storage used (bytes), as of MinIO's last scanner run.

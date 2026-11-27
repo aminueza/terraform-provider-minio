@@ -9,6 +9,8 @@ description: |-
 
 {{ .Description | trimspace }}
 
+**NOTE:** These numbers come from MinIO's background scanner, not from a live count: they are as of the last scanner run (`last_update`), so a bucket created since then may be missing, and recent writes are not counted yet. How old they are depends on the scanner settings and the amount of data.
+
 ## Example Usage
 
 {{ tffile (printf "examples/data-sources/%s/data-source.tf" .Name) }}
